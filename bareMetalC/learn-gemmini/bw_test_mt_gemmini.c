@@ -50,10 +50,10 @@ static uint64_t mem_buf_head_addr = (uint64_t) mem_buf;
 // >>>> Configuration Region >>>>
 
 // Whether to run a single test or multiple tests
-// #define DO_MULTIPLE_TEST
+#define DO_MULTIPLE_TEST
 
 // Whether to init buffers and check results
-// #define DO_CHECK
+#define DO_CHECK
 
 // Select address region: memory/mbus/sbus
 #define ADDR_BASE MEM_ADDR_BASE

@@ -6,6 +6,7 @@ tests = \
 	bw_test \
 	bw_test_gemmini \
 	bw_test_mt_gemmini \
+	bw_test_direct_gemmini \
 	latency_test \
 	mt_hello \
 	mvin_mvout \
@@ -73,11 +74,11 @@ runs_baremetal = $(addsuffix .run,$(filter-out tiled_matmul_cpu-baremetal tiled_
 endif
 
 ifdef BAREMETAL_ONLY
-	tests_linux =
-	tests_pk =
+tests_linux =
+tests_pk =
 else
-	tests_linux = $(tests:=-linux)
-	tests_pk = $(tests:=-pk)
+tests_linux = $(tests:=-linux)
+tests_pk = $(tests:=-pk)
 endif
 
 # CTH: Copied `riscv-tests/benchmarks/common` to 
@@ -90,8 +91,8 @@ GEMMINI_HEADERS = $(abs_top_srcdir)/include/gemmini.h $(abs_top_srcdir)/include/
 
 # CTH: set env var `GEMMINI_NUM_CPU_CORES` according to the Chipyard config
 ifeq ($(strip $(GEMMINI_NUM_CPU_CORES)),)
-	$(warning env var `GEMMINI_NUM_CPU_CORES` not set; defaulting to 1)
-	GEMMINI_NUM_CPU_CORES := 1
+$(warning env var `GEMMINI_NUM_CPU_CORES` not set; defaulting to 1)
+GEMMINI_NUM_CPU_CORES := 1
 endif
 
 CFLAGS := $(CFLAGS) \
