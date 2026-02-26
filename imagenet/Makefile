@@ -3,7 +3,7 @@ include $(abs_top_srcdir)/Makefrag
 tests = \
 	resnet50 \
 	mobilenet \
-	# alexnet \
+	alexnet \
 
 tests_baremetal = $(tests:=-baremetal)
 runs_baremetal = $(addsuffix .run,$(tests_baremetal))

@@ -38,18 +38,18 @@ static uint64_t mem_buf_head_addr = (uint64_t) mem_buf;
 // >>>> Configuration Region >>>>
 
 // Select address region: memory/mbus/sbus
-// #define ADDR_BASE MEM_ADDR_BASE
+#define ADDR_BASE MEM_ADDR_BASE
 // #define ADDR_BASE MBUS_SPAD_ADDR_BASE
-#define ADDR_BASE SBUS_SPAD_ADDR_BASE
+// #define ADDR_BASE SBUS_SPAD_ADDR_BASE
 
 // Whether to generate gemmini instructions ahead-of-time.
 // #define AOT_GEMMINI_INSTRUCTION_GENERATION
 
 // Whether to interleave `mvin` and `mvout`.
-#define DO_INTERLEAVED_MVIN_MVOUT
+// #define DO_INTERLEAVED_MVIN_MVOUT
 
 // Whether to init buffers and check results
-// #define DO_CHECK
+#define DO_CHECK
 
 // Data bytes to move
 // static const uint64_t bytes = 256;
@@ -60,7 +60,7 @@ static uint64_t mem_buf_head_addr = (uint64_t) mem_buf;
 // static const uint64_t bytes = 4 * 1024;
 // static const uint64_t bytes = 16 * 1024;
 // static const uint64_t bytes = 64 * 1024;
-static const uint64_t bytes = 256 * 1024;
+static const uint64_t bytes = 16 * 1024;
 
 // Iterations
 static const uint64_t warmup_iterations = 1;
@@ -298,6 +298,10 @@ bool mem_cmp(elem_t* addr, elem_t* addr2, uint64_t bytes) {
     return true;
 }
 
+static inline void fence_rw_rw(void) {
+    __asm__ volatile("fence rw, rw" ::: "memory");
+}
+
 
 int main() {
 #ifndef BAREMETAL
@@ -310,10 +314,18 @@ int main() {
     assert(bytes <= ADDR_SIZE);
     assert((bytes % GEMMINI_MIN_TILE_BYTES) == 0);
     printf("total: %lu bytes\n", bytes);
+        printf("ADDR_BASE=0x%lx (MEM=0x%lx MBUS=0x%lx SBUS=0x%lx)\n",
+            (uint64_t) ADDR_BASE,
+            (uint64_t) MEM_ADDR_BASE,
+            (uint64_t) MBUS_SPAD_ADDR_BASE,
+            (uint64_t) SBUS_SPAD_ADDR_BASE);
 
     elem_t* buf_base = (elem_t*) ADDR_BASE;
     elem_t* buf_in = buf_base;
     elem_t* buf_out = (elem_t*) (((uint64_t) buf_base) + bytes);
+        printf("buf_in=0x%lx buf_out=0x%lx\n",
+            (uint64_t) buf_in,
+            (uint64_t) buf_out);
 
     // Call `mvin`/`mvout` without actual gemmini instruction calls to 
     // collect all the instruction arguments. This is for AOT mvin/mvout.
@@ -330,6 +342,7 @@ int main() {
 
     uint64_t sum_bw_scaled = 0;
     uint64_t num_iters = warmup_iterations + test_iterations;
+    int any_failed = 0;
     for (uint64_t i = 0; i < num_iters; i++) {
         char warmup_sign[] = "(warmup)";
         if (i >= warmup_iterations) {
@@ -342,6 +355,7 @@ int main() {
         mem_init(buf_in, bytes);
         printf("\tmem_reset ...\n");
         mem_reset(buf_out, bytes);
+    fence_rw_rw();
 #endif
 
         uint64_t t_start = read_cycles();
@@ -360,11 +374,19 @@ int main() {
         interleaved_mvin_mvout(buf_in, buf_out, 0, bytes);
     #else
         mvin(buf_in, 0, bytes);
+        gemmini_fence();
+        fence_rw_rw();
         mvout(buf_out, 0, bytes);
     #endif
 #endif
 
         gemmini_fence();
+        fence_rw_rw();
+    #ifdef DO_CHECK
+        // Give DMA time to drain before verifying memory contents.
+        uint64_t wait_start = read_cycles();
+        while ((read_cycles() - wait_start) < 100000) { }
+    #endif
         uint64_t t_end = read_cycles();
 
         uint64_t cyc = t_end - t_start;
@@ -374,6 +396,9 @@ int main() {
         printf("\tmem_cmp ...\n");
         int eq = mem_cmp(buf_in, buf_out, bytes);
         printf("\tmem_cmp result: %d\n", eq);
+        if (!eq) {
+            any_failed = 1;
+        }
 #endif
 
         printf("\t%lu cycles\n", cyc);
@@ -388,6 +413,10 @@ int main() {
         uint64_t avg_bw_scaled = sum_bw_scaled / test_iterations;
         printf("\n");
         printf("avg bandwidth: %lu*0.001 bytes/cyc\n", avg_bw_scaled);
+    }
+
+    if (any_failed) {
+        exit(1);
     }
 
     return 0;

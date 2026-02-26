@@ -7,6 +7,8 @@ tests = \
 	bw_test_gemmini \
 	bw_test_mt_gemmini \
 	bw_test_direct_gemmini \
+	bw_test_direct_gemmini_noc \
+	bw_test_direct_gemmini_noc_abtest \
 	latency_test \
 	mt_hello \
 	mvin_mvout \

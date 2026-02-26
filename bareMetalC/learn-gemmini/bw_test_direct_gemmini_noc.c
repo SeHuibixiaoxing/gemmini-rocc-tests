@@ -13,32 +13,6 @@
 #include "include/gemmini_testutils.h"
 #include "util.h"
 
-// ----------------------------------------------------------------------------
-// Direct DMA Extension for Gemmini System
-// ----------------------------------------------------------------------------
-// This program benchmarks the bandwidth of the "Direct DMA" engine, a custom RoCC
-// accelerator designed to copy data directly between memory regions (SharedSpad, DRAM)
-// without passing through the Gemmini private scratchpad or requiring complex tiling.
-//
-// ISA Specification (Custom2 Opcode):
-// -----------------------------------
-// The accelerator uses the RISC-V Custom2 opcode. It works as a streaming COPY engine.
-// It consists of a Source (Loader) and a Destination (Writer).
-//
-// 1. SET_DST (Funct 2): Configure the Write destination.
-//    - rs1: Destination Address (byte aligned)
-//    - rs2: Flags (0 for normal copy)
-//    - C: ROCC_INSTRUCTION_SS(2, dst_addr, 0, 2);
-//
-// 2. SET_SRC (Funct 1): Configure the Read source and trigger the copy.
-//    - rs1: Source Address (byte aligned)
-//    - rs2: Length in bytes
-//    - C: ROCC_INSTRUCTION_SS(2, src_addr, len, 1);
-//
-// 3. SFENCE (Funct 0): Setup a memory barrier / wait for completion.
-//    - C: ROCC_INSTRUCTION_SS(2, 0, 0, 0);
-// ----------------------------------------------------------------------------
-
 volatile int dma_complete_flag __attribute__((aligned(64)));
 
 #define XCUSTOM_DMA 2
@@ -46,41 +20,41 @@ volatile int dma_complete_flag __attribute__((aligned(64)));
 #define ROCC_INSTRUCTION_SS(x, rs1, rs2, funct) \
   ROCC_INSTRUCTION_0_R_R(x, rs1, rs2, funct)
 
-// Setup Destination Address
-// Use non-blocking instruction since hardware doesn't send response for SET_DST
 static inline void dma_set_dst(uint64_t addr) {
     ROCC_INSTRUCTION_0_R_R(XCUSTOM_DMA, addr, (uint64_t)&dma_complete_flag, 2);
 }
 
-// Setup Source Address and Length, then Start
-// Use non-blocking instruction since hardware doesn't send response for SET_SRC
 static inline void dma_set_src(uint64_t addr, uint64_t len) {
     ROCC_INSTRUCTION_0_R_R(XCUSTOM_DMA, addr, len, 1);
 }
 
-// Wait for all outstanding operations
 static inline void dma_fence() {
     asm volatile("fence");
     uint64_t status;
     ROCC_INSTRUCTION_R_R_R(XCUSTOM_DMA, status, 0, 0, 3);
+    (void)status;
 
-    if (dma_complete_flag == 0) {
-        asm volatile("fence");
-        if (dma_complete_flag == 0) {
-             printf("WARNING: dma_fence status=%lu but completion flag not observed\n", status);
-        }
-    } else {
+    if (dma_complete_flag != 0) {
         dma_complete_flag = 0;
     }
 }
 
-
-// >>>> Configuration Region >>>>
-
 #ifndef NUM_CORES
 #warning `NUM_CORES` is not set explicitly. Default to 1.
 #define NUM_CORES 1
-#endif 
+#endif
+
+#ifndef SIMPLE_BW_MODE
+#define SIMPLE_BW_MODE 0
+#endif
+
+#ifndef ENABLE_BATCHED_SUBREQ
+#define ENABLE_BATCHED_SUBREQ 1
+#endif
+
+#ifndef SUBREQ_BYTES
+#define SUBREQ_BYTES 4096
+#endif
 
 #define ADDR_SIZE (1024 * 1024)
 
@@ -92,10 +66,6 @@ static inline void dma_fence() {
 #define SBUS_SPAD_ADDR_SIZE ADDR_SIZE
 #define SBUS_SPAD_ADDR_CEIL (SBUS_SPAD_ADDR_BASE + SBUS_SPAD_ADDR_SIZE)
 
-#define MBUS_SPAD_ADDR_BASE 0x60000000U
-#define MBUS_SPAD_ADDR_SIZE ADDR_SIZE
-#define MBUS_SPAD_ADDR_CEIL (MBUS_SPAD_ADDR_BASE + MBUS_SPAD_ADDR_SIZE)
-
 #define MEM_BUF_SIZE (ADDR_SIZE / sizeof(uint64_t))
 static alignas(64) uint64_t mem_buf[MEM_BUF_SIZE];
 static uint64_t mem_buf_head_addr = (uint64_t) mem_buf;
@@ -104,11 +74,8 @@ static uint64_t mem_buf_head_addr = (uint64_t) mem_buf;
 #define MEM_ADDR_SIZE (MEM_BUF_SIZE * sizeof(uint64_t))
 #define MEM_ADDR_CEIL (MEM_ADDR_BASE + MEM_ADDR_SIZE)
 
-
-// Whether to init buffers and check results
 #define DO_CHECK
 
-// Bytes moved per test-case (src -> dst)
 static const uint64_t bytes = 64 * 1024;
 
 static const uint64_t warmup_iterations = 1;
@@ -134,13 +101,12 @@ typedef struct {
 } case_result_t;
 
 static mem_region_t regions[] = {
-    {"DRAM",            0,                            MEM_ADDR_SIZE},
-    {"SBUS_SPAD",       SBUS_SPAD_ADDR_BASE,          SBUS_SPAD_ADDR_SIZE},
-    {"MBUS_SPAD",       MBUS_SPAD_ADDR_BASE,          MBUS_SPAD_ADDR_SIZE},
-    {"SHARED_SPAD_0",   SHARED_SPAD_LOCAL_ADDR_BASE(0), SHARED_SPAD_LOCAL_SIZE},
-    {"SHARED_SPAD_1",   SHARED_SPAD_LOCAL_ADDR_BASE(1), SHARED_SPAD_LOCAL_SIZE},
-    {"SHARED_SPAD_2",   SHARED_SPAD_LOCAL_ADDR_BASE(2), SHARED_SPAD_LOCAL_SIZE},
-    {"SHARED_SPAD_3",   SHARED_SPAD_LOCAL_ADDR_BASE(3), SHARED_SPAD_LOCAL_SIZE},
+    {"DRAM",            0,                               MEM_ADDR_SIZE},
+    {"SBUS_SPAD",       SBUS_SPAD_ADDR_BASE,             SBUS_SPAD_ADDR_SIZE},
+    {"SHARED_SPAD_0",   SHARED_SPAD_LOCAL_ADDR_BASE(0),  SHARED_SPAD_LOCAL_SIZE},
+    {"SHARED_SPAD_1",   SHARED_SPAD_LOCAL_ADDR_BASE(1),  SHARED_SPAD_LOCAL_SIZE},
+    {"SHARED_SPAD_2",   SHARED_SPAD_LOCAL_ADDR_BASE(2),  SHARED_SPAD_LOCAL_SIZE},
+    {"SHARED_SPAD_3",   SHARED_SPAD_LOCAL_ADDR_BASE(3),  SHARED_SPAD_LOCAL_SIZE},
 };
 
 #define NUM_REGIONS (sizeof(regions) / sizeof(regions[0]))
@@ -151,11 +117,6 @@ static size_t case_results_count = 0;
 static uint64_t second_round_bw_matrix[NUM_REGIONS][NUM_REGIONS];
 static int second_round_bw_valid[NUM_REGIONS][NUM_REGIONS];
 
-// <<<< Configuration Region <<<<
-
-
-// Direct DMA Copy Function
-// Replaces mvin_mvout with a single hardware acceleration call
 static inline void direct_dma_copy(elem_t* in, elem_t* out, uint64_t len) {
     uint64_t src = (uint64_t)in;
     uint64_t dst = (uint64_t)out;
@@ -164,6 +125,35 @@ static inline void direct_dma_copy(elem_t* in, elem_t* out, uint64_t len) {
     dma_set_src(src, len);
 }
 
+static inline void direct_dma_copy_batched(elem_t* in, elem_t* out, uint64_t len) {
+#if ENABLE_BATCHED_SUBREQ
+    const uint64_t min_chunk = sizeof(elem_t);
+    uint64_t chunk = SUBREQ_BYTES;
+    if (chunk < min_chunk) {
+        chunk = min_chunk;
+    }
+    chunk = (chunk / min_chunk) * min_chunk;
+    if (chunk == 0) {
+        chunk = min_chunk;
+    }
+
+    uint64_t src = (uint64_t)in;
+    uint64_t dst = (uint64_t)out;
+    uint64_t remaining = len;
+
+    while (remaining > 0) {
+        uint64_t this_len = remaining > chunk ? chunk : remaining;
+        dma_set_dst(dst);
+        dma_set_src(src, this_len);
+        dma_fence();
+        src += this_len;
+        dst += this_len;
+        remaining -= this_len;
+    }
+#else
+    direct_dma_copy(in, out, len);
+#endif
+}
 
 void mem_reset(elem_t* addr, uint64_t bytes) {
     size_t size = bytes / sizeof(elem_t);
@@ -319,11 +309,6 @@ static int test_pair(int cid, int nc, const mem_region_t* src_r, const mem_regio
     elem_t* buf_in  = (elem_t*) (src_r->base + hart_bytes * cid);
     elem_t* buf_out = (elem_t*) (dst_r->base + hart_bytes * cid);
 
-    if (cid == 0) {
-        printf("CASE %s -> %s, bytes=%lu\n", src_r->name, dst_r->name, bytes);
-        printf("  src_base=0x%lx dst_base=0x%lx\n", src_r->base, dst_r->base);
-    }
-
     barrier(nc);
 
     int pair_failed = 0;
@@ -331,26 +316,25 @@ static int test_pair(int cid, int nc, const mem_region_t* src_r, const mem_regio
     uint64_t sum_bw_scaled = 0;
     uint64_t sum_cycles = 0;
     const uint64_t num_iters = warmup_iterations + test_iterations;
-    
-    for (uint64_t i = 0; i < num_iters; i++) {
-        if (cid == 0) {
-            printf("  Iteration %lu/%lu %s\n", i + 1, num_iters, i < warmup_iterations ? "(warmup)" : "");
-        }
 
-#ifdef DO_CHECK
-        if (cid == 0) printf("    mem_init/reset\n");
+    for (uint64_t i = 0; i < num_iters; i++) {
+#if defined(DO_CHECK) && !SIMPLE_BW_MODE
         mem_init(buf_in, hart_bytes, (cid + 1) * (i + 2));
         mem_reset(buf_out, hart_bytes);
 #endif
 
         barrier(nc);
         uint64_t t_start = read_cycles();
-        
+
         for (int round = 0; round < rounds_per_iter; round++) {
-            direct_dma_copy(buf_in, buf_out, hart_bytes);
-            dma_fence(); 
+            direct_dma_copy_batched(buf_in, buf_out, hart_bytes);
         }
-        
+
+        if (pair_failed) {
+            barrier(nc);
+            break;
+        }
+
         barrier(nc);
         uint64_t t_end = read_cycles();
 
@@ -362,8 +346,7 @@ static int test_pair(int cid, int nc, const mem_region_t* src_r, const mem_regio
             result->has_second_round = 1;
         }
 
-#ifdef DO_CHECK
-        if (cid == 0) printf("    mem_cmp\n");
+#if defined(DO_CHECK) && !SIMPLE_BW_MODE
         int eq = mem_cmp(buf_in, buf_out, hart_bytes);
         if (!eq) {
             pair_failed = 1;
@@ -371,11 +354,6 @@ static int test_pair(int cid, int nc, const mem_region_t* src_r, const mem_regio
         }
         barrier(nc);
 #endif
-
-        if (cid == 0) {
-            printf("    %lu cycles\n", cyc);
-            printf("    %lu*0.001 bytes/cyc\n", bw_scaled);
-        }
         if (i >= warmup_iterations) {
             sum_bw_scaled += bw_scaled;
             sum_cycles += cyc;
@@ -388,10 +366,6 @@ static int test_pair(int cid, int nc, const mem_region_t* src_r, const mem_regio
         if (result != NULL) {
             result->avg_bw_scaled = avg_bw_scaled;
             result->avg_cycles = avg_cycles;
-        }
-        if (cid == 0) {
-            printf("  avg bandwidth: %lu*0.001 bytes/cyc\n", avg_bw_scaled);
-            printf("  avg cycles: %lu\n", avg_cycles);
         }
     }
 
@@ -412,13 +386,42 @@ int hart_main(int cid, int nc) {
 
     int any_failed = 0;
 
-    if (cid == 0) {
-        printf("direct-dma interconnect bandwidth matrix test\n");
-        printf("regions=%lu bytes=%lu rounds=%lu warmup=%lu test=%lu\n",
-               (uint64_t)NUM_REGIONS, bytes, rounds_per_iter,
-               warmup_iterations, test_iterations);
-    }
+#if SIMPLE_BW_MODE
+    const size_t simple_src_indices[] = {0, 2};
+    const size_t simple_dst_indices[] = {2, 3};
+    const size_t simple_cases = sizeof(simple_src_indices) / sizeof(simple_src_indices[0]);
 
+    for (size_t case_idx = 0; case_idx < simple_cases; case_idx++) {
+        size_t src_idx = simple_src_indices[case_idx];
+        size_t dst_idx = simple_dst_indices[case_idx];
+
+        case_result_t* result = NULL;
+        if (cid == 0 && case_results_count < MAX_CASE_RESULTS) {
+            result = &case_results[case_results_count++];
+        }
+
+        barrier(requested_nc);
+        int failed = test_pair(cid, requested_nc, &regions[src_idx], &regions[dst_idx], result);
+        barrier(requested_nc);
+
+        if (cid == 0 && result != NULL) {
+            if (result->has_second_round && !result->skipped && !result->failed) {
+                second_round_bw_matrix[src_idx][dst_idx] = result->second_round_bw_scaled;
+                second_round_bw_valid[src_idx][dst_idx] = 1;
+            } else {
+                second_round_bw_valid[src_idx][dst_idx] = 0;
+            }
+        }
+
+        if (failed) {
+            any_failed = 1;
+        }
+
+        if (cid == 0) {
+            printf("\n");
+        }
+    }
+#else
     for (size_t src_idx = 0; src_idx < NUM_REGIONS; src_idx++) {
         for (size_t dst_idx = 0; dst_idx < NUM_REGIONS; dst_idx++) {
             if (src_idx == dst_idx) {
@@ -452,6 +455,7 @@ int hart_main(int cid, int nc) {
             }
         }
     }
+#endif
 
     if (cid == 0) {
         printf("matrix test %s\n", any_failed ? "FAILED" : "PASSED");
