@@ -131,7 +131,7 @@ static mem_region_t regions[] = {
 };
 
 static const path_t paths[] = {
-    // {0, 3},
+    {0, 3},
     {1, 4},
 };
 
@@ -157,15 +157,15 @@ static const int test_iterations = 2;
 static const int rounds_per_iter = 4;
 #else
 static const uint64_t bytes_list[] = {
-    256 * 1024,
+    16 * 1024,
 };
 
 static const uint64_t subreq_bytes_list[] = {
-    256 * 1024,
+    16 * 1024,
 };
 
 static const uint64_t fence_every_cmds_list[] = {
-    1024,
+    1,
 };
 
 static const int warmup_iterations = 1;
@@ -273,12 +273,13 @@ static void run_one_cfg(const mem_region_t* src_r,
                         int nc) {
     if (bytes > src_r->size || bytes > dst_r->size) {
         if (cid == 0) {
-            printf("%s,%s,%lu,%lu,%lu,%d,%d,%d,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%s\n",
+                 printf("%s,%s,%lu,%lu,%lu,%d,%d,%d,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%s\n",
                    src_r->name, dst_r->name, bytes, subreq_bytes, fence_every_cmds,
                    rounds_per_iter, warmup_iterations, test_iterations,
                    0UL, 0UL,
                    0UL, 0UL,
                    0UL, 0UL,
+                     0UL,
                    0UL,
                    "SKIP_SIZE");
         }
@@ -290,7 +291,8 @@ static void run_one_cfg(const mem_region_t* src_r,
     uint64_t dst = dst_r->base + per_hart * (uint64_t)cid;
 
     uint64_t sum_cyc = 0;
-    uint64_t sum_bw_scaled = 0;
+    uint64_t sum_payload_bw_scaled = 0;
+    uint64_t sum_link_bw_scaled = 0;
     uint64_t sum_mon_src_cmds = 0;
     uint64_t sum_mon_dst_cmds = 0;
     uint64_t sum_mon_req_copy_bytes = 0;
@@ -328,11 +330,13 @@ static void run_one_cfg(const mem_region_t* src_r,
         barrier(nc);
         uint64_t t1 = read_cycles();
         uint64_t cyc = t1 - t0;
-        uint64_t bw_scaled = (1000UL * (per_hart * 2UL * (uint64_t)rounds_per_iter)) / cyc;
+        uint64_t payload_bw_scaled = (1000UL * (per_hart * (uint64_t)rounds_per_iter)) / cyc;
+        uint64_t link_bw_scaled = payload_bw_scaled * 2UL;
 
         if (i >= warmup_iterations) {
             sum_cyc += cyc;
-            sum_bw_scaled += bw_scaled;
+            sum_payload_bw_scaled += payload_bw_scaled;
+            sum_link_bw_scaled += link_bw_scaled;
             sum_mon_src_cmds += mon_acc.src_cmds;
             sum_mon_dst_cmds += mon_acc.dst_cmds;
             sum_mon_req_copy_bytes += mon_acc.req_copy_bytes;
@@ -344,23 +348,26 @@ static void run_one_cfg(const mem_region_t* src_r,
 
     if (cid == 0) {
         uint64_t avg_cyc = sum_cyc / (uint64_t)test_iterations;
-        uint64_t avg_bw_scaled = sum_bw_scaled / (uint64_t)test_iterations;
+        uint64_t avg_payload_bw_scaled = sum_payload_bw_scaled / (uint64_t)test_iterations;
+        uint64_t avg_link_bw_scaled = sum_link_bw_scaled / (uint64_t)test_iterations;
         uint64_t avg_mon_src_cmds = sum_mon_src_cmds / (uint64_t)test_iterations;
         uint64_t avg_mon_dst_cmds = sum_mon_dst_cmds / (uint64_t)test_iterations;
         uint64_t avg_mon_req_copy_bytes = sum_mon_req_copy_bytes / (uint64_t)test_iterations;
         uint64_t avg_mon_cycles = sum_mon_cycles / (uint64_t)test_iterations;
-        uint64_t avg_mon_eff_bw_scaled = 0;
+        uint64_t avg_mon_payload_bw_scaled = 0;
+        uint64_t avg_mon_link_bw_scaled = 0;
         if (sum_mon_cycles != 0) {
-            avg_mon_eff_bw_scaled = (1000UL * sum_mon_effective_bytes) / sum_mon_cycles;
+            avg_mon_payload_bw_scaled = (1000UL * sum_mon_effective_bytes) / sum_mon_cycles;
+            avg_mon_link_bw_scaled = avg_mon_payload_bw_scaled * 2UL;
         }
 
-        printf("%s,%s,%lu,%lu,%lu,%d,%d,%d,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%s\n",
+        printf("%s,%s,%lu,%lu,%lu,%d,%d,%d,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%s\n",
                src_r->name, dst_r->name, bytes, subreq_bytes, fence_every_cmds,
                rounds_per_iter, warmup_iterations, test_iterations,
-               avg_cyc, avg_bw_scaled,
+               avg_cyc, avg_payload_bw_scaled, avg_link_bw_scaled,
                avg_mon_src_cmds, avg_mon_dst_cmds,
                avg_mon_req_copy_bytes, avg_mon_cycles,
-               avg_mon_eff_bw_scaled,
+               avg_mon_payload_bw_scaled, avg_mon_link_bw_scaled,
                "OK");
     }
 }
@@ -392,7 +399,7 @@ int hart_main(int cid, int nc) {
     if (cid == 0) {
         printf("abtest_csv_begin\n");
         printf("abtest_quick=%d\n", ABTEST_QUICK);
-        printf("src,dst,bytes,subreq_bytes,fence_every_cmds,rounds_per_iter,warmup,test,avg_cycles,avg_bw_x1000_bytes_per_cycle,avg_mon_src_cmds,avg_mon_dst_cmds,avg_mon_req_copy_bytes,avg_mon_cycles,avg_mon_eff_bw_x1000_bytes_per_cycle,status\n");
+        printf("src,dst,bytes,subreq_bytes,fence_every_cmds,rounds_per_iter,warmup,test,avg_cycles,avg_payload_bw_x1000_bytes_per_cycle,avg_link_bw_x1000_bytes_per_cycle,avg_mon_src_cmds,avg_mon_dst_cmds,avg_mon_req_copy_bytes,avg_mon_cycles,avg_mon_payload_bw_x1000_bytes_per_cycle,avg_mon_link_bw_x1000_bytes_per_cycle,status\n");
     }
 
     for (size_t p = 0; p < sizeof(paths)/sizeof(paths[0]); p++) {
