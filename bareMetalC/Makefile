@@ -11,6 +11,7 @@ tests = \
 	bw_test_direct_gemmini_noc_abtest \
 	latency_test \
 	mt_hello \
+	rerocc_lc_matrix_baremetal \
 	mvin_mvout \
 	mvin_mvout_zeros \
 	mvin_mvout_stride \
@@ -97,6 +98,8 @@ $(warning env var `GEMMINI_NUM_CPU_CORES` not set; defaulting to 1)
 GEMMINI_NUM_CPU_CORES := 1
 endif
 
+EXTRA_CFLAGS ?=
+
 CFLAGS := $(CFLAGS) \
 	-DPREALLOCATE=1 \
 	-DMULTITHREAD=1 \
@@ -117,6 +120,7 @@ CFLAGS := $(CFLAGS) \
 	-DID_STRING=$(ID_STRING) \
 	-DPRINT_TILE=0 \
 	-DNUM_CORES=$(GEMMINI_NUM_CPU_CORES) \
+	$(EXTRA_CFLAGS) \
 
 CFLAGS_PK := \
 	$(CFLAGS) \
@@ -151,4 +155,3 @@ run-baremetal: $(runs_baremetal)
 	$(RUNNER)$(abs_top_srcdir)/build/bareMetalC/$^
 
 junk += $(tests_baremetal) $(tests_linux) $(tests_pk)
-

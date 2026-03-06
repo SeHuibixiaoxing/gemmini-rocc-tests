@@ -149,7 +149,7 @@ static const uint64_t subreq_bytes_list[] = {
 };
 
 static const uint64_t fence_every_cmds_list[] = {
-    1024,
+    1,
 };
 
 static const int warmup_iterations = 1;

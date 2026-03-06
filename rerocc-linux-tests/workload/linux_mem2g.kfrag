@@ -1,0 +1,2 @@
+CONFIG_CMDLINE="console=ttyS0 console=ttySIF0,3686400 earlycon mem=2048M"
+CONFIG_CMDLINE_FORCE=y

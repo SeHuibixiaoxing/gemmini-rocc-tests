@@ -1,0 +1,12 @@
+target=custom
+num_cores=2
+num_gemmini=2
+num_dma=2
+bytes=2048
+gemmini_base_id=0
+dma_base_id=2
+long_conv_iters=64
+short_conv_iters=4
+long_resadd_iters=512
+long_dma_iters=64
+short_dma_iters=4
