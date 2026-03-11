@@ -54,6 +54,10 @@
 #define REROCC_DEBUG_CHECKPOINTS 1
 #endif
 
+#ifndef REROCC_DEBUG_CORE
+#define REROCC_DEBUG_CORE 0
+#endif
+
 #ifndef REROCC_ACQUIRE_MAX_RETRIES
 #define REROCC_ACQUIRE_MAX_RETRIES 1000000UL
 #endif
@@ -64,8 +68,7 @@
 #define SHARED_SPAD_GLOBAL_ADDR_BASE 0x40000000ULL
 #define SHARED_SPAD_LOCAL_SIZE (1024 * 1024ULL)
 #define SHARED_SPAD_LOCAL_ADDR_BASE(i) (SHARED_SPAD_GLOBAL_ADDR_BASE + SHARED_SPAD_LOCAL_SIZE * (uint64_t)(i))
-#define SHARED_SPAD_CASE_A_OFFSET 0x0000ULL
-#define SHARED_SPAD_CASE_B_OFFSET 0x20000ULL
+#define SHARED_SPAD_ALIGN_BYTES 64ULL
 
 #define BATCH_SIZE 1
 #define IN_ROW_DIM 8
@@ -84,22 +87,66 @@
 static volatile int dma_complete_flag[REROCC_MAX_CORES] __attribute__((aligned(64)));
 static uint8_t dma_src[REROCC_MAX_CORES][REROCC_DMA_BYTES] __attribute__((aligned(64)));
 static uint8_t dma_dst[REROCC_MAX_CORES][REROCC_DMA_BYTES] __attribute__((aligned(64)));
-static elem_t resadd_a_global[DIM][DIM] row_align(1);
-static elem_t resadd_b_global[DIM][DIM] row_align(1);
-static elem_t resadd_out_global[DIM][DIM] row_align(1);
-static elem_t resadd_gold_global[DIM][DIM] row_align(1);
+static elem_t resadd_a_global[REROCC_MAX_CORES][DIM][DIM] __attribute__((aligned(64)));
+static elem_t resadd_b_global[REROCC_MAX_CORES][DIM][DIM] __attribute__((aligned(64)));
+static elem_t resadd_out_global[REROCC_MAX_CORES][DIM][DIM] __attribute__((aligned(64)));
+static elem_t resadd_gold_global[REROCC_MAX_CORES][DIM][DIM] __attribute__((aligned(64)));
+static volatile uint8_t gemmini_stage_debug[REROCC_MAX_CORES][REROCC_NUM_GEMMINI];
+static volatile int gemmini_conv_debug[REROCC_MAX_CORES][REROCC_NUM_GEMMINI];
+static volatile int gemmini_resadd_debug[REROCC_MAX_CORES][REROCC_NUM_GEMMINI];
+static volatile int gemmini_shared_mv_debug[REROCC_MAX_CORES][REROCC_NUM_GEMMINI];
+static volatile int gemmini_ok_debug[REROCC_MAX_CORES][REROCC_NUM_GEMMINI];
 static volatile int core_done[REROCC_MAX_CORES];
 static volatile int core_gemmini_pass[REROCC_MAX_CORES];
 static volatile int core_gemmini_fail[REROCC_MAX_CORES];
 static volatile int core_dma_pass[REROCC_MAX_CORES];
 static volatile int core_dma_fail[REROCC_MAX_CORES];
 
+enum {
+  GEMDBG_STAGE_IDLE = 0,
+  GEMDBG_STAGE_PREP = 1,
+  GEMDBG_STAGE_ACQUIRE = 2,
+  GEMDBG_STAGE_CONV = 3,
+  GEMDBG_STAGE_RESADD = 4,
+  GEMDBG_STAGE_SHARED_MV = 5,
+  GEMDBG_STAGE_FENCE = 6,
+  GEMDBG_STAGE_CHECK = 7,
+  GEMDBG_STAGE_RELEASE = 8,
+  GEMDBG_STAGE_DONE = 9,
+};
+
 static inline bool debug_this_core(int cid) {
-  return REROCC_DEBUG_CHECKPOINTS && cid == 0;
+  return REROCC_DEBUG_CHECKPOINTS && (REROCC_DEBUG_CORE < 0 || cid == REROCC_DEBUG_CORE);
 }
 
 static inline uint64_t read_cycles_local(void) {
   return read_csr(mcycle);
+}
+
+static inline uint64_t align_up_u64(uint64_t value, uint64_t align) {
+  return ((value + align - 1) / align) * align;
+}
+
+static inline uint64_t shared_spad_case_bytes(void) {
+  const uint64_t gemmini_bytes = (uint64_t)(DIM * DIM * sizeof(elem_t));
+  const uint64_t dma_bytes = (uint64_t)REROCC_DMA_BYTES;
+  const uint64_t needed = gemmini_bytes > dma_bytes ? gemmini_bytes : dma_bytes;
+  return align_up_u64(needed, SHARED_SPAD_ALIGN_BYTES);
+}
+
+static inline uint64_t shared_spad_core_stride_bytes(void) {
+  return 2ULL * shared_spad_case_bytes();
+}
+
+static inline uint64_t shared_spad_case_addr(int local_gid, int cid, int case_idx) {
+  return SHARED_SPAD_LOCAL_ADDR_BASE(local_gid) +
+    shared_spad_core_stride_bytes() * (uint64_t)cid +
+    shared_spad_case_bytes() * (uint64_t)case_idx;
+}
+
+static inline bool shared_spad_layout_fits(int logical_cores) {
+  return logical_cores > 0 &&
+    (uint64_t)logical_cores * shared_spad_core_stride_bytes() <= SHARED_SPAD_LOCAL_SIZE;
 }
 
 static bool rr_acquire_cfg_with_retry(uint32_t cfg_id, uint64_t manager_id) {
@@ -244,18 +291,25 @@ static bool output_matches_reference(elem_t reference[BATCH_SIZE][OUT_ROW_DIM][O
 
 static bool run_one_gemmini_case(int cid, int manager_id) {
   const bool debug = debug_this_core(cid);
+  const int local_gid = manager_id - REROCC_GEMMINI_BASE_ID;
   elem_t input[BATCH_SIZE][IN_ROW_DIM][IN_COL_DIM][IN_CHANNELS] __attribute__((aligned(64)));
   elem_t weights[OUT_CHANNELS][KERNEL_DIM][KERNEL_DIM][IN_CHANNELS] __attribute__((aligned(64)));
   acc_t bias[OUT_CHANNELS] __attribute__((aligned(64)));
   elem_t reference[BATCH_SIZE][OUT_ROW_DIM][OUT_COL_DIM][OUT_CHANNELS] __attribute__((aligned(64)));
   elem_t weights_mat[PATCH_SIZE][OUT_CHANNELS] __attribute__((aligned(64)));
   elem_t output_mat[N_PATCHES][OUT_CHANNELS] __attribute__((aligned(64)));
-  elem_t (*resadd_a)[DIM] = resadd_a_global;
-  elem_t (*resadd_b)[DIM] = resadd_b_global;
-  elem_t (*resadd_out)[DIM] = resadd_out_global;
-  elem_t (*resadd_gold)[DIM] = resadd_gold_global;
+  elem_t (*resadd_a)[DIM] = resadd_a_global[cid];
+  elem_t (*resadd_b)[DIM] = resadd_b_global[cid];
+  elem_t (*resadd_out)[DIM] = resadd_out_global[cid];
+  elem_t (*resadd_gold)[DIM] = resadd_gold_global[cid];
 
   uint32_t state = (uint32_t)(0x1234567u ^ (cid * 131u) ^ (manager_id * 977u));
+
+  gemmini_stage_debug[cid][local_gid] = GEMDBG_STAGE_PREP;
+  gemmini_conv_debug[cid][local_gid] = -1;
+  gemmini_resadd_debug[cid][local_gid] = -1;
+  gemmini_shared_mv_debug[cid][local_gid] = -1;
+  gemmini_ok_debug[cid][local_gid] = -1;
 
   if (debug) {
     printf("[dbg][gemmini] cpu=%d mgr=%d before cpu_conv_reference_prep\n", cid, manager_id);
@@ -276,6 +330,7 @@ static bool run_one_gemmini_case(int cid, int manager_id) {
   if (debug) {
     printf("[dbg][gemmini] cpu=%d mgr=%d before rr_acquire\n", cid, manager_id);
   }
+  gemmini_stage_debug[cid][local_gid] = GEMDBG_STAGE_ACQUIRE;
   if (!rr_acquire_cfg_with_retry(GEMMINI_CFG_ID, (uint64_t)manager_id)) {
     if (debug) {
       printf("[dbg][gemmini] cpu=%d mgr=%d rr_acquire FAIL\n", cid, manager_id);
@@ -301,6 +356,7 @@ static bool run_one_gemmini_case(int cid, int manager_id) {
   if (debug) {
     printf("[dbg][gemmini] cpu=%d mgr=%d before tiled_conv_auto\n", cid, manager_id);
   }
+  gemmini_stage_debug[cid][local_gid] = GEMDBG_STAGE_CONV;
   tiled_conv_auto(
     BATCH_SIZE, IN_ROW_DIM, IN_COL_DIM, IN_CHANNELS,
     OUT_CHANNELS, OUT_ROW_DIM, OUT_COL_DIM,
@@ -317,8 +373,18 @@ static bool run_one_gemmini_case(int cid, int manager_id) {
     printf("[dbg][gemmini] cpu=%d mgr=%d after tiled_conv_auto\n", cid, manager_id);
   }
 
+  // Drain the acquired Gemmini manager before flushing/reusing accumulator rows.
+  rr_fence(GEMMINI_CFG_ID);
+
   // resadd reuses accumulator rows; flush state left by conv to get deterministic checks.
+  if (debug) {
+    printf("[dbg][gemmini] cpu=%d mgr=%d before resadd_flush\n", cid, manager_id);
+  }
   gemmini_flush(0);
+  rr_fence(GEMMINI_CFG_ID);
+  if (debug) {
+    printf("[dbg][gemmini] cpu=%d mgr=%d after resadd_flush\n", cid, manager_id);
+  }
 
   for (size_t i = 0; i < (size_t)(DIM * DIM); i++) {
     ((elem_t *)resadd_a)[i] = (elem_t)((int32_t)(lcg_next(&state) % 7) - 3);
@@ -329,22 +395,40 @@ static bool run_one_gemmini_case(int cid, int manager_id) {
 
   resadd_cpu(DIM, DIM, DIM, MVIN_SCALE_IDENTITY, MVIN_SCALE_IDENTITY, ACC_SCALE_IDENTITY,
     (elem_t *)resadd_a, (elem_t *)resadd_b, (elem_t *)resadd_gold, false);
+  if (debug) {
+    printf("[dbg][gemmini] cpu=%d mgr=%d before tiled_resadd_auto\n", cid, manager_id);
+  }
+  gemmini_stage_debug[cid][local_gid] = GEMDBG_STAGE_RESADD;
   tiled_resadd_auto(DIM, DIM, MVIN_SCALE_IDENTITY, MVIN_SCALE_IDENTITY, ACC_SCALE_IDENTITY,
     (elem_t *)resadd_a, (elem_t *)resadd_b, (elem_t *)resadd_out, false, WS);
-  gemmini_fence();
+  if (debug) {
+    printf("[dbg][gemmini] cpu=%d mgr=%d after tiled_resadd_auto\n", cid, manager_id);
+    printf("[dbg][gemmini] cpu=%d mgr=%d before resadd_fence\n", cid, manager_id);
+  }
+  rr_fence(GEMMINI_CFG_ID);
+  if (debug) {
+    printf("[dbg][gemmini] cpu=%d mgr=%d after resadd_fence\n", cid, manager_id);
+  }
 
   bool resadd_match = true;
+  size_t resadd_mismatch_idx = 0;
   for (size_t i = 0; i < (size_t)(DIM * DIM); i++) {
     if (((elem_t *)resadd_out)[i] != ((elem_t *)resadd_gold)[i]) {
       resadd_match = false;
+      resadd_mismatch_idx = i;
       break;
     }
   }
   bool resadd_ok = resadd_match;
+  if (debug && !resadd_ok) {
+    printf("[dbg][gemmini] cpu=%d mgr=%d resadd mismatch idx=%lu out=%d gold=%d\n",
+      cid, manager_id, (unsigned long)resadd_mismatch_idx,
+      (int)((elem_t *)resadd_out)[resadd_mismatch_idx],
+      (int)((elem_t *)resadd_gold)[resadd_mismatch_idx]);
+  }
 
-  int local_gid = manager_id - REROCC_GEMMINI_BASE_ID;
-  uint64_t shared_src_addr = SHARED_SPAD_LOCAL_ADDR_BASE(local_gid) + SHARED_SPAD_CASE_A_OFFSET;
-  uint64_t shared_dst_addr = SHARED_SPAD_LOCAL_ADDR_BASE(local_gid) + SHARED_SPAD_CASE_B_OFFSET;
+  uint64_t shared_src_addr = shared_spad_case_addr(local_gid, cid, 0);
+  uint64_t shared_dst_addr = shared_spad_case_addr(local_gid, cid, 1);
   elem_t *shared_src = (elem_t *)(uintptr_t)shared_src_addr;
   elem_t *shared_dst = (elem_t *)(uintptr_t)shared_dst_addr;
   for (size_t i = 0; i < (size_t)(DIM * DIM); i++) {
@@ -354,9 +438,17 @@ static bool run_one_gemmini_case(int cid, int manager_id) {
 
   gemmini_config_ld(DIM * sizeof(elem_t));
   gemmini_config_st(DIM * sizeof(elem_t));
+  gemmini_stage_debug[cid][local_gid] = GEMDBG_STAGE_SHARED_MV;
   gemmini_mvin(shared_src, 0);
   gemmini_mvout(shared_dst, 0);
-  gemmini_fence();
+  if (debug) {
+    printf("[dbg][gemmini] cpu=%d mgr=%d before rr_fence\n", cid, manager_id);
+  }
+  gemmini_stage_debug[cid][local_gid] = GEMDBG_STAGE_FENCE;
+  rr_fence(GEMMINI_CFG_ID);
+  if (debug) {
+    printf("[dbg][gemmini] cpu=%d mgr=%d after rr_fence\n", cid, manager_id);
+  }
 
   bool shared_mv_ok = true;
   for (size_t i = 0; i < (size_t)(DIM * DIM); i++) {
@@ -366,16 +458,13 @@ static bool run_one_gemmini_case(int cid, int manager_id) {
     }
   }
 
-  if (debug) {
-    printf("[dbg][gemmini] cpu=%d mgr=%d before rr_fence\n", cid, manager_id);
-  }
-  rr_fence(GEMMINI_CFG_ID);
-  if (debug) {
-    printf("[dbg][gemmini] cpu=%d mgr=%d after rr_fence\n", cid, manager_id);
-  }
-
   bool conv_ok = output_matches_reference(reference, output_mat);
   bool ok = conv_ok && resadd_ok && shared_mv_ok;
+  gemmini_stage_debug[cid][local_gid] = GEMDBG_STAGE_CHECK;
+  gemmini_conv_debug[cid][local_gid] = conv_ok ? 1 : 0;
+  gemmini_resadd_debug[cid][local_gid] = resadd_ok ? 1 : 0;
+  gemmini_shared_mv_debug[cid][local_gid] = shared_mv_ok ? 1 : 0;
+  gemmini_ok_debug[cid][local_gid] = ok ? 1 : 0;
   if (debug) {
     printf("[dbg][gemmini] cpu=%d mgr=%d conv=%d resadd=%d shared_mv=%d\n",
       cid, manager_id, conv_ok ? 1 : 0, resadd_ok ? 1 : 0, shared_mv_ok ? 1 : 0);
@@ -388,10 +477,12 @@ static bool run_one_gemmini_case(int cid, int manager_id) {
   if (debug) {
     printf("[dbg][gemmini] cpu=%d mgr=%d before rr_release\n", cid, manager_id);
   }
+  gemmini_stage_debug[cid][local_gid] = GEMDBG_STAGE_RELEASE;
   rr_release(GEMMINI_CFG_ID);
   if (debug) {
     printf("[dbg][gemmini] cpu=%d mgr=%d after rr_release ok=%d\n", cid, manager_id, ok ? 1 : 0);
   }
+  gemmini_stage_debug[cid][local_gid] = GEMDBG_STAGE_DONE;
   return ok;
 }
 
@@ -422,8 +513,8 @@ static bool run_one_dma_case(int cid, int manager_id) {
   uint8_t *src = dma_src[cid];
   uint8_t *dst = dma_dst[cid];
   int local_gid = manager_id - REROCC_DMA_BASE_ID + REROCC_GEMMINI_BASE_ID;
-  uint8_t *shared_a = (uint8_t *)(uintptr_t)(SHARED_SPAD_LOCAL_ADDR_BASE(local_gid) + SHARED_SPAD_CASE_A_OFFSET);
-  uint8_t *shared_b = (uint8_t *)(uintptr_t)(SHARED_SPAD_LOCAL_ADDR_BASE(local_gid) + SHARED_SPAD_CASE_B_OFFSET);
+  uint8_t *shared_a = (uint8_t *)(uintptr_t)shared_spad_case_addr(local_gid, cid, 0);
+  uint8_t *shared_b = (uint8_t *)(uintptr_t)shared_spad_case_addr(local_gid, cid, 1);
   volatile int *completion_flag = &dma_complete_flag[cid];
   *completion_flag = 0;
 
@@ -583,6 +674,20 @@ void thread_entry(int cid, int nc) {
     }
   }
 
+  if (!shared_spad_layout_fits(logical_cores)) {
+    if (cid == 0) {
+      printf("[rerocc-baremetal] FAIL: shared_spad layout overflow logical_cores=%d case_bytes=%lu stride=%lu local_size=%lu\n",
+        logical_cores,
+        (unsigned long)shared_spad_case_bytes(),
+        (unsigned long)shared_spad_core_stride_bytes(),
+        (unsigned long)SHARED_SPAD_LOCAL_SIZE);
+      exit(1);
+    }
+    while (1) {
+      asm volatile("wfi");
+    }
+  }
+
   if (cid >= logical_cores) {
     while (1) {
       asm volatile("wfi");
@@ -658,6 +763,18 @@ void thread_entry(int cid, int nc) {
   for (int i = 0; i < logical_cores; i++) {
     printf("CORE_RESULT cid=%d gemmini_pass=%d gemmini_fail=%d dma_pass=%d dma_fail=%d\n",
       i, core_gemmini_pass[i], core_gemmini_fail[i], core_dma_pass[i], core_dma_fail[i]);
+    for (int gid = 0; gid < REROCC_NUM_GEMMINI; gid++) {
+      if (!should_run_pair(REROCC_MATRIX_MODE, i, gid, REROCC_NUM_GEMMINI)) {
+        continue;
+      }
+      printf("GEMMINI_DEBUG cid=%d mgr=%d stage=%d conv=%d resadd=%d shared_mv=%d ok=%d\n",
+        i, REROCC_GEMMINI_BASE_ID + gid,
+        gemmini_stage_debug[i][gid],
+        gemmini_conv_debug[i][gid],
+        gemmini_resadd_debug[i][gid],
+        gemmini_shared_mv_debug[i][gid],
+        gemmini_ok_debug[i][gid]);
+    }
     gemmini_pass += core_gemmini_pass[i];
     gemmini_fail += core_gemmini_fail[i];
     dma_pass += core_dma_pass[i];

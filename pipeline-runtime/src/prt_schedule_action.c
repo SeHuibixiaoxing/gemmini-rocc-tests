@@ -197,11 +197,28 @@ int prt_action_alloc_acc(prt_runtime_t *rt, prt_schedule_action_t *action) {
     prt_stage_acc_assign_t *assign = &action->acc_source.stage_assign[i];
     const prt_stage_map_t *stage = &seg->stages[i];
     uint32_t k;
-    if (!stage->acc_util_present) return PRT_ERR_PARSE;
-    if (!is_valid_tile_count(stage->acc_util)) return PRT_ERR_PARSE;
-    if (stage->acc_util == 0) return PRT_ERR_PARSE;
-    if (stage->acc_util > rt->cfg.num_gemmini_mgrs) return PRT_ERR_NOT_READY;
-    if (rt->cfg.num_dma_mgrs < rt->cfg.num_gemmini_mgrs) return PRT_ERR_NOT_READY;
+    if (!stage->acc_util_present) {
+      fprintf(stderr, "action_alloc_acc: stage=%u missing acc_util_present\n", i);
+      return PRT_ERR_PARSE;
+    }
+    if (!is_valid_tile_count(stage->acc_util)) {
+      fprintf(stderr, "action_alloc_acc: stage=%u invalid acc_util=%u\n", i, stage->acc_util);
+      return PRT_ERR_PARSE;
+    }
+    if (stage->acc_util == 0) {
+      fprintf(stderr, "action_alloc_acc: stage=%u zero acc_util\n", i);
+      return PRT_ERR_PARSE;
+    }
+    if (stage->acc_util > rt->cfg.num_gemmini_mgrs) {
+      fprintf(stderr, "action_alloc_acc: stage=%u acc_util=%u exceeds num_gemmini=%u\n",
+              i, stage->acc_util, rt->cfg.num_gemmini_mgrs);
+      return PRT_ERR_NOT_READY;
+    }
+    if (rt->cfg.num_dma_mgrs < rt->cfg.num_gemmini_mgrs) {
+      fprintf(stderr, "action_alloc_acc: num_dma=%u less than num_gemmini=%u\n",
+              rt->cfg.num_dma_mgrs, rt->cfg.num_gemmini_mgrs);
+      return PRT_ERR_NOT_READY;
+    }
 
     assign->stage_id = i;
     assign->acc_util = stage->acc_util;

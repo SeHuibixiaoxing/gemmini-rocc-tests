@@ -456,7 +456,22 @@ static void stage_set_export_dbuf(prt_stage_map_t *st, const uint32_t *db, uint3
 
 static void stage_set_layer_id(prt_stage_map_t *st, const uint32_t *ids, uint32_t n) {
   if (!st) return;
+  st->layer_count = n;
   st->layer_id = (n > 0) ? ids[0] : 0;
+}
+
+static void stage_set_dram_bypass(prt_stage_map_t *st, const uint32_t *vals, uint32_t n) {
+  uint32_t m = n > PRT_MAX_LAYER_TENSORS ? PRT_MAX_LAYER_TENSORS : n;
+  if (!st) return;
+  st->dram_bypass_count = m;
+  for (uint32_t i = 0; i < m; ++i) st->dram_bypass[i] = vals[i];
+}
+
+static void stage_set_spm_bypass(prt_stage_map_t *st, const uint32_t *vals, uint32_t n) {
+  uint32_t m = n > PRT_MAX_LAYER_TENSORS ? PRT_MAX_LAYER_TENSORS : n;
+  if (!st) return;
+  st->spm_bypass_count = m;
+  for (uint32_t i = 0; i < m; ++i) st->spm_bypass[i] = vals[i];
 }
 
 int prt_load_model_yaml(const char *path, prt_model_desc_t *out) {
@@ -618,6 +633,10 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
   int in_stage_spm_util_list = 0;
   int stage_spm_util_indent = -1;
   uint32_t stage_spm_util_idx = 0;
+  int in_stage_dram_bypass_list = 0;
+  int stage_dram_bypass_indent = -1;
+  int in_stage_spm_bypass_list = 0;
+  int stage_spm_bypass_indent = -1;
   int cur_stage_has_global_id = 0;
   int cur_seg_has_segment_idx = 0;
 
@@ -671,6 +690,40 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
       }
     }
 
+    if (in_stage_dram_bypass_list && cur_stage) {
+      if (indent <= stage_dram_bypass_indent && *t != '-') {
+        in_stage_dram_bypass_list = 0;
+      } else if (*t == '-') {
+        uint32_t *vals = NULL;
+        uint32_t n = 0;
+        if (parse_int_list_from_value(t, &vals, &n) != PRT_OK) {
+          free(buf);
+          return PRT_ERR_PARSE;
+        }
+        stage_set_dram_bypass(cur_stage, vals, n);
+        free(vals);
+        in_stage_dram_bypass_list = 0;
+        continue;
+      }
+    }
+
+    if (in_stage_spm_bypass_list && cur_stage) {
+      if (indent <= stage_spm_bypass_indent && *t != '-') {
+        in_stage_spm_bypass_list = 0;
+      } else if (*t == '-') {
+        uint32_t *vals = NULL;
+        uint32_t n = 0;
+        if (parse_int_list_from_value(t, &vals, &n) != PRT_OK) {
+          free(buf);
+          return PRT_ERR_PARSE;
+        }
+        stage_set_spm_bypass(cur_stage, vals, n);
+        free(vals);
+        in_stage_spm_bypass_list = 0;
+        continue;
+      }
+    }
+
     if (t[0] == '-' && strstr(t, "acc_util:")) {
       if (ensure_segment_capacity(out, out->num_segments + 1) != PRT_OK) {
         free(buf);
@@ -686,6 +739,10 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
       in_stage_spm_util_list = 0;
       stage_spm_util_indent = -1;
       stage_spm_util_idx = 0;
+      in_stage_dram_bypass_list = 0;
+      stage_dram_bypass_indent = -1;
+      in_stage_spm_bypass_list = 0;
+      stage_spm_bypass_indent = -1;
       continue;
     }
 
@@ -705,6 +762,10 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
         in_stage_spm_util_list = 0;
         stage_spm_util_indent = -1;
         stage_spm_util_idx = 0;
+        in_stage_dram_bypass_list = 0;
+        stage_dram_bypass_indent = -1;
+        in_stage_spm_bypass_list = 0;
+        stage_spm_bypass_indent = -1;
       }
       cur_seg->segment_idx = seg_idx;
       cur_seg_has_segment_idx = 1;
@@ -788,7 +849,12 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
       continue;
     }
 
-    if (t[0] == '-' && strstr(t, "accUtil:")) {
+    if (t[0] == '-' && strstr(t, "accUtil:") && strncmp(t, "- -", 3) != 0) {
+      free(buf);
+      return PRT_ERR_NOT_IMPL;
+    }
+
+    if (strncmp(t, "- -", 3) == 0 && strstr(t, "accUtil:")) {
       uint32_t acc = 1;
       if (ensure_stage_capacity(cur_seg, cur_seg->num_stages + 1) != PRT_OK) {
         free(buf);
@@ -839,6 +905,18 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
       uint32_t n = 0;
       if (parse_int_list_from_value(value_after_colon(t), &ids, &n) == PRT_OK) stage_set_layer_id(cur_stage, ids, n);
       free(ids);
+      continue;
+    }
+
+    if (starts_key(t, "dramBypassList")) {
+      in_stage_dram_bypass_list = 1;
+      stage_dram_bypass_indent = indent;
+      continue;
+    }
+
+    if (starts_key(t, "spmBypassList")) {
+      in_stage_spm_bypass_list = 1;
+      stage_spm_bypass_indent = indent;
       continue;
     }
 
@@ -899,7 +977,8 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
   for (uint32_t s = 0; s < out->num_segments; ++s) {
     prt_segment_desc_t *seg = &out->segments[s];
     for (uint32_t i = 0; i < seg->num_stages; ++i) {
-      if (!seg->stages[i].acc_util_present) {
+      if (!seg->stages[i].acc_util_present || seg->stages[i].layer_count != 1 ||
+          seg->stages[i].dram_bypass_count == 0 || seg->stages[i].spm_bypass_count == 0) {
         free(buf);
         return PRT_ERR_PARSE;
       }

@@ -339,7 +339,7 @@ static void counter_reset() {
   gemmini_counter_access(placeholder, config_reg);
 }
 
-int ceil_divide_int(int a, int b){
+static inline int ceil_divide_int(int a, int b){
     int c = (a % b == 0) ? ((int)(a/b)) :(((int)(a/b)) + 1); 
     if(a < b) c = 1;
     return c;
@@ -3588,4 +3588,3 @@ static void tiled_norm_auto(const size_t I, const size_t J,
 #undef abs
 
 #endif // SRC_MAIN_C_GEMMINI_H
-

@@ -16,6 +16,7 @@ extern "C" {
 #define PRT_MAX_STAGES 128
 #define PRT_MAX_TENSORS 1024
 #define PRT_MAX_RING_SLOTS 64
+#define PRT_MAX_LAYER_TENSORS 8
 #define PRT_PAGE_SIZE_BYTES 1024U
 #define PRT_MAX_PAGES_PER_TENSOR 8192U
 #define PRT_SHARED_SPAD_GLOBAL_ADDR_BASE 0x40000000ULL
@@ -216,12 +217,17 @@ typedef struct {
 typedef struct {
   uint32_t stage_id;
   uint32_t layer_id;
+  uint32_t layer_count;
   uint32_t acc_util;
   uint32_t acc_util_present;
   uint32_t num_entry;
   prt_tensor_binding_t *entry;
   uint32_t num_export;
   prt_tensor_binding_t *exports;
+  uint32_t dram_bypass_count;
+  uint32_t dram_bypass[PRT_MAX_LAYER_TENSORS];
+  uint32_t spm_bypass_count;
+  uint32_t spm_bypass[PRT_MAX_LAYER_TENSORS];
 } prt_stage_map_t;
 
 typedef struct {

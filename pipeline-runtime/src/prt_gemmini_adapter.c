@@ -33,6 +33,24 @@ static uint32_t rect2d_area(const prt_rect2d_t *r) {
   return (r->r1 - r->r0) * (r->c1 - r->c0);
 }
 
+static void split_1d_range(uint32_t total, uint32_t parts, uint32_t idx,
+                           uint32_t *out_begin, uint32_t *out_end) {
+  uint32_t base;
+  uint32_t rem;
+  uint32_t begin;
+  uint32_t span;
+  if (!out_begin || !out_end || parts == 0) return;
+
+  base = total / parts;
+  rem = total % parts;
+  begin = idx * base + (idx < rem ? idx : rem);
+  span = base + (idx < rem ? 1U : 0U);
+  if (begin > total) begin = total;
+  if (begin + span > total) span = total - begin;
+  *out_begin = begin;
+  *out_end = begin + span;
+}
+
 static int partition_2d_rects(uint32_t rows, uint32_t cols, uint32_t parts, prt_rect2d_t *out_rects) {
   uint32_t count = 1;
   if (!out_rects || rows == 0 || cols == 0 || parts == 0) return PRT_ERR_INVAL;

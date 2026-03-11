@@ -4,6 +4,7 @@
 
 #include "prt_runtime.h"
 #include "prt_rerocc.h"
+#include "prt_gemmini_artifacts.h"
 
 #include <errno.h>
 #include <pthread.h>
@@ -723,6 +724,23 @@ static size_t get_model_tensor_size_bytes(const prt_model_desc_t *model, uint32_
   return size;
 }
 
+static size_t get_layer_tensor_slot_size_bytes(const prt_model_layer_t *layer, uint32_t slot, size_t fallback) {
+  if (!layer) return fallback;
+  if (slot < layer->tensor_size_count && layer->tensor_size[slot] > 0) {
+    return layer->tensor_size[slot];
+  }
+  return fallback;
+}
+
+static void normalize_copy_prefix_zero(uint8_t *dst, size_t dst_size,
+                                       const uint8_t *src, size_t src_size) {
+  size_t copy_n;
+  if (!dst || dst_size == 0) return;
+  copy_n = dst_size < src_size ? dst_size : src_size;
+  if (copy_n > 0 && src) memmove(dst, src, copy_n);
+  if (dst_size > copy_n) memset(dst + copy_n, 0, dst_size - copy_n);
+}
+
 static int resolve_model_addr_to_slice(const prt_runtime_t *rt, uint64_t addr,
                                        uint8_t **out_ptr, size_t *out_avail) {
   uint64_t p = 0;
@@ -751,17 +769,15 @@ static int copy_tensor_data_to_model_aliases(prt_runtime_t *rt, uint32_t tensor_
     const prt_model_layer_t *layer = &rt->model.layers[i];
     for (uint32_t j = 0; j < layer->tensor_count; ++j) {
       size_t expect_size;
-      size_t copy_n;
       if (layer->tensor_ids[j] != tensor_id) continue;
-      expect_size = (j < layer->tensor_size_count && layer->tensor_size[j] > 0) ? layer->tensor_size[j] : src_size;
-      copy_n = expect_size < src_size ? expect_size : src_size;
+      expect_size = get_layer_tensor_slot_size_bytes(layer, j, src_size);
 
       if (j < layer->address_count) {
         uint8_t *dst;
         size_t avail;
         int rc = resolve_model_addr_to_slice(rt, layer->address[j], &dst, &avail);
-        if (rc == PRT_OK && avail >= copy_n) {
-          memcpy(dst, src, copy_n);
+        if (rc == PRT_OK && avail >= expect_size) {
+          normalize_copy_prefix_zero(dst, expect_size, src, src_size);
           copied_any = 1;
         }
       }
@@ -769,14 +785,83 @@ static int copy_tensor_data_to_model_aliases(prt_runtime_t *rt, uint32_t tensor_
         uint8_t *dst;
         size_t avail;
         int rc = resolve_model_addr_to_slice(rt, layer->address2[j], &dst, &avail);
-        if (rc == PRT_OK && avail >= copy_n) {
-          memcpy(dst, src, copy_n);
+        if (rc == PRT_OK && avail >= expect_size) {
+          normalize_copy_prefix_zero(dst, expect_size, src, src_size);
           copied_any = 1;
         }
       }
     }
   }
   return copied_any ? PRT_OK : PRT_ERR_NOT_READY;
+}
+
+static int load_tensor_alias_normalized(const prt_runtime_t *rt, uint64_t addr,
+                                        size_t alias_size, uint8_t *dst, size_t want_size) {
+  uint8_t *src = NULL;
+  size_t avail = 0;
+  size_t needed;
+  int rc;
+  if (!rt || !dst || want_size == 0) return PRT_ERR_INVAL;
+  rc = resolve_model_addr_to_slice(rt, addr, &src, &avail);
+  if (rc != PRT_OK) return rc;
+  needed = alias_size < want_size ? alias_size : want_size;
+  if (avail < needed) return PRT_ERR_INVAL;
+  normalize_copy_prefix_zero(dst, want_size, src, alias_size);
+  return PRT_OK;
+}
+
+static int find_layer_tensor_slot(const prt_model_layer_t *layer, uint32_t tensor_id, uint32_t *out_slot) {
+  if (!layer || !out_slot) return PRT_ERR_INVAL;
+  for (uint32_t i = 0; i < layer->tensor_count; ++i) {
+    if (layer->tensor_ids[i] == tensor_id) {
+      *out_slot = i;
+      return PRT_OK;
+    }
+  }
+  return PRT_ERR_NOT_READY;
+}
+
+static int get_layer_tensor_source_slice(const prt_runtime_t *rt, const prt_model_layer_t *layer,
+                                         uint32_t tensor_id, const uint8_t **out_src,
+                                         size_t *out_src_size) {
+  uint32_t slot = 0;
+  uint8_t *src = NULL;
+  size_t avail = 0;
+  size_t size;
+  int rc;
+  if (!rt || !layer || !out_src || !out_src_size) return PRT_ERR_INVAL;
+  rc = find_layer_tensor_slot(layer, tensor_id, &slot);
+  if (rc != PRT_OK) return rc;
+  size = get_layer_tensor_slot_size_bytes(layer, slot, get_model_tensor_size_bytes(&rt->model, tensor_id));
+  if (slot < layer->address_count) rc = resolve_model_addr_to_slice(rt, layer->address[slot], &src, &avail);
+  else if (slot < layer->address2_count) rc = resolve_model_addr_to_slice(rt, layer->address2[slot], &src, &avail);
+  else return PRT_ERR_NOT_READY;
+  if (rc != PRT_OK) return rc;
+  if (avail < size) return PRT_ERR_INVAL;
+  *out_src = src;
+  *out_src_size = size;
+  return PRT_OK;
+}
+
+static int sync_stage_export_aliases(prt_runtime_t *rt, uint32_t stage_id) {
+  const prt_segment_desc_t *seg;
+  const prt_stage_map_t *stage;
+  const prt_model_layer_t *layer;
+  if (!rt || rt->pipeline.num_segments == 0 || !rt->pipeline.segments) return PRT_ERR_INVAL;
+  seg = &rt->pipeline.segments[0];
+  if (stage_id >= seg->num_stages) return PRT_ERR_INVAL;
+  stage = &seg->stages[stage_id];
+  layer = find_model_layer(&rt->model, stage->layer_id);
+  if (!layer) return PRT_ERR_NOT_READY;
+  for (uint32_t i = 0; i < stage->num_export; ++i) {
+    const uint8_t *src = NULL;
+    size_t src_size = 0;
+    int rc = get_layer_tensor_source_slice(rt, layer, stage->exports[i].tensor_id, &src, &src_size);
+    if (rc != PRT_OK) return rc;
+    rc = copy_tensor_data_to_model_aliases(rt, stage->exports[i].tensor_id, src, src_size);
+    if (rc != PRT_OK) return rc;
+  }
+  return PRT_OK;
 }
 
 static void compare_bytes_exact(const uint8_t *actual, const uint8_t *golden, size_t n,
@@ -822,8 +907,11 @@ static int compare_one_tensor_output(prt_runtime_t *rt, uint32_t tensor_id,
   uint32_t best_max_abs = 0;
   int found = 0;
   uint32_t seen_alias = 0;
+  uint8_t *norm = NULL;
 
   if (!rt || !golden || nbytes == 0) return PRT_ERR_INVAL;
+  norm = (uint8_t *)malloc(nbytes);
+  if (!norm) return PRT_ERR_NOMEM;
 
   for (uint32_t i = 0; i < rt->model.num_layers; ++i) {
     const prt_model_layer_t *layer = &rt->model.layers[i];
@@ -831,15 +919,13 @@ static int compare_one_tensor_output(prt_runtime_t *rt, uint32_t tensor_id,
       if (layer->tensor_ids[j] != tensor_id) continue;
 
       if (j < layer->address_count) {
+        size_t alias_size = get_layer_tensor_slot_size_bytes(layer, j, nbytes);
         seen_alias += 1;
-        uint8_t *src = NULL;
-        size_t avail = 0;
-        int rc = resolve_model_addr_to_slice(rt, layer->address[j], &src, &avail);
-        if (rc == PRT_OK && avail >= nbytes) {
+        if (load_tensor_alias_normalized(rt, layer->address[j], alias_size, norm, nbytes) == PRT_OK) {
           size_t mismatch, first_idx;
           uint8_t first_actual, first_golden;
           uint32_t max_abs;
-          compare_bytes_exact(src, golden, nbytes, &mismatch, &first_idx, &first_actual, &first_golden, &max_abs);
+          compare_bytes_exact(norm, golden, nbytes, &mismatch, &first_idx, &first_actual, &first_golden, &max_abs);
           if (!found || mismatch < best_mismatch) {
             best_mismatch = mismatch;
             best_first_idx = first_idx;
@@ -853,15 +939,13 @@ static int compare_one_tensor_output(prt_runtime_t *rt, uint32_t tensor_id,
       }
 
       if (j < layer->address2_count) {
+        size_t alias_size = get_layer_tensor_slot_size_bytes(layer, j, nbytes);
         seen_alias += 1;
-        uint8_t *src = NULL;
-        size_t avail = 0;
-        int rc = resolve_model_addr_to_slice(rt, layer->address2[j], &src, &avail);
-        if (rc == PRT_OK && avail >= nbytes) {
+        if (load_tensor_alias_normalized(rt, layer->address2[j], alias_size, norm, nbytes) == PRT_OK) {
           size_t mismatch, first_idx;
           uint8_t first_actual, first_golden;
           uint32_t max_abs;
-          compare_bytes_exact(src, golden, nbytes, &mismatch, &first_idx, &first_actual, &first_golden, &max_abs);
+          compare_bytes_exact(norm, golden, nbytes, &mismatch, &first_idx, &first_actual, &first_golden, &max_abs);
           if (!found || mismatch < best_mismatch) {
             best_mismatch = mismatch;
             best_first_idx = first_idx;
@@ -2100,7 +2184,13 @@ static void *stage_worker_main(void *arg) {
         uint64_t gemm_end_ns = prt_now_ns();
         if (gemm_end_ns > gemm_begin_ns) prt_trace_on_gemm_busy(rt, gemm_end_ns - gemm_begin_ns);
       }
+      rc = sync_stage_export_aliases(rt, ctx->stage_id);
+      if (rc != PRT_OK) {
+        rt->fatal_error = rc;
+        break;
+      }
     }
+    if (rt->fatal_error || rt->stop_requested) break;
 
     for (uint32_t i = 0; i < entry_count; ++i) {
       prt_pipebuf_t *b = entry_bufs[i];
@@ -2377,6 +2467,12 @@ int prt_runtime_run(prt_runtime_t *rt, const prt_run_args_t *args) {
   rc = prt_load_pipeline_yaml(args->pipeline_yaml, &rt->pipeline);
   if (rc != PRT_OK) {
     prt_free_model_desc(&rt->model);
+    goto out;
+  }
+  rc = prt_validate_gemmini_artifacts(args->model_yaml, &rt->pipeline);
+  if (rc != PRT_OK) {
+    prt_free_model_desc(&rt->model);
+    prt_free_pipeline_desc(&rt->pipeline);
     goto out;
   }
 

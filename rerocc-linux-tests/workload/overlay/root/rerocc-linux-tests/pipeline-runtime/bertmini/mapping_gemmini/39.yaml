@@ -1,0 +1,2433 @@
+layer_id: 39
+source_mapping: /home/wzy/proj/wp2/chipyard/tmp/HybridMapper/output/pipeline/bertmini/mapping/39.yaml
+candidates:
+  - target_accel: 1
+    source_candidate_index: 4
+    mapping_tile: [1, 256, 128, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [1, 1, 1]
+    performance_accel_util: 1
+    performance_spm_util: 0
+    performance_spm_page_util: 0
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [0, 0, 0]
+    others_spm_tensor_util: [0, 0, 0]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 0]
+    others_first_tensor_page_num: [0, 0, 0]
+  - target_accel: 2
+    source_candidate_index: 31
+    mapping_tile: [1, 128, 256, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [1, 1, 1]
+    performance_accel_util: 2
+    performance_spm_util: 0
+    performance_spm_page_util: 0
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [0, 0, 0]
+    others_spm_tensor_util: [0, 0, 0]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 0]
+    others_first_tensor_page_num: [0, 0, 0]
+  - target_accel: 4
+    source_candidate_index: 58
+    mapping_tile: [1, 64, 256, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [1, 1, 1]
+    performance_accel_util: 4
+    performance_spm_util: 0
+    performance_spm_page_util: 0
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [0, 0, 0]
+    others_spm_tensor_util: [0, 0, 0]
+    others_total_tiles: 4
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 0]
+    others_first_tensor_page_num: [0, 0, 0]
+  - target_accel: 8
+    source_candidate_index: 85
+    mapping_tile: [1, 64, 128, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [1, 1, 1]
+    performance_accel_util: 8
+    performance_spm_util: 0
+    performance_spm_page_util: 0
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [0, 0, 0]
+    others_spm_tensor_util: [0, 0, 0]
+    others_total_tiles: 8
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 0]
+    others_first_tensor_page_num: [0, 0, 0]
+  - target_accel: 16
+    source_candidate_index: 112
+    mapping_tile: [1, 64, 64, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [1, 1, 1]
+    performance_accel_util: 16
+    performance_spm_util: 0
+    performance_spm_page_util: 0
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [0, 0, 0]
+    others_spm_tensor_util: [0, 0, 0]
+    others_total_tiles: 16
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 0]
+    others_first_tensor_page_num: [0, 0, 0]
+  - target_accel: 32
+    source_candidate_index: 139
+    mapping_tile: [1, 64, 32, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [1, 1, 1]
+    performance_accel_util: 32
+    performance_spm_util: 0
+    performance_spm_page_util: 0
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [0, 0, 0]
+    others_spm_tensor_util: [0, 0, 0]
+    others_total_tiles: 32
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 0]
+    others_first_tensor_page_num: [0, 0, 0]
+  - target_accel: 1
+    source_candidate_index: 1
+    mapping_tile: [1, 256, 128, 1, 1]
+    mapping_dram_bypass: [0, 1, 0]
+    mapping_spm_bypass: [1, 0, 1]
+    performance_accel_util: 1
+    performance_spm_util: 65536
+    performance_spm_page_util: 64
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [0, 64, 0]
+    others_spm_tensor_util: [0, 65536, 0]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 65536]
+    others_first_tensor_page_num: [0, 0, 64]
+  - target_accel: 1
+    source_candidate_index: 3
+    mapping_tile: [1, 256, 128, 1, 1]
+    mapping_dram_bypass: [0, 0, 1]
+    mapping_spm_bypass: [1, 1, 0]
+    performance_accel_util: 1
+    performance_spm_util: 65536
+    performance_spm_page_util: 64
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [0, 0, 64]
+    others_spm_tensor_util: [0, 0, 65536]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 0]
+    others_first_tensor_page_num: [0, 0, 0]
+  - target_accel: 1
+    source_candidate_index: 13
+    mapping_tile: [1, 256, 128, 1, 1]
+    mapping_dram_bypass: [1, 0, 0]
+    mapping_spm_bypass: [0, 1, 1]
+    performance_accel_util: 1
+    performance_spm_util: 65536
+    performance_spm_page_util: 64
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 0, 0]
+    others_spm_tensor_util: [65536, 0, 0]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 65536]
+    others_first_tensor_page_num: [0, 64, 64]
+  - target_accel: 2
+    source_candidate_index: 28
+    mapping_tile: [1, 128, 256, 1, 1]
+    mapping_dram_bypass: [0, 1, 0]
+    mapping_spm_bypass: [1, 0, 1]
+    performance_accel_util: 2
+    performance_spm_util: 65536
+    performance_spm_page_util: 64
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [0, 64, 0]
+    others_spm_tensor_util: [0, 65536, 0]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 65536]
+    others_first_tensor_page_num: [0, 0, 64]
+  - target_accel: 2
+    source_candidate_index: 30
+    mapping_tile: [1, 128, 256, 1, 1]
+    mapping_dram_bypass: [0, 0, 1]
+    mapping_spm_bypass: [1, 1, 0]
+    performance_accel_util: 2
+    performance_spm_util: 65536
+    performance_spm_page_util: 64
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [0, 0, 64]
+    others_spm_tensor_util: [0, 0, 65536]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 0]
+    others_first_tensor_page_num: [0, 0, 0]
+  - target_accel: 2
+    source_candidate_index: 40
+    mapping_tile: [1, 128, 256, 1, 1]
+    mapping_dram_bypass: [1, 0, 0]
+    mapping_spm_bypass: [0, 1, 1]
+    performance_accel_util: 2
+    performance_spm_util: 65536
+    performance_spm_page_util: 64
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 0, 0]
+    others_spm_tensor_util: [65536, 0, 0]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 65536]
+    others_first_tensor_page_num: [0, 64, 64]
+  - target_accel: 4
+    source_candidate_index: 55
+    mapping_tile: [1, 64, 256, 1, 1]
+    mapping_dram_bypass: [0, 1, 0]
+    mapping_spm_bypass: [1, 0, 1]
+    performance_accel_util: 4
+    performance_spm_util: 65536
+    performance_spm_page_util: 64
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [0, 64, 0]
+    others_spm_tensor_util: [0, 65536, 0]
+    others_total_tiles: 4
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 65536]
+    others_first_tensor_page_num: [0, 0, 64]
+  - target_accel: 4
+    source_candidate_index: 57
+    mapping_tile: [1, 64, 256, 1, 1]
+    mapping_dram_bypass: [0, 0, 1]
+    mapping_spm_bypass: [1, 1, 0]
+    performance_accel_util: 4
+    performance_spm_util: 65536
+    performance_spm_page_util: 64
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [0, 0, 64]
+    others_spm_tensor_util: [0, 0, 65536]
+    others_total_tiles: 4
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 0]
+    others_first_tensor_page_num: [0, 0, 0]
+  - target_accel: 4
+    source_candidate_index: 67
+    mapping_tile: [1, 64, 256, 1, 1]
+    mapping_dram_bypass: [1, 0, 0]
+    mapping_spm_bypass: [0, 1, 1]
+    performance_accel_util: 4
+    performance_spm_util: 65536
+    performance_spm_page_util: 64
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 0, 0]
+    others_spm_tensor_util: [65536, 0, 0]
+    others_total_tiles: 4
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 65536]
+    others_first_tensor_page_num: [0, 64, 64]
+  - target_accel: 8
+    source_candidate_index: 82
+    mapping_tile: [1, 64, 128, 1, 1]
+    mapping_dram_bypass: [0, 1, 0]
+    mapping_spm_bypass: [1, 0, 1]
+    performance_accel_util: 8
+    performance_spm_util: 65536
+    performance_spm_page_util: 64
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [0, 64, 0]
+    others_spm_tensor_util: [0, 65536, 0]
+    others_total_tiles: 8
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 65536]
+    others_first_tensor_page_num: [0, 0, 64]
+  - target_accel: 8
+    source_candidate_index: 84
+    mapping_tile: [1, 64, 128, 1, 1]
+    mapping_dram_bypass: [0, 0, 1]
+    mapping_spm_bypass: [1, 1, 0]
+    performance_accel_util: 8
+    performance_spm_util: 65536
+    performance_spm_page_util: 64
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [0, 0, 64]
+    others_spm_tensor_util: [0, 0, 65536]
+    others_total_tiles: 8
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 0]
+    others_first_tensor_page_num: [0, 0, 0]
+  - target_accel: 8
+    source_candidate_index: 94
+    mapping_tile: [1, 64, 128, 1, 1]
+    mapping_dram_bypass: [1, 0, 0]
+    mapping_spm_bypass: [0, 1, 1]
+    performance_accel_util: 8
+    performance_spm_util: 65536
+    performance_spm_page_util: 64
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 0, 0]
+    others_spm_tensor_util: [65536, 0, 0]
+    others_total_tiles: 8
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 65536]
+    others_first_tensor_page_num: [0, 64, 64]
+  - target_accel: 16
+    source_candidate_index: 109
+    mapping_tile: [1, 64, 64, 1, 1]
+    mapping_dram_bypass: [0, 1, 0]
+    mapping_spm_bypass: [1, 0, 1]
+    performance_accel_util: 16
+    performance_spm_util: 65536
+    performance_spm_page_util: 64
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [0, 64, 0]
+    others_spm_tensor_util: [0, 65536, 0]
+    others_total_tiles: 16
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 65536]
+    others_first_tensor_page_num: [0, 0, 64]
+  - target_accel: 16
+    source_candidate_index: 111
+    mapping_tile: [1, 64, 64, 1, 1]
+    mapping_dram_bypass: [0, 0, 1]
+    mapping_spm_bypass: [1, 1, 0]
+    performance_accel_util: 16
+    performance_spm_util: 65536
+    performance_spm_page_util: 64
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [0, 0, 64]
+    others_spm_tensor_util: [0, 0, 65536]
+    others_total_tiles: 16
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 0]
+    others_first_tensor_page_num: [0, 0, 0]
+  - target_accel: 16
+    source_candidate_index: 121
+    mapping_tile: [1, 64, 64, 1, 1]
+    mapping_dram_bypass: [1, 0, 0]
+    mapping_spm_bypass: [0, 1, 1]
+    performance_accel_util: 16
+    performance_spm_util: 65536
+    performance_spm_page_util: 64
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 0, 0]
+    others_spm_tensor_util: [65536, 0, 0]
+    others_total_tiles: 16
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 65536]
+    others_first_tensor_page_num: [0, 64, 64]
+  - target_accel: 32
+    source_candidate_index: 136
+    mapping_tile: [1, 64, 32, 1, 1]
+    mapping_dram_bypass: [0, 1, 0]
+    mapping_spm_bypass: [1, 0, 1]
+    performance_accel_util: 32
+    performance_spm_util: 65536
+    performance_spm_page_util: 64
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [0, 64, 0]
+    others_spm_tensor_util: [0, 65536, 0]
+    others_total_tiles: 32
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 65536]
+    others_first_tensor_page_num: [0, 0, 64]
+  - target_accel: 32
+    source_candidate_index: 138
+    mapping_tile: [1, 64, 32, 1, 1]
+    mapping_dram_bypass: [0, 0, 1]
+    mapping_spm_bypass: [1, 1, 0]
+    performance_accel_util: 32
+    performance_spm_util: 65536
+    performance_spm_page_util: 64
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [0, 0, 64]
+    others_spm_tensor_util: [0, 0, 65536]
+    others_total_tiles: 32
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 0]
+    others_first_tensor_page_num: [0, 0, 0]
+  - target_accel: 32
+    source_candidate_index: 148
+    mapping_tile: [1, 64, 32, 1, 1]
+    mapping_dram_bypass: [1, 0, 0]
+    mapping_spm_bypass: [0, 1, 1]
+    performance_accel_util: 32
+    performance_spm_util: 65536
+    performance_spm_page_util: 64
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 0, 0]
+    others_spm_tensor_util: [65536, 0, 0]
+    others_total_tiles: 32
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 65536]
+    others_first_tensor_page_num: [0, 64, 64]
+  - target_accel: 1
+    source_candidate_index: 5
+    mapping_tile: [1, 256, 128, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [1, 1, 0]
+    performance_accel_util: 1
+    performance_spm_util: 65536
+    performance_spm_page_util: 64
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [0, 0, 64]
+    others_spm_tensor_util: [0, 0, 65536]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 0]
+    others_first_tensor_page_num: [0, 0, 0]
+  - target_accel: 1
+    source_candidate_index: 7
+    mapping_tile: [1, 256, 128, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [1, 0, 1]
+    performance_accel_util: 1
+    performance_spm_util: 65536
+    performance_spm_page_util: 64
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [0, 64, 0]
+    others_spm_tensor_util: [0, 65536, 0]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 65536]
+    others_first_tensor_page_num: [0, 0, 64]
+  - target_accel: 1
+    source_candidate_index: 22
+    mapping_tile: [1, 256, 128, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [0, 1, 1]
+    performance_accel_util: 1
+    performance_spm_util: 65536
+    performance_spm_page_util: 64
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [64, 0, 0]
+    others_spm_tensor_util: [65536, 0, 0]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 65536]
+    others_first_tensor_page_num: [0, 64, 64]
+  - target_accel: 2
+    source_candidate_index: 32
+    mapping_tile: [1, 128, 256, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [1, 1, 0]
+    performance_accel_util: 2
+    performance_spm_util: 65536
+    performance_spm_page_util: 64
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [0, 0, 64]
+    others_spm_tensor_util: [0, 0, 65536]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 0]
+    others_first_tensor_page_num: [0, 0, 0]
+  - target_accel: 2
+    source_candidate_index: 34
+    mapping_tile: [1, 128, 256, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [1, 0, 1]
+    performance_accel_util: 2
+    performance_spm_util: 65536
+    performance_spm_page_util: 64
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [0, 64, 0]
+    others_spm_tensor_util: [0, 65536, 0]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 65536]
+    others_first_tensor_page_num: [0, 0, 64]
+  - target_accel: 2
+    source_candidate_index: 49
+    mapping_tile: [1, 128, 256, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [0, 1, 1]
+    performance_accel_util: 2
+    performance_spm_util: 65536
+    performance_spm_page_util: 64
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [64, 0, 0]
+    others_spm_tensor_util: [65536, 0, 0]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 65536]
+    others_first_tensor_page_num: [0, 64, 64]
+  - target_accel: 4
+    source_candidate_index: 59
+    mapping_tile: [1, 64, 256, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [1, 1, 0]
+    performance_accel_util: 4
+    performance_spm_util: 65536
+    performance_spm_page_util: 64
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [0, 0, 64]
+    others_spm_tensor_util: [0, 0, 65536]
+    others_total_tiles: 4
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 0]
+    others_first_tensor_page_num: [0, 0, 0]
+  - target_accel: 4
+    source_candidate_index: 61
+    mapping_tile: [1, 64, 256, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [1, 0, 1]
+    performance_accel_util: 4
+    performance_spm_util: 65536
+    performance_spm_page_util: 64
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [0, 64, 0]
+    others_spm_tensor_util: [0, 65536, 0]
+    others_total_tiles: 4
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 65536]
+    others_first_tensor_page_num: [0, 0, 64]
+  - target_accel: 4
+    source_candidate_index: 76
+    mapping_tile: [1, 64, 256, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [0, 1, 1]
+    performance_accel_util: 4
+    performance_spm_util: 65536
+    performance_spm_page_util: 64
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [64, 0, 0]
+    others_spm_tensor_util: [65536, 0, 0]
+    others_total_tiles: 4
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 65536]
+    others_first_tensor_page_num: [0, 64, 64]
+  - target_accel: 8
+    source_candidate_index: 86
+    mapping_tile: [1, 64, 128, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [1, 1, 0]
+    performance_accel_util: 8
+    performance_spm_util: 65536
+    performance_spm_page_util: 64
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [0, 0, 64]
+    others_spm_tensor_util: [0, 0, 65536]
+    others_total_tiles: 8
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 0]
+    others_first_tensor_page_num: [0, 0, 0]
+  - target_accel: 8
+    source_candidate_index: 88
+    mapping_tile: [1, 64, 128, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [1, 0, 1]
+    performance_accel_util: 8
+    performance_spm_util: 65536
+    performance_spm_page_util: 64
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [0, 64, 0]
+    others_spm_tensor_util: [0, 65536, 0]
+    others_total_tiles: 8
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 65536]
+    others_first_tensor_page_num: [0, 0, 64]
+  - target_accel: 8
+    source_candidate_index: 103
+    mapping_tile: [1, 64, 128, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [0, 1, 1]
+    performance_accel_util: 8
+    performance_spm_util: 65536
+    performance_spm_page_util: 64
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [64, 0, 0]
+    others_spm_tensor_util: [65536, 0, 0]
+    others_total_tiles: 8
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 65536]
+    others_first_tensor_page_num: [0, 64, 64]
+  - target_accel: 16
+    source_candidate_index: 113
+    mapping_tile: [1, 64, 64, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [1, 1, 0]
+    performance_accel_util: 16
+    performance_spm_util: 65536
+    performance_spm_page_util: 64
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [0, 0, 64]
+    others_spm_tensor_util: [0, 0, 65536]
+    others_total_tiles: 16
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 0]
+    others_first_tensor_page_num: [0, 0, 0]
+  - target_accel: 16
+    source_candidate_index: 115
+    mapping_tile: [1, 64, 64, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [1, 0, 1]
+    performance_accel_util: 16
+    performance_spm_util: 65536
+    performance_spm_page_util: 64
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [0, 64, 0]
+    others_spm_tensor_util: [0, 65536, 0]
+    others_total_tiles: 16
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 65536]
+    others_first_tensor_page_num: [0, 0, 64]
+  - target_accel: 16
+    source_candidate_index: 130
+    mapping_tile: [1, 64, 64, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [0, 1, 1]
+    performance_accel_util: 16
+    performance_spm_util: 65536
+    performance_spm_page_util: 64
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [64, 0, 0]
+    others_spm_tensor_util: [65536, 0, 0]
+    others_total_tiles: 16
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 65536]
+    others_first_tensor_page_num: [0, 64, 64]
+  - target_accel: 32
+    source_candidate_index: 140
+    mapping_tile: [1, 64, 32, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [1, 1, 0]
+    performance_accel_util: 32
+    performance_spm_util: 65536
+    performance_spm_page_util: 64
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [0, 0, 64]
+    others_spm_tensor_util: [0, 0, 65536]
+    others_total_tiles: 32
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 0]
+    others_first_tensor_page_num: [0, 0, 0]
+  - target_accel: 32
+    source_candidate_index: 142
+    mapping_tile: [1, 64, 32, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [1, 0, 1]
+    performance_accel_util: 32
+    performance_spm_util: 65536
+    performance_spm_page_util: 64
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [0, 64, 0]
+    others_spm_tensor_util: [0, 65536, 0]
+    others_total_tiles: 32
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 65536]
+    others_first_tensor_page_num: [0, 0, 64]
+  - target_accel: 32
+    source_candidate_index: 157
+    mapping_tile: [1, 64, 32, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [0, 1, 1]
+    performance_accel_util: 32
+    performance_spm_util: 65536
+    performance_spm_page_util: 64
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [64, 0, 0]
+    others_spm_tensor_util: [65536, 0, 0]
+    others_total_tiles: 32
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 65536]
+    others_first_tensor_page_num: [0, 64, 64]
+  - target_accel: 1
+    source_candidate_index: 0
+    mapping_tile: [1, 256, 128, 1, 1]
+    mapping_dram_bypass: [0, 1, 1]
+    mapping_spm_bypass: [1, 0, 0]
+    performance_accel_util: 1
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 65536
+    others_spm_tensor_page_count: [0, 64, 64]
+    others_spm_tensor_util: [0, 65536, 65536]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 65536]
+    others_first_tensor_page_num: [0, 0, 64]
+  - target_accel: 1
+    source_candidate_index: 10
+    mapping_tile: [1, 256, 128, 1, 1]
+    mapping_dram_bypass: [1, 1, 0]
+    mapping_spm_bypass: [0, 0, 1]
+    performance_accel_util: 1
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 65536
+    others_spm_tensor_page_count: [64, 64, 0]
+    others_spm_tensor_util: [65536, 65536, 0]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 1
+    source_candidate_index: 12
+    mapping_tile: [1, 256, 128, 1, 1]
+    mapping_dram_bypass: [1, 0, 1]
+    mapping_spm_bypass: [0, 1, 0]
+    performance_accel_util: 1
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 65536
+    others_spm_tensor_page_count: [64, 0, 64]
+    others_spm_tensor_util: [65536, 0, 65536]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 65536]
+    others_first_tensor_page_num: [0, 64, 64]
+  - target_accel: 2
+    source_candidate_index: 27
+    mapping_tile: [1, 128, 256, 1, 1]
+    mapping_dram_bypass: [0, 1, 1]
+    mapping_spm_bypass: [1, 0, 0]
+    performance_accel_util: 2
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 65536
+    others_spm_tensor_page_count: [0, 64, 64]
+    others_spm_tensor_util: [0, 65536, 65536]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 65536]
+    others_first_tensor_page_num: [0, 0, 64]
+  - target_accel: 2
+    source_candidate_index: 37
+    mapping_tile: [1, 128, 256, 1, 1]
+    mapping_dram_bypass: [1, 1, 0]
+    mapping_spm_bypass: [0, 0, 1]
+    performance_accel_util: 2
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 65536
+    others_spm_tensor_page_count: [64, 64, 0]
+    others_spm_tensor_util: [65536, 65536, 0]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 2
+    source_candidate_index: 39
+    mapping_tile: [1, 128, 256, 1, 1]
+    mapping_dram_bypass: [1, 0, 1]
+    mapping_spm_bypass: [0, 1, 0]
+    performance_accel_util: 2
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 65536
+    others_spm_tensor_page_count: [64, 0, 64]
+    others_spm_tensor_util: [65536, 0, 65536]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 65536]
+    others_first_tensor_page_num: [0, 64, 64]
+  - target_accel: 4
+    source_candidate_index: 54
+    mapping_tile: [1, 64, 256, 1, 1]
+    mapping_dram_bypass: [0, 1, 1]
+    mapping_spm_bypass: [1, 0, 0]
+    performance_accel_util: 4
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 65536
+    others_spm_tensor_page_count: [0, 64, 64]
+    others_spm_tensor_util: [0, 65536, 65536]
+    others_total_tiles: 4
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 65536]
+    others_first_tensor_page_num: [0, 0, 64]
+  - target_accel: 4
+    source_candidate_index: 64
+    mapping_tile: [1, 64, 256, 1, 1]
+    mapping_dram_bypass: [1, 1, 0]
+    mapping_spm_bypass: [0, 0, 1]
+    performance_accel_util: 4
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 65536
+    others_spm_tensor_page_count: [64, 64, 0]
+    others_spm_tensor_util: [65536, 65536, 0]
+    others_total_tiles: 4
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 4
+    source_candidate_index: 66
+    mapping_tile: [1, 64, 256, 1, 1]
+    mapping_dram_bypass: [1, 0, 1]
+    mapping_spm_bypass: [0, 1, 0]
+    performance_accel_util: 4
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 65536
+    others_spm_tensor_page_count: [64, 0, 64]
+    others_spm_tensor_util: [65536, 0, 65536]
+    others_total_tiles: 4
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 65536]
+    others_first_tensor_page_num: [0, 64, 64]
+  - target_accel: 8
+    source_candidate_index: 81
+    mapping_tile: [1, 64, 128, 1, 1]
+    mapping_dram_bypass: [0, 1, 1]
+    mapping_spm_bypass: [1, 0, 0]
+    performance_accel_util: 8
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 65536
+    others_spm_tensor_page_count: [0, 64, 64]
+    others_spm_tensor_util: [0, 65536, 65536]
+    others_total_tiles: 8
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 65536]
+    others_first_tensor_page_num: [0, 0, 64]
+  - target_accel: 8
+    source_candidate_index: 91
+    mapping_tile: [1, 64, 128, 1, 1]
+    mapping_dram_bypass: [1, 1, 0]
+    mapping_spm_bypass: [0, 0, 1]
+    performance_accel_util: 8
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 65536
+    others_spm_tensor_page_count: [64, 64, 0]
+    others_spm_tensor_util: [65536, 65536, 0]
+    others_total_tiles: 8
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 8
+    source_candidate_index: 93
+    mapping_tile: [1, 64, 128, 1, 1]
+    mapping_dram_bypass: [1, 0, 1]
+    mapping_spm_bypass: [0, 1, 0]
+    performance_accel_util: 8
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 65536
+    others_spm_tensor_page_count: [64, 0, 64]
+    others_spm_tensor_util: [65536, 0, 65536]
+    others_total_tiles: 8
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 65536]
+    others_first_tensor_page_num: [0, 64, 64]
+  - target_accel: 16
+    source_candidate_index: 108
+    mapping_tile: [1, 64, 64, 1, 1]
+    mapping_dram_bypass: [0, 1, 1]
+    mapping_spm_bypass: [1, 0, 0]
+    performance_accel_util: 16
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 65536
+    others_spm_tensor_page_count: [0, 64, 64]
+    others_spm_tensor_util: [0, 65536, 65536]
+    others_total_tiles: 16
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 65536]
+    others_first_tensor_page_num: [0, 0, 64]
+  - target_accel: 16
+    source_candidate_index: 118
+    mapping_tile: [1, 64, 64, 1, 1]
+    mapping_dram_bypass: [1, 1, 0]
+    mapping_spm_bypass: [0, 0, 1]
+    performance_accel_util: 16
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 65536
+    others_spm_tensor_page_count: [64, 64, 0]
+    others_spm_tensor_util: [65536, 65536, 0]
+    others_total_tiles: 16
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 16
+    source_candidate_index: 120
+    mapping_tile: [1, 64, 64, 1, 1]
+    mapping_dram_bypass: [1, 0, 1]
+    mapping_spm_bypass: [0, 1, 0]
+    performance_accel_util: 16
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 65536
+    others_spm_tensor_page_count: [64, 0, 64]
+    others_spm_tensor_util: [65536, 0, 65536]
+    others_total_tiles: 16
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 65536]
+    others_first_tensor_page_num: [0, 64, 64]
+  - target_accel: 32
+    source_candidate_index: 135
+    mapping_tile: [1, 64, 32, 1, 1]
+    mapping_dram_bypass: [0, 1, 1]
+    mapping_spm_bypass: [1, 0, 0]
+    performance_accel_util: 32
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 65536
+    others_spm_tensor_page_count: [0, 64, 64]
+    others_spm_tensor_util: [0, 65536, 65536]
+    others_total_tiles: 32
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 65536]
+    others_first_tensor_page_num: [0, 0, 64]
+  - target_accel: 32
+    source_candidate_index: 145
+    mapping_tile: [1, 64, 32, 1, 1]
+    mapping_dram_bypass: [1, 1, 0]
+    mapping_spm_bypass: [0, 0, 1]
+    performance_accel_util: 32
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 65536
+    others_spm_tensor_page_count: [64, 64, 0]
+    others_spm_tensor_util: [65536, 65536, 0]
+    others_total_tiles: 32
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 32
+    source_candidate_index: 147
+    mapping_tile: [1, 64, 32, 1, 1]
+    mapping_dram_bypass: [1, 0, 1]
+    mapping_spm_bypass: [0, 1, 0]
+    performance_accel_util: 32
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 65536
+    others_spm_tensor_page_count: [64, 0, 64]
+    others_spm_tensor_util: [65536, 0, 65536]
+    others_total_tiles: 32
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 65536]
+    others_first_tensor_page_num: [0, 64, 64]
+  - target_accel: 1
+    source_candidate_index: 2
+    mapping_tile: [1, 256, 128, 1, 1]
+    mapping_dram_bypass: [0, 1, 0]
+    mapping_spm_bypass: [1, 0, 0]
+    performance_accel_util: 1
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [0, 64, 64]
+    others_spm_tensor_util: [0, 65536, 65536]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 65536]
+    others_first_tensor_page_num: [0, 0, 64]
+  - target_accel: 1
+    source_candidate_index: 6
+    mapping_tile: [1, 256, 128, 1, 1]
+    mapping_dram_bypass: [0, 0, 1]
+    mapping_spm_bypass: [1, 0, 0]
+    performance_accel_util: 1
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [0, 64, 64]
+    others_spm_tensor_util: [0, 65536, 65536]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 65536]
+    others_first_tensor_page_num: [0, 0, 64]
+  - target_accel: 1
+    source_candidate_index: 14
+    mapping_tile: [1, 256, 128, 1, 1]
+    mapping_dram_bypass: [1, 0, 0]
+    mapping_spm_bypass: [0, 1, 0]
+    performance_accel_util: 1
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 0, 64]
+    others_spm_tensor_util: [65536, 0, 65536]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 65536]
+    others_first_tensor_page_num: [0, 64, 64]
+  - target_accel: 1
+    source_candidate_index: 16
+    mapping_tile: [1, 256, 128, 1, 1]
+    mapping_dram_bypass: [1, 0, 0]
+    mapping_spm_bypass: [0, 0, 1]
+    performance_accel_util: 1
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 64, 0]
+    others_spm_tensor_util: [65536, 65536, 0]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 1
+    source_candidate_index: 19
+    mapping_tile: [1, 256, 128, 1, 1]
+    mapping_dram_bypass: [0, 1, 0]
+    mapping_spm_bypass: [0, 0, 1]
+    performance_accel_util: 1
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 64, 0]
+    others_spm_tensor_util: [65536, 65536, 0]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 1
+    source_candidate_index: 21
+    mapping_tile: [1, 256, 128, 1, 1]
+    mapping_dram_bypass: [0, 0, 1]
+    mapping_spm_bypass: [0, 1, 0]
+    performance_accel_util: 1
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 0, 64]
+    others_spm_tensor_util: [65536, 0, 65536]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 65536]
+    others_first_tensor_page_num: [0, 64, 64]
+  - target_accel: 2
+    source_candidate_index: 29
+    mapping_tile: [1, 128, 256, 1, 1]
+    mapping_dram_bypass: [0, 1, 0]
+    mapping_spm_bypass: [1, 0, 0]
+    performance_accel_util: 2
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [0, 64, 64]
+    others_spm_tensor_util: [0, 65536, 65536]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 65536]
+    others_first_tensor_page_num: [0, 0, 64]
+  - target_accel: 2
+    source_candidate_index: 33
+    mapping_tile: [1, 128, 256, 1, 1]
+    mapping_dram_bypass: [0, 0, 1]
+    mapping_spm_bypass: [1, 0, 0]
+    performance_accel_util: 2
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [0, 64, 64]
+    others_spm_tensor_util: [0, 65536, 65536]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 65536]
+    others_first_tensor_page_num: [0, 0, 64]
+  - target_accel: 2
+    source_candidate_index: 41
+    mapping_tile: [1, 128, 256, 1, 1]
+    mapping_dram_bypass: [1, 0, 0]
+    mapping_spm_bypass: [0, 1, 0]
+    performance_accel_util: 2
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 0, 64]
+    others_spm_tensor_util: [65536, 0, 65536]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 65536]
+    others_first_tensor_page_num: [0, 64, 64]
+  - target_accel: 2
+    source_candidate_index: 43
+    mapping_tile: [1, 128, 256, 1, 1]
+    mapping_dram_bypass: [1, 0, 0]
+    mapping_spm_bypass: [0, 0, 1]
+    performance_accel_util: 2
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 64, 0]
+    others_spm_tensor_util: [65536, 65536, 0]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 2
+    source_candidate_index: 46
+    mapping_tile: [1, 128, 256, 1, 1]
+    mapping_dram_bypass: [0, 1, 0]
+    mapping_spm_bypass: [0, 0, 1]
+    performance_accel_util: 2
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 64, 0]
+    others_spm_tensor_util: [65536, 65536, 0]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 2
+    source_candidate_index: 48
+    mapping_tile: [1, 128, 256, 1, 1]
+    mapping_dram_bypass: [0, 0, 1]
+    mapping_spm_bypass: [0, 1, 0]
+    performance_accel_util: 2
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 0, 64]
+    others_spm_tensor_util: [65536, 0, 65536]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 65536]
+    others_first_tensor_page_num: [0, 64, 64]
+  - target_accel: 4
+    source_candidate_index: 56
+    mapping_tile: [1, 64, 256, 1, 1]
+    mapping_dram_bypass: [0, 1, 0]
+    mapping_spm_bypass: [1, 0, 0]
+    performance_accel_util: 4
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [0, 64, 64]
+    others_spm_tensor_util: [0, 65536, 65536]
+    others_total_tiles: 4
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 65536]
+    others_first_tensor_page_num: [0, 0, 64]
+  - target_accel: 4
+    source_candidate_index: 60
+    mapping_tile: [1, 64, 256, 1, 1]
+    mapping_dram_bypass: [0, 0, 1]
+    mapping_spm_bypass: [1, 0, 0]
+    performance_accel_util: 4
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [0, 64, 64]
+    others_spm_tensor_util: [0, 65536, 65536]
+    others_total_tiles: 4
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 65536]
+    others_first_tensor_page_num: [0, 0, 64]
+  - target_accel: 4
+    source_candidate_index: 68
+    mapping_tile: [1, 64, 256, 1, 1]
+    mapping_dram_bypass: [1, 0, 0]
+    mapping_spm_bypass: [0, 1, 0]
+    performance_accel_util: 4
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 0, 64]
+    others_spm_tensor_util: [65536, 0, 65536]
+    others_total_tiles: 4
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 65536]
+    others_first_tensor_page_num: [0, 64, 64]
+  - target_accel: 4
+    source_candidate_index: 70
+    mapping_tile: [1, 64, 256, 1, 1]
+    mapping_dram_bypass: [1, 0, 0]
+    mapping_spm_bypass: [0, 0, 1]
+    performance_accel_util: 4
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 64, 0]
+    others_spm_tensor_util: [65536, 65536, 0]
+    others_total_tiles: 4
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 4
+    source_candidate_index: 73
+    mapping_tile: [1, 64, 256, 1, 1]
+    mapping_dram_bypass: [0, 1, 0]
+    mapping_spm_bypass: [0, 0, 1]
+    performance_accel_util: 4
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 64, 0]
+    others_spm_tensor_util: [65536, 65536, 0]
+    others_total_tiles: 4
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 4
+    source_candidate_index: 75
+    mapping_tile: [1, 64, 256, 1, 1]
+    mapping_dram_bypass: [0, 0, 1]
+    mapping_spm_bypass: [0, 1, 0]
+    performance_accel_util: 4
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 0, 64]
+    others_spm_tensor_util: [65536, 0, 65536]
+    others_total_tiles: 4
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 65536]
+    others_first_tensor_page_num: [0, 64, 64]
+  - target_accel: 8
+    source_candidate_index: 83
+    mapping_tile: [1, 64, 128, 1, 1]
+    mapping_dram_bypass: [0, 1, 0]
+    mapping_spm_bypass: [1, 0, 0]
+    performance_accel_util: 8
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [0, 64, 64]
+    others_spm_tensor_util: [0, 65536, 65536]
+    others_total_tiles: 8
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 65536]
+    others_first_tensor_page_num: [0, 0, 64]
+  - target_accel: 8
+    source_candidate_index: 87
+    mapping_tile: [1, 64, 128, 1, 1]
+    mapping_dram_bypass: [0, 0, 1]
+    mapping_spm_bypass: [1, 0, 0]
+    performance_accel_util: 8
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [0, 64, 64]
+    others_spm_tensor_util: [0, 65536, 65536]
+    others_total_tiles: 8
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 65536]
+    others_first_tensor_page_num: [0, 0, 64]
+  - target_accel: 8
+    source_candidate_index: 95
+    mapping_tile: [1, 64, 128, 1, 1]
+    mapping_dram_bypass: [1, 0, 0]
+    mapping_spm_bypass: [0, 1, 0]
+    performance_accel_util: 8
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 0, 64]
+    others_spm_tensor_util: [65536, 0, 65536]
+    others_total_tiles: 8
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 65536]
+    others_first_tensor_page_num: [0, 64, 64]
+  - target_accel: 8
+    source_candidate_index: 97
+    mapping_tile: [1, 64, 128, 1, 1]
+    mapping_dram_bypass: [1, 0, 0]
+    mapping_spm_bypass: [0, 0, 1]
+    performance_accel_util: 8
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 64, 0]
+    others_spm_tensor_util: [65536, 65536, 0]
+    others_total_tiles: 8
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 8
+    source_candidate_index: 100
+    mapping_tile: [1, 64, 128, 1, 1]
+    mapping_dram_bypass: [0, 1, 0]
+    mapping_spm_bypass: [0, 0, 1]
+    performance_accel_util: 8
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 64, 0]
+    others_spm_tensor_util: [65536, 65536, 0]
+    others_total_tiles: 8
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 8
+    source_candidate_index: 102
+    mapping_tile: [1, 64, 128, 1, 1]
+    mapping_dram_bypass: [0, 0, 1]
+    mapping_spm_bypass: [0, 1, 0]
+    performance_accel_util: 8
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 0, 64]
+    others_spm_tensor_util: [65536, 0, 65536]
+    others_total_tiles: 8
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 65536]
+    others_first_tensor_page_num: [0, 64, 64]
+  - target_accel: 16
+    source_candidate_index: 110
+    mapping_tile: [1, 64, 64, 1, 1]
+    mapping_dram_bypass: [0, 1, 0]
+    mapping_spm_bypass: [1, 0, 0]
+    performance_accel_util: 16
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [0, 64, 64]
+    others_spm_tensor_util: [0, 65536, 65536]
+    others_total_tiles: 16
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 65536]
+    others_first_tensor_page_num: [0, 0, 64]
+  - target_accel: 16
+    source_candidate_index: 114
+    mapping_tile: [1, 64, 64, 1, 1]
+    mapping_dram_bypass: [0, 0, 1]
+    mapping_spm_bypass: [1, 0, 0]
+    performance_accel_util: 16
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [0, 64, 64]
+    others_spm_tensor_util: [0, 65536, 65536]
+    others_total_tiles: 16
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 65536]
+    others_first_tensor_page_num: [0, 0, 64]
+  - target_accel: 16
+    source_candidate_index: 122
+    mapping_tile: [1, 64, 64, 1, 1]
+    mapping_dram_bypass: [1, 0, 0]
+    mapping_spm_bypass: [0, 1, 0]
+    performance_accel_util: 16
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 0, 64]
+    others_spm_tensor_util: [65536, 0, 65536]
+    others_total_tiles: 16
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 65536]
+    others_first_tensor_page_num: [0, 64, 64]
+  - target_accel: 16
+    source_candidate_index: 124
+    mapping_tile: [1, 64, 64, 1, 1]
+    mapping_dram_bypass: [1, 0, 0]
+    mapping_spm_bypass: [0, 0, 1]
+    performance_accel_util: 16
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 64, 0]
+    others_spm_tensor_util: [65536, 65536, 0]
+    others_total_tiles: 16
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 16
+    source_candidate_index: 127
+    mapping_tile: [1, 64, 64, 1, 1]
+    mapping_dram_bypass: [0, 1, 0]
+    mapping_spm_bypass: [0, 0, 1]
+    performance_accel_util: 16
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 64, 0]
+    others_spm_tensor_util: [65536, 65536, 0]
+    others_total_tiles: 16
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 16
+    source_candidate_index: 129
+    mapping_tile: [1, 64, 64, 1, 1]
+    mapping_dram_bypass: [0, 0, 1]
+    mapping_spm_bypass: [0, 1, 0]
+    performance_accel_util: 16
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 0, 64]
+    others_spm_tensor_util: [65536, 0, 65536]
+    others_total_tiles: 16
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 65536]
+    others_first_tensor_page_num: [0, 64, 64]
+  - target_accel: 32
+    source_candidate_index: 137
+    mapping_tile: [1, 64, 32, 1, 1]
+    mapping_dram_bypass: [0, 1, 0]
+    mapping_spm_bypass: [1, 0, 0]
+    performance_accel_util: 32
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [0, 64, 64]
+    others_spm_tensor_util: [0, 65536, 65536]
+    others_total_tiles: 32
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 65536]
+    others_first_tensor_page_num: [0, 0, 64]
+  - target_accel: 32
+    source_candidate_index: 141
+    mapping_tile: [1, 64, 32, 1, 1]
+    mapping_dram_bypass: [0, 0, 1]
+    mapping_spm_bypass: [1, 0, 0]
+    performance_accel_util: 32
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [0, 64, 64]
+    others_spm_tensor_util: [0, 65536, 65536]
+    others_total_tiles: 32
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 65536]
+    others_first_tensor_page_num: [0, 0, 64]
+  - target_accel: 32
+    source_candidate_index: 149
+    mapping_tile: [1, 64, 32, 1, 1]
+    mapping_dram_bypass: [1, 0, 0]
+    mapping_spm_bypass: [0, 1, 0]
+    performance_accel_util: 32
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 0, 64]
+    others_spm_tensor_util: [65536, 0, 65536]
+    others_total_tiles: 32
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 65536]
+    others_first_tensor_page_num: [0, 64, 64]
+  - target_accel: 32
+    source_candidate_index: 151
+    mapping_tile: [1, 64, 32, 1, 1]
+    mapping_dram_bypass: [1, 0, 0]
+    mapping_spm_bypass: [0, 0, 1]
+    performance_accel_util: 32
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 64, 0]
+    others_spm_tensor_util: [65536, 65536, 0]
+    others_total_tiles: 32
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 32
+    source_candidate_index: 154
+    mapping_tile: [1, 64, 32, 1, 1]
+    mapping_dram_bypass: [0, 1, 0]
+    mapping_spm_bypass: [0, 0, 1]
+    performance_accel_util: 32
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 64, 0]
+    others_spm_tensor_util: [65536, 65536, 0]
+    others_total_tiles: 32
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 32
+    source_candidate_index: 156
+    mapping_tile: [1, 64, 32, 1, 1]
+    mapping_dram_bypass: [0, 0, 1]
+    mapping_spm_bypass: [0, 1, 0]
+    performance_accel_util: 32
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 0, 64]
+    others_spm_tensor_util: [65536, 0, 65536]
+    others_total_tiles: 32
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 65536]
+    others_first_tensor_page_num: [0, 64, 64]
+  - target_accel: 1
+    source_candidate_index: 8
+    mapping_tile: [1, 256, 128, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [1, 0, 0]
+    performance_accel_util: 1
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [0, 64, 64]
+    others_spm_tensor_util: [0, 65536, 65536]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 65536]
+    others_first_tensor_page_num: [0, 0, 64]
+  - target_accel: 1
+    source_candidate_index: 23
+    mapping_tile: [1, 256, 128, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [0, 1, 0]
+    performance_accel_util: 1
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [64, 0, 64]
+    others_spm_tensor_util: [65536, 0, 65536]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 65536]
+    others_first_tensor_page_num: [0, 64, 64]
+  - target_accel: 1
+    source_candidate_index: 25
+    mapping_tile: [1, 256, 128, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [0, 0, 1]
+    performance_accel_util: 1
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [64, 64, 0]
+    others_spm_tensor_util: [65536, 65536, 0]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 2
+    source_candidate_index: 35
+    mapping_tile: [1, 128, 256, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [1, 0, 0]
+    performance_accel_util: 2
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [0, 64, 64]
+    others_spm_tensor_util: [0, 65536, 65536]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 65536]
+    others_first_tensor_page_num: [0, 0, 64]
+  - target_accel: 2
+    source_candidate_index: 50
+    mapping_tile: [1, 128, 256, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [0, 1, 0]
+    performance_accel_util: 2
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [64, 0, 64]
+    others_spm_tensor_util: [65536, 0, 65536]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 65536]
+    others_first_tensor_page_num: [0, 64, 64]
+  - target_accel: 2
+    source_candidate_index: 52
+    mapping_tile: [1, 128, 256, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [0, 0, 1]
+    performance_accel_util: 2
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [64, 64, 0]
+    others_spm_tensor_util: [65536, 65536, 0]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 4
+    source_candidate_index: 62
+    mapping_tile: [1, 64, 256, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [1, 0, 0]
+    performance_accel_util: 4
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [0, 64, 64]
+    others_spm_tensor_util: [0, 65536, 65536]
+    others_total_tiles: 4
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 65536]
+    others_first_tensor_page_num: [0, 0, 64]
+  - target_accel: 4
+    source_candidate_index: 77
+    mapping_tile: [1, 64, 256, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [0, 1, 0]
+    performance_accel_util: 4
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [64, 0, 64]
+    others_spm_tensor_util: [65536, 0, 65536]
+    others_total_tiles: 4
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 65536]
+    others_first_tensor_page_num: [0, 64, 64]
+  - target_accel: 4
+    source_candidate_index: 79
+    mapping_tile: [1, 64, 256, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [0, 0, 1]
+    performance_accel_util: 4
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [64, 64, 0]
+    others_spm_tensor_util: [65536, 65536, 0]
+    others_total_tiles: 4
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 8
+    source_candidate_index: 89
+    mapping_tile: [1, 64, 128, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [1, 0, 0]
+    performance_accel_util: 8
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [0, 64, 64]
+    others_spm_tensor_util: [0, 65536, 65536]
+    others_total_tiles: 8
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 65536]
+    others_first_tensor_page_num: [0, 0, 64]
+  - target_accel: 8
+    source_candidate_index: 104
+    mapping_tile: [1, 64, 128, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [0, 1, 0]
+    performance_accel_util: 8
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [64, 0, 64]
+    others_spm_tensor_util: [65536, 0, 65536]
+    others_total_tiles: 8
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 65536]
+    others_first_tensor_page_num: [0, 64, 64]
+  - target_accel: 8
+    source_candidate_index: 106
+    mapping_tile: [1, 64, 128, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [0, 0, 1]
+    performance_accel_util: 8
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [64, 64, 0]
+    others_spm_tensor_util: [65536, 65536, 0]
+    others_total_tiles: 8
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 16
+    source_candidate_index: 116
+    mapping_tile: [1, 64, 64, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [1, 0, 0]
+    performance_accel_util: 16
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [0, 64, 64]
+    others_spm_tensor_util: [0, 65536, 65536]
+    others_total_tiles: 16
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 65536]
+    others_first_tensor_page_num: [0, 0, 64]
+  - target_accel: 16
+    source_candidate_index: 131
+    mapping_tile: [1, 64, 64, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [0, 1, 0]
+    performance_accel_util: 16
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [64, 0, 64]
+    others_spm_tensor_util: [65536, 0, 65536]
+    others_total_tiles: 16
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 65536]
+    others_first_tensor_page_num: [0, 64, 64]
+  - target_accel: 16
+    source_candidate_index: 133
+    mapping_tile: [1, 64, 64, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [0, 0, 1]
+    performance_accel_util: 16
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [64, 64, 0]
+    others_spm_tensor_util: [65536, 65536, 0]
+    others_total_tiles: 16
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 32
+    source_candidate_index: 143
+    mapping_tile: [1, 64, 32, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [1, 0, 0]
+    performance_accel_util: 32
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [0, 64, 64]
+    others_spm_tensor_util: [0, 65536, 65536]
+    others_total_tiles: 32
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 0, 65536]
+    others_first_tensor_page_num: [0, 0, 64]
+  - target_accel: 32
+    source_candidate_index: 158
+    mapping_tile: [1, 64, 32, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [0, 1, 0]
+    performance_accel_util: 32
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [64, 0, 64]
+    others_spm_tensor_util: [65536, 0, 65536]
+    others_total_tiles: 32
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 65536]
+    others_first_tensor_page_num: [0, 64, 64]
+  - target_accel: 32
+    source_candidate_index: 160
+    mapping_tile: [1, 64, 32, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [0, 0, 1]
+    performance_accel_util: 32
+    performance_spm_util: 131072
+    performance_spm_page_util: 128
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [64, 64, 0]
+    others_spm_tensor_util: [65536, 65536, 0]
+    others_total_tiles: 32
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 1
+    source_candidate_index: 9
+    mapping_tile: [1, 256, 128, 1, 1]
+    mapping_dram_bypass: [1, 1, 1]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 1
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 0
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 2
+    source_candidate_index: 36
+    mapping_tile: [1, 128, 256, 1, 1]
+    mapping_dram_bypass: [1, 1, 1]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 2
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 0
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 4
+    source_candidate_index: 63
+    mapping_tile: [1, 64, 256, 1, 1]
+    mapping_dram_bypass: [1, 1, 1]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 4
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 0
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 4
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 8
+    source_candidate_index: 90
+    mapping_tile: [1, 64, 128, 1, 1]
+    mapping_dram_bypass: [1, 1, 1]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 8
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 0
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 8
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 16
+    source_candidate_index: 117
+    mapping_tile: [1, 64, 64, 1, 1]
+    mapping_dram_bypass: [1, 1, 1]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 16
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 0
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 16
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 32
+    source_candidate_index: 144
+    mapping_tile: [1, 64, 32, 1, 1]
+    mapping_dram_bypass: [1, 1, 1]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 32
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 0
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 32
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 1
+    source_candidate_index: 11
+    mapping_tile: [1, 256, 128, 1, 1]
+    mapping_dram_bypass: [1, 1, 0]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 1
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 65536
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 1
+    source_candidate_index: 15
+    mapping_tile: [1, 256, 128, 1, 1]
+    mapping_dram_bypass: [1, 0, 1]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 1
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 65536
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 1
+    source_candidate_index: 18
+    mapping_tile: [1, 256, 128, 1, 1]
+    mapping_dram_bypass: [0, 1, 1]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 1
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 65536
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 2
+    source_candidate_index: 38
+    mapping_tile: [1, 128, 256, 1, 1]
+    mapping_dram_bypass: [1, 1, 0]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 2
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 65536
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 2
+    source_candidate_index: 42
+    mapping_tile: [1, 128, 256, 1, 1]
+    mapping_dram_bypass: [1, 0, 1]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 2
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 65536
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 2
+    source_candidate_index: 45
+    mapping_tile: [1, 128, 256, 1, 1]
+    mapping_dram_bypass: [0, 1, 1]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 2
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 65536
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 4
+    source_candidate_index: 65
+    mapping_tile: [1, 64, 256, 1, 1]
+    mapping_dram_bypass: [1, 1, 0]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 4
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 65536
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 4
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 4
+    source_candidate_index: 69
+    mapping_tile: [1, 64, 256, 1, 1]
+    mapping_dram_bypass: [1, 0, 1]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 4
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 65536
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 4
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 4
+    source_candidate_index: 72
+    mapping_tile: [1, 64, 256, 1, 1]
+    mapping_dram_bypass: [0, 1, 1]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 4
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 65536
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 4
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 8
+    source_candidate_index: 92
+    mapping_tile: [1, 64, 128, 1, 1]
+    mapping_dram_bypass: [1, 1, 0]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 8
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 65536
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 8
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 8
+    source_candidate_index: 96
+    mapping_tile: [1, 64, 128, 1, 1]
+    mapping_dram_bypass: [1, 0, 1]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 8
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 65536
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 8
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 8
+    source_candidate_index: 99
+    mapping_tile: [1, 64, 128, 1, 1]
+    mapping_dram_bypass: [0, 1, 1]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 8
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 65536
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 8
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 16
+    source_candidate_index: 119
+    mapping_tile: [1, 64, 64, 1, 1]
+    mapping_dram_bypass: [1, 1, 0]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 16
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 65536
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 16
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 16
+    source_candidate_index: 123
+    mapping_tile: [1, 64, 64, 1, 1]
+    mapping_dram_bypass: [1, 0, 1]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 16
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 65536
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 16
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 16
+    source_candidate_index: 126
+    mapping_tile: [1, 64, 64, 1, 1]
+    mapping_dram_bypass: [0, 1, 1]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 16
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 65536
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 16
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 32
+    source_candidate_index: 146
+    mapping_tile: [1, 64, 32, 1, 1]
+    mapping_dram_bypass: [1, 1, 0]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 32
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 65536
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 32
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 32
+    source_candidate_index: 150
+    mapping_tile: [1, 64, 32, 1, 1]
+    mapping_dram_bypass: [1, 0, 1]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 32
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 65536
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 32
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 32
+    source_candidate_index: 153
+    mapping_tile: [1, 64, 32, 1, 1]
+    mapping_dram_bypass: [0, 1, 1]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 32
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 65536
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 32
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 1
+    source_candidate_index: 17
+    mapping_tile: [1, 256, 128, 1, 1]
+    mapping_dram_bypass: [1, 0, 0]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 1
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 1
+    source_candidate_index: 20
+    mapping_tile: [1, 256, 128, 1, 1]
+    mapping_dram_bypass: [0, 1, 0]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 1
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 1
+    source_candidate_index: 24
+    mapping_tile: [1, 256, 128, 1, 1]
+    mapping_dram_bypass: [0, 0, 1]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 1
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 2
+    source_candidate_index: 44
+    mapping_tile: [1, 128, 256, 1, 1]
+    mapping_dram_bypass: [1, 0, 0]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 2
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 2
+    source_candidate_index: 47
+    mapping_tile: [1, 128, 256, 1, 1]
+    mapping_dram_bypass: [0, 1, 0]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 2
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 2
+    source_candidate_index: 51
+    mapping_tile: [1, 128, 256, 1, 1]
+    mapping_dram_bypass: [0, 0, 1]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 2
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 4
+    source_candidate_index: 71
+    mapping_tile: [1, 64, 256, 1, 1]
+    mapping_dram_bypass: [1, 0, 0]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 4
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 4
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 4
+    source_candidate_index: 74
+    mapping_tile: [1, 64, 256, 1, 1]
+    mapping_dram_bypass: [0, 1, 0]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 4
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 4
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 4
+    source_candidate_index: 78
+    mapping_tile: [1, 64, 256, 1, 1]
+    mapping_dram_bypass: [0, 0, 1]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 4
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 4
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 8
+    source_candidate_index: 98
+    mapping_tile: [1, 64, 128, 1, 1]
+    mapping_dram_bypass: [1, 0, 0]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 8
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 8
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 8
+    source_candidate_index: 101
+    mapping_tile: [1, 64, 128, 1, 1]
+    mapping_dram_bypass: [0, 1, 0]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 8
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 8
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 8
+    source_candidate_index: 105
+    mapping_tile: [1, 64, 128, 1, 1]
+    mapping_dram_bypass: [0, 0, 1]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 8
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 8
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 16
+    source_candidate_index: 125
+    mapping_tile: [1, 64, 64, 1, 1]
+    mapping_dram_bypass: [1, 0, 0]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 16
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 16
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 16
+    source_candidate_index: 128
+    mapping_tile: [1, 64, 64, 1, 1]
+    mapping_dram_bypass: [0, 1, 0]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 16
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 16
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 16
+    source_candidate_index: 132
+    mapping_tile: [1, 64, 64, 1, 1]
+    mapping_dram_bypass: [0, 0, 1]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 16
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 16
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 32
+    source_candidate_index: 152
+    mapping_tile: [1, 64, 32, 1, 1]
+    mapping_dram_bypass: [1, 0, 0]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 32
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 32
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 32
+    source_candidate_index: 155
+    mapping_tile: [1, 64, 32, 1, 1]
+    mapping_dram_bypass: [0, 1, 0]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 32
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 32
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 32
+    source_candidate_index: 159
+    mapping_tile: [1, 64, 32, 1, 1]
+    mapping_dram_bypass: [0, 0, 1]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 32
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 131072
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 32
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 1
+    source_candidate_index: 26
+    mapping_tile: [1, 256, 128, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 1
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 2
+    source_candidate_index: 53
+    mapping_tile: [1, 128, 256, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 2
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 2
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 4
+    source_candidate_index: 80
+    mapping_tile: [1, 64, 256, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 4
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 4
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 8
+    source_candidate_index: 107
+    mapping_tile: [1, 64, 128, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 8
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 8
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 16
+    source_candidate_index: 134
+    mapping_tile: [1, 64, 64, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 16
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 16
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]
+  - target_accel: 32
+    source_candidate_index: 161
+    mapping_tile: [1, 64, 32, 1, 1]
+    mapping_dram_bypass: [0, 0, 0]
+    mapping_spm_bypass: [0, 0, 0]
+    performance_accel_util: 32
+    performance_spm_util: 196608
+    performance_spm_page_util: 192
+    performance_dram_access: 196608
+    others_spm_tensor_page_count: [64, 64, 64]
+    others_spm_tensor_util: [65536, 65536, 65536]
+    others_total_tiles: 32
+    others_spm_dimensions: [1, 256, 256, 1, 1]
+    others_spm_tensor_addr: [0, 65536, 131072]
+    others_first_tensor_page_num: [0, 64, 128]

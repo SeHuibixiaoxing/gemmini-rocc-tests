@@ -7,6 +7,7 @@
 #include "encoding.h"
 #include "util.h"
 #include "include/gemmini.h"
+#include "include/gemmini_testutils.h"
 #include "include/rerocc_coupleddma.h"
 #include "include/rerocc_gemmini_spm_xlate.h"
 #include "rerocc-linux-tests/rerocc_control.h"
@@ -35,6 +36,14 @@
 #define REROCC_DMA_BYTES 1024
 #endif
 
+#ifndef REROCC_SPM_PAGE_BYTES
+#define REROCC_SPM_PAGE_BYTES 1024U
+#endif
+
+#ifndef REROCC_DMA_CROSS_BYTES
+#define REROCC_DMA_CROSS_BYTES 256U
+#endif
+
 #ifndef REROCC_ACQUIRE_MAX_RETRIES
 #define REROCC_ACQUIRE_MAX_RETRIES 1000000UL
 #endif
@@ -50,11 +59,17 @@
 #define SHARED_SPAD_LOCAL_SIZE (1024 * 1024ULL)
 #define SHARED_SPAD_LOCAL_ADDR_BASE(i) (SHARED_SPAD_GLOBAL_ADDR_BASE + SHARED_SPAD_LOCAL_SIZE * (uint64_t)(i))
 
-#define SHARED_CONV_INPUT_OFFSET 0x00000ULL
-#define SHARED_CONV_WEIGHT_OFFSET 0x04000ULL
-#define SHARED_CONV_OUTPUT_OFFSET 0x08000ULL
+#define SHARED_CONV_INPUT_OFFSET 0x00380ULL
+#define SHARED_CONV_WEIGHT_OFFSET 0x00780ULL
+#define SHARED_CONV_OUTPUT_OFFSET 0x00B80ULL
+#define SHARED_RESADD_A_OFFSET 0x01F40ULL
+#define SHARED_RESADD_B_OFFSET 0x02340ULL
+#define SHARED_RESADD_OUT_OFFSET 0x02740ULL
 #define SHARED_DMA_A_OFFSET 0x10000ULL
 #define SHARED_DMA_B_OFFSET 0x20000ULL
+
+#define SHARED_DMA_CROSS_OFFSET (REROCC_SPM_PAGE_BYTES - 64U)
+#define DRAM_DMA_CROSS_OFFSET 64U
 
 #define BATCH_SIZE 1
 #define IN_ROW_DIM 8
@@ -72,6 +87,10 @@
 
 #define CONV_ELEM_COUNT ((size_t)BATCH_SIZE * OUT_ROW_DIM * OUT_COL_DIM * OUT_CHANNELS)
 
+#if (REROCC_DMA_BYTES < (DRAM_DMA_CROSS_OFFSET + REROCC_DMA_CROSS_BYTES))
+#error "REROCC_DMA_BYTES is too small for cross-page DMA validation"
+#endif
+
 static volatile int dma_complete_flag __attribute__((aligned(64)));
 
 static elem_t input_dram[BATCH_SIZE][IN_ROW_DIM][IN_COL_DIM][IN_CHANNELS] __attribute__((aligned(64)));
@@ -82,6 +101,10 @@ static elem_t reference_out[BATCH_SIZE][OUT_ROW_DIM][OUT_COL_DIM][OUT_CHANNELS] 
 
 static elem_t output_case1_dram[N_PATCHES][OUT_CHANNELS] __attribute__((aligned(64)));
 static elem_t output_case2_dram[N_PATCHES][OUT_CHANNELS] __attribute__((aligned(64)));
+static elem_t resadd_a_dram[DIM][DIM] __attribute__((aligned(64)));
+static elem_t resadd_b_dram[DIM][DIM] __attribute__((aligned(64)));
+static elem_t resadd_out_dram[DIM][DIM] __attribute__((aligned(64)));
+static elem_t resadd_gold_dram[DIM][DIM] __attribute__((aligned(64)));
 
 static uint8_t dma_dram_src[REROCC_DMA_BYTES] __attribute__((aligned(64)));
 static uint8_t dma_dram_dst[REROCC_DMA_BYTES] __attribute__((aligned(64)));
@@ -206,6 +229,35 @@ static bool run_conv_case(const char *name, int gemmini_manager_id,
   return ok;
 }
 
+static bool run_resadd_case(const char *name, int gemmini_manager_id,
+                            const elem_t *a, const elem_t *b, elem_t *out, const elem_t *gold) {
+  bool ok = true;
+  if (!rr_acquire_cfg_with_retry(GEMMINI_CFG_ID, (uint64_t)gemmini_manager_id)) {
+    printf("CASE_FAIL %s reason=acquire\n", name);
+    return false;
+  }
+
+  rr_set_opc(3, GEMMINI_CFG_ID);
+  gemmini_flush(0);
+
+  tiled_resadd_auto(
+      DIM, DIM, MVIN_SCALE_IDENTITY, MVIN_SCALE_IDENTITY, ACC_SCALE_IDENTITY,
+      a, b, out, false, WS);
+
+  gemmini_fence();
+  rr_fence(GEMMINI_CFG_ID);
+  rr_release(GEMMINI_CFG_ID);
+
+  for (size_t i = 0; i < (size_t)(DIM * DIM); i++) {
+    if (out[i] != gold[i]) {
+      ok = false;
+      break;
+    }
+  }
+  printf("CASE_RESULT %s %s\n", name, ok ? "PASS" : "FAIL");
+  return ok;
+}
+
 static bool run_spm_xlate_ctrl_case(const char *name, int gemmini_manager_id) {
   uint64_t fault_raw;
   bool ok;
@@ -218,6 +270,12 @@ static bool run_spm_xlate_ctrl_case(const char *name, int gemmini_manager_id) {
   rerocc_gemmini_spm_xlate_cfg(0x90000000ULL, 128U, 10U, 1U);
   rerocc_gemmini_spm_xlate_range(0x80000000ULL, 0x00010000ULL);
   fault_raw = rerocc_gemmini_spm_xlate_fault();
+  rerocc_gemmini_spm_xlate_flush();
+
+  // Restore the controller defaults so later DRAM-based coverage cases are not
+  // redirected into shared scratchpad by the control-path test's temporary setup.
+  rerocc_gemmini_spm_xlate_cfg(0ULL, 0U, 10U, 0U);
+  rerocc_gemmini_spm_xlate_range(0ULL, 0ULL);
   rerocc_gemmini_spm_xlate_flush();
   rr_fence(GEMMINI_CFG_ID);
   rr_release(GEMMINI_CFG_ID);
@@ -298,8 +356,15 @@ void thread_entry(int cid, int nc) {
   elem_t *shared_conv_input = (elem_t *)(uintptr_t)(shared_base + SHARED_CONV_INPUT_OFFSET);
   elem_t *shared_conv_weight = (elem_t *)(uintptr_t)(shared_base + SHARED_CONV_WEIGHT_OFFSET);
   elem_t *shared_conv_output = (elem_t *)(uintptr_t)(shared_base + SHARED_CONV_OUTPUT_OFFSET);
+  elem_t *shared_resadd_a = (elem_t *)(uintptr_t)(shared_base + SHARED_RESADD_A_OFFSET);
+  elem_t *shared_resadd_b = (elem_t *)(uintptr_t)(shared_base + SHARED_RESADD_B_OFFSET);
+  elem_t *shared_resadd_out = (elem_t *)(uintptr_t)(shared_base + SHARED_RESADD_OUT_OFFSET);
   uint8_t *shared_dma_a = (uint8_t *)(uintptr_t)(shared_base + SHARED_DMA_A_OFFSET);
   uint8_t *shared_dma_b = (uint8_t *)(uintptr_t)(shared_base + SHARED_DMA_B_OFFSET);
+  uint8_t *shared_dma_a_cross = shared_dma_a + SHARED_DMA_CROSS_OFFSET;
+  uint8_t *shared_dma_b_cross = shared_dma_b + SHARED_DMA_CROSS_OFFSET;
+  uint8_t *dram_dma_src_cross = dma_dram_src + DRAM_DMA_CROSS_OFFSET;
+  uint8_t *dram_dma_dst_cross = dma_dram_dst + DRAM_DMA_CROSS_OFFSET;
 
   uint32_t rnd = 0x12345678u;
   init_random_elem(&input_dram[0][0][0][0], sizeof(input_dram) / sizeof(elem_t), &rnd);
@@ -312,8 +377,20 @@ void thread_entry(int cid, int nc) {
   memset(output_case2_dram, 0, sizeof(output_case2_dram));
   memset(shared_conv_output, 0, sizeof(output_case1_dram));
 
+  for (size_t i = 0; i < (size_t)(DIM * DIM); i++) {
+    ((elem_t *)resadd_a_dram)[i] = (elem_t)((int32_t)(lcg_next(&rnd) % 9) - 4);
+    ((elem_t *)resadd_b_dram)[i] = (elem_t)((int32_t)(lcg_next(&rnd) % 9) - 4);
+    ((elem_t *)resadd_out_dram)[i] = 0;
+    ((elem_t *)resadd_gold_dram)[i] = 0;
+  }
+  resadd_cpu(DIM, DIM, DIM, MVIN_SCALE_IDENTITY, MVIN_SCALE_IDENTITY, ACC_SCALE_IDENTITY,
+             (elem_t *)resadd_a_dram, (elem_t *)resadd_b_dram, (elem_t *)resadd_gold_dram, false);
+
   memcpy(shared_conv_input, input_dram, sizeof(input_dram));
   memcpy(shared_conv_weight, weights_mat_dram, sizeof(weights_mat_dram));
+  memcpy(shared_resadd_a, resadd_a_dram, sizeof(resadd_a_dram));
+  memcpy(shared_resadd_b, resadd_b_dram, sizeof(resadd_b_dram));
+  memset(shared_resadd_out, 0, sizeof(resadd_out_dram));
 
   printf("[rerocc-coverage] gemmini_id=%d dma_id=%d dma_bytes=%d\n",
          gemmini_manager_id, dma_manager_id, REROCC_DMA_BYTES);
@@ -344,11 +421,19 @@ void thread_entry(int cid, int nc) {
       (elem_t *)shared_conv_output,
       (const elem_t *)&reference_out[0][0][0][0]);
 
+  bool case4 = run_resadd_case(
+      "resadd_shared_input_to_shared_output",
+      gemmini_manager_id,
+      (const elem_t *)shared_resadd_a,
+      (const elem_t *)shared_resadd_b,
+      (elem_t *)shared_resadd_out,
+      (const elem_t *)resadd_gold_dram);
+
   uint32_t dma_seed = 0x9e3779b9u;
   fill_pattern(shared_dma_a, REROCC_DMA_BYTES, &dma_seed);
   memset(shared_dma_b, 0, REROCC_DMA_BYTES);
   printf("CASE_START dma_shared_to_shared\n");
-  bool case4 = run_dma_case(
+  bool case5 = run_dma_case(
       "dma_shared_to_shared",
       dma_manager_id,
       (const uint8_t *)shared_dma_a,
@@ -359,7 +444,7 @@ void thread_entry(int cid, int nc) {
   fill_pattern(shared_dma_a, REROCC_DMA_BYTES, &dma_seed);
   memset(dma_dram_dst, 0, sizeof(dma_dram_dst));
   printf("CASE_START dma_shared_to_dram\n");
-  bool case5 = run_dma_case(
+  bool case6 = run_dma_case(
       "dma_shared_to_dram",
       dma_manager_id,
       (const uint8_t *)shared_dma_a,
@@ -370,7 +455,7 @@ void thread_entry(int cid, int nc) {
   fill_pattern(dma_dram_src, REROCC_DMA_BYTES, &dma_seed);
   memset(shared_dma_b, 0, REROCC_DMA_BYTES);
   printf("CASE_START dma_dram_to_shared\n");
-  bool case6 = run_dma_case(
+  bool case7 = run_dma_case(
       "dma_dram_to_shared",
       dma_manager_id,
       (const uint8_t *)dma_dram_src,
@@ -378,11 +463,47 @@ void thread_entry(int cid, int nc) {
       shared_dma_b,
       REROCC_DMA_BYTES);
 
+  fill_pattern(shared_dma_a_cross, REROCC_DMA_CROSS_BYTES, &dma_seed);
+  memset(shared_dma_b_cross, 0, REROCC_DMA_CROSS_BYTES);
+  printf("CASE_START dma_shared_to_shared_cross_page\n");
+  bool case8 = run_dma_case(
+      "dma_shared_to_shared_cross_page",
+      dma_manager_id,
+      (const uint8_t *)shared_dma_a_cross,
+      shared_dma_a_cross,
+      shared_dma_b_cross,
+      REROCC_DMA_CROSS_BYTES);
+
+  fill_pattern(shared_dma_a_cross, REROCC_DMA_CROSS_BYTES, &dma_seed);
+  memset(dram_dma_dst_cross, 0, REROCC_DMA_CROSS_BYTES);
+  printf("CASE_START dma_shared_to_dram_cross_page\n");
+  bool case9 = run_dma_case(
+      "dma_shared_to_dram_cross_page",
+      dma_manager_id,
+      (const uint8_t *)shared_dma_a_cross,
+      shared_dma_a_cross,
+      dram_dma_dst_cross,
+      REROCC_DMA_CROSS_BYTES);
+
+  fill_pattern(dram_dma_src_cross, REROCC_DMA_CROSS_BYTES, &dma_seed);
+  memset(shared_dma_b_cross, 0, REROCC_DMA_CROSS_BYTES);
+  printf("CASE_START dma_dram_to_shared_cross_page\n");
+  bool case10 = run_dma_case(
+      "dma_dram_to_shared_cross_page",
+      dma_manager_id,
+      (const uint8_t *)dram_dma_src_cross,
+      dram_dma_src_cross,
+      shared_dma_b_cross,
+      REROCC_DMA_CROSS_BYTES);
+
   rr_release_all(RR_MAX_CFGS);
 
-  const bool all_ok = case0 && case1 && case2 && case3 && case4 && case5 && case6;
-  printf("COVERAGE_SUMMARY case0=%d case1=%d case2=%d case3=%d case4=%d case5=%d case6=%d\n",
-         case0 ? 1 : 0, case1 ? 1 : 0, case2 ? 1 : 0, case3 ? 1 : 0, case4 ? 1 : 0, case5 ? 1 : 0, case6 ? 1 : 0);
+  const bool all_ok = case0 && case1 && case2 && case3 && case4 &&
+                      case5 && case6 && case7 && case8 && case9 && case10;
+  printf("COVERAGE_SUMMARY case0=%d case1=%d case2=%d case3=%d case4=%d case5=%d case6=%d case7=%d case8=%d case9=%d case10=%d\n",
+         case0 ? 1 : 0, case1 ? 1 : 0, case2 ? 1 : 0, case3 ? 1 : 0,
+         case4 ? 1 : 0, case5 ? 1 : 0, case6 ? 1 : 0, case7 ? 1 : 0,
+         case8 ? 1 : 0, case9 ? 1 : 0, case10 ? 1 : 0);
   if (all_ok) {
     printf("ALL_TESTS_PASS\n");
     exit(0);

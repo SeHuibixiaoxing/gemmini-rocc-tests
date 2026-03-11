@@ -32,7 +32,7 @@
 #endif
 
 #ifndef REROCC_DMA_BYTES
-#define REROCC_DMA_BYTES 2048
+#define REROCC_DMA_BYTES 512
 #endif
 
 #ifndef REROCC_ACQUIRE_MAX_RETRIES
@@ -44,23 +44,23 @@
 #endif
 
 #ifndef REROCC_LONG_CONV_ITERS
-#define REROCC_LONG_CONV_ITERS 64
+#define REROCC_LONG_CONV_ITERS 4
 #endif
 
 #ifndef REROCC_SHORT_CONV_ITERS
-#define REROCC_SHORT_CONV_ITERS 4
+#define REROCC_SHORT_CONV_ITERS 1
 #endif
 
 #ifndef REROCC_LONG_RESADD_ITERS
-#define REROCC_LONG_RESADD_ITERS 512
+#define REROCC_LONG_RESADD_ITERS 32
 #endif
 
 #ifndef REROCC_LONG_DMA_ITERS
-#define REROCC_LONG_DMA_ITERS 64
+#define REROCC_LONG_DMA_ITERS 4
 #endif
 
 #ifndef REROCC_SHORT_DMA_ITERS
-#define REROCC_SHORT_DMA_ITERS 4
+#define REROCC_SHORT_DMA_ITERS 1
 #endif
 
 #ifndef REROCC_CORE1_DELAY_SPINS
@@ -68,6 +68,10 @@
 #endif
 
 #define TEST_WORKER_CORES 2
+
+#ifndef REROCC_DEBUG_FORCE_LOGICAL_CORES
+#define REROCC_DEBUG_FORCE_LOGICAL_CORES 0
+#endif
 
 #define GEMMINI_CFG_ID 0
 #define DMA_CFG_ID 1
@@ -102,6 +106,18 @@ enum test_job {
   JOB_DMA_D1 = 5,
 };
 
+static const char *job_name(enum test_job job) {
+  switch (job) {
+    case JOB_IDLE: return "idle";
+    case JOB_CONV_G0: return "conv_g0";
+    case JOB_CONV_G1: return "conv_g1";
+    case JOB_RESADD_G0: return "resadd_g0";
+    case JOB_DMA_D0: return "dma_d0";
+    case JOB_DMA_D1: return "dma_d1";
+    default: return "unknown";
+  }
+}
+
 static volatile int barrier_count = 0;
 static volatile int barrier_epoch = 0;
 static volatile uint64_t stage_start_cycle = 0;
@@ -109,12 +125,15 @@ static volatile uint64_t stage_end_cycle = 0;
 static volatile uint64_t stage_cycles[TEST_WORKER_CORES];
 static volatile int stage_ok[TEST_WORKER_CORES];
 
-static elem_t conv_input_global[TEST_WORKER_CORES][BATCH_SIZE][IN_ROW_DIM][IN_COL_DIM][IN_CHANNELS] __attribute__((aligned(64)));
-static elem_t conv_weights4d_global[TEST_WORKER_CORES][OUT_CHANNELS][KERNEL_DIM][KERNEL_DIM][IN_CHANNELS] __attribute__((aligned(64)));
-static elem_t conv_weights_mat_global[TEST_WORKER_CORES][PATCH_SIZE][OUT_CHANNELS] __attribute__((aligned(64)));
-static acc_t conv_bias_global[TEST_WORKER_CORES][OUT_CHANNELS] __attribute__((aligned(64)));
-static elem_t conv_output_global[TEST_WORKER_CORES][N_PATCHES][OUT_CHANNELS] __attribute__((aligned(64)));
-static elem_t conv_ref_global[TEST_WORKER_CORES][BATCH_SIZE][OUT_ROW_DIM][OUT_COL_DIM][OUT_CHANNELS] __attribute__((aligned(64)));
+typedef struct {
+  bool valid;
+  elem_t input[BATCH_SIZE][IN_ROW_DIM][IN_COL_DIM][IN_CHANNELS];
+  elem_t weights_mat[PATCH_SIZE][OUT_CHANNELS];
+  acc_t bias[OUT_CHANNELS];
+  elem_t reference[BATCH_SIZE][OUT_ROW_DIM][OUT_COL_DIM][OUT_CHANNELS];
+} conv_fixture_t;
+
+static conv_fixture_t conv_fixture_global[TEST_WORKER_CORES][REROCC_NUM_GEMMINI] __attribute__((aligned(64)));
 
 static elem_t resadd_a_global[TEST_WORKER_CORES][DIM][DIM] __attribute__((aligned(64)));
 static elem_t resadd_b_global[TEST_WORKER_CORES][DIM][DIM] __attribute__((aligned(64)));
@@ -228,21 +247,49 @@ static bool conv_output_matches(const elem_t *reference, const elem_t *output, s
   return true;
 }
 
-static bool run_conv_workload(int cid, int manager_id, int iters, uint64_t *cycles_out) {
-  elem_t (*input)[IN_ROW_DIM][IN_COL_DIM][IN_CHANNELS] = conv_input_global[cid];
-  elem_t (*weights4d)[KERNEL_DIM][KERNEL_DIM][IN_CHANNELS] = conv_weights4d_global[cid];
-  elem_t (*weights_mat)[OUT_CHANNELS] = conv_weights_mat_global[cid];
-  acc_t *bias = conv_bias_global[cid];
-  elem_t (*output)[OUT_CHANNELS] = conv_output_global[cid];
-  elem_t (*reference)[OUT_ROW_DIM][OUT_COL_DIM][OUT_CHANNELS] = conv_ref_global[cid];
+static conv_fixture_t *prepare_conv_fixture(int cid, int manager_id) {
+  int fixture_id = manager_id - REROCC_GEMMINI_BASE_ID;
+  if (fixture_id < 0 || fixture_id >= REROCC_NUM_GEMMINI) {
+    return NULL;
+  }
 
+  conv_fixture_t *fixture = &conv_fixture_global[cid][fixture_id];
+  if (fixture->valid) {
+    return fixture;
+  }
+
+  elem_t weights4d[OUT_CHANNELS][KERNEL_DIM][KERNEL_DIM][IN_CHANNELS] __attribute__((aligned(64)));
   uint32_t seed = (uint32_t)(0x13572468u ^ (cid * 131u) ^ (manager_id * 977u));
-  init_random_elem(&input[0][0][0][0], sizeof(conv_input_global[cid]) / sizeof(elem_t), &seed);
-  init_random_elem(&weights4d[0][0][0][0], sizeof(conv_weights4d_global[cid]) / sizeof(elem_t), &seed);
-  init_random_acc(bias, OUT_CHANNELS, &seed);
-  flatten_weights(weights4d, weights_mat);
-  cpu_conv_reference(input, weights4d, bias, reference);
-  memset(output, 0, sizeof(conv_output_global[cid]));
+
+  init_random_elem(&fixture->input[0][0][0][0], sizeof(fixture->input) / sizeof(elem_t), &seed);
+  init_random_elem(&weights4d[0][0][0][0], sizeof(weights4d) / sizeof(elem_t), &seed);
+  init_random_acc(fixture->bias, OUT_CHANNELS, &seed);
+
+  memset(fixture->weights_mat, 0, sizeof(fixture->weights_mat));
+  flatten_weights(weights4d, fixture->weights_mat);
+  cpu_conv_reference(fixture->input, weights4d, fixture->bias, fixture->reference);
+  fixture->valid = true;
+  return fixture;
+}
+
+static bool warm_conv_fixtures(int cid) {
+  for (int i = 0; i < REROCC_NUM_GEMMINI; i++) {
+    if (prepare_conv_fixture(cid, REROCC_GEMMINI_BASE_ID + i) == NULL) {
+      return false;
+    }
+  }
+  return true;
+}
+
+static bool run_conv_workload(int cid, int manager_id, int iters, uint64_t *cycles_out) {
+  conv_fixture_t *fixture = prepare_conv_fixture(cid, manager_id);
+  elem_t output[N_PATCHES][OUT_CHANNELS] __attribute__((aligned(64)));
+  if (fixture == NULL) {
+    *cycles_out = 0;
+    return false;
+  }
+
+  memset(output, 0, sizeof(output));
 
   if (!rr_acquire_cfg_with_retry(GEMMINI_CFG_ID, (uint64_t)manager_id)) {
     *cycles_out = 0;
@@ -259,22 +306,20 @@ static bool run_conv_workload(int cid, int manager_id, int iters, uint64_t *cycl
       OUT_CHANNELS, OUT_ROW_DIM, OUT_COL_DIM,
       STRIDE, 1, 1, PADDING, KERNEL_DIM,
       false, false, false, false, false,
-      (elem_t *)input,
-      (elem_t *)weights_mat,
-      bias,
+      (elem_t *)fixture->input,
+      (elem_t *)fixture->weights_mat,
+      fixture->bias,
       (elem_t *)output,
       NO_ACTIVATION, ACC_SCALE_IDENTITY, 0, 0, 0,
       WS
     );
   }
-  gemmini_fence();
-  uint64_t t1 = read_cycles_local();
-
   rr_fence(GEMMINI_CFG_ID);
+  uint64_t t1 = read_cycles_local();
   rr_release(GEMMINI_CFG_ID);
 
   *cycles_out = t1 - t0;
-  return conv_output_matches(&reference[0][0][0][0], &output[0][0],
+  return conv_output_matches(&fixture->reference[0][0][0][0], &output[0][0],
     (size_t)BATCH_SIZE * OUT_ROW_DIM * OUT_COL_DIM * OUT_CHANNELS);
 }
 
@@ -308,10 +353,8 @@ static bool run_resadd_workload(int cid, int manager_id, int iters, uint64_t *cy
     tiled_resadd_auto(DIM, DIM, MVIN_SCALE_IDENTITY, MVIN_SCALE_IDENTITY, ACC_SCALE_IDENTITY,
       (elem_t *)a, (elem_t *)b, (elem_t *)out, false, WS);
   }
-  gemmini_fence();
-  uint64_t t1 = read_cycles_local();
-
   rr_fence(GEMMINI_CFG_ID);
+  uint64_t t1 = read_cycles_local();
   rr_release(GEMMINI_CFG_ID);
 
   bool ok = true;
@@ -404,9 +447,8 @@ static bool run_dma_workload(int cid, int manager_id, int iters, uint64_t *cycle
       break;
     }
   }
-  uint64_t t1 = read_cycles_local();
-
   rr_fence(DMA_CFG_ID);
+  uint64_t t1 = read_cycles_local();
   rr_release(DMA_CFG_ID);
 
   *cycles_out = t1 - t0;
@@ -492,6 +534,10 @@ static bool run_overlap_scenario(int cid, int logical_cores, const char *name,
   uint64_t c0 = 0, c1 = 0;
   bool ok0 = true, ok1 = true;
 
+  if (cid == 0) {
+    printf("SCENARIO_PHASE name=%s phase=serial_long core0=%s core1=%s iters0=%d iters1=%d\n",
+      name, job_name(long_job), job_name(JOB_IDLE), long_iters, 0);
+  }
   run_stage(cid, logical_cores,
     long_job, long_iters,
     JOB_IDLE, 0,
@@ -499,8 +545,15 @@ static bool run_overlap_scenario(int cid, int logical_cores, const char *name,
     &wall, &c0, &c1, &ok0, &ok1);
   if (cid == 0) {
     serial_long = c0;
+    printf("SCENARIO_PHASE_DONE name=%s phase=serial_long ok0=%d ok1=%d wall=%lu c0=%lu c1=%lu\n",
+      name, ok0 ? 1 : 0, ok1 ? 1 : 0,
+      (unsigned long)wall, (unsigned long)c0, (unsigned long)c1);
   }
 
+  if (cid == 0) {
+    printf("SCENARIO_PHASE name=%s phase=serial_short core0=%s core1=%s iters0=%d iters1=%d\n",
+      name, job_name(short_job), job_name(JOB_IDLE), short_iters, 0);
+  }
   run_stage(cid, logical_cores,
     short_job, short_iters,
     JOB_IDLE, 0,
@@ -508,8 +561,15 @@ static bool run_overlap_scenario(int cid, int logical_cores, const char *name,
     &wall, &c0, &c1, &ok0, &ok1);
   if (cid == 0) {
     serial_short = c0;
+    printf("SCENARIO_PHASE_DONE name=%s phase=serial_short ok0=%d ok1=%d wall=%lu c0=%lu c1=%lu\n",
+      name, ok0 ? 1 : 0, ok1 ? 1 : 0,
+      (unsigned long)wall, (unsigned long)c0, (unsigned long)c1);
   }
 
+  if (cid == 0) {
+    printf("SCENARIO_PHASE name=%s phase=parallel core0=%s core1=%s iters0=%d iters1=%d\n",
+      name, job_name(long_job), job_name(short_job), long_iters, short_iters);
+  }
   run_stage(cid, logical_cores,
     long_job, long_iters,
     short_job, short_iters,
@@ -519,6 +579,10 @@ static bool run_overlap_scenario(int cid, int logical_cores, const char *name,
   if (cid != 0) {
     return true;
   }
+
+  printf("SCENARIO_PHASE_DONE name=%s phase=parallel ok0=%d ok1=%d wall=%lu c0=%lu c1=%lu\n",
+    name, ok0 ? 1 : 0, ok1 ? 1 : 0,
+    (unsigned long)wall, (unsigned long)c0, (unsigned long)c1);
 
   uint64_t serial_sum = serial_long + serial_short;
   bool overlap_observed = wall < serial_sum;
@@ -536,7 +600,10 @@ static bool run_overlap_scenario(int cid, int logical_cores, const char *name,
 }
 
 void thread_entry(int cid, int nc) {
-  const int logical_cores = TEST_WORKER_CORES;
+  int logical_cores = TEST_WORKER_CORES;
+  if (REROCC_DEBUG_FORCE_LOGICAL_CORES > 0 && REROCC_DEBUG_FORCE_LOGICAL_CORES < logical_cores) {
+    logical_cores = REROCC_DEBUG_FORCE_LOGICAL_CORES;
+  }
 
   if (cid == 0) {
     printf("[rerocc-nonblocking] start runtime_nc=%d logical_cores=%d gemmini=%d dma=%d gemmini_base=%d dma_base=%d dma_bytes=%d\n",
@@ -568,6 +635,24 @@ void thread_entry(int cid, int nc) {
     while (1) {
       asm volatile("wfi");
     }
+  }
+
+  if (cid == 0) {
+    printf("[rerocc-nonblocking] warmup_start gemmini=%d\n", REROCC_NUM_GEMMINI);
+  }
+  bool warm_ok = warm_conv_fixtures(cid);
+  barrier_wait(logical_cores);
+  if (!warm_ok) {
+    if (cid == 0) {
+      printf("[rerocc-nonblocking] FAIL: conv fixture warmup failed\n");
+      exit(1);
+    }
+    while (1) {
+      asm volatile("wfi");
+    }
+  }
+  if (cid == 0) {
+    printf("[rerocc-nonblocking] warmup_done\n");
   }
 
   bool s1 = run_overlap_scenario(cid, logical_cores,

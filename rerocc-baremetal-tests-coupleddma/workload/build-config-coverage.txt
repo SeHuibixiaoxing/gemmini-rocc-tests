@@ -1,4 +1,4 @@
-target=custom
+target=2c2g2d
 num_cores=2
 num_gemmini=2
 num_dma=2

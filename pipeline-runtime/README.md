@@ -1,142 +1,95 @@
-# pipeline-runtime
+# Pipeline Runtime
 
-Inter-layer pipeline runtime skeleton for Chipyard Gemmini (ReRoCC/CoupledDMA-aware).
+`pipeline-runtime` 是 Gemmini pipeline 软件栈，当前唯一主目标是：
+在 `globalnoc + ReRoCC + CoupledDMA` 的最新硬件上，用 HybridMapper 生成的 pipeline mapping 执行 `bertmini`，并让结果与 CPU golden 一致。
 
-## What is implemented now
+最终目标硬件配置固定为 `GemminiLearningConfigSpadReRoCCGlobalNoC2C1x2G2x1x2D2x1x2CoupledDMA`，最终运行环境固定为 Linux，最终 FireSim runtime 配置固定为 `sims/firesim/deploy/config_runtime_rerocc_fpga_small_linux_globalnoc_coupleddma.yaml`。
 
-- pthread-based runtime/control/stage threading model.
-- DMA backend abstraction:
-  - `blocking_fence`
-  - `poll_progress_thread` with progress-thread completion queue.
-- Gemmini backend abstraction:
-  - `blocking_fence`
-  - `async_experimental`.
-- `ScheduleAction` resource lifecycle in runtime segment loop.
-- ReRoCC manager scope helpers for Gemmini/DMA command routing.
-- Core runtime APIs and CLI entrypoint.
-- Page allocator with configurable page units (default 1KB), all-bank interleave, 2x2 Hilbert order (`0,2,3,1`).
-- C1-C8 scheduler function entrypoints and blocking wait predicates.
-- Batch-complete termination from sink subbatch progress (`--batch` aware), with watchdog as deadlock guard.
-- Multi-segment execution (segment-by-segment swizzle run).
-- Preferred-bank page allocation + shared-tensor placement preference (`shared_tensor_is_read_first`).
-- Shared C4 tensor canonical page-layout reuse across producer/consumer pipebufs.
-- Runtime SPM page-table API (`map/unmap/translate`) with PTBR/PTE/fault observability.
-- Paged shared-spad DMA copy helpers (`spm<->spm`, `dram<->spm`, `spm-va`).
+MudnacSim 只是参考模拟器，不是 runtime backend。
+`pipeline-runtime` 本身只有一套执行实现，只区分 host Linux binary 和 RISC-V Linux target binary 两种构建形态。
 
-## Build
+## 当前能做什么
 
-```bash
-cd pipeline-runtime
-make
-```
+- 已能从 `/home/wzy/proj/wp2/chipyard/tmp/HybridMapper` 为 `bertmini` 生成 Gemmini runtime 需要的 artifacts：
+  - `layers_gemmini.yaml`
+  - `mapping_gemmini/*.yaml`
+  - `entire_model/2_1024_16_19_64_{ours2,gemini2,tangram2}.yaml`
+  - `model.bin` / `input.bin` / `golden.bin`
+- host 版 `pipeline_runtime` 已能在 `ours2 / gemini2 / tangram2` 三种方法上完成 bertmini dummy-data 闭环并返回 `RC=0`。
+- Linux overlay / run script 已接入 `rerocc-linux-tests`，但当前环境缺少 `riscv64-linux-gnu-gcc` / `riscv64-unknown-linux-gnu-gcc`，因此 RISC-V Linux target binary 还不能在本机完成交叉编译验证。
+- FireSim metasim / quick-diag 目前只保留为 globalnoc 启动链 smoke，不再是终极目标。
 
-## Run (example)
+## 项目入口
 
-```bash
-./pipeline_runtime \
-  --model-yaml /root/pipeline-data/model.yaml \
-  --model-bin /root/pipeline-data/model.bin \
-  --model-offset 0 \
-  --pipeline-yaml /root/pipeline-data/pipeline.yaml \
-  --input /root/pipeline-data/input.bin \
-  --golden /root/pipeline-data/golden.bin \
-  --batch 1 \
-  --num-cores 8 \
-  --num-gemmini-mgrs 8 \
-  --num-dma-mgrs 8 \
-  --gemmini-base-id 0 \
-  --dma-base-id 8 \
-  --pages-per-acc 4096 \
-  --watchdog-ms 5000
-```
+- HybridMapper 根目录：`/home/wzy/proj/wp2/chipyard/tmp/HybridMapper`
+- MudnacSim 根目录：`/home/wzy/proj/wp2/chipyard/tmp/MudnacSim`
+- 协同机制参考：
+  - `/home/wzy/proj/wp2/chipyard/tmp/mudnac_hybridmapper_collab_docs/v2/协同机制文档_v2.md`
+  - `/home/wzy/proj/wp2/chipyard/tmp/mudnac_hybridmapper_collab_docs/v3/协同机制文档_v3.md`
 
-## Notes
+## 文档地图
 
-- YAML loader now extracts segment/stage/ring and entry-export tensor metadata used by runtime build.
-- YAML loader also extracts `tensor_spm_util_in_stage/shared/in_ringbuffer` and runtime uses them for page sizing.
-- Model YAML loader parses layer metadata (`index/type/param/tensorIds/address/address2`) and resolves tensor addresses as model-relative offsets via `--model-bin`; use `--model-offset` when one bin contains multiple models (with `addr_base` compatibility fallback).
-- Runtime topology is now built from YAML (no `mock topology` seeding).
-- Shared-spad page addresses are emitted in DMA as `0x40000000 + ppn * 4096`.
-- Shared-spad page addresses are emitted in DMA as `0x40000000 + ppn * page_size`.
-- Runtime core count can be overridden by `--num-cores` (default 4).
-- Manager topology can be configured by:
-  - `--num-gemmini-mgrs`
-  - `--num-dma-mgrs`
-  - `--gemmini-base-id`
-  - `--dma-base-id`
-- Sync policy can be selected with `--sync-mode async|blocking_debug`.
-- With `--spm-xlate-enable 1`, runtime currently forces blocking-debug until async per-page retire support lands.
-- Page budget per accelerator can be overridden by `--pages-per-acc` (default 256).
-- SPM translation knobs:
-  - `--spm-page-bytes`
-  - `--spm-xlate-enable`
-  - `--spm-xlate-range-base`
-  - `--spm-xlate-range-size`
-  - `--hw-validate-only`
-  - `--hw-validate-only` runs init/preflight only and returns `HW_VALIDATE_ONLY_PASS` on success.
-- Gemmini backend accepts:
-  - `prt_gemmini_conv_desc_t` and calls `tiled_conv_auto` on target builds.
-  - `prt_gemmini_resadd_desc_t` and calls `tiled_resadd_stride_auto` on target builds.
-- Runtime supports strict e2e compare:
-  - load `--input` and map model input tensors before run
-  - compare model output tensors with `--golden` after run
-  - print mismatch summary and return non-zero on mismatch
-- Runtime executes all pipeline segments by running each segment as a temporary one-segment topology.
-- For completion detection in the current segment:
-  - on the last segment: strictly use model-output sink tensor IDs
-  - on non-last segments: use terminal export tensors in current topology
-  - watchdog timeout returns non-zero (`timeout`) instead of success
-- Topology page allocations are released on segment/topology teardown; runtime reports allocator leak if release invariants fail.
-- Remaining gap: full tensor shape/stride driven byte-accurate mapping is not finished yet.
-- `--trace <path>` now emits runtime overlap metrics as `key=value` text, including:
-  - `run_ns`
-  - DMA: `dma_submit_count`, `dma_complete_count`, `dma_inflight_peak`, `dma_busy_ns`
-  - Gemmini: `gemm_issue_count`, `gemm_fence_count`, `gemm_busy_ns`
-  - overlap hooks: `prefetch_attempt_count`, `prefetch_success_count`, `export_submit_ahead_count`, `export_retire_count`
-  - derived estimates: `overlap_est_ns`, `dma_util_pct`, `gemm_util_pct`, `overlap_est_pct`
-  - cycle calibration fields: `trace_cycle_overhead`, `trace_cycle_ref`, `trace_ns_ref`
-  - event log fields: `trace_event_count`, `trace_event_drop_count`, `event_format`, `event_<idx>=...`
-- Hardware validation gate runner (firesim deploy):
-  - `/home/wzy/proj/wp2/chipyard/sims/firesim/deploy/run_rerocc_coupleddma_validation_gates.sh`
-  - default policy is `5` consecutive workload passes per gate (`GATE_RUNS` to override).
+- `README.md`
+  - 项目是什么、当前入口、最短上手命令。
+- `ARCHITECTURE.md`
+  - `HybridMapper -> bertmini artifacts -> pipeline-runtime-linux -> globalnoc Linux workload` 的当前架构。
+- `ROADMAP.md`
+  - 以 bertmini globalnoc Linux 闭环为主线的阶段计划。
+- `TESTPLAN.md`
+  - Artifact、host、Linux 打包、metasim smoke、FPGA replay 的唯一验证文档。
+- `DECISIONS.md`
+  - 已锁定规则，包含 globalnoc-only、Linux-only、shared YAML 契约和尺寸不匹配策略。
+- `HANDOFF.md`
+  - 当前 baseline、当前 blocker、最近一次已验证命令、接下来 3 个动作。
+- `docs/archive/2026Q1_history.md`
+  - 历史迭代、旧 metasim stall 调试时间线、旧 run/log 路径。
 
-## Dummy Data Workflow (HybridMapper)
+## 最短上手
 
-Generate dummy model/input/golden for one model:
+1. 重新生成 bertmini Gemmini artifacts：
 
 ```bash
-python3 /home/wzy/proj/HybridMapper/scripts/create-pipeline-dummy-runtime-data.py \
-  --model bertmini \
-  --pipeline-yaml /home/wzy/proj/HybridMapper/output/pipeline/bertmini/entire_model/8_256_16_19_64_ours2.yaml
+cd /home/wzy/proj/wp2/chipyard/tmp/HybridMapper
+python3 scripts/create-gemmini-pipeline-runtime-artifacts.py --model bertmini
 ```
 
-Artifacts:
-
-- `/home/wzy/proj/HybridMapper/output/pipeline/<model>/dummy_weight/model.bin`
-- `/home/wzy/proj/HybridMapper/output/pipeline/<model>/dummy_input/input.bin`
-- `/home/wzy/proj/HybridMapper/output/pipeline/<model>/dummy_input/golden/golden.bin`
-
-## Model Input/Output Tensor IDs
-
-Extract model input/output tensor IDs from `layers.yaml` with semantics aligned to
-HybridMapper `Model.get_model_in_out_ids()`:
+2. 构建 host 版 runtime：
 
 ```bash
-python3 scripts/extract_model_io_ids.py \
-  --layers-yaml /home/wzy/proj/HybridMapper/output/pipeline/bertmini/layers.yaml \
-  --pretty
+make -C /home/wzy/proj/wp2/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime clean all
 ```
 
-Optionally save JSON:
+3. 跑 bertmini host 闭环：
 
 ```bash
-python3 scripts/extract_model_io_ids.py \
-  --layers-yaml /home/wzy/proj/HybridMapper/output/pipeline/bertmini/layers.yaml \
-  --output /tmp/model_io_ids.json \
-  --pretty
+bash /home/wzy/proj/wp2/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/run_bertmini_host_closure.sh
 ```
 
-## Session Handoff
+4. 语法检查 Linux packaging 脚本：
 
-- Detailed handoff: `HANDOFF.md`
-- New-session prompt template: `NEXT_SESSION_PROMPT.md`
+```bash
+cd /home/wzy/proj/wp2/chipyard
+bash -n generators/gemmini/software/gemmini-rocc-tests/rerocc-linux-tests/workload/host-init.sh
+sh -n generators/gemmini/software/gemmini-rocc-tests/rerocc-linux-tests/run_rerocc_pipeline_runtime_bertmini.sh
+```
+
+5. 工具链不可用时做 overlay 静态验收：
+
+```bash
+cd /home/wzy/proj/wp2/chipyard/generators/gemmini/software/gemmini-rocc-tests/rerocc-linux-tests/workload
+HOST_INIT_CHECK_ONLY=1 bash host-init.sh
+```
+
+## 当前验证入口
+
+- 主语义门：`TESTPLAN.md` 第 3 节的 bertmini host 闭环。
+- 当前 Linux 目标打包门：`TESTPLAN.md` 第 4 节的 overlay 路径与交叉编译检查。
+- 当前硬件近似 smoke：`TESTPLAN.md` 第 5 节的 globalnoc metasim suite。
+
+## 维护规则
+
+- 新设计进入 `DECISIONS.md`。
+- 新计划进入 `ROADMAP.md`。
+- 新验证命令进入 `TESTPLAN.md`。
+- 当前状态进入 `HANDOFF.md`。
+- 迭代故事、旧 run/log 和 dated updates 进入 archive。

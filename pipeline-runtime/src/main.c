@@ -1,3 +1,4 @@
+#include "prt_cli.h"
 #include "prt_runtime.h"
 
 #include <stdio.h>
@@ -24,7 +25,7 @@ static int run_hw_validate_only(const prt_runtime_cfg_t *cfg) {
   return 0;
 }
 
-int main(int argc, char **argv) {
+int prt_main_entry(int argc, char **argv) {
   prt_runtime_cfg_t cfg;
   prt_run_args_t args;
   prt_runtime_t rt;
@@ -136,3 +137,9 @@ int main(int argc, char **argv) {
   (void)prt_runtime_destroy(&rt);
   return rc == PRT_OK ? 0 : 1;
 }
+
+#ifndef PRT_NO_MAIN
+int main(int argc, char **argv) {
+  return prt_main_entry(argc, argv);
+}
+#endif
