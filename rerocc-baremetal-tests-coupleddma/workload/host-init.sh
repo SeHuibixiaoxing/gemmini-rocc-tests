@@ -109,11 +109,12 @@ REROCC_BAREMETAL_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 GEMMINI_ROCC_TESTS_DIR="$(cd "${REROCC_BAREMETAL_DIR}" && pwd)"
 BUILD_DIR="${GEMMINI_ROCC_TESTS_DIR}/build"
 BUILD_BAREMETAL_DIR="${BUILD_DIR}/bareMetalC"
-OUT_BIN="${SCRIPT_DIR}/rerocc_lc_matrix_baremetal_coupleddma.riscv"
+ARTIFACT_DIR="${BUILD_DIR}/rerocc-baremetal-tests-coupleddma"
+BUILD_CONFIG="${ARTIFACT_DIR}/build-config.txt"
 
 echo "[rerocc-coupleddma-baremetal] target=${TARGET_PROFILE} matrix=${MATRIX_MODE} num_cores=${NUM_CORES} num_gemmini=${NUM_GEMMINI} num_dma=${NUM_DMA} bytes=${BYTES} gemmini_base_id=${GEMMINI_BASE_ID} dma_base_id=${DMA_BASE_ID}"
 
-mkdir -p "${BUILD_BAREMETAL_DIR}"
+mkdir -p "${BUILD_BAREMETAL_DIR}" "${ARTIFACT_DIR}"
 
 EXTRA_DEFS="-DREROCC_MAX_CORES=${NUM_CORES} -DREROCC_NUM_GEMMINI=${NUM_GEMMINI} -DREROCC_NUM_DMA=${NUM_DMA} -DREROCC_GEMMINI_BASE_ID=${GEMMINI_BASE_ID} -DREROCC_DMA_BASE_ID=${DMA_BASE_ID} -DREROCC_DMA_BYTES=${BYTES} -DREROCC_MATRIX_MODE=${MATRIX_MODE_ID}"
 
@@ -128,13 +129,11 @@ make -B -C "${BUILD_BAREMETAL_DIR}" \
   EXTRA_CFLAGS="${EXTRA_DEFS}" \
   rerocc_lc_matrix_baremetal_coupleddma-baremetal
 
-cp -f "${BUILD_BAREMETAL_DIR}/rerocc_lc_matrix_baremetal_coupleddma-baremetal" "${OUT_BIN}"
-
-echo "target=${TARGET_PROFILE}" > "${SCRIPT_DIR}/build-config.txt"
-echo "matrix=${MATRIX_MODE}" >> "${SCRIPT_DIR}/build-config.txt"
-echo "num_cores=${NUM_CORES}" >> "${SCRIPT_DIR}/build-config.txt"
-echo "num_gemmini=${NUM_GEMMINI}" >> "${SCRIPT_DIR}/build-config.txt"
-echo "num_dma=${NUM_DMA}" >> "${SCRIPT_DIR}/build-config.txt"
-echo "bytes=${BYTES}" >> "${SCRIPT_DIR}/build-config.txt"
-echo "gemmini_base_id=${GEMMINI_BASE_ID}" >> "${SCRIPT_DIR}/build-config.txt"
-echo "dma_base_id=${DMA_BASE_ID}" >> "${SCRIPT_DIR}/build-config.txt"
+echo "target=${TARGET_PROFILE}" > "${BUILD_CONFIG}"
+echo "matrix=${MATRIX_MODE}" >> "${BUILD_CONFIG}"
+echo "num_cores=${NUM_CORES}" >> "${BUILD_CONFIG}"
+echo "num_gemmini=${NUM_GEMMINI}" >> "${BUILD_CONFIG}"
+echo "num_dma=${NUM_DMA}" >> "${BUILD_CONFIG}"
+echo "bytes=${BYTES}" >> "${BUILD_CONFIG}"
+echo "gemmini_base_id=${GEMMINI_BASE_ID}" >> "${BUILD_CONFIG}"
+echo "dma_base_id=${DMA_BASE_ID}" >> "${BUILD_CONFIG}"

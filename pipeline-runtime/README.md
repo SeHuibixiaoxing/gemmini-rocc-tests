@@ -17,6 +17,11 @@ MudnacSim 只是参考模拟器，不是 runtime backend。
   - `model.bin` / `input.bin` / `golden.bin`
 - host 版 `pipeline_runtime` 已能在 `ours2 / gemini2 / tangram2` 三种方法上完成 bertmini dummy-data 闭环并返回 `RC=0`。
 - Linux overlay / run script 已接入 `rerocc-linux-tests`，但当前环境缺少 `riscv64-linux-gnu-gcc` / `riscv64-unknown-linux-gnu-gcc`，因此 RISC-V Linux target binary 还不能在本机完成交叉编译验证。
+- coupled-DMA globalnoc 的 U280 bitstream 已在本地成功构建：
+  - FireSim log: `/home/wzy/proj/wp2/chipyard/sims/firesim/deploy/logs/2026-03-12--16-55-53-buildbitstream-2NLSKFJM4VHB1EFW.log`
+  - hwdb entry: `/home/wzy/proj/wp2/chipyard/sims/firesim/deploy/built-hwdb-entries/alveo_u280_firesim_rerocc_lc_small_globalnoc_coupleddma_frequency_10`
+  - tarball: `/home/wzy/proj/wp2/chipyard/sims/firesim/deploy/results-build/2026-03-12--16-55-53-alveo_u280_firesim_rerocc_lc_small_globalnoc_coupleddma_frequency_10/cl_xilinx_alveo_u280-firesim-FireSim-WithDefaultFireSimBridges_WithFireSimConfigTweaks_chipyard.GemminiLearningConfigSpadReRoCCGlobalNoC2C1x2G2x1x2D2x1x2CoupledDMA-FRFCFS16GBQuadRank_BaseXilinxAlveoU280Config/firesim.tar.gz`
+- 后续 FPGA 执行环境转到 AWS manager；当前本地会话继续保留 host / metasim / bitstream prep，不直接承担 AWS 上的 infrasetup / runworkload 执行。
 - FireSim metasim / quick-diag 目前只保留为 globalnoc 启动链 smoke，不再是终极目标。
 
 ## 项目入口
@@ -85,6 +90,7 @@ HOST_INIT_CHECK_ONLY=1 bash host-init.sh
 - 主语义门：`TESTPLAN.md` 第 3 节的 bertmini host 闭环。
 - 当前 Linux 目标打包门：`TESTPLAN.md` 第 4 节的 overlay 路径与交叉编译检查。
 - 当前硬件近似 smoke：`TESTPLAN.md` 第 5 节的 globalnoc metasim suite。
+- 当前 FPGA 接手入口：`HANDOFF.md` 的 AWS 接手说明，以及 `TESTPLAN.md` 第 6 节的 AWS FPGA replay。
 
 ## 维护规则
 

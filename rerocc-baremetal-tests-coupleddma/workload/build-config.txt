@@ -1,0 +1,8 @@
+target=2c2g2d
+matrix=single
+num_cores=2
+num_gemmini=2
+num_dma=2
+bytes=1024
+gemmini_base_id=0
+dma_base_id=2

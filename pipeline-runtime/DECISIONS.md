@@ -34,8 +34,8 @@
 
 19. 当前验证顺序固定为 `Artifact -> Host Linux -> Linux packaging -> globalnoc metasim smoke -> FPGA replay`。
 20. quick-diag 和 baremetal metasim suite 现在只承担 smoke 角色，不再是终极验收。
-21. FPGA 不可用时，不输出性能、cycle/ns 或 QoS 结论；最终闭环仍以 FPGA 恢复后的 Linux replay 为准。
-22. FPGA 恢复后，任何触及 RTL、FireSim 生成链、DMA/Gemmini 控制路径或 runtime-hardware 接口的改动，都允许立即用最新版硬件补 replay。
+21. 性能、cycle/ns 或 QoS 结论只在 FPGA replay 上建立；host 与 metasim 本地近似验证不输出这类最终结论。
+22. 任何触及 RTL、FireSim 生成链、DMA/Gemmini 控制路径或 runtime-hardware 接口的改动，都允许立即用最新版硬件补 replay；当前交接默认目标是 AWS manager。
 
 ## FireSim / metasim 经验固化
 
@@ -52,7 +52,15 @@
 33. baremetal nonblocking 的 metasim quick 默认参数锁定为 `dma_bytes=512 / long_conv=4 / short_conv=1 / long_resadd=32 / long_dma=4 / short_dma=1`，直到更重负载在同样的观测策略下重新完成回归。
 34. baremetal nonblocking 必须把 `conv` fixture warmup 放在 timed phase 之外，并缓存 reference；正常路径只保留 `warmup_*` 和 `SCENARIO_PHASE*` 级日志，逐 iter UART 调试只允许作为临时诊断手段。
 35. baremetal nonblocking 的正确性判据锁定为：每个场景都满足 `long_ok=1`、`short_ok=1`、`short_before_long=1`，最终 `NONBLOCKING_SUMMARY s1=1 s2=1 s3=1 s4=1` 且 `ALL_TESTS_PASS`。`overlap=` 只是诊断信号，不单独决定 PASS/FAIL。
+36. shared scratchpad 地址翻译默认保持 legacy 直映行为；只有目标 globalnoc coupled-DMA 硬件配置显式打开 `SharedScratchpadConfig.use_page_table_xlate` 时，才启用软件编程的 shared-spad page-table 模式。
+37. 在 shared-spad page-table 模式下，命中已编程范围且 `enable=1` 的访问必须走 Gemmini 专用 shared-spad PTW/TLB；命中范围且 `enable=0` 的访问必须直接把该虚拟地址当作 shared scratchpad 物理地址透传。当前 PTE 打包格式锁定为 `bit0=valid`，高位为物理页号。
+38. 当前 shared-spad page-table 模式只允许单个 outstanding TLB miss；这是本轮锁定的简化方案。若后续要扩到 multi-miss，必须单独立 decision 并重新回归 baremetal matrix / coverage / nonblocking。
+39. shared-spad PTW refill 和 hit 计算必须精确遵守软件编程的 `spm_xlate_page_shift`，不能再钳到 Rocket `pgIdxBits`。当前 baremetal 软件页表固定使用 1 KiB 页；若硬件擅自升到 4 KiB，会把 PTE 物理页基址左移错位，直接打坏 `shared_mv_xlate` 等 shared scratchpad 地址翻译路径。
 
 ## 文档规则
 
-36. 入口只看 `README.md`，架构只看 `ARCHITECTURE.md`，计划只看 `ROADMAP.md`，验证只看 `TESTPLAN.md`，当前状态只看 `HANDOFF.md`，历史只看 archive。
+40. 入口只看 `README.md`，架构只看 `ARCHITECTURE.md`，计划只看 `ROADMAP.md`，验证只看 `TESTPLAN.md`，当前状态只看 `HANDOFF.md`，历史只看 archive。
+41. shared-spad page-table context 现在按 `gemmini_id` 同时服务两条请求入口：`Gemmini compute/load-store` 与 `GemminiCoupledDMA`。runtime 只允许通过 Gemmini controller 现有 `SPM_XLATE_CFG / RANGE / FLUSH / FAULT` 指令装载这套上下文，不再为 CoupledDMA 单独发明第二套软件控制面。
+42. runtime 在启动时必须一次性完成 shared-spad translation bootstrap：确定 alias range、准备 PTBR/PTE backing，并对所有 Gemmini manager 下发 `SPM_XLATE_CFG / RANGE`。segment 切换时只允许做 `FLUSH`，不应把同样的 `CFG / RANGE` 每轮重写一遍。
+43. Linux 上 shared-spad alias VA base 允许 runtime 动态保留，不再强制硬编码 `0x80000000`；但 PTW 使用的 PTE slab 不能继续把用户态 VA 假装成 PA。若目标是 Linux 硬件执行，runtime 必须提供可验证的物理 backing；当前代码先落地为“小块连续页探测 + pagemap 校验”的中间方案，后续若切到专用驱动或 CMA allocator，必须保持 `ptbr + vpn * 8` 这个硬件契约不变。
+44. 2026-03-12 本地成功生成的 `built-hwdb` 入口与 `firesim.tar.gz` 是 AWS replay 的 canonical handoff 物料；若 hwdb 内 `bitstream_tar` 仍指向本地 `file:///home/wzy/...` 路径，AWS 必须复制产物并重写路径，或直接在 AWS 重新 `buildbitstream`。

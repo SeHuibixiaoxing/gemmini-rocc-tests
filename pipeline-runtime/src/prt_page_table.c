@@ -1,14 +1,148 @@
+#if defined(__linux__) && !defined(_GNU_SOURCE)
+#define _GNU_SOURCE
+#endif
+
 #include "prt_page_table.h"
 
 #include <pthread.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#if defined(__linux__)
+#include <errno.h>
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <unistd.h>
+#endif
 
 #include "prt_runtime.h"
 
 #define PRT_SPM_FAULT_OUT_OF_RANGE 1U
 #define PRT_SPM_FAULT_INVALID_PTE 2U
+#define PRT_SPM_PTE_VALID_MASK 1ULL
+
+static size_t host_page_size_bytes(void) {
+#if defined(__linux__)
+  long page_sz = sysconf(_SC_PAGESIZE);
+  if (page_sz > 0) return (size_t)page_sz;
+#endif
+  return 4096U;
+}
+
+static size_t align_up_size(size_t value, size_t align) {
+  if (align == 0) return value;
+  return ((value + align - 1U) / align) * align;
+}
+
+#if defined(__linux__) && defined(__riscv)
+static int linux_pagemap_fd(void) {
+  static int fd = -2;
+  if (fd != -2) return fd;
+  fd = open("/proc/self/pagemap", O_RDONLY);
+  return fd;
+}
+
+static int linux_virt_to_phys(const void *vaddr, uint64_t *paddr) {
+  const uint64_t va = (uint64_t)(uintptr_t)vaddr;
+  const size_t page_sz = host_page_size_bytes();
+  const uint64_t vpn = va / (uint64_t)page_sz;
+  const off_t offset = (off_t)(vpn * sizeof(uint64_t));
+  uint64_t entry = 0;
+  ssize_t n;
+  const uint64_t present = 1ULL << 63;
+  const uint64_t pfn_mask = (1ULL << 55) - 1ULL;
+  uint64_t pfn;
+  int fd;
+
+  if (!paddr) return PRT_ERR_INVAL;
+  fd = linux_pagemap_fd();
+  if (fd < 0) return PRT_ERR_IO;
+
+  n = pread(fd, &entry, sizeof(entry), offset);
+  if (n != (ssize_t)sizeof(entry)) return PRT_ERR_IO;
+  if ((entry & present) == 0) return PRT_ERR_NOT_READY;
+
+  pfn = entry & pfn_mask;
+  if (pfn == 0) return PRT_ERR_NOT_READY;
+
+  *paddr = pfn * (uint64_t)page_sz + (va % (uint64_t)page_sz);
+  return PRT_OK;
+}
+#endif
+
+static int reserve_spm_alias_range(prt_runtime_t *rt) {
+  if (!rt) return PRT_ERR_INVAL;
+  if (rt->cfg.spm_xlate_range_base != 0 || rt->cfg.spm_xlate_range_size == 0) return PRT_OK;
+#if defined(__linux__)
+  {
+    size_t bytes = align_up_size((size_t)rt->cfg.spm_xlate_range_size, host_page_size_bytes());
+    void *base = mmap(NULL, bytes, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    if (base == MAP_FAILED) return PRT_ERR_NOMEM;
+    rt->spm_alias_map = base;
+    rt->spm_alias_map_bytes = bytes;
+    rt->cfg.spm_xlate_range_base = (uint64_t)(uintptr_t)base;
+    return PRT_OK;
+  }
+#else
+  rt->cfg.spm_xlate_range_base = 0x80000000ULL;
+  return PRT_OK;
+#endif
+}
+
+static int alloc_spm_pte_storage(prt_runtime_t *rt) {
+  if (!rt || rt->spm_pte_cap == 0) return PRT_ERR_INVAL;
+#if defined(__linux__) && defined(__riscv)
+  {
+    const size_t page_sz = host_page_size_bytes();
+    const size_t bytes = align_up_size((size_t)rt->spm_pte_cap * sizeof(uint64_t), page_sz);
+    int attempt;
+    for (attempt = 0; attempt < 32; ++attempt) {
+      void *base;
+      uint64_t base_pa = 0;
+      int ok = 1;
+      base = mmap(NULL, bytes, PROT_READ | PROT_WRITE,
+                  MAP_PRIVATE | MAP_ANONYMOUS
+#ifdef MAP_POPULATE
+                  | MAP_POPULATE
+#endif
+                  , -1, 0);
+      if (base == MAP_FAILED) continue;
+      memset(base, 0, bytes);
+      for (size_t off = 0; off < bytes; off += page_sz) {
+        uint64_t pa = 0;
+        volatile uint8_t *ptr = (volatile uint8_t *)base + off;
+        *ptr = 0;
+        if (linux_virt_to_phys((const void *)ptr, &pa) != PRT_OK) {
+          ok = 0;
+          break;
+        }
+        if (off == 0) {
+          base_pa = pa;
+        } else if (pa != base_pa + (uint64_t)off) {
+          ok = 0;
+          break;
+        }
+      }
+      if (ok) {
+        rt->spm_pte = (uint64_t *)base;
+        rt->spm_pte_alloc = base;
+        rt->spm_pte_alloc_bytes = bytes;
+        rt->spm_ptbr_pa = base_pa;
+        return PRT_OK;
+      }
+      munmap(base, bytes);
+    }
+    return PRT_ERR_NOT_READY;
+  }
+#else
+  rt->spm_pte = (uint64_t *)calloc(rt->spm_pte_cap, sizeof(uint64_t));
+  if (!rt->spm_pte) return PRT_ERR_NOMEM;
+  rt->spm_pte_alloc = rt->spm_pte;
+  rt->spm_pte_alloc_bytes = (size_t)rt->spm_pte_cap * sizeof(uint64_t);
+  rt->spm_ptbr_pa = (uint64_t)(uintptr_t)rt->spm_pte;
+  return PRT_OK;
+#endif
+}
 
 static uint32_t rt_page_bytes(const prt_runtime_t *rt) {
   if (!rt || rt->cfg.page_size_bytes == 0) return PRT_PAGE_SIZE_BYTES;
@@ -18,6 +152,20 @@ static uint32_t rt_page_bytes(const prt_runtime_t *rt) {
 static uint64_t rt_spm_base(const prt_runtime_t *rt) {
   if (!rt) return 0;
   return rt->cfg.spm_xlate_range_base;
+}
+
+static uint64_t pack_spm_pte(const prt_runtime_t *rt, uint64_t paddr) {
+  uint32_t page_shift = rt && rt->cfg.spm_page_shift ? rt->cfg.spm_page_shift : 10U;
+  return ((paddr >> page_shift) << 1) | PRT_SPM_PTE_VALID_MASK;
+}
+
+static int spm_pte_valid(uint64_t pte) {
+  return (pte & PRT_SPM_PTE_VALID_MASK) != 0ULL;
+}
+
+static uint64_t spm_pte_paddr(const prt_runtime_t *rt, uint64_t pte) {
+  uint32_t page_shift = rt && rt->cfg.spm_page_shift ? rt->cfg.spm_page_shift : 10U;
+  return (pte >> 1) << page_shift;
 }
 
 static uint32_t hilbert_order_idx(uint32_t i, uint32_t num_cores) {
@@ -199,11 +347,14 @@ int prt_page_table_init(prt_runtime_t *rt) {
   rt->tensor_alloc_count = 0;
   rt->tensor_alloc_cap = 0;
 
-  rt->spm_pte_paddr = NULL;
-  rt->spm_pte_valid = NULL;
+  rt->spm_pte = NULL;
   rt->spm_pte_cap = 0;
   rt->spm_next_vpage = 0;
   rt->spm_ptbr_pa = 0;
+  rt->spm_pte_alloc = NULL;
+  rt->spm_pte_alloc_bytes = 0;
+  rt->spm_alias_map = NULL;
+  rt->spm_alias_map_bytes = 0;
   rt->spm_fault_count = 0;
   rt->spm_last_fault_vaddr = 0;
   rt->spm_last_fault_cause = 0;
@@ -222,20 +373,28 @@ int prt_page_table_init(prt_runtime_t *rt) {
     }
   }
 
-  rt->spm_pte_paddr = (uint64_t *)calloc(rt->spm_pte_cap, sizeof(uint64_t));
-  rt->spm_pte_valid = (uint8_t *)calloc(rt->spm_pte_cap, sizeof(uint8_t));
-  if (!rt->spm_pte_paddr || !rt->spm_pte_valid) {
-    free(rt->spm_pte_paddr);
-    free(rt->spm_pte_valid);
-    rt->spm_pte_paddr = NULL;
-    rt->spm_pte_valid = NULL;
+  if (reserve_spm_alias_range(rt) != PRT_OK) {
     free(rt->page_used);
     rt->page_used = NULL;
     pthread_mutex_destroy(&rt->page_lock);
     return PRT_ERR_NOMEM;
   }
 
-  rt->spm_ptbr_pa = (uint64_t)(uintptr_t)rt->spm_pte_paddr;
+  if (alloc_spm_pte_storage(rt) != PRT_OK) {
+#if defined(__linux__)
+    if (rt->spm_alias_map && rt->spm_alias_map_bytes) {
+      munmap(rt->spm_alias_map, rt->spm_alias_map_bytes);
+      rt->spm_alias_map = NULL;
+      rt->spm_alias_map_bytes = 0;
+    }
+#endif
+    rt->spm_pte = NULL;
+    free(rt->page_used);
+    rt->page_used = NULL;
+    pthread_mutex_destroy(&rt->page_lock);
+    return PRT_ERR_NOT_READY;
+  }
+
   return PRT_OK;
 }
 
@@ -261,13 +420,26 @@ void prt_page_table_destroy(prt_runtime_t *rt) {
   rt->spm_tensor_map_count = 0;
   rt->spm_tensor_map_cap = 0;
 
-  free(rt->spm_pte_paddr);
-  free(rt->spm_pte_valid);
-  rt->spm_pte_paddr = NULL;
-  rt->spm_pte_valid = NULL;
+#if defined(__linux__) && defined(__riscv)
+  if (rt->spm_pte_alloc && rt->spm_pte_alloc_bytes) {
+    munmap(rt->spm_pte_alloc, rt->spm_pte_alloc_bytes);
+  }
+#else
+  free(rt->spm_pte);
+#endif
+  rt->spm_pte = NULL;
   rt->spm_pte_cap = 0;
   rt->spm_next_vpage = 0;
   rt->spm_ptbr_pa = 0;
+  rt->spm_pte_alloc = NULL;
+  rt->spm_pte_alloc_bytes = 0;
+#if defined(__linux__)
+  if (rt->spm_alias_map && rt->spm_alias_map_bytes) {
+    munmap(rt->spm_alias_map, rt->spm_alias_map_bytes);
+  }
+#endif
+  rt->spm_alias_map = NULL;
+  rt->spm_alias_map_bytes = 0;
 
   free(rt->page_used);
   rt->page_used = NULL;
@@ -428,9 +600,10 @@ int prt_spm_map_tensor(prt_runtime_t *rt, uint32_t tensor_id, const prt_page_lis
 
   for (uint32_t i = 0; i < pages->size; ++i) {
     uint32_t vpage = m->vpage_start + i;
-    rt->spm_pte_valid[vpage] = 1U;
-    rt->spm_pte_paddr[vpage] = PRT_SHARED_SPAD_GLOBAL_ADDR_BASE +
-                               (uint64_t)pages->data[i].ppn * (uint64_t)page_bytes;
+    rt->spm_pte[vpage] = pack_spm_pte(
+      rt,
+      PRT_SHARED_SPAD_GLOBAL_ADDR_BASE +
+        (uint64_t)pages->data[i].ppn * (uint64_t)page_bytes);
   }
 
   rt->spm_next_vpage += pages->size;
@@ -453,8 +626,7 @@ int prt_spm_unmap_tensor(prt_runtime_t *rt, uint32_t tensor_id) {
     for (uint32_t j = 0; j < m->page_count; ++j) {
       uint32_t vpage = m->vpage_start + j;
       if (vpage >= rt->spm_pte_cap) break;
-      rt->spm_pte_valid[vpage] = 0;
-      rt->spm_pte_paddr[vpage] = 0;
+      rt->spm_pte[vpage] = 0;
     }
 
     if (i + 1 < rt->spm_tensor_map_count) {
@@ -502,12 +674,12 @@ int prt_spm_translate_range(prt_runtime_t *rt, uint64_t vaddr, uint64_t bytes,
       record_spm_fault(rt, cur, PRT_SPM_FAULT_OUT_OF_RANGE);
       return PRT_ERR_INVAL;
     }
-    if (!rt->spm_pte_valid[vpage]) {
+    if (!spm_pte_valid(rt->spm_pte[vpage])) {
       record_spm_fault(rt, cur, PRT_SPM_FAULT_INVALID_PTE);
       return PRT_ERR_INVAL;
     }
 
-    paddr = rt->spm_pte_paddr[vpage] + (uint64_t)in_page_off;
+    paddr = spm_pte_paddr(rt, rt->spm_pte[vpage]) + (uint64_t)in_page_off;
     if (n > 0 && segs[n - 1].paddr + segs[n - 1].bytes == paddr) {
       segs[n - 1].bytes += chunk;
     } else {

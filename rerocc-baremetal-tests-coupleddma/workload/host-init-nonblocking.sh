@@ -120,12 +120,13 @@ REROCC_BAREMETAL_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 GEMMINI_ROCC_TESTS_DIR="$(cd "${REROCC_BAREMETAL_DIR}" && pwd)"
 BUILD_DIR="${GEMMINI_ROCC_TESTS_DIR}/build"
 BUILD_BAREMETAL_DIR="${BUILD_DIR}/bareMetalC"
-OUT_BIN="${SCRIPT_DIR}/rerocc_lc_nonblocking_baremetal_coupleddma.riscv"
+ARTIFACT_DIR="${BUILD_DIR}/rerocc-baremetal-tests-coupleddma"
+BUILD_CONFIG="${ARTIFACT_DIR}/build-config-nonblocking.txt"
 
 echo "[rerocc-coupleddma-nonblocking] target=${TARGET_PROFILE} num_cores=${NUM_CORES} num_gemmini=${NUM_GEMMINI} num_dma=${NUM_DMA} bytes=${BYTES} gemmini_base_id=${GEMMINI_BASE_ID} dma_base_id=${DMA_BASE_ID}"
 echo "[rerocc-coupleddma-nonblocking] long_conv=${LONG_CONV_ITERS} short_conv=${SHORT_CONV_ITERS} long_resadd=${LONG_RESADD_ITERS} long_dma=${LONG_DMA_ITERS} short_dma=${SHORT_DMA_ITERS}"
 
-mkdir -p "${BUILD_BAREMETAL_DIR}"
+mkdir -p "${BUILD_BAREMETAL_DIR}" "${ARTIFACT_DIR}"
 
 EXTRA_DEFS="-DREROCC_NUM_GEMMINI=${NUM_GEMMINI} -DREROCC_NUM_DMA=${NUM_DMA} -DREROCC_GEMMINI_BASE_ID=${GEMMINI_BASE_ID} -DREROCC_DMA_BASE_ID=${DMA_BASE_ID} -DREROCC_DMA_BYTES=${BYTES} -DREROCC_LONG_CONV_ITERS=${LONG_CONV_ITERS} -DREROCC_SHORT_CONV_ITERS=${SHORT_CONV_ITERS} -DREROCC_LONG_RESADD_ITERS=${LONG_RESADD_ITERS} -DREROCC_LONG_DMA_ITERS=${LONG_DMA_ITERS} -DREROCC_SHORT_DMA_ITERS=${SHORT_DMA_ITERS}"
 
@@ -140,17 +141,15 @@ make -B -C "${BUILD_BAREMETAL_DIR}" \
   EXTRA_CFLAGS="${EXTRA_DEFS}" \
   rerocc_lc_nonblocking_baremetal_coupleddma-baremetal
 
-cp -f "${BUILD_BAREMETAL_DIR}/rerocc_lc_nonblocking_baremetal_coupleddma-baremetal" "${OUT_BIN}"
-
-echo "target=${TARGET_PROFILE}" > "${SCRIPT_DIR}/build-config-nonblocking.txt"
-echo "num_cores=${NUM_CORES}" >> "${SCRIPT_DIR}/build-config-nonblocking.txt"
-echo "num_gemmini=${NUM_GEMMINI}" >> "${SCRIPT_DIR}/build-config-nonblocking.txt"
-echo "num_dma=${NUM_DMA}" >> "${SCRIPT_DIR}/build-config-nonblocking.txt"
-echo "bytes=${BYTES}" >> "${SCRIPT_DIR}/build-config-nonblocking.txt"
-echo "gemmini_base_id=${GEMMINI_BASE_ID}" >> "${SCRIPT_DIR}/build-config-nonblocking.txt"
-echo "dma_base_id=${DMA_BASE_ID}" >> "${SCRIPT_DIR}/build-config-nonblocking.txt"
-echo "long_conv_iters=${LONG_CONV_ITERS}" >> "${SCRIPT_DIR}/build-config-nonblocking.txt"
-echo "short_conv_iters=${SHORT_CONV_ITERS}" >> "${SCRIPT_DIR}/build-config-nonblocking.txt"
-echo "long_resadd_iters=${LONG_RESADD_ITERS}" >> "${SCRIPT_DIR}/build-config-nonblocking.txt"
-echo "long_dma_iters=${LONG_DMA_ITERS}" >> "${SCRIPT_DIR}/build-config-nonblocking.txt"
-echo "short_dma_iters=${SHORT_DMA_ITERS}" >> "${SCRIPT_DIR}/build-config-nonblocking.txt"
+echo "target=${TARGET_PROFILE}" > "${BUILD_CONFIG}"
+echo "num_cores=${NUM_CORES}" >> "${BUILD_CONFIG}"
+echo "num_gemmini=${NUM_GEMMINI}" >> "${BUILD_CONFIG}"
+echo "num_dma=${NUM_DMA}" >> "${BUILD_CONFIG}"
+echo "bytes=${BYTES}" >> "${BUILD_CONFIG}"
+echo "gemmini_base_id=${GEMMINI_BASE_ID}" >> "${BUILD_CONFIG}"
+echo "dma_base_id=${DMA_BASE_ID}" >> "${BUILD_CONFIG}"
+echo "long_conv_iters=${LONG_CONV_ITERS}" >> "${BUILD_CONFIG}"
+echo "short_conv_iters=${SHORT_CONV_ITERS}" >> "${BUILD_CONFIG}"
+echo "long_resadd_iters=${LONG_RESADD_ITERS}" >> "${BUILD_CONFIG}"
+echo "long_dma_iters=${LONG_DMA_ITERS}" >> "${BUILD_CONFIG}"
+echo "short_dma_iters=${SHORT_DMA_ITERS}" >> "${BUILD_CONFIG}"

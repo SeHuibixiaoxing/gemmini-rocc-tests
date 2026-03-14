@@ -2,9 +2,10 @@
 
 This workload builds:
 
-- `rerocc_lc_matrix_baremetal_coupleddma.riscv`
-- `rerocc_lc_coverage_baremetal_coupleddma.riscv`
-- `rerocc_lc_nonblocking_baremetal_coupleddma.riscv`
+- `build/bareMetalC/rerocc_lc_matrix_baremetal_coupleddma-baremetal`
+- `build/bareMetalC/rerocc_lc_coverage_baremetal_coupleddma-baremetal`
+- `build/bareMetalC/rerocc_lc_nonblocking_baremetal_coupleddma-baremetal`
+- build metadata under `build/rerocc-baremetal-tests-coupleddma/`
 
 It validates:
 

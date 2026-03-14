@@ -43,7 +43,7 @@ int prt_main_entry(int argc, char **argv) {
   cfg.page_size_bytes = PRT_PAGE_SIZE_BYTES;
   cfg.spm_xlate_enable = 1;
   cfg.spm_page_shift = 0;
-  cfg.spm_xlate_range_base = 0x80000000ULL;
+  cfg.spm_xlate_range_base = 0;
   cfg.spm_xlate_range_size = 0;
   cfg.pages_per_acc = 256;
   cfg.dma_backend = PRT_DMA_BACKEND_POLL_PROGRESS_THREAD;

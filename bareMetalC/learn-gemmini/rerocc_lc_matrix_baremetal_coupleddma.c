@@ -2,11 +2,13 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "encoding.h"
 #include "util.h"
 #include "include/gemmini.h"
 #include "include/rerocc_coupleddma.h"
+#include "include/rerocc_gemmini_spm_xlate.h"
 #include "include/gemmini_testutils.h"
 #include "rerocc-linux-tests/rerocc_control.h"
 
@@ -69,6 +71,11 @@
 #define SHARED_SPAD_LOCAL_SIZE (1024 * 1024ULL)
 #define SHARED_SPAD_LOCAL_ADDR_BASE(i) (SHARED_SPAD_GLOBAL_ADDR_BASE + SHARED_SPAD_LOCAL_SIZE * (uint64_t)(i))
 #define SHARED_SPAD_ALIGN_BYTES 64ULL
+#define REROCC_SPM_PAGE_SHIFT 10U
+#define REROCC_SPM_PAGE_BYTES (1ULL << REROCC_SPM_PAGE_SHIFT)
+#define SHARED_SPAD_XLATE_RANGE_BASE 0xC0000000ULL
+#define SHARED_SPAD_XLATE_RANGE_SIZE ((uint64_t)REROCC_NUM_GEMMINI * SHARED_SPAD_LOCAL_SIZE)
+#define SHARED_SPAD_XLATE_PTE_CAP ((REROCC_NUM_GEMMINI * (SHARED_SPAD_LOCAL_SIZE / REROCC_SPM_PAGE_BYTES)) + 128U)
 
 #define BATCH_SIZE 1
 #define IN_ROW_DIM 8
@@ -96,6 +103,7 @@ static volatile int gemmini_conv_debug[REROCC_MAX_CORES][REROCC_NUM_GEMMINI];
 static volatile int gemmini_resadd_debug[REROCC_MAX_CORES][REROCC_NUM_GEMMINI];
 static volatile int gemmini_shared_mv_debug[REROCC_MAX_CORES][REROCC_NUM_GEMMINI];
 static volatile int gemmini_ok_debug[REROCC_MAX_CORES][REROCC_NUM_GEMMINI];
+static volatile int cpu_conv_ref_debug_once = 1;
 static volatile int core_done[REROCC_MAX_CORES];
 static volatile int core_gemmini_pass[REROCC_MAX_CORES];
 static volatile int core_gemmini_fail[REROCC_MAX_CORES];
@@ -147,6 +155,63 @@ static inline uint64_t shared_spad_case_addr(int local_gid, int cid, int case_id
 static inline bool shared_spad_layout_fits(int logical_cores) {
   return logical_cores > 0 &&
     (uint64_t)logical_cores * shared_spad_core_stride_bytes() <= SHARED_SPAD_LOCAL_SIZE;
+}
+
+static uint64_t spm_xlate_pte[SHARED_SPAD_XLATE_PTE_CAP] __attribute__((aligned(64)));
+
+static inline uint64_t shared_spad_case_vaddr(int local_gid, int cid, int case_idx) {
+  return SHARED_SPAD_XLATE_RANGE_BASE +
+    (shared_spad_case_addr(local_gid, cid, case_idx) - SHARED_SPAD_GLOBAL_ADDR_BASE);
+}
+
+static void spm_xlate_table_clear(void) {
+  memset(spm_xlate_pte, 0, sizeof(spm_xlate_pte));
+}
+
+static void spm_xlate_map_page(uint64_t vaddr, uint64_t paddr) {
+  uint64_t vpage = (vaddr - SHARED_SPAD_XLATE_RANGE_BASE) >> REROCC_SPM_PAGE_SHIFT;
+  if (vpage < (uint64_t)SHARED_SPAD_XLATE_PTE_CAP) {
+    spm_xlate_pte[vpage] = ((paddr >> REROCC_SPM_PAGE_SHIFT) << 1) | 1ULL;
+  }
+}
+
+static void spm_xlate_map_range(uint64_t vaddr, uint64_t paddr, uint64_t bytes) {
+  const uint64_t page_mask = REROCC_SPM_PAGE_BYTES - 1ULL;
+  uint64_t cur_vaddr;
+  uint64_t cur_paddr;
+  uint64_t end_vaddr;
+
+  if (bytes == 0) {
+    return;
+  }
+
+  // Map every page touched by [vaddr, vaddr + bytes), even when the range is not page-aligned.
+  cur_vaddr = vaddr & ~page_mask;
+  cur_paddr = paddr & ~page_mask;
+  end_vaddr = (vaddr + bytes - 1ULL) & ~page_mask;
+
+  while (1) {
+    spm_xlate_map_page(cur_vaddr, cur_paddr);
+    if (cur_vaddr == end_vaddr) {
+      break;
+    }
+    cur_vaddr += REROCC_SPM_PAGE_BYTES;
+    cur_paddr += REROCC_SPM_PAGE_BYTES;
+  }
+}
+
+static inline void spm_xlate_program(uint64_t range_base, uint64_t range_size, bool enable) {
+  rerocc_gemmini_spm_xlate_cfg((uint64_t)(uintptr_t)spm_xlate_pte,
+                               (uint32_t)SHARED_SPAD_XLATE_PTE_CAP,
+                               REROCC_SPM_PAGE_SHIFT,
+                               enable ? 1U : 0U);
+  rerocc_gemmini_spm_xlate_range(range_base, range_size);
+}
+
+static inline void spm_xlate_reset(void) {
+  rerocc_gemmini_spm_xlate_cfg(0ULL, 0U, REROCC_SPM_PAGE_SHIFT, 0U);
+  rerocc_gemmini_spm_xlate_range(0ULL, 0ULL);
+  rerocc_gemmini_spm_xlate_flush();
 }
 
 static bool rr_acquire_cfg_with_retry(uint32_t cfg_id, uint64_t manager_id) {
@@ -246,9 +311,16 @@ static void flatten_weights(elem_t weights[OUT_CHANNELS][KERNEL_DIM][KERNEL_DIM]
 static void cpu_conv_reference(elem_t input[BATCH_SIZE][IN_ROW_DIM][IN_COL_DIM][IN_CHANNELS],
                                elem_t weights[OUT_CHANNELS][KERNEL_DIM][KERNEL_DIM][IN_CHANNELS],
                                acc_t bias[OUT_CHANNELS],
-                               elem_t reference[BATCH_SIZE][OUT_ROW_DIM][OUT_COL_DIM][OUT_CHANNELS]) {
+                               elem_t reference[BATCH_SIZE][OUT_ROW_DIM][OUT_COL_DIM][OUT_CHANNELS],
+                               bool debug_once) {
+  if (debug_once) {
+    printf("CHK convref enter\n");
+  }
   for (int b = 0; b < BATCH_SIZE; b++) {
     for (int orow = 0; orow < OUT_ROW_DIM; orow++) {
+      if (debug_once && (orow == 0 || orow == (OUT_ROW_DIM / 2) || orow == (OUT_ROW_DIM - 1))) {
+        printf("CHK convref orow=%d\n", orow);
+      }
       for (int ocol = 0; ocol < OUT_COL_DIM; ocol++) {
         for (int och = 0; och < OUT_CHANNELS; och++) {
           acc_t acc = bias[och];
@@ -273,6 +345,9 @@ static void cpu_conv_reference(elem_t input[BATCH_SIZE][IN_ROW_DIM][IN_COL_DIM][
         }
       }
     }
+  }
+  if (debug_once) {
+    printf("CHK convref done\n");
   }
 }
 
@@ -307,6 +382,9 @@ static bool run_one_gemmini_case(int cid, int manager_id) {
 
   gemmini_stage_debug[cid][local_gid] = GEMDBG_STAGE_PREP;
   gemmini_conv_debug[cid][local_gid] = -1;
+  if (cid == 0 && local_gid == 0) {
+    printf("CHK gemmini0 enter\n");
+  }
   gemmini_resadd_debug[cid][local_gid] = -1;
   gemmini_shared_mv_debug[cid][local_gid] = -1;
   gemmini_ok_debug[cid][local_gid] = -1;
@@ -315,10 +393,30 @@ static bool run_one_gemmini_case(int cid, int manager_id) {
     printf("[dbg][gemmini] cpu=%d mgr=%d before cpu_conv_reference_prep\n", cid, manager_id);
   }
   init_random_elem(&input[0][0][0][0], sizeof(input) / sizeof(elem_t), &state);
+  if (cid == 0 && local_gid == 0) {
+    printf("CHK gemmini0 input_init\n");
+  }
   init_random_elem(&weights[0][0][0][0], sizeof(weights) / sizeof(elem_t), &state);
+  if (cid == 0 && local_gid == 0) {
+    printf("CHK gemmini0 weights_init\n");
+  }
   init_random_acc(&bias[0], sizeof(bias) / sizeof(acc_t), &state);
+  if (cid == 0 && local_gid == 0) {
+    printf("CHK gemmini0 bias_init\n");
+  }
   flatten_weights(weights, weights_mat);
-  cpu_conv_reference(input, weights, bias, reference);
+  const bool convref_debug = (cid == 0 && local_gid == 0 && cpu_conv_ref_debug_once != 0);
+  if (cid == 0 && local_gid == 0) {
+    printf("CHK gemmini0 flatten_done\n");
+    printf("CHK gemmini0 convref_call\n");
+  }
+  cpu_conv_reference(input, weights, bias, reference, convref_debug);
+  if (convref_debug) {
+    cpu_conv_ref_debug_once = 0;
+  }
+  if (cid == 0 && local_gid == 0) {
+    printf("CHK gemmini0 prepared\n");
+  }
   if (debug) {
     printf("[dbg][gemmini] cpu=%d mgr=%d after cpu_conv_reference_prep\n", cid, manager_id);
   }
@@ -331,11 +429,17 @@ static bool run_one_gemmini_case(int cid, int manager_id) {
     printf("[dbg][gemmini] cpu=%d mgr=%d before rr_acquire\n", cid, manager_id);
   }
   gemmini_stage_debug[cid][local_gid] = GEMDBG_STAGE_ACQUIRE;
+  if (cid == 0 && local_gid == 0) {
+    printf("CHK gemmini0 before_acquire\n");
+  }
   if (!rr_acquire_cfg_with_retry(GEMMINI_CFG_ID, (uint64_t)manager_id)) {
     if (debug) {
       printf("[dbg][gemmini] cpu=%d mgr=%d rr_acquire FAIL\n", cid, manager_id);
     }
     return false;
+  }
+  if (cid == 0 && local_gid == 0) {
+    printf("CHK gemmini0 after_acquire\n");
   }
   if (debug) {
     printf("[dbg][gemmini] cpu=%d mgr=%d after rr_acquire\n", cid, manager_id);
@@ -429,8 +533,12 @@ static bool run_one_gemmini_case(int cid, int manager_id) {
 
   uint64_t shared_src_addr = shared_spad_case_addr(local_gid, cid, 0);
   uint64_t shared_dst_addr = shared_spad_case_addr(local_gid, cid, 1);
+  uint64_t shared_src_vaddr = shared_spad_case_vaddr(local_gid, cid, 0);
+  uint64_t shared_dst_vaddr = shared_spad_case_vaddr(local_gid, cid, 1);
   elem_t *shared_src = (elem_t *)(uintptr_t)shared_src_addr;
   elem_t *shared_dst = (elem_t *)(uintptr_t)shared_dst_addr;
+  elem_t *shared_src_va = (elem_t *)(uintptr_t)shared_src_vaddr;
+  elem_t *shared_dst_va = (elem_t *)(uintptr_t)shared_dst_vaddr;
   for (size_t i = 0; i < (size_t)(DIM * DIM); i++) {
     shared_src[i] = (elem_t)((int32_t)(lcg_next(&state) % 9) - 4);
     shared_dst[i] = 0;
@@ -439,25 +547,52 @@ static bool run_one_gemmini_case(int cid, int manager_id) {
   gemmini_config_ld(DIM * sizeof(elem_t));
   gemmini_config_st(DIM * sizeof(elem_t));
   gemmini_stage_debug[cid][local_gid] = GEMDBG_STAGE_SHARED_MV;
-  gemmini_mvin(shared_src, 0);
-  gemmini_mvout(shared_dst, 0);
+
+  spm_xlate_table_clear();
+  spm_xlate_map_range(shared_src_vaddr, shared_src_addr, (uint64_t)(DIM * DIM * sizeof(elem_t)));
+  spm_xlate_map_range(shared_dst_vaddr, shared_dst_addr, (uint64_t)(DIM * DIM * sizeof(elem_t)));
+  spm_xlate_program(SHARED_SPAD_XLATE_RANGE_BASE, SHARED_SPAD_XLATE_RANGE_SIZE, true);
+  gemmini_mvin(shared_src_va, 0);
+  gemmini_mvout(shared_dst_va, 0);
   if (debug) {
-    printf("[dbg][gemmini] cpu=%d mgr=%d before rr_fence\n", cid, manager_id);
+    printf("[dbg][gemmini] cpu=%d mgr=%d before rr_fence shared_xlate\n", cid, manager_id);
   }
   gemmini_stage_debug[cid][local_gid] = GEMDBG_STAGE_FENCE;
   rr_fence(GEMMINI_CFG_ID);
   if (debug) {
-    printf("[dbg][gemmini] cpu=%d mgr=%d after rr_fence\n", cid, manager_id);
+    printf("[dbg][gemmini] cpu=%d mgr=%d after rr_fence shared_xlate\n", cid, manager_id);
   }
 
-  bool shared_mv_ok = true;
+  bool shared_mv_xlate_ok = true;
   for (size_t i = 0; i < (size_t)(DIM * DIM); i++) {
     if (shared_src[i] != shared_dst[i]) {
-      shared_mv_ok = false;
+      shared_mv_xlate_ok = false;
       break;
     }
   }
 
+  memset(shared_dst, 0, (size_t)(DIM * DIM * sizeof(elem_t)));
+  spm_xlate_program(SHARED_SPAD_GLOBAL_ADDR_BASE, SHARED_SPAD_XLATE_RANGE_SIZE, false);
+  gemmini_mvin(shared_src, 0);
+  gemmini_mvout(shared_dst, 0);
+  if (debug) {
+    printf("[dbg][gemmini] cpu=%d mgr=%d before rr_fence shared_passthrough\n", cid, manager_id);
+  }
+  rr_fence(GEMMINI_CFG_ID);
+  if (debug) {
+    printf("[dbg][gemmini] cpu=%d mgr=%d after rr_fence shared_passthrough\n", cid, manager_id);
+  }
+
+  bool shared_mv_passthrough_ok = true;
+  for (size_t i = 0; i < (size_t)(DIM * DIM); i++) {
+    if (shared_src[i] != shared_dst[i]) {
+      shared_mv_passthrough_ok = false;
+      break;
+    }
+  }
+  spm_xlate_reset();
+
+  bool shared_mv_ok = shared_mv_xlate_ok && shared_mv_passthrough_ok;
   bool conv_ok = output_matches_reference(reference, output_mat);
   bool ok = conv_ok && resadd_ok && shared_mv_ok;
   gemmini_stage_debug[cid][local_gid] = GEMDBG_STAGE_CHECK;
@@ -651,6 +786,7 @@ void thread_entry(int cid, int nc) {
     printf("[rerocc-baremetal] start mode=%s logical_cores=%d requested_logical_cores=%d runtime_nc=%d gemmini=%d dma=%d gemmini_base=%d dma_base=%d dma_bytes=%d\n",
       matrix_mode_name(REROCC_MATRIX_MODE), logical_cores, requested_logical_cores, nc, REROCC_NUM_GEMMINI, REROCC_NUM_DMA,
       REROCC_GEMMINI_BASE_ID, REROCC_DMA_BASE_ID, REROCC_DMA_BYTES);
+    printf("CHK thread_entry after_start\n");
   }
 
   if (logical_cores <= 0 || logical_cores > REROCC_MAX_CORES) {

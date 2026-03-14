@@ -72,11 +72,14 @@ typedef struct prt_runtime_s {
   uint32_t tensor_alloc_count;
   uint32_t tensor_alloc_cap;
 
-  uint64_t *spm_pte_paddr;
-  uint8_t *spm_pte_valid;
+  uint64_t *spm_pte;
   uint32_t spm_pte_cap;
   uint32_t spm_next_vpage;
   uint64_t spm_ptbr_pa;
+  void *spm_pte_alloc;
+  size_t spm_pte_alloc_bytes;
+  void *spm_alias_map;
+  size_t spm_alias_map_bytes;
   uint64_t spm_fault_count;
   uint64_t spm_last_fault_vaddr;
   uint32_t spm_last_fault_cause;

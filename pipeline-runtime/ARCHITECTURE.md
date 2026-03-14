@@ -19,7 +19,7 @@ MudnacSim 的定位是参考模拟器：
 当前阶段的非目标：
 
 - 不把 quick-diag 或 baremetal metasim 当作终极验收。
-- 不在 FPGA 不可用时输出性能、cycle/ns 或 QoS 结论。
+- 不在 host/metsim 本地近似验证上输出性能、cycle/ns 或 QoS 结论；这类结论只在 AWS FPGA replay 上建立。
 - 不扩展到 non-globalnoc 主路径。
 
 ## 2. 外部组件与协同关系
@@ -181,6 +181,32 @@ runtime 通过 CLI 从文件装载 artifacts：
 - 是否需要 ring buffer 参与 decoupling
 - stage 间 buffer 生命周期如何切换
 
+### 4.5 shared scratchpad 地址翻译
+
+当前 globalnoc 目标硬件上的 shared scratchpad 地址翻译分成两条兼容路径：
+
+- legacy 直映路径：`use_page_table_xlate=false`，保留原先的 range-base 到 shared scratchpad base 的直接偏移翻译，不影响旧配置。
+- page-table 路径：`use_page_table_xlate=true`，在 Gemmini frontend TLB 里为 shared-spad 范围单独维护一套小 TLB，并通过专用 `SpmPageTableWalker` 从普通内存读取 PTE。
+
+2026-03-12 起，目标 globalnoc coupled-DMA 配置进一步把这套 shared-spad translation context 共享给 `GemminiCoupledDMA`：
+
+- Gemmini compute/load-store 路与 Gemmini shared-spad copy 路共用同一套 `enable / page_shift / ptbr / range / shared_base` 配置视图。
+- runtime 在启动时一次性下发 `SPM_XLATE_CFG / RANGE`，后续 segment 只做 `FLUSH` 以刷新 shared-spad translation cache。
+- CoupledDMA 当前复用同一份 page-table 上下文，但仍保持单 miss、独立 refill 的简化实现；这样不会改动旧配置的控制接口。
+- Linux 上 alias VA window 允许 runtime 动态保留；但 PTW 使用的 PTE slab 仍必须有连续物理 backing，因为硬件访问模型固定为 `ptbr + vpn * 8`。
+
+控制面由 Gemmini controller 的 `SPM_XLATE_CFG / RANGE / FLUSH / FAULT` 指令负责，当前锁定语义是：
+
+- 命中已编程范围且 `enable=1`：访问走 shared-spad PTW/TLB。
+- 命中已编程范围且 `enable=0`：访问直接透传到 shared scratchpad 物理地址，用于软件控制地关闭地址翻译。
+- `FLUSH` 只清 fault 和 shared-spad translation cache，不清 `enable/range` 寄存器。
+
+当前实现刻意保持简单：
+
+- PTE 格式固定为 `bit0=valid`，高位为物理页号。
+- shared-spad TLB miss 当前只允许一个 outstanding miss。
+- 该模式只在 `GemminiLearningConfigSpadReRoCCGlobalNoC2C1x2G2x1x2D2x1x2CoupledDMA` 这条目标配置上打开。
+
 ## 5. 尺寸不匹配统一规则
 
 由于当前不支持 pooling 等层，上一层 output 和下一层 input 可能尺寸不匹配。
@@ -209,9 +235,10 @@ runtime 通过 CLI 从文件装载 artifacts：
 - Host Linux 上的 bertmini `ours2 / gemini2 / tangram2` dummy-data correctness。
 - `layers_gemmini.yaml + mapping_gemmini + entire_model canonical YAML` 的生成链。
 - Linux overlay 的打包路径和 run script 入口。
+- coupled-DMA globalnoc U280 bitstream 的本地构建链；可复用的 `firesim.tar.gz` 与 `built-hwdb` 入口已经生成。
 
 当前尚未闭环的内容：
 
 - RISC-V Linux target binary 的本机交叉编译，受限于当前环境缺少交叉工具链。
-- globalnoc Linux FPGA replay，受限于当前 FPGA 不可用。
+- globalnoc Linux FPGA replay，需要转到 AWS manager 执行；本地 bitstream 已成功生成，但 `built-hwdb` 里的 `file:///home/wzy/...` 路径不能直接在 AWS 复用，必须同步产物并重写路径，或在 AWS 重新 buildbitstream。
 - 更贴近真实双 Gemmini 硬件资源约束的 canonical pipeline mapping，当前 `2_1024_16_19_64_*.yaml` 仍是 host-friendly 基线，不等价于最终硬件最优解。

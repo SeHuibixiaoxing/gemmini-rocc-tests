@@ -1,2 +1,1 @@
-rerocc_lc_matrix_baremetal_coupleddma.riscv
-build-config.txt
+# Generated artifacts now live under ../../build/.

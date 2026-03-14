@@ -40,20 +40,33 @@ static uint64_t monotonic_ms(void) {
   return prt_now_ns() / 1000000ULL;
 }
 
-static int runtime_program_spm_xlate(prt_runtime_t *rt, const prt_schedule_action_t *action) {
+static int runtime_bootstrap_spm_xlate(prt_runtime_t *rt) {
   int rc;
-  if (!rt || !action) return PRT_ERR_INVAL;
+  if (!rt) return PRT_ERR_INVAL;
   if (!rt->cfg.spm_xlate_enable) return PRT_OK;
 
-  for (uint32_t i = 0; i < action->acc_source.all_count; ++i) {
-    uint32_t manager_id = action->acc_source.all_gemmini_mgr_ids ?
-                          action->acc_source.all_gemmini_mgr_ids[i] :
-                          (rt->cfg.gemmini_mgr_base_id + i);
-    rc = prt_gemmini_spm_xlate_cfg(manager_id, action->spm_ptbr_pa,
-                                   action->spm_pte_count, rt->cfg.spm_page_shift, 1U);
+  for (uint32_t i = 0; i < rt->cfg.num_gemmini_mgrs; ++i) {
+    uint32_t manager_id = rt->cfg.gemmini_mgr_base_id + i;
+    rc = prt_gemmini_spm_xlate_cfg(manager_id, prt_spm_ptbr_pa(rt),
+                                   prt_spm_pte_count(rt), rt->cfg.spm_page_shift, 1U);
     if (rc != PRT_OK) return rc;
     rc = prt_gemmini_spm_xlate_range(manager_id, rt->cfg.spm_xlate_range_base,
                                      rt->cfg.spm_xlate_range_size);
+    if (rc != PRT_OK) return rc;
+    rc = prt_gemmini_spm_xlate_flush(manager_id);
+    if (rc != PRT_OK) return rc;
+  }
+  return PRT_OK;
+}
+
+static int runtime_flush_spm_xlate(prt_runtime_t *rt) {
+  int rc;
+  if (!rt) return PRT_ERR_INVAL;
+  if (!rt->cfg.spm_xlate_enable) return PRT_OK;
+
+  for (uint32_t i = 0; i < rt->cfg.num_gemmini_mgrs; ++i) {
+    uint32_t manager_id = rt->cfg.gemmini_mgr_base_id + i;
+    rc = prt_gemmini_spm_xlate_flush(manager_id);
     if (rc != PRT_OK) return rc;
   }
   return PRT_OK;
@@ -2305,7 +2318,6 @@ int prt_runtime_init(const prt_runtime_cfg_t *cfg, prt_runtime_t *rt) {
     rt->cfg.spm_page_shift = (p == 1U) ? shift : 10U;
   }
   if (rt->cfg.spm_xlate_enable > 1U) rt->cfg.spm_xlate_enable = 1U;
-  if (rt->cfg.spm_xlate_range_base == 0) rt->cfg.spm_xlate_range_base = 0x80000000ULL;
   if (rt->cfg.spm_xlate_range_size == 0) {
     uint64_t max_pages = (uint64_t)rt->cfg.num_cores * (uint64_t)rt->cfg.pages_per_acc;
     rt->cfg.spm_xlate_range_size = max_pages * (uint64_t)rt->cfg.page_size_bytes * 8ULL;
@@ -2334,6 +2346,9 @@ int prt_runtime_init(const prt_runtime_cfg_t *cfg, prt_runtime_t *rt) {
   if (rc != PRT_OK) return rc;
 
   rc = prt_gemmini_backend_init(rt);
+  if (rc != PRT_OK) return rc;
+
+  rc = runtime_bootstrap_spm_xlate(rt);
   if (rc != PRT_OK) return rc;
 
   if (rt->cfg.trace_path && rt->cfg.trace_path[0] != '\0') {
@@ -2531,8 +2546,8 @@ int prt_runtime_run(prt_runtime_t *rt, const prt_run_args_t *args) {
     PRT_GOTO_OUT_ON_ERR("build_topology");
     rc = prt_action_bind_topology(rt, action);
     PRT_GOTO_OUT_ON_ERR("action_bind_topology");
-    rc = runtime_program_spm_xlate(rt, action);
-    PRT_GOTO_OUT_ON_ERR("program_spm_xlate");
+    rc = runtime_flush_spm_xlate(rt);
+    PRT_GOTO_OUT_ON_ERR("flush_spm_xlate");
 
     if (is_last_segment) {
       for (uint32_t i = 0; i < model_output_count; ++i) {

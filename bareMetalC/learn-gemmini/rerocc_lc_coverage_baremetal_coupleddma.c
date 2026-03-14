@@ -40,6 +40,11 @@
 #define REROCC_SPM_PAGE_BYTES 1024U
 #endif
 
+#define REROCC_SPM_PAGE_SHIFT 10U
+#define SHARED_SPAD_XLATE_RANGE_BASE 0xC0000000ULL
+#define SHARED_SPAD_XLATE_RANGE_SIZE SHARED_SPAD_LOCAL_SIZE
+#define SHARED_SPAD_XLATE_PTE_CAP ((SHARED_SPAD_LOCAL_SIZE / REROCC_SPM_PAGE_BYTES) + 128U)
+
 #ifndef REROCC_DMA_CROSS_BYTES
 #define REROCC_DMA_CROSS_BYTES 256U
 #endif
@@ -108,6 +113,7 @@ static elem_t resadd_gold_dram[DIM][DIM] __attribute__((aligned(64)));
 
 static uint8_t dma_dram_src[REROCC_DMA_BYTES] __attribute__((aligned(64)));
 static uint8_t dma_dram_dst[REROCC_DMA_BYTES] __attribute__((aligned(64)));
+static uint64_t spm_xlate_pte[SHARED_SPAD_XLATE_PTE_CAP] __attribute__((aligned(64)));
 
 static bool rr_acquire_cfg_with_retry(uint32_t cfg_id, uint64_t manager_id) {
   unsigned long retries = 0;
@@ -135,6 +141,18 @@ static void init_random_elem(elem_t *buf, size_t n, uint32_t *state) {
 static void init_random_acc(acc_t *buf, size_t n, uint32_t *state) {
   for (size_t i = 0; i < n; i++) {
     buf[i] = (acc_t)((int32_t)(lcg_next(state) % 5) - 2);
+  }
+}
+
+static void shared_byte_copy(volatile uint8_t *dst, const uint8_t *src, size_t n) {
+  for (size_t i = 0; i < n; i++) {
+    dst[i] = src[i];
+  }
+}
+
+static void shared_byte_zero(volatile uint8_t *dst, size_t n) {
+  for (size_t i = 0; i < n; i++) {
+    dst[i] = 0;
   }
 }
 
@@ -195,6 +213,60 @@ static bool conv_output_matches(const elem_t *reference, const elem_t *output) {
     }
   }
   return true;
+}
+
+static inline uint64_t shared_spad_vaddr(uint64_t paddr) {
+  return SHARED_SPAD_XLATE_RANGE_BASE + (paddr - SHARED_SPAD_GLOBAL_ADDR_BASE);
+}
+
+static void spm_xlate_table_clear(void) {
+  memset(spm_xlate_pte, 0, sizeof(spm_xlate_pte));
+}
+
+static void spm_xlate_map_page(uint64_t vaddr, uint64_t paddr) {
+  uint64_t vpage = (vaddr - SHARED_SPAD_XLATE_RANGE_BASE) >> REROCC_SPM_PAGE_SHIFT;
+  if (vpage < SHARED_SPAD_XLATE_PTE_CAP) {
+    spm_xlate_pte[vpage] = ((paddr >> REROCC_SPM_PAGE_SHIFT) << 1) | 1ULL;
+  }
+}
+
+static void spm_xlate_map_range(uint64_t vaddr, uint64_t paddr, uint64_t bytes) {
+  const uint64_t page_mask = REROCC_SPM_PAGE_BYTES - 1ULL;
+  uint64_t cur_vaddr;
+  uint64_t cur_paddr;
+  uint64_t end_vaddr;
+
+  if (bytes == 0) {
+    return;
+  }
+
+  // Map every page touched by [vaddr, vaddr + bytes), even when the range is not page-aligned.
+  cur_vaddr = vaddr & ~page_mask;
+  cur_paddr = paddr & ~page_mask;
+  end_vaddr = (vaddr + bytes - 1ULL) & ~page_mask;
+
+  while (1) {
+    spm_xlate_map_page(cur_vaddr, cur_paddr);
+    if (cur_vaddr == end_vaddr) {
+      break;
+    }
+    cur_vaddr += REROCC_SPM_PAGE_BYTES;
+    cur_paddr += REROCC_SPM_PAGE_BYTES;
+  }
+}
+
+static inline void spm_xlate_program(uint64_t range_base, uint64_t range_size, bool enable) {
+  rerocc_gemmini_spm_xlate_cfg((uint64_t)(uintptr_t)spm_xlate_pte,
+                               (uint32_t)SHARED_SPAD_XLATE_PTE_CAP,
+                               REROCC_SPM_PAGE_SHIFT,
+                               enable ? 1U : 0U);
+  rerocc_gemmini_spm_xlate_range(range_base, range_size);
+}
+
+static inline void spm_xlate_reset(void) {
+  rerocc_gemmini_spm_xlate_cfg(0ULL, 0U, REROCC_SPM_PAGE_SHIFT, 0U);
+  rerocc_gemmini_spm_xlate_range(0ULL, 0ULL);
+  rerocc_gemmini_spm_xlate_flush();
 }
 
 static bool run_conv_case(const char *name, int gemmini_manager_id,
@@ -258,6 +330,53 @@ static bool run_resadd_case(const char *name, int gemmini_manager_id,
   return ok;
 }
 
+static bool run_shared_mv_case(const char *name, int gemmini_manager_id,
+                               elem_t *src_phys, elem_t *dst_phys,
+                               uint64_t src_vaddr, uint64_t dst_vaddr,
+                               bool use_xlate) {
+  const size_t bytes = (size_t)(DIM * DIM * sizeof(elem_t));
+  const elem_t *src_req = src_phys;
+  elem_t *dst_req = dst_phys;
+  bool ok = true;
+  if (!rr_acquire_cfg_with_retry(GEMMINI_CFG_ID, (uint64_t)gemmini_manager_id)) {
+    printf("CASE_FAIL %s reason=acquire\n", name);
+    return false;
+  }
+
+  rr_set_opc(3, GEMMINI_CFG_ID);
+  gemmini_flush(0);
+  memset(dst_phys, 0, bytes);
+
+  if (use_xlate) {
+    spm_xlate_table_clear();
+    spm_xlate_map_range(src_vaddr, (uint64_t)(uintptr_t)src_phys, bytes);
+    spm_xlate_map_range(dst_vaddr, (uint64_t)(uintptr_t)dst_phys, bytes);
+    spm_xlate_program(SHARED_SPAD_XLATE_RANGE_BASE, SHARED_SPAD_XLATE_RANGE_SIZE, true);
+    src_req = (const elem_t *)(uintptr_t)src_vaddr;
+    dst_req = (elem_t *)(uintptr_t)dst_vaddr;
+  } else {
+    spm_xlate_program(SHARED_SPAD_GLOBAL_ADDR_BASE, SHARED_SPAD_XLATE_RANGE_SIZE, false);
+  }
+
+  gemmini_config_ld(DIM * sizeof(elem_t));
+  gemmini_config_st(DIM * sizeof(elem_t));
+  gemmini_mvin(src_req, 0);
+  gemmini_mvout(dst_req, 0);
+  gemmini_fence();
+  rr_fence(GEMMINI_CFG_ID);
+  spm_xlate_reset();
+  rr_release(GEMMINI_CFG_ID);
+
+  for (size_t i = 0; i < (size_t)(DIM * DIM); ++i) {
+    if (src_phys[i] != dst_phys[i]) {
+      ok = false;
+      break;
+    }
+  }
+  printf("CASE_RESULT %s %s\n", name, ok ? "PASS" : "FAIL");
+  return ok;
+}
+
 static bool run_spm_xlate_ctrl_case(const char *name, int gemmini_manager_id) {
   uint64_t fault_raw;
   bool ok;
@@ -267,14 +386,18 @@ static bool run_spm_xlate_ctrl_case(const char *name, int gemmini_manager_id) {
   }
 
   rr_set_opc(3, GEMMINI_CFG_ID);
-  rerocc_gemmini_spm_xlate_cfg(0x90000000ULL, 128U, 10U, 1U);
-  rerocc_gemmini_spm_xlate_range(0x80000000ULL, 0x00010000ULL);
+  spm_xlate_table_clear();
+  rerocc_gemmini_spm_xlate_cfg((uint64_t)(uintptr_t)spm_xlate_pte,
+                               (uint32_t)SHARED_SPAD_XLATE_PTE_CAP,
+                               REROCC_SPM_PAGE_SHIFT,
+                               1U);
+  rerocc_gemmini_spm_xlate_range(SHARED_SPAD_XLATE_RANGE_BASE, SHARED_SPAD_XLATE_RANGE_SIZE);
   fault_raw = rerocc_gemmini_spm_xlate_fault();
   rerocc_gemmini_spm_xlate_flush();
 
   // Restore the controller defaults so later DRAM-based coverage cases are not
   // redirected into shared scratchpad by the control-path test's temporary setup.
-  rerocc_gemmini_spm_xlate_cfg(0ULL, 0U, 10U, 0U);
+  rerocc_gemmini_spm_xlate_cfg(0ULL, 0U, REROCC_SPM_PAGE_SHIFT, 0U);
   rerocc_gemmini_spm_xlate_range(0ULL, 0ULL);
   rerocc_gemmini_spm_xlate_flush();
   rr_fence(GEMMINI_CFG_ID);
@@ -366,16 +489,23 @@ void thread_entry(int cid, int nc) {
   uint8_t *dram_dma_src_cross = dma_dram_src + DRAM_DMA_CROSS_OFFSET;
   uint8_t *dram_dma_dst_cross = dma_dram_dst + DRAM_DMA_CROSS_OFFSET;
 
+  printf("[rerocc-coverage] init enter gemmini_id=%d dma_id=%d dma_bytes=%d\n",
+         gemmini_manager_id, dma_manager_id, REROCC_DMA_BYTES);
+
   uint32_t rnd = 0x12345678u;
   init_random_elem(&input_dram[0][0][0][0], sizeof(input_dram) / sizeof(elem_t), &rnd);
   init_random_elem(&weights_4d[0][0][0][0], sizeof(weights_4d) / sizeof(elem_t), &rnd);
   init_random_acc(&bias_dram[0], sizeof(bias_dram) / sizeof(acc_t), &rnd);
+  printf("[rerocc-coverage] init random_ready\n");
   flatten_weights(weights_4d, weights_mat_dram);
+  printf("[rerocc-coverage] init flatten_ready\n");
   cpu_conv_reference(input_dram, weights_4d, bias_dram, reference_out);
+  printf("[rerocc-coverage] init convref_ready\n");
 
   memset(output_case1_dram, 0, sizeof(output_case1_dram));
   memset(output_case2_dram, 0, sizeof(output_case2_dram));
   memset(shared_conv_output, 0, sizeof(output_case1_dram));
+  printf("[rerocc-coverage] init outputs_zeroed\n");
 
   for (size_t i = 0; i < (size_t)(DIM * DIM); i++) {
     ((elem_t *)resadd_a_dram)[i] = (elem_t)((int32_t)(lcg_next(&rnd) % 9) - 4);
@@ -383,17 +513,18 @@ void thread_entry(int cid, int nc) {
     ((elem_t *)resadd_out_dram)[i] = 0;
     ((elem_t *)resadd_gold_dram)[i] = 0;
   }
+  printf("[rerocc-coverage] init resadd_seeded\n");
   resadd_cpu(DIM, DIM, DIM, MVIN_SCALE_IDENTITY, MVIN_SCALE_IDENTITY, ACC_SCALE_IDENTITY,
              (elem_t *)resadd_a_dram, (elem_t *)resadd_b_dram, (elem_t *)resadd_gold_dram, false);
+  printf("[rerocc-coverage] init refs_done\n");
 
-  memcpy(shared_conv_input, input_dram, sizeof(input_dram));
-  memcpy(shared_conv_weight, weights_mat_dram, sizeof(weights_mat_dram));
-  memcpy(shared_resadd_a, resadd_a_dram, sizeof(resadd_a_dram));
-  memcpy(shared_resadd_b, resadd_b_dram, sizeof(resadd_b_dram));
-  memset(shared_resadd_out, 0, sizeof(resadd_out_dram));
+  shared_byte_copy((volatile uint8_t *)shared_conv_input, (const uint8_t *)input_dram, sizeof(input_dram));
+  shared_byte_copy((volatile uint8_t *)shared_conv_weight, (const uint8_t *)weights_mat_dram, sizeof(weights_mat_dram));
+  shared_byte_copy((volatile uint8_t *)shared_resadd_a, (const uint8_t *)resadd_a_dram, sizeof(resadd_a_dram));
+  shared_byte_copy((volatile uint8_t *)shared_resadd_b, (const uint8_t *)resadd_b_dram, sizeof(resadd_b_dram));
+  shared_byte_zero((volatile uint8_t *)shared_resadd_out, sizeof(resadd_out_dram));
 
-  printf("[rerocc-coverage] gemmini_id=%d dma_id=%d dma_bytes=%d\n",
-         gemmini_manager_id, dma_manager_id, REROCC_DMA_BYTES);
+  printf("[rerocc-coverage] init shared_ready\n");
 
   bool case0 = run_spm_xlate_ctrl_case("spm_xlate_ctrl", gemmini_manager_id);
 
@@ -428,6 +559,24 @@ void thread_entry(int cid, int nc) {
       (const elem_t *)shared_resadd_b,
       (elem_t *)shared_resadd_out,
       (const elem_t *)resadd_gold_dram);
+
+  bool case4b = run_shared_mv_case(
+      "shared_mv_xlate",
+      gemmini_manager_id,
+      shared_conv_input,
+      shared_conv_output,
+      shared_spad_vaddr((uint64_t)(uintptr_t)shared_conv_input),
+      shared_spad_vaddr((uint64_t)(uintptr_t)shared_conv_output),
+      true);
+
+  bool case4c = run_shared_mv_case(
+      "shared_mv_passthrough",
+      gemmini_manager_id,
+      shared_conv_input,
+      shared_conv_output,
+      shared_spad_vaddr((uint64_t)(uintptr_t)shared_conv_input),
+      shared_spad_vaddr((uint64_t)(uintptr_t)shared_conv_output),
+      false);
 
   uint32_t dma_seed = 0x9e3779b9u;
   fill_pattern(shared_dma_a, REROCC_DMA_BYTES, &dma_seed);
@@ -498,12 +647,13 @@ void thread_entry(int cid, int nc) {
 
   rr_release_all(RR_MAX_CFGS);
 
-  const bool all_ok = case0 && case1 && case2 && case3 && case4 &&
+  const bool all_ok = case0 && case1 && case2 && case3 && case4 && case4b && case4c &&
                       case5 && case6 && case7 && case8 && case9 && case10;
-  printf("COVERAGE_SUMMARY case0=%d case1=%d case2=%d case3=%d case4=%d case5=%d case6=%d case7=%d case8=%d case9=%d case10=%d\n",
+  printf("COVERAGE_SUMMARY case0=%d case1=%d case2=%d case3=%d case4=%d case4b=%d case4c=%d case5=%d case6=%d case7=%d case8=%d case9=%d case10=%d\n",
          case0 ? 1 : 0, case1 ? 1 : 0, case2 ? 1 : 0, case3 ? 1 : 0,
-         case4 ? 1 : 0, case5 ? 1 : 0, case6 ? 1 : 0, case7 ? 1 : 0,
-         case8 ? 1 : 0, case9 ? 1 : 0, case10 ? 1 : 0);
+         case4 ? 1 : 0, case4b ? 1 : 0, case4c ? 1 : 0, case5 ? 1 : 0,
+         case6 ? 1 : 0, case7 ? 1 : 0, case8 ? 1 : 0, case9 ? 1 : 0,
+         case10 ? 1 : 0);
   if (all_ok) {
     printf("ALL_TESTS_PASS\n");
     exit(0);

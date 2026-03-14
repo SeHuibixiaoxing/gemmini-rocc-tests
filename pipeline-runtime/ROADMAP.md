@@ -98,11 +98,16 @@
 - 在 `config_runtime_rerocc_fpga_small_linux_globalnoc_coupleddma.yaml` 上跑 bertmini 三种方法。
 - 三种方法都输出 PASS，且与 CPU golden 一致。
 
-当前状态：deferred，等待 FPGA 恢复。
+当前状态：本地 bitstream / hwdb 产物已准备完成，AWS replay 待执行。
+
+- 本地 `firesim buildbitstream` 已成功，入口见 `HANDOFF.md` 中的 build log、hwdb entry 和 `firesim.tar.gz` 路径。
+- 当前真正的阻塞项不是本地硬件可用性，而是 AWS 侧是否已经同步当前 dirty tree，以及是否能访问或重建同一份 bitstream 产物。
 
 下一步：
 
-- FPGA 可用后，用最新版硬件立即 replay 与硬件行为直接相关的必要测试。
+- 在 AWS 上决定“复用本地 bitstream”还是“重新 buildbitstream”。
+- 让 `config_hwdb.yaml` 指向 AWS 可访问的 bitstream tar。
+- 用最新版硬件立即 replay 与硬件行为直接相关的必要测试。
 - 若 replay 暴露资源约束差异，回推改进 HybridMapper 的 Gemmini layer mapping 与 canonical pipeline emitter。
 
 退出条件：三方法在 globalnoc Linux 目标硬件上通过最终闭环。

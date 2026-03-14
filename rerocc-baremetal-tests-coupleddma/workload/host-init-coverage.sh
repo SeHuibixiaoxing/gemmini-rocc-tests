@@ -97,11 +97,12 @@ REROCC_BAREMETAL_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 GEMMINI_ROCC_TESTS_DIR="$(cd "${REROCC_BAREMETAL_DIR}" && pwd)"
 BUILD_DIR="${GEMMINI_ROCC_TESTS_DIR}/build"
 BUILD_BAREMETAL_DIR="${BUILD_DIR}/bareMetalC"
-OUT_BIN="${SCRIPT_DIR}/rerocc_lc_coverage_baremetal_coupleddma.riscv"
+ARTIFACT_DIR="${BUILD_DIR}/rerocc-baremetal-tests-coupleddma"
+BUILD_CONFIG="${ARTIFACT_DIR}/build-config-coverage.txt"
 
 echo "[rerocc-coupleddma-coverage] target=${TARGET_PROFILE} num_cores=${NUM_CORES} num_gemmini=${NUM_GEMMINI} num_dma=${NUM_DMA} bytes=${BYTES} gemmini_base_id=${GEMMINI_BASE_ID} dma_base_id=${DMA_BASE_ID} local_gemmini_id=${LOCAL_GEMMINI_ID}"
 
-mkdir -p "${BUILD_BAREMETAL_DIR}"
+mkdir -p "${BUILD_BAREMETAL_DIR}" "${ARTIFACT_DIR}"
 
 EXTRA_DEFS="-DREROCC_NUM_GEMMINI=${NUM_GEMMINI} -DREROCC_GEMMINI_BASE_ID=${GEMMINI_BASE_ID} -DREROCC_DMA_BASE_ID=${DMA_BASE_ID} -DREROCC_TEST_LOCAL_GEMMINI_ID=${LOCAL_GEMMINI_ID} -DREROCC_DMA_BYTES=${BYTES}"
 
@@ -116,13 +117,11 @@ make -B -C "${BUILD_BAREMETAL_DIR}" \
   EXTRA_CFLAGS="${EXTRA_DEFS}" \
   rerocc_lc_coverage_baremetal_coupleddma-baremetal
 
-cp -f "${BUILD_BAREMETAL_DIR}/rerocc_lc_coverage_baremetal_coupleddma-baremetal" "${OUT_BIN}"
-
-echo "target=${TARGET_PROFILE}" > "${SCRIPT_DIR}/build-config-coverage.txt"
-echo "num_cores=${NUM_CORES}" >> "${SCRIPT_DIR}/build-config-coverage.txt"
-echo "num_gemmini=${NUM_GEMMINI}" >> "${SCRIPT_DIR}/build-config-coverage.txt"
-echo "num_dma=${NUM_DMA}" >> "${SCRIPT_DIR}/build-config-coverage.txt"
-echo "bytes=${BYTES}" >> "${SCRIPT_DIR}/build-config-coverage.txt"
-echo "gemmini_base_id=${GEMMINI_BASE_ID}" >> "${SCRIPT_DIR}/build-config-coverage.txt"
-echo "dma_base_id=${DMA_BASE_ID}" >> "${SCRIPT_DIR}/build-config-coverage.txt"
-echo "local_gemmini_id=${LOCAL_GEMMINI_ID}" >> "${SCRIPT_DIR}/build-config-coverage.txt"
+echo "target=${TARGET_PROFILE}" > "${BUILD_CONFIG}"
+echo "num_cores=${NUM_CORES}" >> "${BUILD_CONFIG}"
+echo "num_gemmini=${NUM_GEMMINI}" >> "${BUILD_CONFIG}"
+echo "num_dma=${NUM_DMA}" >> "${BUILD_CONFIG}"
+echo "bytes=${BYTES}" >> "${BUILD_CONFIG}"
+echo "gemmini_base_id=${GEMMINI_BASE_ID}" >> "${BUILD_CONFIG}"
+echo "dma_base_id=${DMA_BASE_ID}" >> "${BUILD_CONFIG}"
+echo "local_gemmini_id=${LOCAL_GEMMINI_ID}" >> "${BUILD_CONFIG}"
