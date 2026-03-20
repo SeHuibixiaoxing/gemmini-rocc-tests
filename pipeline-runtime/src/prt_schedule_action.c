@@ -7,6 +7,7 @@
 
 #include "prt_error.h"
 #include "prt_page_table.h"
+#include "prt_progress.h"
 #include "prt_runtime.h"
 
 static uint32_t g_next_action_id = 1;
@@ -35,6 +36,30 @@ static int append_unique_mgr(uint32_t **arr, uint32_t *n, uint32_t *cap, uint32_
   *cap = new_cap;
   (*arr)[*n] = v;
   *n += 1;
+  return PRT_OK;
+}
+
+static int assign_stage_manager_slot(prt_runtime_t *rt, prt_schedule_action_t *action,
+                                     prt_stage_acc_assign_t *assign, uint32_t slot_idx,
+                                     uint32_t gm_local, uint32_t *all_g_cap, uint32_t *all_d_cap) {
+  uint32_t dm_local;
+  uint32_t gm_id;
+  uint32_t dm_id;
+  int rc;
+  if (!rt || !action || !assign || !all_g_cap || !all_d_cap) return PRT_ERR_INVAL;
+  if (gm_local >= rt->cfg.num_gemmini_mgrs) return PRT_ERR_PARSE;
+  dm_local = gm_local;
+  if (dm_local >= rt->cfg.num_dma_mgrs) return PRT_ERR_PARSE;
+  gm_id = rt->cfg.gemmini_mgr_base_id + gm_local;
+  dm_id = rt->cfg.dma_mgr_base_id + dm_local;
+  assign->gemmini_mgr_ids[slot_idx] = gm_id;
+  assign->dma_mgr_ids[slot_idx] = dm_id;
+  rc = append_unique_mgr(&action->acc_source.all_gemmini_mgr_ids,
+                         &action->acc_source.all_count, all_g_cap, gm_id);
+  if (rc != PRT_OK) return rc;
+  rc = append_unique_mgr(&action->acc_source.all_dma_mgr_ids,
+                         &action->acc_source.num_acc, all_d_cap, dm_id);
+  if (rc != PRT_OK) return rc;
   return PRT_OK;
 }
 
@@ -157,6 +182,15 @@ static int collect_spm_views(prt_runtime_t *rt, prt_schedule_action_t *action) {
     }
   }
 
+  for (uint32_t i = 0; i < rt->topo_weight_count; ++i) {
+    const prt_spm_page_binding_t *wb = &rt->topo_weight_pages[i];
+    if (!wb->pages.data || wb->pages.size == 0) continue;
+    rc = append_spm_binding(&spm->weight_pages, &spm->weight_count, &spm->weight_cap,
+                            wb->tensor_id, wb->stage_id, wb->slot_id, &wb->pages);
+    if (rc != PRT_OK) return rc;
+    spm->num_spm_pages += wb->pages.size;
+  }
+
   return PRT_OK;
 }
 
@@ -180,18 +214,28 @@ int prt_action_generate(prt_runtime_t *rt, uint32_t segment_idx,
 
 int prt_action_alloc_acc(prt_runtime_t *rt, prt_schedule_action_t *action) {
   uint32_t i;
-  uint32_t rr_cursor = 0;
   uint32_t all_g_cap = 0;
   uint32_t all_d_cap = 0;
+  uint32_t rr_cursor = 0;
+  uint32_t total_needed = 0;
+  uint8_t used_local[PRT_MAX_CORES];
   const prt_segment_desc_t *seg;
   if (!rt || !action || !action->pipeline_segment_ref) return PRT_ERR_INVAL;
   if (action->state != PRT_ACTION_CREATED) return PRT_ERR_STATE;
 
   seg = action->pipeline_segment_ref;
+  if (rt->cfg.num_gemmini_mgrs > PRT_MAX_CORES || rt->cfg.num_dma_mgrs > PRT_MAX_CORES) {
+    fprintf(stderr, "action_alloc_acc: manager count exceeds compile-time max cores\n");
+    return PRT_ERR_NOT_IMPL;
+  }
   action->acc_source.stage_count = seg->num_stages;
   action->acc_source.stage_assign =
     (prt_stage_acc_assign_t *)calloc(seg->num_stages, sizeof(prt_stage_acc_assign_t));
   if (!action->acc_source.stage_assign) return PRT_ERR_NOMEM;
+  memset(used_local, 0, sizeof(used_local));
+  PRT_PROGRESS_LOG("action=%u segment=%u alloc-acc begin stages=%u gemmini=%u dma=%u",
+                   action->action_id, action->segment_idx, seg->num_stages,
+                   rt->cfg.num_gemmini_mgrs, rt->cfg.num_dma_mgrs);
 
   for (i = 0; i < seg->num_stages; ++i) {
     prt_stage_acc_assign_t *assign = &action->acc_source.stage_assign[i];
@@ -214,9 +258,28 @@ int prt_action_alloc_acc(prt_runtime_t *rt, prt_schedule_action_t *action) {
               i, stage->acc_util, rt->cfg.num_gemmini_mgrs);
       return PRT_ERR_NOT_READY;
     }
+    if (!stage->virtual_acc_ids_present || stage->num_virtual_acc_ids != stage->acc_util) {
+      fprintf(stderr,
+              "action_alloc_acc: stage=%u invalid vAccIdxList acc_util=%u ids=%u\n",
+              i, stage->acc_util, stage->num_virtual_acc_ids);
+      return PRT_ERR_PARSE;
+    }
+    if (stage->physical_acc_ids_present && stage->num_physical_acc_ids != stage->acc_util) {
+      fprintf(stderr,
+              "action_alloc_acc: stage=%u invalid explicit physical binding acc_util=%u ids=%u\n",
+              i, stage->acc_util, stage->num_physical_acc_ids);
+      return PRT_ERR_PARSE;
+    }
     if (rt->cfg.num_dma_mgrs < rt->cfg.num_gemmini_mgrs) {
       fprintf(stderr, "action_alloc_acc: num_dma=%u less than num_gemmini=%u\n",
               rt->cfg.num_dma_mgrs, rt->cfg.num_gemmini_mgrs);
+      return PRT_ERR_NOT_READY;
+    }
+    total_needed += stage->acc_util;
+    if (total_needed > rt->cfg.num_gemmini_mgrs) {
+      fprintf(stderr,
+              "action_alloc_acc: segment over-subscribes accelerators total=%u num_gemmini=%u\n",
+              total_needed, rt->cfg.num_gemmini_mgrs);
       return PRT_ERR_NOT_READY;
     }
 
@@ -226,27 +289,59 @@ int prt_action_alloc_acc(prt_runtime_t *rt, prt_schedule_action_t *action) {
     assign->dma_mgr_ids = (uint32_t *)calloc(assign->acc_util, sizeof(uint32_t));
     if (!assign->gemmini_mgr_ids || !assign->dma_mgr_ids) return PRT_ERR_NOMEM;
 
-    for (k = 0; k < assign->acc_util; ++k) {
-      uint32_t gm_local = (rr_cursor + k) % rt->cfg.num_gemmini_mgrs;
-      uint32_t dm_local = gm_local;
-      uint32_t gm_id = rt->cfg.gemmini_mgr_base_id + gm_local;
-      uint32_t dm_id = rt->cfg.dma_mgr_base_id + dm_local;
-      int rc;
-      assign->gemmini_mgr_ids[k] = gm_id;
-      assign->dma_mgr_ids[k] = dm_id;
-      rc = append_unique_mgr(&action->acc_source.all_gemmini_mgr_ids,
-                             &action->acc_source.all_count, &all_g_cap, gm_id);
-      if (rc != PRT_OK) return rc;
-      rc = append_unique_mgr(&action->acc_source.all_dma_mgr_ids,
-                             &action->acc_source.num_acc, &all_d_cap, dm_id);
-      if (rc != PRT_OK) return rc;
+    if (stage->physical_acc_ids_present) {
+      for (k = 0; k < assign->acc_util; ++k) {
+        uint32_t gm_local = stage->physical_acc_ids[k];
+        int rc;
+        if (gm_local >= rt->cfg.num_gemmini_mgrs) {
+          fprintf(stderr, "action_alloc_acc: stage=%u invalid physical gemmini id=%u num_gemmini=%u\n",
+                  i, gm_local, rt->cfg.num_gemmini_mgrs);
+          return PRT_ERR_PARSE;
+        }
+        if (used_local[gm_local]) {
+          fprintf(stderr, "action_alloc_acc: stage=%u physical gemmini id=%u already reserved\n",
+                  i, gm_local);
+          return PRT_ERR_NOT_READY;
+        }
+        rc = assign_stage_manager_slot(rt, action, assign, k, gm_local, &all_g_cap, &all_d_cap);
+        if (rc != PRT_OK) return rc;
+        used_local[gm_local] = 1U;
+      }
+    } else {
+      uint32_t assigned = 0;
+      uint32_t searched = 0;
+      while (assigned < assign->acc_util && searched < rt->cfg.num_gemmini_mgrs) {
+        uint32_t gm_local = rr_cursor % rt->cfg.num_gemmini_mgrs;
+        int rc;
+        rr_cursor = (rr_cursor + 1U) % rt->cfg.num_gemmini_mgrs;
+        searched += 1U;
+        if (used_local[gm_local]) continue;
+        rc = assign_stage_manager_slot(rt, action, assign, assigned, gm_local, &all_g_cap, &all_d_cap);
+        if (rc != PRT_OK) return rc;
+        used_local[gm_local] = 1U;
+        assigned += 1U;
+      }
+      if (assigned != assign->acc_util) {
+        fprintf(stderr, "action_alloc_acc: stage=%u unable to allocate %u accelerators\n",
+                i, assign->acc_util);
+        return PRT_ERR_NOT_READY;
+      }
     }
-    rr_cursor = (rr_cursor + assign->acc_util) % rt->cfg.num_gemmini_mgrs;
+    {
+      uint32_t gm0 = assign->acc_util > 0 ? assign->gemmini_mgr_ids[0] : 0U;
+      uint32_t dm0 = assign->acc_util > 0 ? assign->dma_mgr_ids[0] : 0U;
+      PRT_PROGRESS_LOG("action=%u stage=%u layer=%u acc_util=%u split=%u gm0=%u dm0=%u explicit=%u",
+                       action->action_id, i, stage->layer_id, assign->acc_util,
+                       (uint32_t)stage->split_kind, gm0, dm0, stage->physical_acc_ids_present);
+    }
   }
 
   if (action->acc_source.num_acc < action->acc_source.all_count) {
     action->acc_source.num_acc = action->acc_source.all_count;
   }
+  PRT_PROGRESS_LOG("action=%u segment=%u alloc-acc done unique_gemmini=%u unique_dma=%u",
+                   action->action_id, action->segment_idx,
+                   action->acc_source.all_count, action->acc_source.num_acc);
   return PRT_OK;
 }
 

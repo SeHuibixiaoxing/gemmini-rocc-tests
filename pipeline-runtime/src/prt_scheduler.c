@@ -130,6 +130,7 @@ static int can_submit_overlap_single_req(const prt_runtime_t *rt, const prt_pipe
   const prt_page_list_t *src;
   const prt_page_list_t *dst;
   if (!rt || !buf || idx > 1U) return 0;
+  if (!to_ring) return 0;
   src = &buf->slot_pages[idx];
   if (!page_list_is_contiguous(src)) return 0;
   if (to_ring) {

@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "prt_error.h"
+#include "prt_progress.h"
 
 #if defined(__riscv)
 #include "rerocc-linux-tests/rerocc_control.h"
@@ -35,11 +36,21 @@ int prt_rr_acquire_scope(prt_runtime_t *rt, uint32_t stage_id,
     unsigned long retries = 0;
     while (!rr_acquire_cfg(scope->cfg_id, manager_id)) {
       retries += 1;
+      if (retries == 1UL || retries == 1000UL || retries == 10000UL || (retries % 100000UL) == 0UL) {
+        PRT_PROGRESS_LOG("rr-acquire wait stage=%u manager=%u opcode=%u cfg=%u retries=%lu",
+                         stage_id, manager_id, opcode_id, scope->cfg_id, retries);
+      }
       if (PRT_RR_ACQUIRE_MAX_RETRIES != 0 &&
           retries >= PRT_RR_ACQUIRE_MAX_RETRIES) {
+        PRT_PROGRESS_LOG("rr-acquire timeout stage=%u manager=%u opcode=%u cfg=%u retries=%lu",
+                         stage_id, manager_id, opcode_id, scope->cfg_id, retries);
         return PRT_ERR_TIMEOUT;
       }
       asm volatile("nop");
+    }
+    if (retries > 0UL) {
+      PRT_PROGRESS_LOG("rr-acquire done stage=%u manager=%u opcode=%u cfg=%u retries=%lu",
+                       stage_id, manager_id, opcode_id, scope->cfg_id, retries);
     }
   }
   rr_set_opc((uint8_t)opcode_id, scope->cfg_id);

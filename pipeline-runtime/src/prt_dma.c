@@ -7,13 +7,20 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#if defined(__linux__) && defined(__riscv)
+#include <sys/syscall.h>
+#include <unistd.h>
+#endif
 
+#include "prt_progress.h"
 #include "prt_runtime.h"
 #include "prt_rerocc.h"
 
 #if defined(__riscv)
 #include "include/gemmini.h"
+#include "rerocc-linux-tests/rerocc_control.h"
 #define XCUSTOM_DMA 2
+#define DMA_MON_VALID 0ULL
 #endif
 
 static int dma_blocking_submit(prt_runtime_t *rt, const prt_dma_req_t *req, prt_dma_token_t *tok);
@@ -28,6 +35,22 @@ static int dma_submit_wait_annotated(prt_runtime_t *rt, const prt_dma_req_t *req
                                      uint32_t stage_idx, uint32_t tensor_id,
                                      uint64_t timeout_ns);
 static uint64_t page_base_addr(const prt_runtime_t *rt, const prt_page_t *page);
+#if defined(__linux__) && defined(__riscv)
+static uint64_t dma_min_u64(uint64_t a, uint64_t b);
+static inline uint64_t dma_debug_mod64(uint64_t addr);
+static int dma_chunk_needs_bounce(uint64_t src_addr, uint64_t dst_addr, uint64_t bytes);
+static int dma_stage_bounce_ensure(prt_runtime_t *rt, uint32_t stage_idx);
+static int dma_stage_bounce_region(prt_runtime_t *rt, uint32_t stage_idx, uint64_t align_mod64,
+                                   uint8_t **out_ptr, uint64_t *out_room);
+static int dma_copy_host_to_spm_pages_linux(prt_runtime_t *rt, const prt_page_list_t *dst_pages,
+                                            const uint8_t *src_host, uint32_t manager_id,
+                                            uint32_t stage_idx, uint32_t tensor_id,
+                                            uint64_t timeout_ns);
+static int dma_copy_spm_pages_to_host_linux(prt_runtime_t *rt, uint8_t *dst_host,
+                                            const prt_page_list_t *src_pages, uint32_t manager_id,
+                                            uint32_t stage_idx, uint32_t tensor_id,
+                                            uint64_t timeout_ns);
+#endif
 
 typedef struct prt_dma_pending_node_s {
   prt_dma_token_t *tok;
@@ -43,11 +66,266 @@ static void build_abs_timeout(uint64_t timeout_ns, struct timespec *out) {
   out->tv_nsec = (long)(nsec % 1000000000ULL);
 }
 
+#if defined(__riscv)
+static int dma_debug_virt_to_phys(const void *vaddr, uint64_t *paddr) {
+  return prt_host_virt_to_phys(vaddr, paddr);
+}
+
+static uint64_t dma_debug_rr_read_opc_map(uint32_t opcode_id) {
+  if (opcode_id >= 4U) return UINT64_MAX;
+  return rr_read_csr(CSR_RROPC0 + opcode_id);
+}
+
+static uint64_t dma_debug_rr_read_cfg(uint32_t cfg_id) {
+  if (cfg_id >= RR_MAX_CFGS) return UINT64_MAX;
+  return rr_read_csr(CSR_RRCFG0 + cfg_id);
+}
+#endif
+
 static uint64_t page_base_addr(const prt_runtime_t *rt, const prt_page_t *page) {
   uint64_t page_bytes;
   if (!rt || !page) return 0;
   page_bytes = rt->cfg.page_size_bytes ? rt->cfg.page_size_bytes : PRT_PAGE_SIZE_BYTES;
   return PRT_SHARED_SPAD_GLOBAL_ADDR_BASE + (uint64_t)page->ppn * page_bytes;
+}
+
+#if defined(__linux__) && defined(__riscv)
+static uint64_t dma_min_u64(uint64_t a, uint64_t b) {
+  return a < b ? a : b;
+}
+
+static int dma_copy_host_to_spm_pages_linux(prt_runtime_t *rt, const prt_page_list_t *dst_pages,
+                                            const uint8_t *src_host, uint32_t manager_id,
+                                            uint32_t stage_idx, uint32_t tensor_id,
+                                            uint64_t timeout_ns) {
+  prt_dma_req_t req;
+  const size_t host_page_bytes = prt_host_page_size_bytes();
+  const uint64_t page_bytes = rt->cfg.page_size_bytes ? rt->cfg.page_size_bytes : PRT_PAGE_SIZE_BYTES;
+
+  if (!rt || !dst_pages || !dst_pages->data || dst_pages->size == 0 || !src_host) return PRT_ERR_INVAL;
+  if (host_page_bytes == 0) return PRT_ERR_STATE;
+
+  req.src_acc = manager_id;
+  req.dst_acc = manager_id;
+
+  for (uint32_t i = 0; i < dst_pages->size; ++i) {
+    const uint64_t dst_page_base = page_base_addr(rt, &dst_pages->data[i]);
+    uint64_t copied = 0;
+
+    while (copied < page_bytes) {
+      const uint64_t src_off = (uint64_t)i * page_bytes + copied;
+      const uint8_t *src_ptr = src_host + (size_t)src_off;
+      const size_t host_page_off = (size_t)((uintptr_t)src_ptr % (uintptr_t)host_page_bytes);
+      const uint64_t host_page_room = (uint64_t)(host_page_bytes - host_page_off);
+      const uint64_t dst_addr = dst_page_base + copied;
+      uint64_t chunk = dma_min_u64(page_bytes - copied, host_page_room);
+      uint64_t src_pa = 0;
+      int rc;
+      if (dma_chunk_needs_bounce((uint64_t)(uintptr_t)src_ptr, dst_addr, chunk)) {
+        uint8_t *bounce_ptr = NULL;
+        uint64_t bounce_room = 0;
+        rc = dma_stage_bounce_region(rt, stage_idx, dma_debug_mod64(dst_addr), &bounce_ptr, &bounce_room);
+        if (rc != PRT_OK) return rc;
+        chunk = dma_min_u64(chunk, bounce_room);
+        memcpy(bounce_ptr, src_ptr, (size_t)chunk);
+        rc = prt_host_virt_to_phys((const void *)bounce_ptr, &src_pa);
+      } else {
+        rc = prt_host_virt_to_phys((const void *)src_ptr, &src_pa);
+      }
+      if (rc != PRT_OK) return rc;
+
+      req.src_addr = src_pa;
+      req.dst_addr = dst_addr;
+      req.bytes = chunk;
+      rc = dma_submit_wait_annotated(rt, &req, stage_idx, tensor_id, timeout_ns);
+      if (rc != PRT_OK) return rc;
+      copied += chunk;
+    }
+  }
+
+  return PRT_OK;
+}
+
+static int dma_copy_spm_pages_to_host_linux(prt_runtime_t *rt, uint8_t *dst_host,
+                                            const prt_page_list_t *src_pages, uint32_t manager_id,
+                                            uint32_t stage_idx, uint32_t tensor_id,
+                                            uint64_t timeout_ns) {
+  prt_dma_req_t req;
+  const size_t host_page_bytes = prt_host_page_size_bytes();
+  const uint64_t page_bytes = rt->cfg.page_size_bytes ? rt->cfg.page_size_bytes : PRT_PAGE_SIZE_BYTES;
+
+  if (!rt || !src_pages || !src_pages->data || src_pages->size == 0 || !dst_host) return PRT_ERR_INVAL;
+  if (host_page_bytes == 0) return PRT_ERR_STATE;
+
+  req.src_acc = manager_id;
+  req.dst_acc = manager_id;
+
+  for (uint32_t i = 0; i < src_pages->size; ++i) {
+    const uint64_t src_page_base = page_base_addr(rt, &src_pages->data[i]);
+    uint64_t copied = 0;
+
+    while (copied < page_bytes) {
+      const uint64_t dst_off = (uint64_t)i * page_bytes + copied;
+      uint8_t *dst_ptr = dst_host + (size_t)dst_off;
+      const size_t host_page_off = (size_t)((uintptr_t)dst_ptr % (uintptr_t)host_page_bytes);
+      const uint64_t host_page_room = (uint64_t)(host_page_bytes - host_page_off);
+      const uint64_t src_addr = src_page_base + copied;
+      uint64_t chunk = dma_min_u64(page_bytes - copied, host_page_room);
+      uint64_t dst_pa = 0;
+      int rc;
+      if (dma_chunk_needs_bounce(src_addr, (uint64_t)(uintptr_t)dst_ptr, chunk)) {
+        uint8_t *bounce_ptr = NULL;
+        uint64_t bounce_room = 0;
+        rc = dma_stage_bounce_region(rt, stage_idx, dma_debug_mod64(src_addr), &bounce_ptr, &bounce_room);
+        if (rc != PRT_OK) return rc;
+        chunk = dma_min_u64(chunk, bounce_room);
+        rc = prt_host_virt_to_phys((const void *)bounce_ptr, &dst_pa);
+        if (rc != PRT_OK) return rc;
+        req.src_addr = src_addr;
+        req.dst_addr = dst_pa;
+        req.bytes = chunk;
+        rc = dma_submit_wait_annotated(rt, &req, stage_idx, tensor_id, timeout_ns);
+        if (rc != PRT_OK) return rc;
+        memcpy(dst_ptr, bounce_ptr, (size_t)chunk);
+        copied += chunk;
+        continue;
+      }
+      rc = prt_host_virt_to_phys((const void *)dst_ptr, &dst_pa);
+      if (rc != PRT_OK) return rc;
+
+      req.src_addr = src_addr;
+      req.dst_addr = dst_pa;
+      req.bytes = chunk;
+      rc = dma_submit_wait_annotated(rt, &req, stage_idx, tensor_id, timeout_ns);
+      if (rc != PRT_OK) return rc;
+      copied += chunk;
+    }
+  }
+
+  return PRT_OK;
+}
+#endif
+
+static int dma_should_progress_log(const prt_dma_token_t *tok) {
+  if (!tok) return 0;
+  return tok->id > 0 && tok->id <= 16U;
+}
+
+static void dma_debug_capture_req(prt_dma_token_t *tok, const prt_dma_req_t *req) {
+  if (!tok || !req) return;
+  tok->debug_src_addr = req->src_addr;
+  tok->debug_dst_addr = req->dst_addr;
+  tok->debug_bytes = req->bytes;
+  tok->debug_src_acc = req->src_acc;
+  tok->debug_dst_acc = req->dst_acc;
+}
+
+static inline uint64_t dma_debug_mod64(uint64_t addr) {
+  return addr & 63ULL;
+}
+
+static inline int dma_debug_initial_wide_hint(uint64_t src_addr, uint64_t dst_addr, uint64_t bytes) {
+  return dma_debug_mod64(src_addr) == 0ULL &&
+         dma_debug_mod64(dst_addr) == 0ULL &&
+         bytes >= 64ULL;
+}
+
+static inline int dma_debug_full_byte_mode_hint(uint64_t src_addr, uint64_t dst_addr, uint64_t bytes) {
+  return bytes < 64ULL || dma_debug_mod64(src_addr) != dma_debug_mod64(dst_addr);
+}
+
+#if defined(__linux__) && defined(__riscv)
+static int dma_chunk_needs_bounce(uint64_t src_addr, uint64_t dst_addr, uint64_t bytes) {
+  return bytes >= 64ULL && dma_debug_mod64(src_addr) != dma_debug_mod64(dst_addr);
+}
+
+static int dma_stage_bounce_ensure(prt_runtime_t *rt, uint32_t stage_idx) {
+  void *buf = NULL;
+  size_t host_page_bytes;
+  int rc = PRT_OK;
+
+  if (!rt || stage_idx >= PRT_MAX_STAGES) return PRT_ERR_INVAL;
+  if (rt->stage_dma_bounce[stage_idx] && rt->stage_dma_bounce_bytes[stage_idx] != 0U) {
+    return PRT_OK;
+  }
+
+  host_page_bytes = prt_host_page_size_bytes();
+  if (host_page_bytes == 0U) return PRT_ERR_STATE;
+
+  pthread_mutex_lock(&rt->state_lock);
+  if (!rt->stage_dma_bounce[stage_idx] || rt->stage_dma_bounce_bytes[stage_idx] == 0U) {
+    if (posix_memalign(&buf, host_page_bytes, host_page_bytes) != 0) {
+      rc = PRT_ERR_NOMEM;
+    } else {
+      memset(buf, 0, host_page_bytes);
+      rt->stage_dma_bounce[stage_idx] = (uint8_t *)buf;
+      rt->stage_dma_bounce_bytes[stage_idx] = host_page_bytes;
+    }
+  }
+  pthread_mutex_unlock(&rt->state_lock);
+
+  return rc;
+}
+
+static int dma_stage_bounce_region(prt_runtime_t *rt, uint32_t stage_idx, uint64_t align_mod64,
+                                   uint8_t **out_ptr, uint64_t *out_room) {
+  int rc;
+
+  if (!out_ptr || !out_room) return PRT_ERR_INVAL;
+  *out_ptr = NULL;
+  *out_room = 0;
+
+  rc = dma_stage_bounce_ensure(rt, stage_idx);
+  if (rc != PRT_OK) return rc;
+  if (!rt->stage_dma_bounce[stage_idx] || rt->stage_dma_bounce_bytes[stage_idx] == 0U) {
+    return PRT_ERR_NOT_READY;
+  }
+  if (align_mod64 >= rt->stage_dma_bounce_bytes[stage_idx]) return PRT_ERR_STATE;
+
+  *out_ptr = rt->stage_dma_bounce[stage_idx] + align_mod64;
+  *out_room = (uint64_t)rt->stage_dma_bounce_bytes[stage_idx] - align_mod64;
+  return PRT_OK;
+}
+#endif
+
+#if defined(__riscv)
+static void dma_debug_capture_done_flag(prt_dma_token_t *tok) {
+  uint64_t pa = 0;
+  int rc;
+  if (!tok) return;
+  tok->debug_done_flag_va = (uint64_t)(uintptr_t)&tok->hw_done_flag;
+  rc = dma_debug_virt_to_phys((const void *)&tok->hw_done_flag, &pa);
+  tok->hw_done_flag_pa_rc = rc;
+  tok->debug_done_flag_pa = rc == PRT_OK ? pa : 0;
+}
+#endif
+
+static void dma_log_pending_state(const char *tag, const prt_dma_token_t *tok, uint64_t elapsed_ns) {
+#if !PRT_ENABLE_PROGRESS_LOG
+  (void)tag;
+  (void)elapsed_ns;
+#endif
+  if (!dma_should_progress_log(tok)) return;
+  PRT_PROGRESS_LOG(
+    "dma-%s token=%u stage=%u tensor=%u polls=%u elapsed_ms=%llu hw_done=%d done=%d status=%d src=0x%llx dst=0x%llx bytes=%llu src_acc=%u dst_acc=%u done_va=0x%llx done_pa=0x%llx done_pa_rc=%d(%s)",
+    tag,
+    tok->id,
+    tok->stage_idx,
+    tok->tensor_id,
+    tok->debug_progress_polls,
+    (unsigned long long)(elapsed_ns / 1000000ULL),
+    tok->hw_done_flag,
+    tok->done,
+    tok->status,
+    (unsigned long long)tok->debug_src_addr,
+    (unsigned long long)tok->debug_dst_addr,
+    (unsigned long long)tok->debug_bytes,
+    tok->debug_src_acc,
+    tok->debug_dst_acc,
+    (unsigned long long)tok->debug_done_flag_va,
+    (unsigned long long)tok->debug_done_flag_pa,
+    tok->hw_done_flag_pa_rc,
+    prt_err_str(tok->hw_done_flag_pa_rc));
 }
 
 static int dma_submit_wait_annotated(prt_runtime_t *rt, const prt_dma_req_t *req,
@@ -92,6 +370,7 @@ static void dma_token_init(prt_dma_token_t *tok) {
   tok->rr_manager_id = rr_manager_id;
   tok->rr_opcode_id = rr_opcode_id;
   tok->hw_done_flag = 0;
+  tok->hw_done_flag_pa_rc = PRT_ERR_NOT_READY;
   tok->submit_ns = 0;
   tok->traced_complete = 0;
   pthread_mutex_init(&tok->lock, NULL);
@@ -176,6 +455,15 @@ static int dma_pending_push(prt_runtime_t *rt, prt_dma_token_t *tok) {
   rt->dma_pending_count += 1;
   pthread_cond_broadcast(&rt->dma_pending_cv);
   pthread_mutex_unlock(&rt->dma_pending_lock);
+  if (dma_should_progress_log(tok)) {
+    PRT_PROGRESS_LOG("dma-submit token=%u queued pending_count=%u done_va=0x%llx done_pa=0x%llx done_pa_rc=%d(%s)",
+                     tok->id,
+                     rt->dma_pending_count,
+                     (unsigned long long)tok->debug_done_flag_va,
+                     (unsigned long long)tok->debug_done_flag_pa,
+                     tok->hw_done_flag_pa_rc,
+                     prt_err_str(tok->hw_done_flag_pa_rc));
+  }
   return PRT_OK;
 }
 
@@ -238,12 +526,22 @@ static void dma_pending_clear_with_status(prt_runtime_t *rt, int status) {
 }
 
 #if defined(__riscv)
-static inline void hw_dma_set_dst(uint64_t addr, volatile int *done_flag) {
-  ROCC_INSTRUCTION_0_R_R(XCUSTOM_DMA, addr, (uint64_t)done_flag, 2);
+static inline void hw_dma_set_dst(uint64_t addr, uint64_t done_flag_addr) {
+  ROCC_INSTRUCTION_0_R_R(XCUSTOM_DMA, addr, done_flag_addr, 2);
 }
 
 static inline void hw_dma_set_src(uint64_t addr, uint64_t len) {
   ROCC_INSTRUCTION_0_R_R(XCUSTOM_DMA, addr, len, 1);
+}
+
+static inline void hw_dma_submit_fence(void) {
+  asm volatile("fence rw, rw" ::: "memory");
+}
+
+static inline uint64_t hw_dma_read_monitor(uint64_t stat_id) {
+  uint64_t value = 0;
+  ROCC_INSTRUCTION_R_R_R(XCUSTOM_DMA, value, stat_id, 0, 4);
+  return value;
 }
 
 static inline uint64_t hw_dma_fence(void) {
@@ -295,18 +593,24 @@ int prt_dma_backend_init(prt_runtime_t *rt) {
 
 void prt_dma_backend_destroy(prt_runtime_t *rt) {
   if (!rt) return;
-  if (!rt->progress_thread_enabled) return;
+  if (rt->progress_thread_enabled) {
+    pthread_mutex_lock(&rt->dma_pending_lock);
+    rt->progress_thread.stop = 1;
+    pthread_cond_broadcast(&rt->dma_pending_cv);
+    pthread_mutex_unlock(&rt->dma_pending_lock);
 
-  pthread_mutex_lock(&rt->dma_pending_lock);
-  rt->progress_thread.stop = 1;
-  pthread_cond_broadcast(&rt->dma_pending_cv);
-  pthread_mutex_unlock(&rt->dma_pending_lock);
+    pthread_join(rt->progress_thread.thread, NULL);
+    dma_pending_clear_with_status(rt, PRT_ERR_STATE);
+    pthread_cond_destroy(&rt->dma_pending_cv);
+    pthread_mutex_destroy(&rt->dma_pending_lock);
+    rt->progress_thread_enabled = 0;
+  }
 
-  pthread_join(rt->progress_thread.thread, NULL);
-  dma_pending_clear_with_status(rt, PRT_ERR_STATE);
-  pthread_cond_destroy(&rt->dma_pending_cv);
-  pthread_mutex_destroy(&rt->dma_pending_lock);
-  rt->progress_thread_enabled = 0;
+  for (uint32_t i = 0; i < PRT_MAX_STAGES; ++i) {
+    free(rt->stage_dma_bounce[i]);
+    rt->stage_dma_bounce[i] = NULL;
+    rt->stage_dma_bounce_bytes[i] = 0;
+  }
 }
 
 int prt_dma_submit(prt_runtime_t *rt, const prt_dma_req_t *req, prt_dma_token_t *tok) {
@@ -400,6 +704,10 @@ int prt_dma_copy_dram_to_spm_pages(prt_runtime_t *rt, const prt_page_list_t *dst
   req.src_acc = manager_id;
   req.dst_acc = manager_id;
   return dma_submit_wait_annotated(rt, &req, stage_idx, tensor_id, timeout_ns);
+#elif defined(__linux__)
+  return dma_copy_host_to_spm_pages_linux(rt, dst_pages,
+                                          (const uint8_t *)(uintptr_t)src_dram_addr,
+                                          manager_id, stage_idx, tensor_id, timeout_ns);
 #endif
   req.src_acc = manager_id;
   req.dst_acc = manager_id;
@@ -428,6 +736,9 @@ int prt_dma_copy_spm_pages_to_dram(prt_runtime_t *rt, uint64_t dst_dram_addr,
   req.src_acc = manager_id;
   req.dst_acc = manager_id;
   return dma_submit_wait_annotated(rt, &req, stage_idx, tensor_id, timeout_ns);
+#elif defined(__linux__)
+  return dma_copy_spm_pages_to_host_linux(rt, (uint8_t *)(uintptr_t)dst_dram_addr,
+                                          src_pages, manager_id, stage_idx, tensor_id, timeout_ns);
 #endif
   req.src_acc = manager_id;
   req.dst_acc = manager_id;
@@ -524,33 +835,58 @@ done:
 }
 
 static int dma_blocking_submit(prt_runtime_t *rt, const prt_dma_req_t *req, prt_dma_token_t *tok) {
+  uint64_t progress_src_addr;
+  uint64_t progress_dst_addr;
+  uint64_t progress_bytes;
+
   if (!req || !tok) return PRT_ERR_INVAL;
 
   dma_token_init(tok);
   tok->id = __sync_add_and_fetch(&rt->next_dma_token_id, 1);
   tok->submit_ns = prt_now_ns();
+  progress_src_addr = req->src_addr;
+  progress_dst_addr = req->dst_addr;
+  progress_bytes = req->bytes;
+#if !PRT_ENABLE_PROGRESS_LOG || !defined(__riscv)
+  (void)progress_src_addr;
+  (void)progress_dst_addr;
+  (void)progress_bytes;
+#endif
   prt_trace_on_dma_submit(rt);
   prt_trace_log_event(rt, tok->stage_idx, PRT_TRACE_EVT_DMA_SUBMIT,
                       tok->tensor_id,
                       req->bytes > UINT32_MAX ? UINT32_MAX : (uint32_t)req->bytes);
+  dma_debug_capture_req(tok, req);
 
 #if defined(__riscv)
   {
     prt_rr_scope_t scope;
+    PRT_PROGRESS_RAW_LINE("[prt-raw] dma pre-acquire");
     int rrc = prt_rr_acquire_scope(rt, tok->stage_idx, req->dst_acc, 2U, &scope);
     if (rrc != PRT_OK) {
       tok->done = 1;
       tok->status = rrc;
       return rrc;
     }
+    PRT_PROGRESS_RAW_LINE("[prt-raw] dma acquire-ok");
     tok->rr_scope_valid = scope.valid;
     tok->rr_cfg_id = scope.cfg_id;
     tok->rr_manager_id = scope.manager_id;
     tok->rr_opcode_id = scope.opcode_id;
   }
   tok->hw_done_flag = 0;
-  hw_dma_set_dst(req->dst_addr, &tok->hw_done_flag);
-  hw_dma_set_src(req->src_addr, req->bytes);
+  dma_debug_capture_done_flag(tok);
+  if (tok->hw_done_flag_pa_rc != PRT_OK) {
+    dma_token_release_scope(tok, 0);
+    tok->done = 1;
+    tok->status = tok->hw_done_flag_pa_rc;
+    return tok->hw_done_flag_pa_rc;
+  }
+  PRT_PROGRESS_RAW_LINE("[prt-raw] dma pre-program");
+  hw_dma_submit_fence();
+  hw_dma_set_dst(progress_dst_addr, tok->debug_done_flag_pa);
+  hw_dma_set_src(progress_src_addr, progress_bytes);
+  PRT_PROGRESS_RAW_LINE("[prt-raw] dma post-src");
 #else
   (void)req;
   // Host-mode smoke path: do not dereference device-like addresses.
@@ -563,11 +899,46 @@ static int dma_blocking_submit(prt_runtime_t *rt, const prt_dma_req_t *req, prt_
 }
 
 static int dma_blocking_wait(prt_runtime_t *rt, prt_dma_token_t *tok, uint64_t timeout_ns) {
+  int progress_log;
+  uint32_t progress_token_id;
+  uint32_t progress_stage_idx;
+  uint32_t progress_tensor_id;
+
   (void)timeout_ns;
   if (!tok) return PRT_ERR_INVAL;
+  progress_log = dma_should_progress_log(tok);
+  progress_token_id = tok->id;
+  progress_stage_idx = tok->stage_idx;
+  progress_tensor_id = tok->tensor_id;
+#if !defined(__riscv)
+  (void)progress_log;
+  (void)progress_token_id;
+  (void)progress_stage_idx;
+  (void)progress_tensor_id;
+#endif
 
 #if defined(__riscv)
-  (void)hw_dma_fence();
+  uint64_t fence_status = 0;
+  if (progress_log) {
+    PRT_PROGRESS_LOG("dma-wait fence-enter token=%u stage=%u tensor=%u hw_done=%d src_mod64=0x%02llx dst_mod64=0x%02llx done_mod64=0x%02llx full_byte_mode_hint=%u",
+                     progress_token_id,
+                     progress_stage_idx,
+                     progress_tensor_id,
+                     tok->hw_done_flag,
+                     (unsigned long long)dma_debug_mod64(tok->debug_src_addr),
+                     (unsigned long long)dma_debug_mod64(tok->debug_dst_addr),
+                     (unsigned long long)dma_debug_mod64(tok->debug_done_flag_pa),
+                     dma_debug_full_byte_mode_hint(tok->debug_src_addr, tok->debug_dst_addr, tok->debug_bytes));
+  }
+  fence_status = hw_dma_fence();
+  if (progress_log) {
+    PRT_PROGRESS_LOG("dma-wait fence-done token=%u stage=%u tensor=%u status=%llu hw_done=%d",
+                     progress_token_id,
+                     progress_stage_idx,
+                     progress_tensor_id,
+                     (unsigned long long)fence_status,
+                     tok->hw_done_flag);
+  }
   dma_token_release_scope(tok, 1);
 #endif
 
@@ -605,6 +976,18 @@ static int dma_poll_wait(prt_runtime_t *rt, prt_dma_token_t *tok, uint64_t timeo
   int wait_rc = 0;
   if (!rt || !tok) return PRT_ERR_INVAL;
 
+  if (dma_should_progress_log(tok)) {
+    PRT_PROGRESS_LOG("dma-wait begin token=%u stage=%u tensor=%u timeout_ns=%llu done_va=0x%llx done_pa=0x%llx done_pa_rc=%d(%s)",
+                     tok->id,
+                     tok->stage_idx,
+                     tok->tensor_id,
+                     (unsigned long long)timeout_ns,
+                     (unsigned long long)tok->debug_done_flag_va,
+                     (unsigned long long)tok->debug_done_flag_pa,
+                     tok->hw_done_flag_pa_rc,
+                     prt_err_str(tok->hw_done_flag_pa_rc));
+  }
+
   pthread_mutex_lock(&tok->lock);
   while (!tok->done) {
     if (timeout_ns == 0) {
@@ -640,11 +1023,18 @@ static int dma_poll_wait(prt_runtime_t *rt, prt_dma_token_t *tok, uint64_t timeo
       rc = tok->status;
     }
     pthread_mutex_unlock(&tok->lock);
+    PRT_PROGRESS_LOG("dma-wait timeout token=%u stage=%u tensor=%u timeout_ns=%llu",
+                     tok->id, tok->stage_idx, tok->tensor_id,
+                     (unsigned long long)timeout_ns);
     dma_token_release_scope(tok, 1);
     dma_trace_complete_once(rt, tok);
     return rc;
   }
 
+  if (dma_should_progress_log(tok)) {
+    PRT_PROGRESS_LOG("dma-wait done token=%u stage=%u tensor=%u status=%d",
+                     tok->id, tok->stage_idx, tok->tensor_id, rc);
+  }
   dma_token_release_scope(tok, 1);
   dma_trace_complete_once(rt, tok);
   (void)dma_pending_remove(rt, tok);
@@ -700,6 +1090,9 @@ static void *dma_progress_thread_main(void *arg) {
         } else {
 #if defined(__riscv)
           if (tok->hw_done_flag) {
+            if (dma_should_progress_log(tok)) {
+              dma_log_pending_state("progress-complete", tok, prt_now_ns() - tok->submit_ns);
+            }
             tok->status = PRT_OK;
             tok->done = 1;
             pthread_cond_broadcast(&tok->cv);
@@ -711,6 +1104,15 @@ static void *dma_progress_thread_main(void *arg) {
           pthread_cond_broadcast(&tok->cv);
           remove_now = 1;
 #endif
+          tok->debug_progress_polls += 1U;
+          if (dma_should_progress_log(tok)) {
+            uint64_t now_ns = prt_now_ns();
+            if (tok->debug_last_pending_log_ns == 0 ||
+                now_ns - tok->debug_last_pending_log_ns >= 1000000000ULL) {
+              tok->debug_last_pending_log_ns = now_ns;
+              dma_log_pending_state("progress-pending", tok, now_ns - tok->submit_ns);
+            }
+          }
         }
         pthread_mutex_unlock(&tok->lock);
       }

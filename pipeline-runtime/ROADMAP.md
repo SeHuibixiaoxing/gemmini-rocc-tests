@@ -1,125 +1,92 @@
 # Pipeline Runtime Roadmap
 
-当前阶段名：`bertmini end-to-end closure on globalnoc Linux`
+当前主线阶段：`bertmini end-to-end closure on Linux/FireSim F2`
 
-终极验收固定为：
-
-- 模型：`bertmini`
-- 方法：`ours2 / gemini2 / tangram2`
-- batch：`16`
-- 目标硬件：`globalnoc + ReRoCC + CoupledDMA`
-- 目标运行环境：Linux
-- 结果要求：runtime 输出与 CPU golden 一致
-
-## Phase 1. 项目定义与边界
+## Phase 1. Export Interface 收敛
 
 目标：
 
-- 固定 `pipeline-runtime` 是 Gemmini pipeline 软件栈。
-- 固定 MudnacSim 只是参考模拟器。
-- 固定 globalnoc-only、Linux-only、file-loading artifact contract。
+- 固定 `conference/HybridMapper` 的 runtime exporter 输出
+- 固定当前 runtime interface 文件名和目录布局
+- 不回退到旧接口或手工拼装 artifacts
 
-当前状态：已完成。
+状态：已完成基础收敛。
 
-下一步：无。
+当前产物：
 
-退出条件：相关规则已写入 `DECISIONS.md` 且主文档不再混入 backend 分叉叙事。
+- exporter 已固定
+- `conference/HybridMapper/output/pipeline_runtime/bertmini/` 已成为 canonical artifact 根目录
+- `model.layers.yaml` / `gemmini_layer_mapping.*` / `pipeline_mapping.*` / `runtime_model.bin` / `runtime_input.*` / `golden.*` 已形成稳定命名
 
-## Phase 2. Artifact 契约与 runtime 核心落地
-
-目标：
-
-- 用同一份 bertmini 模型定义生成 Gemmini runtime 所需 artifacts。
-- 保持与 MudnacSim 共享 `entire_model/*.yaml` schema。
-- 在 runtime 中实现 stage 契约、Gemmini candidate 唯一命中和 tensor stay 语义。
-
-当前状态：基础链路已完成。
-
-- `create-gemmini-pipeline-runtime-artifacts.py` 已能产出 `layers_gemmini.yaml`、`mapping_gemmini/` 和三份 canonical pipeline YAML。
-- runtime 已能从 `--model-yaml` 自动发现 `mapping_gemmini/`，并按 stage 元数据校验 candidate。
-- 前缀裁剪 + 尾部零填充的尺寸对齐规则已落到 dummy golden 生成和 runtime compare 路径。
-
-下一步：
-
-- 把当前 host-friendly canonical pipeline YAML 继续逼近真实双 Gemmini 资源约束。
-- 为尺寸不匹配规则补一组更显式的 synthetic regression。
-
-退出条件：artifact 生成稳定，schema 固定，runtime 对错误 stage / candidate fail fast。
-
-## Phase 3. Host bertmini correctness
+## Phase 2. Host Closure
 
 目标：
 
-- 在 host Linux 上跑通 bertmini 的 `ours2 / gemini2 / tangram2`。
-- 三种方法都以同一份 CPU golden 为准，全部 `RC=0`。
+- host `pipeline_runtime` 能在 `ours2 / gemini2 / tangram2` 上完成 CPU golden 与 FPGA backend 闭环
 
-当前状态：已完成第一轮闭环。
+状态：已完成当前基线。
 
-- 三种方法当前都已在 host `pipeline_runtime` 上返回 `RC=0`。
-- 闭环依赖的文件固定在 `tmp/HybridMapper/output/pipeline/bertmini/`。
+说明：
 
-下一步：
+- host closure 仍然是改动后的第一道 correctness gate
+- 当前是否继续扩大 synthetic coverage，不影响主线阶段判断
 
-- 增加更细粒度的 parser failure、page leak、stale allocation 和 tensor alias regression。
-- 对当前 canonical YAML 的资源字段做更强的一致性检查。
-
-退出条件：三方法 host correctness 稳定可重放，且不依赖人工修补 artifact。
-
-## Phase 4. globalnoc Linux packaging 与 metasim smoke
+## Phase 3. Linux Packaging 与回归对照
 
 目标：
 
-- 生成 `rerocc_pipeline_runtime-linux`。
-- 通过 `rerocc-linux-tests` overlay 固定部署 bertmini 全套文件。
-- 保持 globalnoc metasim / quick-diag 作为启动链 smoke。
+- `rerocc_pipeline_runtime-linux` 构建稳定
+- `host-init.sh` 能稳定把 runtime artifacts staged 到 FireMarshal overlay
+- 调用序列持续贴近 Linux coupleddma 正例
 
-当前状态：进行中。
+状态：进行中。
 
-- `rerocc_pipeline_runtime_linux.c` 和 `run_rerocc_pipeline_runtime_bertmini.sh` 已就位。
-- overlay 路径已经固定到 `/root/rerocc-linux-tests/pipeline-runtime/...`。
-- `workload/host-init.sh` 已补成支持 `HOST_INIT_CHECK_ONLY=1` 和 `SKIP_BUILD=1` 的两段式流程；当前环境仍缺少 `riscv64-linux-gnu-gcc` / `riscv64-unknown-linux-gnu-gcc`，因此真实交叉编译验证被阻塞。
+当前重点：
 
-下一步：
+- 维持 `rerocc-linux-tests-coupleddma/workload/host-init.sh`
+- 维持 guest wrapper `run_rerocc_pipeline_runtime_bertmini.sh`
+- 以三个 Linux coupleddma 回归为接口写法基准
 
-- 当前先用 `HOST_INIT_CHECK_ONLY=1 bash workload/host-init.sh` 保持 overlay 输入静态验收。
-- 交叉工具链恢复后立即执行 `workload/host-init.sh`，验证二进制和 overlay 打包。
-- 维持 globalnoc metasim suite 作为硬件链 smoke，防止本轮改动破坏启动链。
+## Phase 4. FireMarshal / FireSim F2 Bring-up
+
+目标：
+
+- dedicated `bertmini` workload image 稳定 build/install
+- run farm 能稳定启动并进入 guest workload
+- 正确收集 `uartlog`、`heartbeat.csv` 和 tmux pane log
+
+状态：进行中。
+
+注意：
+
+- 真实环境流程固定为 `env.sh -> sourceme-manager.sh`
+- manager 长任务固定走 `scripts/firesim-tmux-run.sh`
+- 当前 live blocker 不在本文件维护，统一看 `NEXT_SESSION_PROMPT.md` 和 `STATUS.md`
+
+## Phase 5. Bertmini FPGA Correctness Closure
+
+目标：
+
+- 在 F2 目标上让 `ours2 / gemini2 / tangram2` 全部通过
+- guest 内打印最终 PASS 标记
+- 输出与 CPU golden 完全一致
+
+状态：未完成。
 
 退出条件：
 
-- `rerocc_pipeline_runtime-linux` 可构建。
-- overlay 中 bertmini 文件齐全且路径固定。
-- globalnoc metasim smoke 不回退。
+- `BERTMINI_PIPELINE_RUNTIME_PASS`
+- 三种 method 都通过
+- 结果不是基于 manager exit code 推断，而是有 `uartlog` 证据
 
-## Phase 5. globalnoc Linux FPGA replay
-
-目标：
-
-- 在 `config_runtime_rerocc_fpga_small_linux_globalnoc_coupleddma.yaml` 上跑 bertmini 三种方法。
-- 三种方法都输出 PASS，且与 CPU golden 一致。
-
-当前状态：本地 bitstream / hwdb 产物已准备完成，AWS replay 待执行。
-
-- 本地 `firesim buildbitstream` 已成功，入口见 `HANDOFF.md` 中的 build log、hwdb entry 和 `firesim.tar.gz` 路径。
-- 当前真正的阻塞项不是本地硬件可用性，而是 AWS 侧是否已经同步当前 dirty tree，以及是否能访问或重建同一份 bitstream 产物。
-
-下一步：
-
-- 在 AWS 上决定“复用本地 bitstream”还是“重新 buildbitstream”。
-- 让 `config_hwdb.yaml` 指向 AWS 可访问的 bitstream tar。
-- 用最新版硬件立即 replay 与硬件行为直接相关的必要测试。
-- 若 replay 暴露资源约束差异，回推改进 HybridMapper 的 Gemmini layer mapping 与 canonical pipeline emitter。
-
-退出条件：三方法在 globalnoc Linux 目标硬件上通过最终闭环。
-
-## Phase 6. schedule_point / profiling / QoS
+## Phase 6. Post-Closure Work
 
 目标：
 
-- 在 bertmini 端到端闭环之后，再推进 schedule_point、profiling 聚合和 QoS 调度。
+- profiling、schedule point、QoS 或更大 workload
 
-当前状态：未开始。
+状态：未开始。
 
-下一步：等 Phase 5 通过后再启动。
+前置条件：
 
-退出条件：另立 decision 后再定义，不作为当前 blocker。
+- 只有 Phase 5 完成后才进入这一阶段

@@ -55,8 +55,16 @@ typedef struct prt_runtime_s {
   uint32_t stage_acc_ids[PRT_MAX_STAGES];
   uint32_t stage_dma_ids[PRT_MAX_STAGES];
   uint32_t stage_tile_counts[PRT_MAX_STAGES];
+  uint32_t stage_split_kinds[PRT_MAX_STAGES];
   uint32_t stage_mgr_ids[PRT_MAX_STAGES][PRT_MAX_CORES];
   prt_schedule_action_t *active_action;
+  uint32_t stage_spm_rebase_vpage[PRT_MAX_STAGES];
+  uint32_t stage_spm_window_pages[PRT_MAX_STAGES];
+  uint8_t *stage_spm_shadow[PRT_MAX_STAGES];
+  size_t stage_spm_shadow_bytes[PRT_MAX_STAGES];
+  uint8_t *stage_dma_bounce[PRT_MAX_STAGES];
+  size_t stage_dma_bounce_bytes[PRT_MAX_STAGES];
+  uint8_t stage_fixed_lazy_loaded[PRT_MAX_STAGES][PRT_MAX_LAYER_TENSORS];
   prt_progress_thread_ctx_t progress_thread;
   int progress_thread_enabled;
   pthread_mutex_t dma_pending_lock;
@@ -89,6 +97,9 @@ typedef struct prt_runtime_s {
 
   prt_pipebuf_t *pipebufs;
   uint32_t pipebuf_count;
+  prt_spm_page_binding_t *topo_weight_pages;
+  uint32_t topo_weight_count;
+  uint32_t topo_weight_cap;
 
   prt_ringbuf_t *ringbufs;
   uint32_t ringbuf_count;

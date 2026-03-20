@@ -1,101 +1,96 @@
 # Pipeline Runtime
 
-`pipeline-runtime` 是 Gemmini pipeline 软件栈，当前唯一主目标是：
-在 `globalnoc + ReRoCC + CoupledDMA` 的最新硬件上，用 HybridMapper 生成的 pipeline mapping 执行 `bertmini`，并让结果与 CPU golden 一致。
+`pipeline-runtime` 是 Gemmini/ReRoCC/CoupledDMA pipeline 软件栈的执行侧实现。当前唯一主目标是：
 
-最终目标硬件配置固定为 `GemminiLearningConfigSpadReRoCCGlobalNoC2C1x2G2x1x2D2x1x2CoupledDMA`，最终运行环境固定为 Linux，最终 FireSim runtime 配置固定为 `sims/firesim/deploy/config_runtime_rerocc_fpga_small_linux_globalnoc_coupleddma.yaml`。
+- 使用 `conference/HybridMapper` 导出的 `bertmini` runtime artifacts
+- 在 `GemminiLearningConfigSpadReRoCCGlobalNoC2C1x2G2x1x2D2x1x2CoupledDMA` 对应的 Linux/FireSim F2 目标上执行
+- 以 CPU golden 为基准完成最终 correctness 闭环
 
-MudnacSim 只是参考模拟器，不是 runtime backend。
-`pipeline-runtime` 本身只有一套执行实现，只区分 host Linux binary 和 RISC-V Linux target binary 两种构建形态。
+## 当前代码入口
 
-## 当前能做什么
+- Host runtime:
+  `generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/`
+- Artifact exporter:
+  `conference/HybridMapper/scripts/create-pipeline-runtime-artifacts.py`
+- Canonical runtime artifacts:
+  `conference/HybridMapper/output/pipeline_runtime/bertmini/`
+- Linux workload staging:
+  `generators/gemmini/software/gemmini-rocc-tests/rerocc-linux-tests-coupleddma/workload/host-init.sh`
+- FireMarshal workload:
+  `generators/gemmini/software/gemmini-rocc-tests/rerocc-linux-tests-coupleddma/workload/rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime.json`
+- FireSim runtime config:
+  `sims/firesim/deploy/config_runtime_f2_rerocc_lc_linux_bertmini_pipeline_runtime.yaml`
 
-- 已能从 `/home/wzy/proj/wp2/chipyard/tmp/HybridMapper` 为 `bertmini` 生成 Gemmini runtime 需要的 artifacts：
-  - `layers_gemmini.yaml`
-  - `mapping_gemmini/*.yaml`
-  - `entire_model/2_1024_16_19_64_{ours2,gemini2,tangram2}.yaml`
-  - `model.bin` / `input.bin` / `golden.bin`
-- host 版 `pipeline_runtime` 已能在 `ours2 / gemini2 / tangram2` 三种方法上完成 bertmini dummy-data 闭环并返回 `RC=0`。
-- Linux overlay / run script 已接入 `rerocc-linux-tests`，但当前环境缺少 `riscv64-linux-gnu-gcc` / `riscv64-unknown-linux-gnu-gcc`，因此 RISC-V Linux target binary 还不能在本机完成交叉编译验证。
-- coupled-DMA globalnoc 的 U280 bitstream 已在本地成功构建：
-  - FireSim log: `/home/wzy/proj/wp2/chipyard/sims/firesim/deploy/logs/2026-03-12--16-55-53-buildbitstream-2NLSKFJM4VHB1EFW.log`
-  - hwdb entry: `/home/wzy/proj/wp2/chipyard/sims/firesim/deploy/built-hwdb-entries/alveo_u280_firesim_rerocc_lc_small_globalnoc_coupleddma_frequency_10`
-  - tarball: `/home/wzy/proj/wp2/chipyard/sims/firesim/deploy/results-build/2026-03-12--16-55-53-alveo_u280_firesim_rerocc_lc_small_globalnoc_coupleddma_frequency_10/cl_xilinx_alveo_u280-firesim-FireSim-WithDefaultFireSimBridges_WithFireSimConfigTweaks_chipyard.GemminiLearningConfigSpadReRoCCGlobalNoC2C1x2G2x1x2D2x1x2CoupledDMA-FRFCFS16GBQuadRank_BaseXilinxAlveoU280Config/firesim.tar.gz`
-- 后续 FPGA 执行环境转到 AWS manager；当前本地会话继续保留 host / metasim / bitstream prep，不直接承担 AWS 上的 infrasetup / runworkload 执行。
-- FireSim metasim / quick-diag 目前只保留为 globalnoc 启动链 smoke，不再是终极目标。
-
-## 项目入口
-
-- HybridMapper 根目录：`/home/wzy/proj/wp2/chipyard/tmp/HybridMapper`
-- MudnacSim 根目录：`/home/wzy/proj/wp2/chipyard/tmp/MudnacSim`
-- 协同机制参考：
-  - `/home/wzy/proj/wp2/chipyard/tmp/mudnac_hybridmapper_collab_docs/v2/协同机制文档_v2.md`
-  - `/home/wzy/proj/wp2/chipyard/tmp/mudnac_hybridmapper_collab_docs/v3/协同机制文档_v3.md`
-
-## 文档地图
+## 权威文档
 
 - `README.md`
-  - 项目是什么、当前入口、最短上手命令。
+  入口、文档地图、最短检查命令
 - `ARCHITECTURE.md`
-  - `HybridMapper -> bertmini artifacts -> pipeline-runtime-linux -> globalnoc Linux workload` 的当前架构。
-- `ROADMAP.md`
-  - 以 bertmini globalnoc Linux 闭环为主线的阶段计划。
-- `TESTPLAN.md`
-  - Artifact、host、Linux 打包、metasim smoke、FPGA replay 的唯一验证文档。
+  当前软件结构、artifact 契约、软件到硬件的耦合点
 - `DECISIONS.md`
-  - 已锁定规则，包含 globalnoc-only、Linux-only、shared YAML 契约和尺寸不匹配策略。
-- `HANDOFF.md`
-  - 当前 baseline、当前 blocker、最近一次已验证命令、接下来 3 个动作。
+  已冻结规则、调试约束、FireSim 执行规范
+- `ROADMAP.md`
+  分阶段目标与当前所处阶段
+- `TESTPLAN.md`
+  当前验证门和 FireSim F2 证据要求
+- `docs/linux_dma_guardrails.md`
+  Linux userspace DMA 踩坑总结、guardrails、当前 pipeline-runtime 审计结论
+- `NEXT_SESSION_PROMPT.md`
+  当前 live FPGA blocker、最近一次收敛到的停点、下一轮接手提示
 - `docs/archive/2026Q1_history.md`
-  - 历史迭代、旧 metasim stall 调试时间线、旧 run/log 路径。
+  历史时间线、旧 run/log、旧问题的取证材料
 
-## 最短上手
+跨目录的 live 协同状态以这两份为准：
 
-1. 重新生成 bertmini Gemmini artifacts：
+- `conference/mudnac_hybridmapper_collab_docs/STATUS.md`
+- `conference/mudnac_hybridmapper_collab_docs/PROCESS.md`
+
+## 当前必须遵守的环境规则
+
+- FireMarshal 前先执行：
+  `source /home/ubuntu/chipyard/env.sh`
+- FireSim manager 前先执行：
+  `cd /home/ubuntu/chipyard/sims/firesim`
+  然后 `source sourceme-manager.sh`
+- 不要再加 `--skip-ssh-setup`
+- FireSim manager 长任务统一通过：
+  `/home/ubuntu/chipyard/scripts/firesim-tmux-run.sh`
+- F2 只使用 `f2.6xlarge`
+- 如果 run 已明确卡死，先 `terminaterunfarm`，再分析
+- 遇到 Gemmini/DMA 接口调用问题时，优先参考 Linux 下三个 coupleddma 回归测试
+
+## 最短静态/本地检查
+
+1. 重新导出 `bertmini` runtime artifacts：
 
 ```bash
-cd /home/wzy/proj/wp2/chipyard/tmp/HybridMapper
-python3 scripts/create-gemmini-pipeline-runtime-artifacts.py --model bertmini
+cd /home/ubuntu/chipyard
+python3 conference/HybridMapper/scripts/create-pipeline-runtime-artifacts.py --model bertmini
 ```
 
 2. 构建 host 版 runtime：
 
 ```bash
-make -C /home/wzy/proj/wp2/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime clean all
+make -C /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime clean all
 ```
 
-3. 跑 bertmini host 闭环：
+3. 运行 host closure：
 
 ```bash
-bash /home/wzy/proj/wp2/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/run_bertmini_host_closure.sh
+METHODS=ours2 BATCH=1 SKIP_EXPORT=1 SKIP_BUILD=1 \
+bash /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/run_bertmini_host_closure.sh
 ```
 
-4. 语法检查 Linux packaging 脚本：
+4. 做 Linux overlay 静态检查：
 
 ```bash
-cd /home/wzy/proj/wp2/chipyard
-bash -n generators/gemmini/software/gemmini-rocc-tests/rerocc-linux-tests/workload/host-init.sh
-sh -n generators/gemmini/software/gemmini-rocc-tests/rerocc-linux-tests/run_rerocc_pipeline_runtime_bertmini.sh
-```
-
-5. 工具链不可用时做 overlay 静态验收：
-
-```bash
-cd /home/wzy/proj/wp2/chipyard/generators/gemmini/software/gemmini-rocc-tests/rerocc-linux-tests/workload
+cd /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/rerocc-linux-tests-coupleddma/workload
 HOST_INIT_CHECK_ONLY=1 bash host-init.sh
 ```
 
-## 当前验证入口
+## 文档维护规则
 
-- 主语义门：`TESTPLAN.md` 第 3 节的 bertmini host 闭环。
-- 当前 Linux 目标打包门：`TESTPLAN.md` 第 4 节的 overlay 路径与交叉编译检查。
-- 当前硬件近似 smoke：`TESTPLAN.md` 第 5 节的 globalnoc metasim suite。
-- 当前 FPGA 接手入口：`HANDOFF.md` 的 AWS 接手说明，以及 `TESTPLAN.md` 第 6 节的 AWS FPGA replay。
-
-## 维护规则
-
-- 新设计进入 `DECISIONS.md`。
-- 新计划进入 `ROADMAP.md`。
-- 新验证命令进入 `TESTPLAN.md`。
-- 当前状态进入 `HANDOFF.md`。
-- 迭代故事、旧 run/log 和 dated updates 进入 archive。
+- 当前状态、当前停点、下一步实验，写入 `STATUS.md` 和 `NEXT_SESSION_PROMPT.md`
+- 架构或接口规则的变化，写入 `ARCHITECTURE.md` 或 `DECISIONS.md`
+- 验证命令、通过标准、结果采信规则，写入 `TESTPLAN.md`
+- 带日期的流水账、旧日志路径、失效路径，只进 `docs/archive/2026Q1_history.md`

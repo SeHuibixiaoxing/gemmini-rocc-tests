@@ -164,10 +164,12 @@ int main(int argc, char **argv) {
 
   snprintf(gemmini_cmd,
            sizeof(gemmini_cmd),
-           "/root/rerocc-linux-tests-coupleddma/rerocc_gemmini_conv_matrix-linux --num-cores %d --num-gemmini %d --gemmini-base-id %d --matrix %s",
+           "/root/rerocc-linux-tests-coupleddma/rerocc_lc_gemmini_matrix_linux_coupleddma-linux --num-cores %d --num-gemmini %d --num-dma %d --gemmini-base-id %d --dma-base-id %d --matrix %s",
            num_cores,
            num_gemmini,
+           num_dma,
            gemmini_base_id,
+           dma_base_id,
            matrix_mode_name(matrix_mode));
 
   snprintf(dma_cmd,
@@ -186,14 +188,10 @@ int main(int argc, char **argv) {
   if (gemmini_ret == 0 && dma_ret == 0) {
     printf("ALL_TESTS_PASS\\n");
     fflush(stdout);
-    sync();
-    system("poweroff -f");
     return 0;
   }
 
   printf("ALL_TESTS_FAIL gemmini_ret=%d dma_ret=%d\\n", gemmini_ret, dma_ret);
   fflush(stdout);
-  sync();
-  system("poweroff -f");
   return 1;
 }

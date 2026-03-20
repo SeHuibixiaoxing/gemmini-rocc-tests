@@ -18,7 +18,7 @@
 #define DMA_XCUSTOM 2
 #define MAX_TEST_THREADS 64
 #define REROCC_ACQUIRE_MAX_RETRIES 1000000UL
-#define DMA_WAIT_SPINS 20000000UL
+#define DMA_WAIT_SPINS 100000000UL
 
 typedef enum {
   MATRIX_FULL = 0,
@@ -275,6 +275,8 @@ static bool run_one_dma_case(dma_worker_t *w, int dma_idx, uint32_t cfg_id) {
   const int manager_id = w->dma_base_id + dma_idx;
 
   if (!rr_acquire_cfg_with_retry(cfg_id, (uint64_t)manager_id)) {
+    printf("[dma] cpu=%d mgr=%d acquire timeout cfg=%u\n",
+           w->cid, manager_id, cfg_id);
     return false;
   }
   rr_set_opc(2, cfg_id);

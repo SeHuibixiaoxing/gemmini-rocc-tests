@@ -1,0 +1,13 @@
+{
+  "name" : "rerocc-lc-linux-coupleddma-regression-small-oldbin-pipelinefilesimg",
+  "base" : "bare-base.json",
+  "workdir" : ".",
+  "bin" : "../../../../../../software/firemarshal/images/firechip/rerocc-lc-linux-coupleddma-regression-small/rerocc-lc-linux-coupleddma-regression-small-bin",
+  "img" : "../../../../../../software/firemarshal/images/firechip/rerocc-lc-linux-coupleddma-regression-small-pipelinefiles/rerocc-lc-linux-coupleddma-regression-small-pipelinefiles.img",
+  "firesim" : {
+    "simulation_outputs" : [
+      "uartlog",
+      "memory_stats*.csv"
+    ]
+  }
+}

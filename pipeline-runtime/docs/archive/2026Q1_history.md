@@ -1,15 +1,25 @@
 # 2026Q1 历史归档
 
 本文件收纳 2026Q1 期间的开发时间线、旧 run/log 路径、dated updates 和旧 milestone 列表。
-主文档不再保留这些历史过程；当前状态请回到 `HANDOFF.md`。
+这里保留的是原始历史记录，不保证路径、命令或环境要求仍然有效。
+
+当前 live 状态请回到：
+
+- `conference/mudnac_hybridmapper_collab_docs/STATUS.md`
+- `generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/NEXT_SESSION_PROMPT.md`
+
+说明：
+
+- 本文中保留的 `/home/wzy/...`、`--skip-ssh-setup` 等内容仅用于历史取证
+- 这些旧路径和旧命令不应再被当成当前执行规范
 
 ## 1. 归档范围
 
 本归档主要吸收自以下旧主文档：
 
-- `IMPLEMENTATION_STATUS.md` 的长里程碑列表
-- `HANDOFF.md` 中的 dated updates、实验命令和 run/log 路径
-- `ARCHITECTURE.md` / `PLAN_REROCC_COUPLEDDMA.md` 中带时间语义的专项推进记录
+- 旧的 implementation/handoff 流水账
+- 早期版本 `ARCHITECTURE.md` 中带时间语义的专项推进记录
+- 已删除的兼容壳文档中的历史 run/log 路径
 
 ## 2. 2026-02 基线 bring-up
 
@@ -128,7 +138,7 @@ non-globalnoc quick-diag 修复后：
 - 当前计划：`ROADMAP.md`
 - 当前验证：`TESTPLAN.md`
 - 锁定决策：`DECISIONS.md`
-- 当前状态：`HANDOFF.md`
+- 当前状态：`conference/mudnac_hybridmapper_collab_docs/STATUS.md` 和 `NEXT_SESSION_PROMPT.md`
 
 不要再把新的 dated update 追加回主文档正文。
 

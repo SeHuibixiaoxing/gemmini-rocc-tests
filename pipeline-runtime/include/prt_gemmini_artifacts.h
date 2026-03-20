@@ -7,7 +7,8 @@
 extern "C" {
 #endif
 
-int prt_validate_gemmini_artifacts(const char *model_yaml, const prt_pipeline_desc_t *pipeline);
+int prt_validate_gemmini_artifacts(const char *model_yaml, const char *layer_mapping_yaml,
+                                   prt_pipeline_desc_t *pipeline);
 
 #ifdef __cplusplus
 }

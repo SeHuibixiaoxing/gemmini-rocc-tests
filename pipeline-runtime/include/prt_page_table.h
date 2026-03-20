@@ -50,6 +50,10 @@ int prt_unmap_tensor_for_acc(prt_runtime_t *rt, uint32_t acc_id,
 int prt_spm_map_tensor(prt_runtime_t *rt, uint32_t tensor_id, const prt_page_list_t *pages,
                        uint64_t *out_va_base);
 int prt_spm_unmap_tensor(prt_runtime_t *rt, uint32_t tensor_id);
+int prt_spm_reserve_vpages(prt_runtime_t *rt, uint32_t page_count, uint32_t *out_vpage_start);
+int prt_spm_bind_vpages(prt_runtime_t *rt, uint32_t vpage_start, const prt_page_list_t *pages,
+                        uint32_t page_count);
+int prt_spm_unbind_vpages(prt_runtime_t *rt, uint32_t vpage_start, uint32_t page_count);
 int prt_spm_translate_range(prt_runtime_t *rt, uint64_t vaddr, uint64_t bytes,
                             prt_spm_xlate_seg_t *segs, uint32_t seg_cap, uint32_t *out_seg_count);
 uint64_t prt_spm_ptbr_pa(const prt_runtime_t *rt);
@@ -57,6 +61,8 @@ uint32_t prt_spm_pte_count(const prt_runtime_t *rt);
 uint64_t prt_spm_fault_count(const prt_runtime_t *rt);
 uint64_t prt_spm_last_fault_vaddr(const prt_runtime_t *rt);
 uint32_t prt_spm_last_fault_cause(const prt_runtime_t *rt);
+size_t prt_host_page_size_bytes(void);
+int prt_host_virt_to_phys(const void *vaddr, uint64_t *paddr);
 
 #ifdef __cplusplus
 }

@@ -4,10 +4,53 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#if defined(__linux__) && defined(__riscv)
+#include <errno.h>
+#include <sys/mman.h>
+#endif
+
+#if PRT_ENABLE_PROGRESS_LOG
+static void prt_early_progress(const char *msg) {
+  size_t remaining;
+  ssize_t written;
+  if (!msg) return;
+  remaining = strlen(msg);
+  while (remaining > 0) {
+    written = write(STDERR_FILENO, msg, remaining);
+    if (written <= 0) break;
+    msg += (size_t)written;
+    remaining -= (size_t)written;
+  }
+  written = write(STDERR_FILENO, "\n", 1);
+  (void)written;
+}
+#else
+static void prt_early_progress(const char *msg) {
+  (void)msg;
+}
+#endif
+
+static void prt_enable_live_stdio(void) {
+  /* Keep guest logs visible immediately in FireSim/UART captures. */
+  (void)setvbuf(stdout, NULL, _IONBF, 0);
+  (void)setvbuf(stderr, NULL, _IONBF, 0);
+}
+
+static void prt_try_lock_process_memory(void) {
+#if defined(__linux__) && defined(__riscv)
+  static int attempted = 0;
+  if (attempted) return;
+  attempted = 1;
+  if (mlockall(MCL_CURRENT | MCL_FUTURE) != 0) {
+    fprintf(stderr, "warning: mlockall failed: %s\n", strerror(errno));
+  }
+#endif
+}
 
 static void usage(const char *prog) {
   fprintf(stderr,
-    "Usage: %s --model-yaml <path> [--model-bin <path>] [--model-offset <bytes>] --pipeline-yaml <path> [--num-cores <n>] [--num-gemmini-mgrs <n>] [--num-dma-mgrs <n>] [--gemmini-base-id <n>] [--dma-base-id <n>] [--sync-mode <async|blocking_debug>] [--pages-per-acc <n>] [--spm-page-bytes <n>] [--spm-xlate-enable <0|1>] [--spm-xlate-range-base <hex>] [--spm-xlate-range-size <bytes>] [--hw-validate-only] [--input <path>] [--golden <path>] [--batch <n>] [--trace <path>]\\n"
+    "Usage: %s --backend <cpu|fpga> --model-yaml <path> --layer-mapping-yaml <path> [--model-bin <path>] [--model-offset <bytes>] --pipeline-yaml <path> [--num-cores <n>] [--num-gemmini-mgrs <n>] [--num-dma-mgrs <n>] [--gemmini-base-id <n>] [--dma-base-id <n>] [--sync-mode <async|blocking_debug>] [--pages-per-acc <n>] [--spm-page-bytes <n>] [--spm-xlate-enable <0|1>] [--spm-xlate-range-base <hex>] [--spm-xlate-range-size <bytes>] [--watchdog-ms <n>] [--hw-validate-only] [--input <path>] [--golden <path>] [--golden-out <path>] [--batch <n>] [--trace <path>]\\n"
     "       %s --hw-validate-only [runtime knobs above]\\n",
     prog, prog);
 }
@@ -31,6 +74,12 @@ int prt_main_entry(int argc, char **argv) {
   prt_runtime_t rt;
   int rc;
   int user_set_dma_base = 0;
+  int backend_set = 0;
+  int watchdog_set = 0;
+
+  prt_early_progress("[prt-early] enter main");
+  prt_enable_live_stdio();
+  prt_early_progress("[prt-early] live stdio ready");
 
   memset(&cfg, 0, sizeof(cfg));
   memset(&args, 0, sizeof(args));
@@ -40,6 +89,7 @@ int prt_main_entry(int argc, char **argv) {
   cfg.num_dma_mgrs = 4;
   cfg.gemmini_mgr_base_id = 0;
   cfg.dma_mgr_base_id = 0;
+  cfg.backend = PRT_BACKEND_FPGA;
   cfg.page_size_bytes = PRT_PAGE_SIZE_BYTES;
   cfg.spm_xlate_enable = 1;
   cfg.spm_page_shift = 0;
@@ -50,10 +100,22 @@ int prt_main_entry(int argc, char **argv) {
   cfg.gemmini_mode = PRT_GEMMINI_MODE_ASYNC_EXPERIMENTAL;
   cfg.sync_mode = PRT_SYNC_MODE_ASYNC;
   cfg.watchdog_timeout_ms = 5000;
+  prt_early_progress("[prt-early] defaults ready");
 
   for (int i = 1; i < argc; ++i) {
-    if (!strcmp(argv[i], "--model-yaml") && i + 1 < argc) {
+    if (!strcmp(argv[i], "--backend") && i + 1 < argc) {
+      const char *v = argv[++i];
+      if (!strcmp(v, "fpga")) cfg.backend = PRT_BACKEND_FPGA;
+      else if (!strcmp(v, "cpu")) cfg.backend = PRT_BACKEND_CPU;
+      else {
+        usage(argv[0]);
+        return 2;
+      }
+      backend_set = 1;
+    } else if (!strcmp(argv[i], "--model-yaml") && i + 1 < argc) {
       args.model_yaml = argv[++i];
+    } else if (!strcmp(argv[i], "--layer-mapping-yaml") && i + 1 < argc) {
+      args.layer_mapping_yaml = argv[++i];
     } else if (!strcmp(argv[i], "--model-bin") && i + 1 < argc) {
       args.model_bin = argv[++i];
     } else if (!strcmp(argv[i], "--model-offset") && i + 1 < argc) {
@@ -91,6 +153,8 @@ int prt_main_entry(int argc, char **argv) {
       args.input_path = argv[++i];
     } else if (!strcmp(argv[i], "--golden") && i + 1 < argc) {
       args.golden_path = argv[++i];
+    } else if (!strcmp(argv[i], "--golden-out") && i + 1 < argc) {
+      args.golden_out_path = argv[++i];
     } else if (!strcmp(argv[i], "--batch") && i + 1 < argc) {
       args.batch = (uint32_t)strtoul(argv[++i], NULL, 10);
     } else if (!strcmp(argv[i], "--trace") && i + 1 < argc) {
@@ -105,30 +169,43 @@ int prt_main_entry(int argc, char **argv) {
       else if (!strcmp(v, "async_experimental")) cfg.gemmini_mode = PRT_GEMMINI_MODE_ASYNC_EXPERIMENTAL;
     } else if (!strcmp(argv[i], "--watchdog-ms") && i + 1 < argc) {
       cfg.watchdog_timeout_ms = (uint32_t)strtoul(argv[++i], NULL, 10);
+      watchdog_set = 1;
     } else {
       usage(argv[0]);
       return 2;
     }
   }
+  prt_early_progress("[prt-early] arg parse done");
 
   if (cfg.hw_validate_only) {
+    prt_early_progress("[prt-early] hw-validate-only");
     return run_hw_validate_only(&cfg);
   }
 
-  if (!args.model_yaml || !args.pipeline_yaml) {
+  if (!backend_set || !args.model_yaml || !args.layer_mapping_yaml || !args.pipeline_yaml) {
     usage(argv[0]);
     return 2;
   }
   if (!user_set_dma_base) {
     cfg.dma_mgr_base_id = cfg.gemmini_mgr_base_id + cfg.num_gemmini_mgrs;
   }
+  if (!watchdog_set && cfg.backend == PRT_BACKEND_CPU) {
+    cfg.watchdog_timeout_ms = 300000;
+  }
 
+  if (cfg.backend == PRT_BACKEND_FPGA) {
+    prt_try_lock_process_memory();
+  }
+
+  prt_early_progress("[prt-early] calling runtime_init");
   rc = prt_runtime_init(&cfg, &rt);
   if (rc != PRT_OK) {
     fprintf(stderr, "runtime_init failed: %s (%d)\\n", prt_err_str(rc), rc);
     return 1;
   }
+  prt_early_progress("[prt-early] runtime_init done");
 
+  prt_early_progress("[prt-early] calling runtime_run");
   rc = prt_runtime_run(&rt, &args);
   if (rc != PRT_OK) {
     fprintf(stderr, "runtime_run failed: %s (%d)\\n", prt_err_str(rc), rc);

@@ -1,4 +1,5 @@
 #include "prt_yaml_loader.h"
+#include "prt_progress.h"
 
 #include <ctype.h>
 #include <stdint.h>
@@ -460,18 +461,105 @@ static void stage_set_layer_id(prt_stage_map_t *st, const uint32_t *ids, uint32_
   st->layer_id = (n > 0) ? ids[0] : 0;
 }
 
+static void stage_set_tensor_ids(prt_stage_map_t *st, const uint32_t *ids, uint32_t n) {
+  uint32_t m = n > PRT_MAX_LAYER_TENSORS ? PRT_MAX_LAYER_TENSORS : n;
+  if (!st) return;
+  st->tensor_id_count = m;
+  for (uint32_t i = 0; i < m; ++i) st->tensor_ids[i] = ids[i];
+}
+
+static void stage_set_fix_tensor_ids(prt_stage_map_t *st, const uint32_t *ids, uint32_t n) {
+  uint32_t m = n > PRT_MAX_LAYER_TENSORS ? PRT_MAX_LAYER_TENSORS : n;
+  if (!st) return;
+  st->fix_tensor_count = m;
+  for (uint32_t i = 0; i < m; ++i) st->fix_tensor_ids[i] = ids[i];
+}
+
+static void stage_set_inner_isolate_ids(prt_stage_map_t *st, const uint32_t *ids, uint32_t n) {
+  uint32_t m = n > PRT_MAX_LAYER_TENSORS ? PRT_MAX_LAYER_TENSORS : n;
+  if (!st) return;
+  st->inner_isolate_count = m;
+  for (uint32_t i = 0; i < m; ++i) st->inner_isolate_ids[i] = ids[i];
+}
+
+static void stage_set_inner_shared_ids(prt_stage_map_t *st, const uint32_t *ids, uint32_t n) {
+  uint32_t m = n > PRT_MAX_LAYER_TENSORS ? PRT_MAX_LAYER_TENSORS : n;
+  if (!st) return;
+  st->inner_shared_count = m;
+  for (uint32_t i = 0; i < m; ++i) st->inner_shared_ids[i] = ids[i];
+}
+
 static void stage_set_dram_bypass(prt_stage_map_t *st, const uint32_t *vals, uint32_t n) {
   uint32_t m = n > PRT_MAX_LAYER_TENSORS ? PRT_MAX_LAYER_TENSORS : n;
   if (!st) return;
   st->dram_bypass_count = m;
-  for (uint32_t i = 0; i < m; ++i) st->dram_bypass[i] = vals[i];
+  if (m > 0) memcpy(st->dram_bypass, vals, sizeof(uint32_t) * m);
 }
 
 static void stage_set_spm_bypass(prt_stage_map_t *st, const uint32_t *vals, uint32_t n) {
   uint32_t m = n > PRT_MAX_LAYER_TENSORS ? PRT_MAX_LAYER_TENSORS : n;
   if (!st) return;
   st->spm_bypass_count = m;
-  for (uint32_t i = 0; i < m; ++i) st->spm_bypass[i] = vals[i];
+  if (m > 0) memcpy(st->spm_bypass, vals, sizeof(uint32_t) * m);
+}
+
+static void stage_set_physical_acc_ids(prt_stage_map_t *st, const uint32_t *vals, uint32_t n) {
+  uint32_t m = n > PRT_MAX_CORES ? PRT_MAX_CORES : n;
+  if (!st) return;
+  st->num_physical_acc_ids = m;
+  st->physical_acc_ids_present = m > 0 ? 1U : 0U;
+  for (uint32_t i = 0; i < m; ++i) st->physical_acc_ids[i] = vals[i];
+}
+
+static void stage_set_virtual_acc_ids(prt_stage_map_t *st, const uint32_t *vals, uint32_t n) {
+  uint32_t m = n > PRT_MAX_CORES ? PRT_MAX_CORES : n;
+  if (!st) return;
+  st->num_virtual_acc_ids = m;
+  st->virtual_acc_ids_present = m > 0 ? 1U : 0U;
+  for (uint32_t i = 0; i < m; ++i) st->virtual_acc_ids[i] = vals[i];
+}
+
+static void stage_set_tensor_usage_count(prt_stage_map_t *st, const uint32_t *vals, uint32_t n) {
+  uint32_t m = n > PRT_MAX_LAYER_TENSORS ? PRT_MAX_LAYER_TENSORS : n;
+  if (!st) return;
+  st->tensor_usage_count_present = 1U;
+  st->tensor_usage_count_count = m;
+  for (uint32_t i = 0; i < m; ++i) st->tensor_usage_count[i] = vals[i];
+}
+
+static void stage_set_tensor_lazy_fetch(prt_stage_map_t *st, const uint32_t *vals, uint32_t n) {
+  uint32_t m = n > PRT_MAX_LAYER_TENSORS ? PRT_MAX_LAYER_TENSORS : n;
+  if (!st) return;
+  st->tensor_lazy_fetch_present = 1U;
+  st->tensor_lazy_fetch_count = m;
+  for (uint32_t i = 0; i < m; ++i) st->tensor_lazy_fetch[i] = vals[i];
+}
+
+static uint32_t parse_split_kind_str(const char *s) {
+  if (!s) return PRT_LAYER_SPLIT_UNSPEC;
+  if (!strcmp(s, "single")) return PRT_LAYER_SPLIT_SINGLE;
+  if (!strcmp(s, "oc")) return PRT_LAYER_SPLIT_OC;
+  if (!strcmp(s, "spatial")) return PRT_LAYER_SPLIT_SPATIAL;
+  if (!strcmp(s, "resadd_spatial")) return PRT_LAYER_SPLIT_RESADD_SPATIAL;
+  return PRT_LAYER_SPLIT_UNSPEC;
+}
+
+static void stage_set_split_kind_from_value(prt_stage_map_t *st, char *v) {
+  size_t n;
+  if (!st || !v) return;
+  if (*v == '"' || *v == '\'') {
+    char q = *v;
+    char *e;
+    v++;
+    e = strchr(v, q);
+    if (e) *e = '\0';
+  }
+  n = strlen(v);
+  while (n > 0 && isspace((unsigned char)v[n - 1])) {
+    v[n - 1] = '\0';
+    n--;
+  }
+  st->split_kind = parse_split_kind_str(v);
 }
 
 int prt_load_model_yaml(const char *path, prt_model_desc_t *out) {
@@ -482,9 +570,11 @@ int prt_load_model_yaml(const char *path, prt_model_desc_t *out) {
   int cur_layer_has_index = 0;
   if (!out) return PRT_ERR_INVAL;
   memset(out, 0, sizeof(*out));
+  PRT_PROGRESS_LOG("yaml model load begin path=%s", path ? path : "(null)");
 
   rc = load_file(path, &buf, &len);
   if (rc != PRT_OK) return rc;
+  PRT_PROGRESS_LOG("yaml model file read path=%s bytes=%zu", path ? path : "(null)", len);
   (void)len;
 
   char *p = buf;
@@ -621,6 +711,8 @@ int prt_load_model_yaml(const char *path, prt_model_desc_t *out) {
   out->num_tensors = 0;
   out->tensors = NULL;
   free(buf);
+  PRT_PROGRESS_LOG("yaml model load end path=%s layers=%u tensors=%u stages=%u",
+                   path ? path : "(null)", out->num_layers, out->num_tensors, out->num_stages);
   return PRT_OK;
 }
 
@@ -637,14 +729,25 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
   int stage_dram_bypass_indent = -1;
   int in_stage_spm_bypass_list = 0;
   int stage_spm_bypass_indent = -1;
+  int in_stage_virtual_acc_list = 0;
+  uint32_t stage_virtual_acc_rows = 0;
+  int in_stage_physical_acc_list = 0;
+  uint32_t stage_physical_acc_rows = 0;
+  int in_stage_tensor_usage_list = 0;
+  uint32_t stage_tensor_usage_rows = 0;
+  int in_stage_tensor_lazy_fetch_list = 0;
+  uint32_t stage_tensor_lazy_fetch_rows = 0;
   int cur_stage_has_global_id = 0;
   int cur_seg_has_segment_idx = 0;
+  uint32_t total_stages = 0;
 
   if (!out) return PRT_ERR_INVAL;
   memset(out, 0, sizeof(*out));
+  PRT_PROGRESS_LOG("yaml pipeline load begin path=%s", path ? path : "(null)");
 
   rc = load_file(path, &buf, &len);
   if (rc != PRT_OK) return rc;
+  PRT_PROGRESS_LOG("yaml pipeline file read path=%s bytes=%zu", path ? path : "(null)", len);
   (void)len;
 
   char *p = buf;
@@ -724,6 +827,90 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
       }
     }
 
+    if (in_stage_virtual_acc_list && cur_stage) {
+      if (!(*t == '-' && strchr(t, '['))) {
+        in_stage_virtual_acc_list = 0;
+      } else if (*t == '-') {
+        uint32_t *vals = NULL;
+        uint32_t n = 0;
+        if (stage_virtual_acc_rows > 0) {
+          free(buf);
+          return PRT_ERR_NOT_IMPL;
+        }
+        if (parse_int_list_from_value(t, &vals, &n) != PRT_OK) {
+          free(buf);
+          return PRT_ERR_PARSE;
+        }
+        stage_set_virtual_acc_ids(cur_stage, vals, n);
+        stage_virtual_acc_rows += 1U;
+        free(vals);
+        continue;
+      }
+    }
+
+    if (in_stage_physical_acc_list && cur_stage) {
+      if (!(*t == '-' && strchr(t, '['))) {
+        in_stage_physical_acc_list = 0;
+      } else if (*t == '-') {
+        uint32_t *vals = NULL;
+        uint32_t n = 0;
+        if (stage_physical_acc_rows > 0) {
+          free(buf);
+          return PRT_ERR_NOT_IMPL;
+        }
+        if (parse_int_list_from_value(t, &vals, &n) != PRT_OK) {
+          free(buf);
+          return PRT_ERR_PARSE;
+        }
+        stage_set_physical_acc_ids(cur_stage, vals, n);
+        stage_physical_acc_rows += 1U;
+        free(vals);
+        continue;
+      }
+    }
+
+    if (in_stage_tensor_usage_list && cur_stage) {
+      if (!(*t == '-' && strchr(t, '['))) {
+        in_stage_tensor_usage_list = 0;
+      } else if (*t == '-') {
+        uint32_t *vals = NULL;
+        uint32_t n = 0;
+        if (stage_tensor_usage_rows > 0) {
+          free(buf);
+          return PRT_ERR_NOT_IMPL;
+        }
+        if (parse_int_list_from_value(t, &vals, &n) != PRT_OK) {
+          free(buf);
+          return PRT_ERR_PARSE;
+        }
+        stage_set_tensor_usage_count(cur_stage, vals, n);
+        stage_tensor_usage_rows += 1U;
+        free(vals);
+        continue;
+      }
+    }
+
+    if (in_stage_tensor_lazy_fetch_list && cur_stage) {
+      if (!(*t == '-' && strchr(t, '['))) {
+        in_stage_tensor_lazy_fetch_list = 0;
+      } else if (*t == '-') {
+        uint32_t *vals = NULL;
+        uint32_t n = 0;
+        if (stage_tensor_lazy_fetch_rows > 0) {
+          free(buf);
+          return PRT_ERR_NOT_IMPL;
+        }
+        if (parse_int_list_from_value(t, &vals, &n) != PRT_OK) {
+          free(buf);
+          return PRT_ERR_PARSE;
+        }
+        stage_set_tensor_lazy_fetch(cur_stage, vals, n);
+        stage_tensor_lazy_fetch_rows += 1U;
+        free(vals);
+        continue;
+      }
+    }
+
     if (t[0] == '-' && strstr(t, "acc_util:")) {
       if (ensure_segment_capacity(out, out->num_segments + 1) != PRT_OK) {
         free(buf);
@@ -743,6 +930,14 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
       stage_dram_bypass_indent = -1;
       in_stage_spm_bypass_list = 0;
       stage_spm_bypass_indent = -1;
+      in_stage_virtual_acc_list = 0;
+      stage_virtual_acc_rows = 0;
+      in_stage_physical_acc_list = 0;
+      stage_physical_acc_rows = 0;
+      in_stage_tensor_usage_list = 0;
+      stage_tensor_usage_rows = 0;
+      in_stage_tensor_lazy_fetch_list = 0;
+      stage_tensor_lazy_fetch_rows = 0;
       continue;
     }
 
@@ -766,6 +961,14 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
         stage_dram_bypass_indent = -1;
         in_stage_spm_bypass_list = 0;
         stage_spm_bypass_indent = -1;
+        in_stage_virtual_acc_list = 0;
+        stage_virtual_acc_rows = 0;
+        in_stage_physical_acc_list = 0;
+        stage_physical_acc_rows = 0;
+        in_stage_tensor_usage_list = 0;
+        stage_tensor_usage_rows = 0;
+        in_stage_tensor_lazy_fetch_list = 0;
+        stage_tensor_lazy_fetch_rows = 0;
       }
       cur_seg->segment_idx = seg_idx;
       cur_seg_has_segment_idx = 1;
@@ -842,6 +1045,20 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
       continue;
     }
 
+    if (starts_key(t, "tensor_spm_util_weight")) {
+      map_kv_t *kv = NULL;
+      uint32_t n = 0;
+      if (parse_u32_map_from_value(t, &kv, &n) == PRT_OK) {
+        if (u32_map_set_from_kv(&cur_seg->tensor_spm_util_weight, kv, n) != PRT_OK) {
+          free(kv);
+          free(buf);
+          return PRT_ERR_NOMEM;
+        }
+      }
+      free(kv);
+      continue;
+    }
+
     if (starts_key(t, "tensor_spm_util_in_stage")) {
       in_stage_spm_util_list = 1;
       stage_spm_util_indent = indent;
@@ -869,6 +1086,10 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
         cur_stage->acc_util_present = 1;
       }
       cur_stage_has_global_id = 0;
+      in_stage_virtual_acc_list = 0;
+      stage_virtual_acc_rows = 0;
+      in_stage_physical_acc_list = 0;
+      stage_physical_acc_rows = 0;
       continue;
     }
 
@@ -886,6 +1107,10 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
       }
       cur_stage->stage_id = sid;
       cur_stage_has_global_id = 1;
+      in_stage_virtual_acc_list = 0;
+      stage_virtual_acc_rows = 0;
+      in_stage_physical_acc_list = 0;
+      stage_physical_acc_rows = 0;
       continue;
     }
 
@@ -908,6 +1133,14 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
       continue;
     }
 
+    if (starts_key(t, "tensorIdList")) {
+      uint32_t *ids = NULL;
+      uint32_t n = 0;
+      if (parse_int_list_from_value(value_after_colon(t), &ids, &n) == PRT_OK) stage_set_tensor_ids(cur_stage, ids, n);
+      free(ids);
+      continue;
+    }
+
     if (starts_key(t, "dramBypassList")) {
       in_stage_dram_bypass_list = 1;
       stage_dram_bypass_indent = indent;
@@ -917,6 +1150,53 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
     if (starts_key(t, "spmBypassList")) {
       in_stage_spm_bypass_list = 1;
       stage_spm_bypass_indent = indent;
+      continue;
+    }
+
+    if (starts_key(t, "physicalAccIds")) {
+      uint32_t *ids = NULL;
+      uint32_t n = 0;
+      if (parse_int_list_from_value(value_after_colon(t), &ids, &n) == PRT_OK) {
+        stage_set_physical_acc_ids(cur_stage, ids, n);
+      }
+      free(ids);
+      continue;
+    }
+
+    if (starts_key(t, "vAccIdxList")) {
+      uint32_t *ids = NULL;
+      uint32_t n = 0;
+      char *v = value_after_colon(t);
+      stage_virtual_acc_rows = 0;
+      if (v && strchr(v, '[')) {
+        if (parse_int_list_from_value(v, &ids, &n) == PRT_OK) {
+          stage_set_virtual_acc_ids(cur_stage, ids, n);
+          stage_virtual_acc_rows = 1U;
+        }
+        free(ids);
+      }
+      in_stage_virtual_acc_list = 1;
+      continue;
+    }
+
+    if (starts_key(t, "pAccIdxList")) {
+      uint32_t *ids = NULL;
+      uint32_t n = 0;
+      char *v = value_after_colon(t);
+      stage_physical_acc_rows = 0;
+      if (v && strchr(v, '[')) {
+        if (parse_int_list_from_value(v, &ids, &n) == PRT_OK) {
+          stage_set_physical_acc_ids(cur_stage, ids, n);
+          stage_physical_acc_rows = 1U;
+        }
+        free(ids);
+      }
+      in_stage_physical_acc_list = 1;
+      continue;
+    }
+
+    if (starts_key(t, "splitKind")) {
+      stage_set_split_kind_from_value(cur_stage, value_after_colon(t));
       continue;
     }
 
@@ -954,6 +1234,36 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
       continue;
     }
 
+    if (starts_key(t, "fixTensorDramBypassIdList")) {
+      uint32_t *ids = NULL;
+      uint32_t n = 0;
+      if (parse_int_list_from_value(value_after_colon(t), &ids, &n) == PRT_OK) {
+        stage_set_fix_tensor_ids(cur_stage, ids, n);
+      }
+      free(ids);
+      continue;
+    }
+
+    if (starts_key(t, "innerIsolateTensorId")) {
+      uint32_t *ids = NULL;
+      uint32_t n = 0;
+      if (parse_int_list_from_value(value_after_colon(t), &ids, &n) == PRT_OK) {
+        stage_set_inner_isolate_ids(cur_stage, ids, n);
+      }
+      free(ids);
+      continue;
+    }
+
+    if (starts_key(t, "innerSharedTensorId")) {
+      uint32_t *ids = NULL;
+      uint32_t n = 0;
+      if (parse_int_list_from_value(value_after_colon(t), &ids, &n) == PRT_OK) {
+        stage_set_inner_shared_ids(cur_stage, ids, n);
+      }
+      free(ids);
+      continue;
+    }
+
     if (starts_key(t, "entryTensorDoubleBufferList")) {
       uint32_t *db = NULL;
       uint32_t n = 0;
@@ -969,6 +1279,38 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
       free(db);
       continue;
     }
+
+    if (starts_key(t, "tensorUsageCountList")) {
+      uint32_t *vals = NULL;
+      uint32_t n = 0;
+      char *v = value_after_colon(t);
+      stage_tensor_usage_rows = 0;
+      if (v && strchr(v, '[')) {
+        if (parse_int_list_from_value(v, &vals, &n) == PRT_OK) {
+          stage_set_tensor_usage_count(cur_stage, vals, n);
+          stage_tensor_usage_rows = 1U;
+        }
+        free(vals);
+      }
+      in_stage_tensor_usage_list = 1;
+      continue;
+    }
+
+    if (starts_key(t, "tensorUseLazyFetch")) {
+      uint32_t *vals = NULL;
+      uint32_t n = 0;
+      char *v = value_after_colon(t);
+      stage_tensor_lazy_fetch_rows = 0;
+      if (v && strchr(v, '[')) {
+        if (parse_int_list_from_value(v, &vals, &n) == PRT_OK) {
+          stage_set_tensor_lazy_fetch(cur_stage, vals, n);
+          stage_tensor_lazy_fetch_rows = 1U;
+        }
+        free(vals);
+      }
+      in_stage_tensor_lazy_fetch_list = 1;
+      continue;
+    }
   }
 
   if (out->num_segments > 0) out->subbatch_size = out->segments[0].subbatch_size;
@@ -976,9 +1318,28 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
 
   for (uint32_t s = 0; s < out->num_segments; ++s) {
     prt_segment_desc_t *seg = &out->segments[s];
+    total_stages += seg->num_stages;
     for (uint32_t i = 0; i < seg->num_stages; ++i) {
       if (!seg->stages[i].acc_util_present || seg->stages[i].layer_count != 1 ||
-          seg->stages[i].dram_bypass_count == 0 || seg->stages[i].spm_bypass_count == 0) {
+          seg->stages[i].dram_bypass_count == 0 || seg->stages[i].spm_bypass_count == 0 ||
+          !seg->stages[i].virtual_acc_ids_present ||
+          seg->stages[i].num_virtual_acc_ids == 0 ||
+          seg->stages[i].num_virtual_acc_ids != seg->stages[i].acc_util ||
+          (seg->stages[i].physical_acc_ids_present &&
+           seg->stages[i].num_physical_acc_ids != seg->stages[i].acc_util)) {
+        free(buf);
+        return PRT_ERR_PARSE;
+      }
+      for (uint32_t k = 0; k < seg->stages[i].num_virtual_acc_ids; ++k) {
+        if (seg->stages[i].virtual_acc_ids[k] >= seg->stages[i].acc_util) {
+          free(buf);
+          return PRT_ERR_PARSE;
+        }
+      }
+      if (!seg->stages[i].tensor_usage_count_present ||
+          seg->stages[i].tensor_usage_count_count != seg->stages[i].tensor_id_count ||
+          !seg->stages[i].tensor_lazy_fetch_present ||
+          seg->stages[i].tensor_lazy_fetch_count != seg->stages[i].tensor_id_count) {
         free(buf);
         return PRT_ERR_PARSE;
       }
@@ -986,6 +1347,8 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
   }
 
   free(buf);
+  PRT_PROGRESS_LOG("yaml pipeline load end path=%s segments=%u total_stages=%u subbatch_size=%u",
+                   path ? path : "(null)", out->num_segments, total_stages, out->subbatch_size);
   return PRT_OK;
 }
 
@@ -1024,6 +1387,7 @@ void prt_free_pipeline_desc(prt_pipeline_desc_t *pipeline) {
       free(seg->shared_tensor_is_read_first.data);
       free(seg->tensor_spm_util_shared.data);
       free(seg->tensor_spm_util_in_ringbuffer.data);
+      free(seg->tensor_spm_util_weight.data);
       free(seg->ring_cfgs);
     }
     free(pipeline->segments);

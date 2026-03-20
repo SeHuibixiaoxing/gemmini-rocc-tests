@@ -4,13 +4,20 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REROCC_TESTS_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 GEMMINI_ROCC_TESTS_DIR="$(cd "${REROCC_TESTS_DIR}/.." && pwd)"
+CHIPYARD_ROOT="$(cd "${GEMMINI_ROCC_TESTS_DIR}/../../../.." && pwd)"
+PIPELINE_RUNTIME_SRC_DIR="${GEMMINI_ROCC_TESTS_DIR}/pipeline-runtime"
 OVERLAY_ROOT_DIR="${SCRIPT_DIR}/overlay/root/rerocc-linux-tests"
 PIPELINE_RUNTIME_OVERLAY_DIR="${OVERLAY_ROOT_DIR}/pipeline-runtime"
 PIPELINE_RUNTIME_BERT_DIR="${PIPELINE_RUNTIME_OVERLAY_DIR}/bertmini"
-HYBRIDMAPPER_BERT_DIR="$(cd "${GEMMINI_ROCC_TESTS_DIR}/../../../../tmp/HybridMapper/output/pipeline/bertmini" && pwd)"
+DEFAULT_HYBRIDMAPPER_BERT_DIR="${CHIPYARD_ROOT}/conference/HybridMapper/output/pipeline_runtime/bertmini"
+PIPELINE_RUNTIME_ARTIFACT_DIR="${PIPELINE_RUNTIME_ARTIFACT_DIR:-}"
+TARGET_KEY="${TARGET_KEY:-rerocc_globalnoc_coupleddma_c2_g2_d2_spad1024kb_dram19_noc64_mac1024}"
 
 HOST_INIT_CHECK_ONLY="${HOST_INIT_CHECK_ONLY:-0}"
 SKIP_BUILD="${SKIP_BUILD:-0}"
+PIPELINE_RUNTIME_PROGRESS="${PIPELINE_RUNTIME_PROGRESS:-0}"
+BUILD_DIR="${GEMMINI_ROCC_TESTS_DIR}/build"
+REROCC_LINUX_BUILD_DIR="${BUILD_DIR}/rerocc-linux-tests"
 
 require_file() {
   local path="$1"
@@ -25,7 +32,29 @@ copy_required_file() {
   local dst="$2"
   require_file "${src}"
   mkdir -p "$(dirname "${dst}")"
+  if [ -e "${dst}" ] && [ "$(readlink -f "${src}")" = "$(readlink -f "${dst}")" ]; then
+    return 0
+  fi
   cp -f "${src}" "${dst}"
+}
+
+resolve_runtime_artifact_dir() {
+  local candidate
+  for candidate in \
+    "${PIPELINE_RUNTIME_ARTIFACT_DIR}" \
+    "${DEFAULT_HYBRIDMAPPER_BERT_DIR}" \
+    "${PIPELINE_RUNTIME_BERT_DIR}"; do
+    if [ -n "${candidate}" ] && [ -f "${candidate}/model.layers.yaml" ] && \
+       [ -f "${candidate}/runtime_model.bin" ] && \
+       [ -f "${candidate}/runtime_input.${TARGET_KEY}.bin" ] && \
+       [ -f "${candidate}/gemmini_layer_mapping.${TARGET_KEY}.yaml" ]; then
+      printf '%s\n' "$(cd "${candidate}" && pwd)"
+      return 0
+    fi
+  done
+
+  echo "missing bertmini runtime artifacts. Set PIPELINE_RUNTIME_ARTIFACT_DIR, regenerate ${DEFAULT_HYBRIDMAPPER_BERT_DIR}, or ensure the overlay cache exists at ${PIPELINE_RUNTIME_BERT_DIR}." >&2
+  exit 1
 }
 
 find_linux_cc() {
@@ -41,23 +70,31 @@ find_linux_cc() {
 }
 
 check_runtime_artifacts() {
-  require_file "${HYBRIDMAPPER_BERT_DIR}/layers_gemmini.yaml"
-  require_file "${HYBRIDMAPPER_BERT_DIR}/dummy_weight/model.bin"
-  require_file "${HYBRIDMAPPER_BERT_DIR}/dummy_input/input.bin"
-  require_file "${HYBRIDMAPPER_BERT_DIR}/dummy_input/golden/golden.bin"
+  require_file "${RUNTIME_BERT_DIR}/model.layers.yaml"
+  require_file "${RUNTIME_BERT_DIR}/runtime_model.bin"
+  require_file "${RUNTIME_BERT_DIR}/runtime_input.${TARGET_KEY}.bin"
+  require_file "${RUNTIME_BERT_DIR}/gemmini_layer_mapping.${TARGET_KEY}.yaml"
   for method in ours2 gemini2 tangram2; do
-    require_file "${HYBRIDMAPPER_BERT_DIR}/entire_model/2_1024_16_19_64_${method}.yaml"
+    require_file "${RUNTIME_BERT_DIR}/pipeline_mapping.${TARGET_KEY}.${method}.yaml"
+    require_file "${RUNTIME_BERT_DIR}/golden.${TARGET_KEY}.${method}.bin"
   done
-  if ! find "${HYBRIDMAPPER_BERT_DIR}/mapping_gemmini" -maxdepth 1 -name '*.yaml' -type f | grep -q .; then
-    echo "missing required artifact: ${HYBRIDMAPPER_BERT_DIR}/mapping_gemmini/*.yaml" >&2
-    exit 1
-  fi
 }
 
 check_built_linux_binaries() {
   require_file "${GEMMINI_ROCC_TESTS_DIR}/build/rerocc-linux-tests/rerocc_gemmini_conv_matrix-linux"
   require_file "${GEMMINI_ROCC_TESTS_DIR}/build/rerocc-linux-tests/rerocc_dma_matrix-linux"
   require_file "${GEMMINI_ROCC_TESTS_DIR}/build/rerocc-linux-tests/rerocc_pipeline_runtime-linux"
+}
+
+verify_pipeline_runtime_binary() {
+  local bin="$1"
+  require_file "${bin}"
+  if [ "${PIPELINE_RUNTIME_PROGRESS}" != "0" ]; then
+    if ! LC_ALL=C grep -aFq "[prt-progress] runtime begin backend=%u batch=%u watchdog_ms=%u" "${bin}"; then
+      echo "pipeline runtime binary missing expected early-init progress string: ${bin}" >&2
+      exit 1
+    fi
+  fi
 }
 
 build_linux_binaries() {
@@ -68,21 +105,43 @@ build_linux_binaries() {
     exit 1
   fi
 
-  echo "Building rerocc-linux-tests binaries with ${linux_cc}"
+  echo "Building rerocc-linux-tests binaries with ${linux_cc} (PIPELINE_RUNTIME_PROGRESS=${PIPELINE_RUNTIME_PROGRESS})"
   pushd "${GEMMINI_ROCC_TESTS_DIR}" >/dev/null
   autoconf
-  mkdir -p build
-  pushd build >/dev/null
+  mkdir -p "${BUILD_DIR}"
+  pushd "${BUILD_DIR}" >/dev/null
   ../configure
-  make CC_LINUX="${linux_cc}" TARGET=riscv64-unknown-linux-gnu- -j rerocc-linux-tests
+  make \
+    CC_LINUX="${linux_cc}" \
+    TARGET=riscv64-unknown-linux-gnu- \
+    PIPELINE_RUNTIME_PROGRESS="${PIPELINE_RUNTIME_PROGRESS}" \
+    -j rerocc-linux-tests
   popd >/dev/null
+  rebuild_pipeline_runtime_binary "${linux_cc}"
   popd >/dev/null
+}
+
+rebuild_pipeline_runtime_binary() {
+  local linux_cc="$1"
+
+  mkdir -p "${REROCC_LINUX_BUILD_DIR}"
+  rm -f "${REROCC_LINUX_BUILD_DIR}/rerocc_pipeline_runtime-linux"
+  rm -rf "${REROCC_LINUX_BUILD_DIR}/.pipeline_runtime_objs"
+  make \
+    -C "${REROCC_LINUX_BUILD_DIR}" \
+    -f "${REROCC_TESTS_DIR}/Makefile" \
+    abs_top_srcdir="${GEMMINI_ROCC_TESTS_DIR}" \
+    src_dir="${REROCC_TESTS_DIR}" \
+    XLEN=64 \
+    CC_LINUX="${linux_cc}" \
+    PIPELINE_RUNTIME_PROGRESS="${PIPELINE_RUNTIME_PROGRESS}" \
+    rerocc_pipeline_runtime-linux
 }
 
 stage_overlay() {
   mkdir -p "${OVERLAY_ROOT_DIR}"
-  mkdir -p "${PIPELINE_RUNTIME_BERT_DIR}/mapping_gemmini"
-  mkdir -p "${PIPELINE_RUNTIME_BERT_DIR}/entire_model"
+  rm -rf "${PIPELINE_RUNTIME_OVERLAY_DIR}"
+  mkdir -p "${PIPELINE_RUNTIME_BERT_DIR}"
 
   cp -f "${GEMMINI_ROCC_TESTS_DIR}/build/rerocc-linux-tests/"*-linux "${OVERLAY_ROOT_DIR}/"
   copy_required_file \
@@ -98,22 +157,30 @@ stage_overlay() {
   chmod +x "${OVERLAY_ROOT_DIR}/run_rerocc_pipeline_runtime_bertmini.sh"
   chmod +x "${PIPELINE_RUNTIME_OVERLAY_DIR}/rerocc_pipeline_runtime-linux"
 
-  copy_required_file "${HYBRIDMAPPER_BERT_DIR}/layers_gemmini.yaml" "${PIPELINE_RUNTIME_BERT_DIR}/layers_gemmini.yaml"
-  copy_required_file "${HYBRIDMAPPER_BERT_DIR}/dummy_weight/model.bin" "${PIPELINE_RUNTIME_BERT_DIR}/model.bin"
-  copy_required_file "${HYBRIDMAPPER_BERT_DIR}/dummy_input/input.bin" "${PIPELINE_RUNTIME_BERT_DIR}/input.bin"
-  copy_required_file "${HYBRIDMAPPER_BERT_DIR}/dummy_input/golden/golden.bin" "${PIPELINE_RUNTIME_BERT_DIR}/golden.bin"
+  copy_required_file "${RUNTIME_BERT_DIR}/model.layers.yaml" "${PIPELINE_RUNTIME_BERT_DIR}/model.layers.yaml"
+  copy_required_file "${RUNTIME_BERT_DIR}/runtime_model.bin" "${PIPELINE_RUNTIME_BERT_DIR}/runtime_model.bin"
+  copy_required_file "${RUNTIME_BERT_DIR}/runtime_input.${TARGET_KEY}.bin" "${PIPELINE_RUNTIME_BERT_DIR}/runtime_input.${TARGET_KEY}.bin"
+  copy_required_file "${RUNTIME_BERT_DIR}/gemmini_layer_mapping.${TARGET_KEY}.yaml" "${PIPELINE_RUNTIME_BERT_DIR}/gemmini_layer_mapping.${TARGET_KEY}.yaml"
+  if [ -f "${RUNTIME_BERT_DIR}/manifest.yaml" ]; then
+    copy_required_file "${RUNTIME_BERT_DIR}/manifest.yaml" "${PIPELINE_RUNTIME_BERT_DIR}/manifest.yaml"
+  fi
+  if [ -f "${RUNTIME_BERT_DIR}/hardware_target.${TARGET_KEY}.yaml" ]; then
+    copy_required_file \
+      "${RUNTIME_BERT_DIR}/hardware_target.${TARGET_KEY}.yaml" \
+      "${PIPELINE_RUNTIME_BERT_DIR}/hardware_target.${TARGET_KEY}.yaml"
+  fi
 
   for method in ours2 gemini2 tangram2; do
     copy_required_file \
-      "${HYBRIDMAPPER_BERT_DIR}/entire_model/2_1024_16_19_64_${method}.yaml" \
-      "${PIPELINE_RUNTIME_BERT_DIR}/entire_model/2_1024_16_19_64_${method}.yaml"
-  done
-
-  find "${HYBRIDMAPPER_BERT_DIR}/mapping_gemmini" -maxdepth 1 -name '*.yaml' -type f | while read -r src; do
-    copy_required_file "${src}" "${PIPELINE_RUNTIME_BERT_DIR}/mapping_gemmini/$(basename "${src}")"
+      "${RUNTIME_BERT_DIR}/pipeline_mapping.${TARGET_KEY}.${method}.yaml" \
+      "${PIPELINE_RUNTIME_BERT_DIR}/pipeline_mapping.${TARGET_KEY}.${method}.yaml"
+    copy_required_file \
+      "${RUNTIME_BERT_DIR}/golden.${TARGET_KEY}.${method}.bin" \
+      "${PIPELINE_RUNTIME_BERT_DIR}/golden.${TARGET_KEY}.${method}.bin"
   done
 }
 
+RUNTIME_BERT_DIR="$(resolve_runtime_artifact_dir)"
 check_runtime_artifacts
 
 if [ "${HOST_INIT_CHECK_ONLY}" = "1" ]; then
@@ -128,6 +195,7 @@ else
 fi
 
 check_built_linux_binaries
+verify_pipeline_runtime_binary "${GEMMINI_ROCC_TESTS_DIR}/build/rerocc-linux-tests/rerocc_pipeline_runtime-linux"
 stage_overlay
 
 echo "host-init overlay stage PASS"

@@ -6,6 +6,7 @@
 
 #include <pthread.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #if defined(__linux__)
@@ -16,12 +17,13 @@
 #endif
 
 #include "prt_runtime.h"
+#include "prt_progress.h"
 
 #define PRT_SPM_FAULT_OUT_OF_RANGE 1U
 #define PRT_SPM_FAULT_INVALID_PTE 2U
 #define PRT_SPM_PTE_VALID_MASK 1ULL
 
-static size_t host_page_size_bytes(void) {
+size_t prt_host_page_size_bytes(void) {
 #if defined(__linux__)
   long page_sz = sysconf(_SC_PAGESIZE);
   if (page_sz > 0) return (size_t)page_sz;
@@ -35,6 +37,34 @@ static size_t align_up_size(size_t value, size_t align) {
 }
 
 #if defined(__linux__) && defined(__riscv)
+static size_t linux_huge_page_size_bytes(void) {
+  static size_t cached = 0;
+  FILE *fp;
+  char line[128];
+
+  if (cached != 0) return cached;
+
+  fp = fopen("/proc/meminfo", "r");
+  if (!fp) {
+    cached = 2U * 1024U * 1024U;
+    return cached;
+  }
+
+  while (fgets(line, sizeof(line), fp) != NULL) {
+    size_t kb = 0;
+    if (sscanf(line, "Hugepagesize: %zu kB", &kb) == 1 && kb != 0) {
+      cached = kb * 1024U;
+      break;
+    }
+  }
+
+  fclose(fp);
+  if (cached == 0) cached = 2U * 1024U * 1024U;
+  return cached;
+}
+#endif
+
+#if defined(__linux__) && defined(__riscv)
 static int linux_pagemap_fd(void) {
   static int fd = -2;
   if (fd != -2) return fd;
@@ -42,9 +72,9 @@ static int linux_pagemap_fd(void) {
   return fd;
 }
 
-static int linux_virt_to_phys(const void *vaddr, uint64_t *paddr) {
+int prt_host_virt_to_phys(const void *vaddr, uint64_t *paddr) {
   const uint64_t va = (uint64_t)(uintptr_t)vaddr;
-  const size_t page_sz = host_page_size_bytes();
+  const size_t page_sz = prt_host_page_size_bytes();
   const uint64_t vpn = va / (uint64_t)page_sz;
   const off_t offset = (off_t)(vpn * sizeof(uint64_t));
   uint64_t entry = 0;
@@ -68,6 +98,156 @@ static int linux_virt_to_phys(const void *vaddr, uint64_t *paddr) {
   *paddr = pfn * (uint64_t)page_sz + (va % (uint64_t)page_sz);
   return PRT_OK;
 }
+
+static int probe_phys_contig_range(void *base, size_t bytes, size_t probe_page_bytes,
+                                   uint64_t *base_pa, int *last_rc) {
+  uint64_t first_pa = 0;
+  int rc = PRT_OK;
+
+  if (!base || probe_page_bytes == 0 || !base_pa) return PRT_ERR_INVAL;
+
+  memset(base, 0, bytes);
+  for (size_t off = 0; off < bytes; off += probe_page_bytes) {
+    uint64_t pa = 0;
+    volatile uint8_t *ptr = (volatile uint8_t *)base + off;
+    *ptr = 0;
+    rc = prt_host_virt_to_phys((const void *)ptr, &pa);
+    if (rc != PRT_OK) {
+      if (last_rc) *last_rc = rc;
+      return rc;
+    }
+    if (off == 0) {
+      first_pa = pa;
+    } else if (pa != first_pa + (uint64_t)off) {
+      if (last_rc) *last_rc = PRT_ERR_NOT_READY;
+      return PRT_ERR_NOT_READY;
+    }
+  }
+
+  *base_pa = first_pa;
+  if (last_rc) *last_rc = PRT_OK;
+  return PRT_OK;
+}
+
+static int try_alloc_spm_pte_hugetlb_anon(prt_runtime_t *rt, size_t req_bytes, size_t probe_page_bytes) {
+  const size_t huge_page_bytes = linux_huge_page_size_bytes();
+  const size_t alloc_bytes = align_up_size(req_bytes, huge_page_bytes);
+  void *base;
+  uint64_t base_pa = 0;
+  int rc = PRT_ERR_NOT_READY;
+
+  base = mmap(NULL, alloc_bytes, PROT_READ | PROT_WRITE,
+              MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB
+#ifdef MAP_POPULATE
+                  | MAP_POPULATE
+#endif
+              ,
+              -1, 0);
+  if (base == MAP_FAILED) {
+    int err = errno;
+    PRT_PROGRESS_LOG("spm-pte hugetlb anon failed bytes=%llu errno=%d",
+                     (unsigned long long)alloc_bytes,
+                     err);
+    return err == ENOMEM ? PRT_ERR_NOMEM : PRT_ERR_NOT_READY;
+  }
+
+  rc = probe_phys_contig_range(base, req_bytes, probe_page_bytes, &base_pa, NULL);
+  if (rc == PRT_OK) {
+    rt->spm_pte = (uint64_t *)base;
+    rt->spm_pte_alloc = base;
+    rt->spm_pte_alloc_bytes = alloc_bytes;
+    rt->spm_ptbr_pa = base_pa;
+    PRT_PROGRESS_LOG("spm-pte hugetlb anon ok req_bytes=%llu alloc_bytes=%llu pa=0x%llx",
+                     (unsigned long long)req_bytes,
+                     (unsigned long long)alloc_bytes,
+                     (unsigned long long)base_pa);
+    return PRT_OK;
+  }
+
+  PRT_PROGRESS_LOG("spm-pte hugetlb anon probe failed req_bytes=%llu alloc_bytes=%llu rc=%d",
+                   (unsigned long long)req_bytes,
+                   (unsigned long long)alloc_bytes,
+                   rc);
+  munmap(base, alloc_bytes);
+  return rc;
+}
+
+static int try_alloc_spm_pte_hugetlbfs(prt_runtime_t *rt, size_t req_bytes, size_t probe_page_bytes) {
+  static unsigned int seq = 0;
+  const char *dir = "/dev/hugepages";
+  const size_t huge_page_bytes = linux_huge_page_size_bytes();
+  const size_t alloc_bytes = align_up_size(req_bytes, huge_page_bytes);
+  char path[160];
+  int fd;
+  void *base;
+  uint64_t base_pa = 0;
+  int rc = PRT_ERR_NOT_READY;
+
+  snprintf(path, sizeof(path), "%s/prt-spm-pte-%ld-%u", dir, (long)getpid(), seq++);
+  fd = open(path, O_CREAT | O_EXCL | O_RDWR, 0600);
+  if (fd < 0) {
+    int err = errno;
+    PRT_PROGRESS_LOG("spm-pte hugetlbfs open failed path=%s errno=%d", path, err);
+    return PRT_ERR_NOT_READY;
+  }
+
+  if (ftruncate(fd, (off_t)alloc_bytes) != 0) {
+    int err = errno;
+    PRT_PROGRESS_LOG("spm-pte hugetlbfs ftruncate failed path=%s bytes=%llu errno=%d",
+                     path,
+                     (unsigned long long)alloc_bytes,
+                     err);
+    close(fd);
+    unlink(path);
+    return err == ENOMEM ? PRT_ERR_NOMEM : PRT_ERR_NOT_READY;
+  }
+
+  base = mmap(NULL, alloc_bytes, PROT_READ | PROT_WRITE,
+              MAP_SHARED
+#ifdef MAP_POPULATE
+                  | MAP_POPULATE
+#endif
+              ,
+              fd, 0);
+  close(fd);
+  unlink(path);
+  if (base == MAP_FAILED) {
+    int err = errno;
+    PRT_PROGRESS_LOG("spm-pte hugetlbfs mmap failed bytes=%llu errno=%d",
+                     (unsigned long long)alloc_bytes,
+                     err);
+    return err == ENOMEM ? PRT_ERR_NOMEM : PRT_ERR_NOT_READY;
+  }
+
+  rc = probe_phys_contig_range(base, req_bytes, probe_page_bytes, &base_pa, NULL);
+  if (rc == PRT_OK) {
+    rt->spm_pte = (uint64_t *)base;
+    rt->spm_pte_alloc = base;
+    rt->spm_pte_alloc_bytes = alloc_bytes;
+    rt->spm_ptbr_pa = base_pa;
+    PRT_PROGRESS_LOG("spm-pte hugetlbfs ok req_bytes=%llu alloc_bytes=%llu pa=0x%llx",
+                     (unsigned long long)req_bytes,
+                     (unsigned long long)alloc_bytes,
+                     (unsigned long long)base_pa);
+    return PRT_OK;
+  }
+
+  PRT_PROGRESS_LOG("spm-pte hugetlbfs probe failed req_bytes=%llu alloc_bytes=%llu rc=%d",
+                   (unsigned long long)req_bytes,
+                   (unsigned long long)alloc_bytes,
+                   rc);
+  munmap(base, alloc_bytes);
+  return rc;
+}
+
+#else
+
+int prt_host_virt_to_phys(const void *vaddr, uint64_t *paddr) {
+  (void)vaddr;
+  (void)paddr;
+  return PRT_ERR_NOT_IMPL;
+}
+
 #endif
 
 static int reserve_spm_alias_range(prt_runtime_t *rt) {
@@ -75,7 +255,7 @@ static int reserve_spm_alias_range(prt_runtime_t *rt) {
   if (rt->cfg.spm_xlate_range_base != 0 || rt->cfg.spm_xlate_range_size == 0) return PRT_OK;
 #if defined(__linux__)
   {
-    size_t bytes = align_up_size((size_t)rt->cfg.spm_xlate_range_size, host_page_size_bytes());
+    size_t bytes = align_up_size((size_t)rt->cfg.spm_xlate_range_size, prt_host_page_size_bytes());
     void *base = mmap(NULL, bytes, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
     if (base == MAP_FAILED) return PRT_ERR_NOMEM;
     rt->spm_alias_map = base;
@@ -93,13 +273,20 @@ static int alloc_spm_pte_storage(prt_runtime_t *rt) {
   if (!rt || rt->spm_pte_cap == 0) return PRT_ERR_INVAL;
 #if defined(__linux__) && defined(__riscv)
   {
-    const size_t page_sz = host_page_size_bytes();
+    const size_t page_sz = prt_host_page_size_bytes();
     const size_t bytes = align_up_size((size_t)rt->spm_pte_cap * sizeof(uint64_t), page_sz);
+    int last_rc = PRT_ERR_NOT_READY;
     int attempt;
+
+    last_rc = try_alloc_spm_pte_hugetlb_anon(rt, bytes, page_sz);
+    if (last_rc == PRT_OK) return PRT_OK;
+
+    last_rc = try_alloc_spm_pte_hugetlbfs(rt, bytes, page_sz);
+    if (last_rc == PRT_OK) return PRT_OK;
+
     for (attempt = 0; attempt < 32; ++attempt) {
       void *base;
       uint64_t base_pa = 0;
-      int ok = 1;
       base = mmap(NULL, bytes, PROT_READ | PROT_WRITE,
                   MAP_PRIVATE | MAP_ANONYMOUS
 #ifdef MAP_POPULATE
@@ -107,32 +294,28 @@ static int alloc_spm_pte_storage(prt_runtime_t *rt) {
 #endif
                   , -1, 0);
       if (base == MAP_FAILED) continue;
-      memset(base, 0, bytes);
-      for (size_t off = 0; off < bytes; off += page_sz) {
-        uint64_t pa = 0;
-        volatile uint8_t *ptr = (volatile uint8_t *)base + off;
-        *ptr = 0;
-        if (linux_virt_to_phys((const void *)ptr, &pa) != PRT_OK) {
-          ok = 0;
-          break;
-        }
-        if (off == 0) {
-          base_pa = pa;
-        } else if (pa != base_pa + (uint64_t)off) {
-          ok = 0;
-          break;
-        }
-      }
-      if (ok) {
+      last_rc = probe_phys_contig_range(base, bytes, page_sz, &base_pa, &last_rc);
+      if (last_rc == PRT_OK) {
         rt->spm_pte = (uint64_t *)base;
         rt->spm_pte_alloc = base;
         rt->spm_pte_alloc_bytes = bytes;
         rt->spm_ptbr_pa = base_pa;
         return PRT_OK;
       }
+      PRT_PROGRESS_LOG("spm-pte alloc retry attempt=%d bytes=%llu last_rc=%d",
+                       attempt + 1,
+                       (unsigned long long)bytes,
+                       last_rc);
       munmap(base, bytes);
     }
-    return PRT_ERR_NOT_READY;
+    fprintf(stderr,
+            "spm_pte alloc failed: entries=%u bytes=%llu attempts=%d last_rc=%s(%d)\n",
+            rt->spm_pte_cap,
+            (unsigned long long)bytes,
+            32,
+            prt_err_str(last_rc),
+            last_rc);
+    return last_rc == PRT_OK ? PRT_ERR_NOT_READY : last_rc;
   }
 #else
   rt->spm_pte = (uint64_t *)calloc(rt->spm_pte_cap, sizeof(uint64_t));
@@ -363,7 +546,8 @@ int prt_page_table_init(prt_runtime_t *rt) {
   rt->spm_tensor_map_cap = 0;
 
   page_bytes = rt_page_bytes(rt);
-  rt->spm_pte_cap = total_pages ? (total_pages * 8U) : 1024U;
+  // `spm_pte_cap` is counted in PTE entries, not bytes.
+  rt->spm_pte_cap = total_pages ? total_pages : 1024U;
   if (rt->spm_pte_cap < total_pages) rt->spm_pte_cap = total_pages;
 
   if (rt->cfg.spm_xlate_range_size != 0) {
@@ -637,6 +821,52 @@ int prt_spm_unmap_tensor(prt_runtime_t *rt, uint32_t tensor_id) {
     return PRT_OK;
   }
   return PRT_ERR_INVAL;
+}
+
+int prt_spm_reserve_vpages(prt_runtime_t *rt, uint32_t page_count, uint32_t *out_vpage_start) {
+  uint32_t start;
+  if (!rt || !out_vpage_start || page_count == 0) return PRT_ERR_INVAL;
+  pthread_mutex_lock(&rt->page_lock);
+  if (rt->spm_next_vpage + page_count > rt->spm_pte_cap) {
+    pthread_mutex_unlock(&rt->page_lock);
+    return PRT_ERR_NOMEM;
+  }
+  start = rt->spm_next_vpage;
+  rt->spm_next_vpage += page_count;
+  pthread_mutex_unlock(&rt->page_lock);
+  *out_vpage_start = start;
+  return PRT_OK;
+}
+
+int prt_spm_bind_vpages(prt_runtime_t *rt, uint32_t vpage_start, const prt_page_list_t *pages,
+                        uint32_t page_count) {
+  uint32_t page_bytes;
+  if (!rt || !pages || !pages->data || page_count == 0) return PRT_ERR_INVAL;
+  if (pages->size < page_count) return PRT_ERR_INVAL;
+  if (vpage_start + page_count > rt->spm_pte_cap) return PRT_ERR_INVAL;
+  page_bytes = rt_page_bytes(rt);
+
+  pthread_mutex_lock(&rt->page_lock);
+  for (uint32_t i = 0; i < page_count; ++i) {
+    rt->spm_pte[vpage_start + i] = pack_spm_pte(
+      rt,
+      PRT_SHARED_SPAD_GLOBAL_ADDR_BASE +
+        (uint64_t)pages->data[i].ppn * (uint64_t)page_bytes);
+  }
+  pthread_mutex_unlock(&rt->page_lock);
+  return PRT_OK;
+}
+
+int prt_spm_unbind_vpages(prt_runtime_t *rt, uint32_t vpage_start, uint32_t page_count) {
+  if (!rt || page_count == 0) return PRT_ERR_INVAL;
+  if (vpage_start + page_count > rt->spm_pte_cap) return PRT_ERR_INVAL;
+
+  pthread_mutex_lock(&rt->page_lock);
+  for (uint32_t i = 0; i < page_count; ++i) {
+    rt->spm_pte[vpage_start + i] = 0;
+  }
+  pthread_mutex_unlock(&rt->page_lock);
+  return PRT_OK;
 }
 
 int prt_spm_translate_range(prt_runtime_t *rt, uint64_t vaddr, uint64_t bytes,

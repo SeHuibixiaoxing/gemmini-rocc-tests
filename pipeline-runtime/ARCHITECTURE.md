@@ -2,243 +2,207 @@
 
 ## 1. 目标与边界
 
-`pipeline-runtime` 的职责不是做一个可切换 backend 的通用执行器，而是实现 Gemmini 中 pipeline 软件栈的执行侧。
-当前唯一主目标是：
+`pipeline-runtime` 的职责是消费 HybridMapper 导出的 runtime interface，并把它映射到 Gemmini/ReRoCC/CoupledDMA 硬件执行路径。
 
-- 输入 HybridMapper 为 `bertmini` 生成的 pipeline 编排结果。
-- 在 `globalnoc + ReRoCC + CoupledDMA` 最新硬件上执行这些 stage。
-- 让 Linux 目标侧结果与 CPU golden 一致。
+当前边界固定为：
 
-MudnacSim 的定位是参考模拟器：
+- 模型主线只看 `bertmini`
+- 最终 correctness gate 只看 Linux on FireSim F2
+- 当前阶段只保留 single-layer-stage 契约
+- 不在 runtime 中引入 `backend {mudnacsim, gemmini}` 之类的接口分叉
+- metasim 和 baremetal coupleddma 回归只作为回归安全网，不是最终验收
 
-- 参考其运行时协同机制。
-- 复用同一份 pipeline 编排 YAML schema。
-- 不要求与 Gemmini runtime 对同一模型生成完全相同的 model / layer mapping 数值文件。
-- 不在 runtime 中引入 `backend {mudnacsim, gemmini}` 之类分叉字段。
+## 2. Artifact 生产链
 
-当前阶段的非目标：
+### 2.1 Exporter
 
-- 不把 quick-diag 或 baremetal metasim 当作终极验收。
-- 不在 host/metsim 本地近似验证上输出性能、cycle/ns 或 QoS 结论；这类结论只在 AWS FPGA replay 上建立。
-- 不扩展到 non-globalnoc 主路径。
+当前 canonical exporter 是：
 
-## 2. 外部组件与协同关系
+- `conference/HybridMapper/scripts/create-pipeline-runtime-artifacts.py`
 
-### 2.1 HybridMapper
+默认输出目录是：
 
-根目录固定为 `/home/wzy/proj/wp2/chipyard/tmp/HybridMapper`。
+- `conference/HybridMapper/output/pipeline_runtime/bertmini`
 
-它负责离线生成：
+### 2.2 Runtime artifacts
 
-- bertmini 模型定义导出的层信息。
-- 逐层 layer mapping。
-- 全图 pipeline 编排 `entire_model/*.yaml`。
-- 运行时需要的 dummy `model.bin / input.bin / golden.bin`。
+当前 runtime 真实消费的文件名与 `create-pipeline-runtime-artifacts.py` 保持一致：
 
-### 2.2 MudnacSim
+- `model.layers.yaml`
+- `gemmini_layer_mapping.<target_key>.yaml`
+- `pipeline_mapping.<target_key>.<method>.yaml`
+- `runtime_model.bin`
+- `runtime_input.<target_key>.bin`
+- `golden.<target_key>.<method>.bin`
 
-根目录固定为 `/home/wzy/proj/wp2/chipyard/tmp/MudnacSim`。
+当前主目标对应的 `target_key` 是：
 
-它是参考模拟器，主要提供两类参考：
+- `rerocc_globalnoc_coupleddma_c2_g2_d2_spad1024kb_dram19_noc64_mac1024`
 
-- pipeline runtime 协同机制。
-- `entire_model/*.yaml` 的消费契约。
+这些文件会同时被：
 
-本项目当前采用的协同基线来自：
+- host closure 脚本读取
+- Linux overlay 打包脚本读取
+- guest 内的 `rerocc_pipeline_runtime-linux` 读取
 
-- `/home/wzy/proj/wp2/chipyard/tmp/mudnac_hybridmapper_collab_docs/v2/协同机制文档_v2.md`
-- `/home/wzy/proj/wp2/chipyard/tmp/mudnac_hybridmapper_collab_docs/v3/协同机制文档_v3.md`
+## 3. Runtime 软件结构
 
-### 2.3 pipeline-runtime
+### 3.1 两个二进制形态
 
-`pipeline-runtime` 是唯一执行实现，分成两种构建形态：
+- Host binary:
+  `generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/pipeline_runtime`
+- RISC-V Linux binary:
+  `generators/gemmini/software/gemmini-rocc-tests/build/rerocc-linux-tests/rerocc_pipeline_runtime-linux`
 
-- host Linux binary：`pipeline_runtime`
-- RISC-V Linux target binary：`rerocc_pipeline_runtime-linux`
+两者共享同一套核心实现，只是在构建系统和运行环境上不同。
 
-两者复用同一套核心执行逻辑：
+### 3.2 关键源文件
 
-- `prt_main_entry(...)`
-- YAML 装载
-- stage 解析
-- tensor 生命周期管理
-- Gemmini artifacts 校验
-- strict golden compare
+- `src/main.c`
+  CLI、默认配置、`[prt-early]` 启动日志
+- `src/prt_runtime.c`
+  runtime init/run/destroy、shared-spad xlate bootstrap、stage worker 启动
+- `src/prt_dma.c`
+  CoupledDMA submit/wait 关键路径
+- `src/prt_rerocc.c`
+  ReRoCC acquire/opcode/manager 绑定逻辑
+- `src/prt_gemmini_artifacts.c`
+  layer mapping / pipeline mapping 解析与校验
+- `src/prt_page_table.c`
+  Linux HugeTLB、pagemap 校验、PTBR/PTE backing 准备
+- `src/prt_scheduler.c`
+  stage 调度与 worker 生命周期
 
-### 2.4 rerocc-linux-tests overlay
+## 4. Linux 打包与 guest 布局
 
-最终目标运行链不新造部署系统，而是复用现有 `rerocc-linux-tests` overlay / rootfs 机制。
+### 4.1 Host-side staging
 
-目标 rootfs 约定路径固定为：
+当前 Linux 打包入口是：
+
+- `generators/gemmini/software/gemmini-rocc-tests/rerocc-linux-tests-coupleddma/workload/host-init.sh`
+
+它负责：
+
+- 构建 `rerocc_pipeline_runtime-linux`
+- 构建/检查 Linux coupleddma 回归二进制
+- 把 runtime binary 与 `bertmini` artifacts staged 到 FireMarshal overlay
+
+### 4.2 FireMarshal workload
+
+当前 dedicated workload 是：
+
+- `generators/gemmini/software/gemmini-rocc-tests/rerocc-linux-tests-coupleddma/workload/rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime.json`
+
+guest 入口脚本是：
+
+- `generators/gemmini/software/gemmini-rocc-tests/rerocc-linux-tests-coupleddma/workload/overlay/root/rerocc-linux-tests/run_rerocc_pipeline_runtime_bertmini.sh`
+
+### 4.3 Guest 内固定路径
+
+guest rootfs 中的 canonical 路径是：
 
 - `/root/rerocc-linux-tests/pipeline-runtime/rerocc_pipeline_runtime-linux`
-- `/root/rerocc-linux-tests/pipeline-runtime/bertmini/layers_gemmini.yaml`
-- `/root/rerocc-linux-tests/pipeline-runtime/bertmini/mapping_gemmini/*.yaml`
-- `/root/rerocc-linux-tests/pipeline-runtime/bertmini/entire_model/2_1024_16_19_64_<method>.yaml`
-- `/root/rerocc-linux-tests/pipeline-runtime/bertmini/model.bin`
-- `/root/rerocc-linux-tests/pipeline-runtime/bertmini/input.bin`
-- `/root/rerocc-linux-tests/pipeline-runtime/bertmini/golden.bin`
+- `/root/rerocc-linux-tests/pipeline-runtime/bertmini/model.layers.yaml`
+- `/root/rerocc-linux-tests/pipeline-runtime/bertmini/gemmini_layer_mapping.<target_key>.yaml`
+- `/root/rerocc-linux-tests/pipeline-runtime/bertmini/pipeline_mapping.<target_key>.<method>.yaml`
+- `/root/rerocc-linux-tests/pipeline-runtime/bertmini/runtime_model.bin`
+- `/root/rerocc-linux-tests/pipeline-runtime/bertmini/runtime_input.<target_key>.bin`
+- `/root/rerocc-linux-tests/pipeline-runtime/bertmini/golden.<target_key>.<method>.bin`
 
-## 3. Artifact 契约
+## 5. 软件到硬件的耦合点
 
-### 3.1 共享与分叉的边界
+### 5.1 目标硬件配置
 
-当前协议是：
+当前主配置锚点在：
 
-- 模型定义 Python 源共享，不复制模型实现。
-- pipeline 编排 YAML 共享，直接沿用 MudnacSim 使用的 `entire_model/*.yaml` schema。
-- layer mapping 不强求与 MudnacSim 数值一致，Gemmini runtime 维护自己的 `layers_gemmini.yaml` 和 `mapping_gemmini/`。
+- `generators/chipyard/src/main/scala/config/GemminiLearningReRoCCCoupledDMAConfigs.scala`
 
-也就是说，除了 layer mapping 以外，执行侧与参考模拟器尽量使用相同的 YAML 文件和相同的 schema 语义。
+其中主配置类是：
 
-### 3.2 bertmini 目录布局
+- `GemminiLearningConfigSpadReRoCCGlobalNoC2C1x2G2x1x2D2x1x2CoupledDMA`
 
-当前 canonical 产物位于：
+### 5.2 关键硬件文件
 
-- `/home/wzy/proj/wp2/chipyard/tmp/HybridMapper/output/pipeline/bertmini/layers_gemmini.yaml`
-- `/home/wzy/proj/wp2/chipyard/tmp/HybridMapper/output/pipeline/bertmini/mapping_gemmini/*.yaml`
-- `/home/wzy/proj/wp2/chipyard/tmp/HybridMapper/output/pipeline/bertmini/entire_model/2_1024_16_19_64_ours2.yaml`
-- `/home/wzy/proj/wp2/chipyard/tmp/HybridMapper/output/pipeline/bertmini/entire_model/2_1024_16_19_64_gemini2.yaml`
-- `/home/wzy/proj/wp2/chipyard/tmp/HybridMapper/output/pipeline/bertmini/entire_model/2_1024_16_19_64_tangram2.yaml`
-- `/home/wzy/proj/wp2/chipyard/tmp/HybridMapper/output/pipeline/bertmini/dummy_weight/model.bin`
-- `/home/wzy/proj/wp2/chipyard/tmp/HybridMapper/output/pipeline/bertmini/dummy_input/input.bin`
-- `/home/wzy/proj/wp2/chipyard/tmp/HybridMapper/output/pipeline/bertmini/dummy_input/golden/golden.bin`
+- `generators/gemmini/src/main/scala/gemmini/GemminiCoupledDMA.scala`
+- `generators/gemmini/src/main/scala/gemmini/Controller.scala`
+- `generators/gemmini/src/main/scala/gemmini/FrontendTLB.scala`
+- `generators/gemmini/src/main/scala/gemmini/SharedScratchpad.scala`
+- `generators/rerocc/src/main/scala/client/Client.scala`
+- `generators/rerocc/src/main/scala/manager/Manager.scala`
 
-### 3.3 Gemmini layer mapping 的最小字段
+### 5.3 Shared scratchpad translation
 
-`mapping_gemmini/<layer>.yaml` 当前只导出 runtime 真正要消费的字段：
+当前 shared-spad translation 的控制面固定复用 Gemmini controller 现有接口：
 
-- `target.accel`
-- `mapping.tile`
-- `mapping.dramBypass`
-- `mapping.spmBypass`
-- `performance.accelUtil`
-- `performance.spmUtil`
-- `performance.spmPageUtil`
-- `performance.dramAccess`
-- `others.spmTensorPageCount`
-- `others.spmTensorUtil`
-- `others.totalTiles`
-- `others.spmDimensions`
-- `others.spmTensorAddr`
-- `others.firstTensorPageNum`
+- `SPM_XLATE_CFG`
+- `SPM_XLATE_RANGE`
+- `SPM_XLATE_FLUSH`
+- `SPM_XLATE_FAULT`
 
-这份 layer mapping 的目标不是复刻原 HybridMapper 全量表达，而是为 runtime 提供：
+这套 context 同时服务：
 
-- 该层如何切 accelerator 内 tile。
-- 该层需要多少 shared SPM 页。
-- 该层是否走 DRAM / SPM bypass。
-- 后续 pipeline mapping 生成时需要参考的基本容量信息。
+- Gemmini compute/load-store
+- GemminiCoupledDMA
 
-## 4. Runtime 消费契约
+也就是说，软件不会再为 CoupledDMA 发明第二套单独控制面。
 
-### 4.1 文件式装载
+## 6. 当前执行契约
 
-runtime 通过 CLI 从文件装载 artifacts：
+### 6.1 Runtime CLI 契约
 
-- `--model-yaml` 指向 `layers_gemmini.yaml`
-- `--pipeline-yaml` 指向共享 `entire_model/*.yaml`
-- `--model-bin` / `--input` / `--golden` 指向 bertmini 二进制文件
+当前 `pipeline_runtime` / `rerocc_pipeline_runtime-linux` 的关键输入是：
 
-`mapping_gemmini/` 不通过独立参数传入，而是从 `--model-yaml` 所在目录自动发现。
+- `--model-yaml`
+- `--layer-mapping-yaml`
+- `--pipeline-yaml`
+- `--model-bin`
+- `--input`
+- `--golden` 或 `--golden-out`
 
-### 4.2 stage 与 candidate 匹配
+当前代码里 `--layer-mapping-yaml` 仍是显式参数，不是自动发现模式。
 
-当前实现与 MudnacSim 协同文档保持同一 stage 契约：
+### 6.2 Mapping 与地址语义
 
-- `stages` 是 `list<list<object>>`
-- runtime 只消费 `stages[i][0]`
-- 空列表直接报错
-- 多候选允许告警，但只取第 0 个
+- layer mapping 中的 shared-SPM 地址是 local zero-based 视图
+- runtime 在执行时负责实际 rebasing、页表装载和 accelerator 动态分配
+- 当前生成的 mapping 中，`physicalAccIds` 不是主语义路径
 
-对 Gemmini layer mapping 的命中规则固定为：
+### 6.3 DMA/Gemmini 接口调试基线
 
-- 用 `layerIdList[0] + accUtil + dramBypassList[0] + spmBypassList[0]`
-- 在 `mapping_gemmini/<layer>.yaml` 中唯一命中一个 candidate
-- 找不到或多命中都 fail fast
+遇到 runtime-hardware 接口问题时，优先对照 Linux 下已通过的 coupleddma 回归：
 
-### 4.3 第一阶段执行限制
+- `rerocc_dma_matrix_linux_coupleddma.c`
+- `rerocc_lc_gemmini_matrix_linux_coupleddma.c`
+- `rerocc_lc_coverage_linux_coupleddma.c`
+- `rerocc_lc_nonblocking_linux_coupleddma.c`
 
-当前只保证以下范围：
+特别是 `set_dst -> set_src -> wait` 的临界区，应尽量贴近这些正例，不要先从 baremetal 语义或自创调用序列推导。
 
-- 只支持 `conv` 和 `resadd`
-- 只支持 `layerIdList` 长度为 1 的 stage
-- 只支持 `entire_model`
+Linux userspace DMA 的通用 guardrails 另外单列在：
 
-### 4.4 tensor stay 语义
+- `docs/linux_dma_guardrails.md`
 
-当前 runtime 真正承接以下五类 tensor stay 语义：
+当前必须记住的规则：
 
-- `DRAM`
-- `DRAM_DEPEN`
-- `ISOLATE_SPM`
-- `SHARED_SPM`
-- `ALL_RINGBUFFER`
+- host DRAM <-> shared-SPM 不能把跨页 host buffer 当成单个连续 PA 区间
+- host DRAM 路径必须保持：
+  - 按 host page 分 chunk
+  - 每 chunk 单独 `virt_to_phys`
+  - `bytes >= 64` 且 `src_mod64 != dst_mod64` 时使用 bounce buffer
+- overlap fast path 不能绕过这些 guardrails；当前只允许在 contiguous SPM <-> SPM 路径上走 single-request submit
 
-这些语义直接决定：
+## 7. 验证层级
 
-- 数据从 DRAM 取还是从 shared / isolate SPM 继承
-- 是否需要 ring buffer 参与 decoupling
-- stage 间 buffer 生命周期如何切换
+当前验证顺序固定为：
 
-### 4.5 shared scratchpad 地址翻译
+1. artifact export 与 schema 校验
+2. host closure
+3. Linux overlay / binary staging
+4. Linux coupleddma 回归对照
+5. FireMarshal image build/install
+6. FireSim F2 replay
 
-当前 globalnoc 目标硬件上的 shared scratchpad 地址翻译分成两条兼容路径：
+当前 live blocker、最新停点和下一轮实验，不写在本文件，统一看：
 
-- legacy 直映路径：`use_page_table_xlate=false`，保留原先的 range-base 到 shared scratchpad base 的直接偏移翻译，不影响旧配置。
-- page-table 路径：`use_page_table_xlate=true`，在 Gemmini frontend TLB 里为 shared-spad 范围单独维护一套小 TLB，并通过专用 `SpmPageTableWalker` 从普通内存读取 PTE。
-
-2026-03-12 起，目标 globalnoc coupled-DMA 配置进一步把这套 shared-spad translation context 共享给 `GemminiCoupledDMA`：
-
-- Gemmini compute/load-store 路与 Gemmini shared-spad copy 路共用同一套 `enable / page_shift / ptbr / range / shared_base` 配置视图。
-- runtime 在启动时一次性下发 `SPM_XLATE_CFG / RANGE`，后续 segment 只做 `FLUSH` 以刷新 shared-spad translation cache。
-- CoupledDMA 当前复用同一份 page-table 上下文，但仍保持单 miss、独立 refill 的简化实现；这样不会改动旧配置的控制接口。
-- Linux 上 alias VA window 允许 runtime 动态保留；但 PTW 使用的 PTE slab 仍必须有连续物理 backing，因为硬件访问模型固定为 `ptbr + vpn * 8`。
-
-控制面由 Gemmini controller 的 `SPM_XLATE_CFG / RANGE / FLUSH / FAULT` 指令负责，当前锁定语义是：
-
-- 命中已编程范围且 `enable=1`：访问走 shared-spad PTW/TLB。
-- 命中已编程范围且 `enable=0`：访问直接透传到 shared scratchpad 物理地址，用于软件控制地关闭地址翻译。
-- `FLUSH` 只清 fault 和 shared-spad translation cache，不清 `enable/range` 寄存器。
-
-当前实现刻意保持简单：
-
-- PTE 格式固定为 `bit0=valid`，高位为物理页号。
-- shared-spad TLB miss 当前只允许一个 outstanding miss。
-- 该模式只在 `GemminiLearningConfigSpadReRoCCGlobalNoC2C1x2G2x1x2D2x1x2CoupledDMA` 这条目标配置上打开。
-
-## 5. 尺寸不匹配统一规则
-
-由于当前不支持 pooling 等层，上一层 output 和下一层 input 可能尺寸不匹配。
-第一阶段固定规则为：
-
-- 大变小：前缀裁剪
-- 小变大：尾部零填充
-
-具体语义是：
-
-- 保留低地址起始的 `min(src_bytes, dst_bytes)` 字节
-- 如果 `dst_bytes > src_bytes`，剩余高地址尾部全部补零
-
-这条规则必须在三处保持完全一致：
-
-- CPU golden 生成逻辑
-- host Linux 上的 `pipeline-runtime`
-- globalnoc Linux 目标执行入口
-
-第一阶段不新增 YAML 字段显式记录这件事，由运行时和 golden 生成器根据 producer / consumer tensor byte size 自动应用。
-
-## 6. 当前验证边界
-
-当前已经闭环的内容：
-
-- Host Linux 上的 bertmini `ours2 / gemini2 / tangram2` dummy-data correctness。
-- `layers_gemmini.yaml + mapping_gemmini + entire_model canonical YAML` 的生成链。
-- Linux overlay 的打包路径和 run script 入口。
-- coupled-DMA globalnoc U280 bitstream 的本地构建链；可复用的 `firesim.tar.gz` 与 `built-hwdb` 入口已经生成。
-
-当前尚未闭环的内容：
-
-- RISC-V Linux target binary 的本机交叉编译，受限于当前环境缺少交叉工具链。
-- globalnoc Linux FPGA replay，需要转到 AWS manager 执行；本地 bitstream 已成功生成，但 `built-hwdb` 里的 `file:///home/wzy/...` 路径不能直接在 AWS 复用，必须同步产物并重写路径，或在 AWS 重新 buildbitstream。
-- 更贴近真实双 Gemmini 硬件资源约束的 canonical pipeline mapping，当前 `2_1024_16_19_64_*.yaml` 仍是 host-friendly 基线，不等价于最终硬件最优解。
+- `NEXT_SESSION_PROMPT.md`
+- `conference/mudnac_hybridmapper_collab_docs/STATUS.md`

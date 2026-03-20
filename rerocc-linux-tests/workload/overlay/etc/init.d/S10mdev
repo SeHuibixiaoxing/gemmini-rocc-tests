@@ -1,0 +1,41 @@
+#!/bin/sh
+#
+# Run the mdev daemon.
+#
+# The default Buildroot script performs a recursive sysfs modalias scan and
+# modprobe coldplug pass after starting mdev. On this FireSim/Gemmini Linux
+# image that pass can stall boot for long periods before S40network/S99run,
+# while the workload does not rely on dynamically loaded modules there.
+# Keep the daemon startup, but skip the coldplug scan.
+#
+
+DAEMON="mdev"
+PIDFILE="/var/run/$DAEMON.pid"
+
+start() {
+	printf 'Starting %s: ' "$DAEMON"
+	start-stop-daemon -S -b -m -p "$PIDFILE" -x /sbin/mdev -- -df
+	[ $? -eq 0 ] && echo "OK" || echo "ERROR"
+}
+
+stop() {
+	printf 'Stopping %s: ' "$DAEMON"
+	start-stop-daemon -K -p "$PIDFILE"
+	[ $? -eq 0 ] && echo "OK" || echo "ERROR"
+}
+
+restart() {
+	stop
+	start
+}
+
+case "$1" in
+  start|stop|restart)
+	"$1"
+	;;
+  *)
+	echo "Usage: $0 {start|stop|restart}"
+	exit 1
+esac
+
+exit $?

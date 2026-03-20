@@ -44,7 +44,7 @@
 #endif
 
 #ifndef REROCC_LONG_CONV_ITERS
-#define REROCC_LONG_CONV_ITERS 4
+#define REROCC_LONG_CONV_ITERS 16
 #endif
 
 #ifndef REROCC_SHORT_CONV_ITERS

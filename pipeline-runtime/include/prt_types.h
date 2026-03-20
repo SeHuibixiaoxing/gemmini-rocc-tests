@@ -53,6 +53,19 @@ typedef enum {
   PRT_STAGE_OP_RESADD = 2
 } prt_stage_op_t;
 
+typedef enum {
+  PRT_BACKEND_FPGA = 0,
+  PRT_BACKEND_CPU = 1
+} prt_backend_t;
+
+typedef enum {
+  PRT_LAYER_SPLIT_UNSPEC = 0,
+  PRT_LAYER_SPLIT_SINGLE = 1,
+  PRT_LAYER_SPLIT_OC = 2,
+  PRT_LAYER_SPLIT_SPATIAL = 3,
+  PRT_LAYER_SPLIT_RESADD_SPATIAL = 4
+} prt_layer_split_t;
+
 typedef struct {
   uint32_t start;
   uint32_t end;
@@ -87,8 +100,18 @@ typedef struct {
   uint32_t tensor_id;
   volatile int done;
   volatile int hw_done_flag;
+  int hw_done_flag_pa_rc;
   int initialized;
   uint64_t submit_ns;
+  uint64_t debug_src_addr;
+  uint64_t debug_dst_addr;
+  uint64_t debug_bytes;
+  uint64_t debug_done_flag_va;
+  uint64_t debug_done_flag_pa;
+  uint64_t debug_last_pending_log_ns;
+  uint32_t debug_src_acc;
+  uint32_t debug_dst_acc;
+  uint32_t debug_progress_polls;
   int traced_complete;
   int status;
   int rr_scope_valid;
@@ -220,14 +243,41 @@ typedef struct {
   uint32_t layer_count;
   uint32_t acc_util;
   uint32_t acc_util_present;
+  uint32_t num_virtual_acc_ids;
+  uint32_t virtual_acc_ids[PRT_MAX_CORES];
+  uint32_t virtual_acc_ids_present;
+  uint32_t num_physical_acc_ids;
+  uint32_t physical_acc_ids[PRT_MAX_CORES];
+  uint32_t physical_acc_ids_present;
+  uint32_t split_kind;
   uint32_t num_entry;
   prt_tensor_binding_t *entry;
   uint32_t num_export;
   prt_tensor_binding_t *exports;
+  uint32_t tensor_id_count;
+  uint32_t tensor_ids[PRT_MAX_LAYER_TENSORS];
+  uint32_t fix_tensor_count;
+  uint32_t fix_tensor_ids[PRT_MAX_LAYER_TENSORS];
+  uint32_t inner_isolate_count;
+  uint32_t inner_isolate_ids[PRT_MAX_LAYER_TENSORS];
+  uint32_t inner_shared_count;
+  uint32_t inner_shared_ids[PRT_MAX_LAYER_TENSORS];
   uint32_t dram_bypass_count;
   uint32_t dram_bypass[PRT_MAX_LAYER_TENSORS];
   uint32_t spm_bypass_count;
   uint32_t spm_bypass[PRT_MAX_LAYER_TENSORS];
+  uint32_t tensor_usage_count_present;
+  uint32_t tensor_usage_count_count;
+  uint32_t tensor_usage_count[PRT_MAX_LAYER_TENSORS];
+  uint32_t tensor_lazy_fetch_present;
+  uint32_t tensor_lazy_fetch_count;
+  uint32_t tensor_lazy_fetch[PRT_MAX_LAYER_TENSORS];
+  uint32_t local_spm_tensor_count;
+  uint32_t local_spm_tensor_addr[PRT_MAX_LAYER_TENSORS];
+  uint32_t local_spm_first_vpage[PRT_MAX_LAYER_TENSORS];
+  uint32_t local_spm_page_count[PRT_MAX_LAYER_TENSORS];
+  uint32_t local_spm_tensor_bytes[PRT_MAX_LAYER_TENSORS];
+  uint32_t local_spm_page_span;
 } prt_stage_map_t;
 
 typedef struct {
@@ -249,6 +299,7 @@ typedef struct {
   prt_u32_map_t shared_tensor_is_read_first;
   prt_u32_map_t tensor_spm_util_shared;
   prt_u32_map_t tensor_spm_util_in_ringbuffer;
+  prt_u32_map_t tensor_spm_util_weight;
 } prt_segment_desc_t;
 
 typedef struct {
@@ -299,6 +350,7 @@ typedef struct {
   uint32_t num_dma_mgrs;
   uint32_t gemmini_mgr_base_id;
   uint32_t dma_mgr_base_id;
+  prt_backend_t backend;
   uint32_t page_size_bytes;
   uint32_t spm_xlate_enable;
   uint32_t spm_page_shift;
@@ -315,11 +367,13 @@ typedef struct {
 
 typedef struct {
   const char *model_yaml;
+  const char *layer_mapping_yaml;
   const char *model_bin;
   uint64_t model_offset_bytes;
   const char *pipeline_yaml;
   const char *input_path;
   const char *golden_path;
+  const char *golden_out_path;
   uint32_t batch;
 } prt_run_args_t;
 
@@ -329,6 +383,7 @@ typedef struct {
   uint32_t num_managers;
   uint32_t manager_ids[PRT_MAX_CORES];
   uint32_t tile_count;
+  prt_layer_split_t split_kind;
   prt_stage_op_t op_kind;
   void *opaque_task;
 } prt_conv_task_t;

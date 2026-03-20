@@ -4,15 +4,22 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REROCC_TESTS_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 GEMMINI_ROCC_TESTS_DIR="$(cd "${REROCC_TESTS_DIR}/.." && pwd)"
+CHIPYARD_ROOT="$(cd "${GEMMINI_ROCC_TESTS_DIR}/../../../.." && pwd)"
 
 OVERLAY_COUPLEDDMA_DIR="${SCRIPT_DIR}/overlay/root/rerocc-linux-tests-coupleddma"
 OVERLAY_PIPELINE_ROOT_DIR="${SCRIPT_DIR}/overlay/root/rerocc-linux-tests"
 PIPELINE_RUNTIME_OVERLAY_DIR="${OVERLAY_PIPELINE_ROOT_DIR}/pipeline-runtime"
 PIPELINE_RUNTIME_BERT_DIR="${PIPELINE_RUNTIME_OVERLAY_DIR}/bertmini"
-HYBRIDMAPPER_BERT_DIR="$(cd "${GEMMINI_ROCC_TESTS_DIR}/../../../../tmp/HybridMapper/output/pipeline/bertmini" && pwd)"
+HYBRIDMAPPER_BERT_DIR="${CHIPYARD_ROOT}/conference/HybridMapper/output/pipeline_runtime/bertmini"
+TARGET_KEY="${TARGET_KEY:-rerocc_globalnoc_coupleddma_c2_g2_d2_spad1024kb_dram19_noc64_mac1024}"
 
 HOST_INIT_CHECK_ONLY="${HOST_INIT_CHECK_ONLY:-0}"
 SKIP_BUILD="${SKIP_BUILD:-0}"
+ENABLE_PIPELINE_RUNTIME="${ENABLE_PIPELINE_RUNTIME:-auto}"
+PIPELINE_RUNTIME_PROGRESS="${PIPELINE_RUNTIME_PROGRESS:-1}"
+PIPELINE_RUNTIME_ONLY_MARKER="${PIPELINE_RUNTIME_ONLY_MARKER:-1}"
+BUILD_DIR="${GEMMINI_ROCC_TESTS_DIR}/build"
+REROCC_LINUX_BUILD_DIR="${BUILD_DIR}/rerocc-linux-tests"
 
 require_file() {
   local path="$1"
@@ -42,26 +49,58 @@ find_linux_cc() {
   return 1
 }
 
+pipeline_runtime_enabled() {
+  case "${ENABLE_PIPELINE_RUNTIME}" in
+    1|true|TRUE|yes|YES)
+      return 0
+      ;;
+    auto|AUTO)
+      [ -d "${HYBRIDMAPPER_BERT_DIR}" ]
+      return $?
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
 check_runtime_artifacts() {
-  require_file "${HYBRIDMAPPER_BERT_DIR}/layers_gemmini.yaml"
-  require_file "${HYBRIDMAPPER_BERT_DIR}/dummy_weight/model.bin"
-  require_file "${HYBRIDMAPPER_BERT_DIR}/dummy_input/input.bin"
-  require_file "${HYBRIDMAPPER_BERT_DIR}/dummy_input/golden/golden.bin"
-  for method in ours2 gemini2 tangram2; do
-    require_file "${HYBRIDMAPPER_BERT_DIR}/entire_model/2_1024_16_19_64_${method}.yaml"
-  done
-  if ! find "${HYBRIDMAPPER_BERT_DIR}/mapping_gemmini" -maxdepth 1 -name '*.yaml' -type f | grep -q .; then
-    echo "missing required artifact: ${HYBRIDMAPPER_BERT_DIR}/mapping_gemmini/*.yaml" >&2
-    exit 1
+  if ! pipeline_runtime_enabled; then
+    return 0
   fi
+  require_file "${HYBRIDMAPPER_BERT_DIR}/model.layers.yaml"
+  require_file "${HYBRIDMAPPER_BERT_DIR}/runtime_model.bin"
+  require_file "${HYBRIDMAPPER_BERT_DIR}/runtime_input.${TARGET_KEY}.bin"
+  require_file "${HYBRIDMAPPER_BERT_DIR}/gemmini_layer_mapping.${TARGET_KEY}.yaml"
+  for method in ours2 gemini2 tangram2; do
+    require_file "${HYBRIDMAPPER_BERT_DIR}/pipeline_mapping.${TARGET_KEY}.${method}.yaml"
+    require_file "${HYBRIDMAPPER_BERT_DIR}/golden.${TARGET_KEY}.${method}.bin"
+  done
 }
 
 check_built_linux_binaries() {
   require_file "${GEMMINI_ROCC_TESTS_DIR}/build/rerocc-linux-tests/rerocc_gemmini_conv_matrix-linux"
   require_file "${GEMMINI_ROCC_TESTS_DIR}/build/rerocc-linux-tests/rerocc_dma_matrix-linux"
-  require_file "${GEMMINI_ROCC_TESTS_DIR}/build/rerocc-linux-tests/rerocc_pipeline_runtime-linux"
   require_file "${OVERLAY_COUPLEDDMA_DIR}/rerocc_dma_matrix_coupleddma-linux"
+  require_file "${OVERLAY_COUPLEDDMA_DIR}/rerocc_lc_gemmini_matrix_linux_coupleddma-linux"
   require_file "${OVERLAY_COUPLEDDMA_DIR}/rerocc_lc_matrix_linux_coupleddma_verify-linux"
+  require_file "${OVERLAY_COUPLEDDMA_DIR}/rerocc_lc_coverage_linux_coupleddma-linux"
+  require_file "${OVERLAY_COUPLEDDMA_DIR}/rerocc_lc_nonblocking_linux_coupleddma-linux"
+  require_file "${REROCC_TESTS_DIR}/workload/run_rerocc_lc_linux_regression.sh"
+  if pipeline_runtime_enabled; then
+    require_file "${GEMMINI_ROCC_TESTS_DIR}/build/rerocc-linux-tests/rerocc_pipeline_runtime-linux"
+  fi
+}
+
+verify_pipeline_runtime_binary() {
+  local bin="$1"
+  require_file "${bin}"
+  if [ "${PIPELINE_RUNTIME_PROGRESS}" != "0" ]; then
+    if ! LC_ALL=C grep -aFq "[prt-early] enter main" "${bin}"; then
+      echo "pipeline runtime binary missing expected early-init progress string: ${bin}" >&2
+      exit 1
+    fi
+  fi
 }
 
 build_linux_binaries() {
@@ -72,14 +111,22 @@ build_linux_binaries() {
     exit 1
   fi
 
-  echo "Building rerocc-linux-tests binaries for coupled DMA + pipeline runtime with ${linux_cc}"
+  echo "Building rerocc-linux-tests binaries for coupled DMA + pipeline runtime with ${linux_cc} (PIPELINE_RUNTIME_PROGRESS=${PIPELINE_RUNTIME_PROGRESS})"
   pushd "${GEMMINI_ROCC_TESTS_DIR}" >/dev/null
   autoconf
-  mkdir -p build
-  pushd build >/dev/null
+  mkdir -p "${BUILD_DIR}"
+  pushd "${BUILD_DIR}" >/dev/null
   ../configure
-  make CC_LINUX="${linux_cc}" TARGET=riscv64-unknown-linux-gnu- -j rerocc-linux-tests
+  make \
+    CC_LINUX="${linux_cc}" \
+    TARGET=riscv64-unknown-linux-gnu- \
+    PIPELINE_RUNTIME_PROGRESS="${PIPELINE_RUNTIME_PROGRESS}" \
+    -j rerocc-linux-tests
   popd >/dev/null
+
+  if pipeline_runtime_enabled; then
+    rebuild_pipeline_runtime_binary "${linux_cc}"
+  fi
 
   mkdir -p "${OVERLAY_COUPLEDDMA_DIR}"
 
@@ -104,6 +151,24 @@ build_linux_binaries() {
     -mcmodel=medany \
     -std=gnu99 \
     -O2 \
+    -pthread \
+    -march=rv64gc -Wa,-march=rv64gc \
+    -ffast-math \
+    -fno-common \
+    -fno-tree-loop-distribute-patterns \
+    -I"${GEMMINI_ROCC_TESTS_DIR}" \
+    -I"${GEMMINI_ROCC_TESTS_DIR}/riscv-tests" \
+    -I"${GEMMINI_ROCC_TESTS_DIR}/riscv-tests/env" \
+    -I"${GEMMINI_ROCC_TESTS_DIR}/riscv-tests-benchmarks-common" \
+    -I"${GEMMINI_ROCC_TESTS_DIR}/rerocc-linux-tests" \
+    -I"${REROCC_TESTS_DIR}" \
+    "${REROCC_TESTS_DIR}/rerocc_lc_gemmini_matrix_linux_coupleddma.c" \
+    -o "${OVERLAY_COUPLEDDMA_DIR}/rerocc_lc_gemmini_matrix_linux_coupleddma-linux"
+
+  "${linux_cc}" \
+    -mcmodel=medany \
+    -std=gnu99 \
+    -O2 \
     -march=rv64gc -Wa,-march=rv64gc \
     -ffast-math \
     -fno-common \
@@ -111,26 +176,96 @@ build_linux_binaries() {
     "${REROCC_TESTS_DIR}/rerocc_lc_matrix_linux_coupleddma_verify.c" \
     -o "${OVERLAY_COUPLEDDMA_DIR}/rerocc_lc_matrix_linux_coupleddma_verify-linux"
 
+  "${linux_cc}" \
+    -mcmodel=medany \
+    -std=gnu99 \
+    -O2 \
+    -pthread \
+    -march=rv64gc -Wa,-march=rv64gc \
+    -ffast-math \
+    -fno-common \
+    -fno-tree-loop-distribute-patterns \
+    -I"${GEMMINI_ROCC_TESTS_DIR}" \
+    -I"${GEMMINI_ROCC_TESTS_DIR}/riscv-tests" \
+    -I"${GEMMINI_ROCC_TESTS_DIR}/riscv-tests/env" \
+    -I"${GEMMINI_ROCC_TESTS_DIR}/riscv-tests-benchmarks-common" \
+    -I"${GEMMINI_ROCC_TESTS_DIR}/rerocc-linux-tests" \
+    -I"${REROCC_TESTS_DIR}" \
+    "${REROCC_TESTS_DIR}/rerocc_lc_coverage_linux_coupleddma.c" \
+    -o "${OVERLAY_COUPLEDDMA_DIR}/rerocc_lc_coverage_linux_coupleddma-linux"
+
+  "${linux_cc}" \
+    -mcmodel=medany \
+    -std=gnu99 \
+    -O2 \
+    -pthread \
+    -march=rv64gc -Wa,-march=rv64gc \
+    -ffast-math \
+    -fno-common \
+    -fno-tree-loop-distribute-patterns \
+    -I"${GEMMINI_ROCC_TESTS_DIR}" \
+    -I"${GEMMINI_ROCC_TESTS_DIR}/riscv-tests" \
+    -I"${GEMMINI_ROCC_TESTS_DIR}/riscv-tests/env" \
+    -I"${GEMMINI_ROCC_TESTS_DIR}/riscv-tests-benchmarks-common" \
+    -I"${GEMMINI_ROCC_TESTS_DIR}/rerocc-linux-tests" \
+    -I"${REROCC_TESTS_DIR}" \
+    "${REROCC_TESTS_DIR}/rerocc_lc_nonblocking_linux_coupleddma.c" \
+    -o "${OVERLAY_COUPLEDDMA_DIR}/rerocc_lc_nonblocking_linux_coupleddma-linux"
+
   chmod +x "${OVERLAY_COUPLEDDMA_DIR}/rerocc_dma_matrix_coupleddma-linux"
+  chmod +x "${OVERLAY_COUPLEDDMA_DIR}/rerocc_lc_gemmini_matrix_linux_coupleddma-linux"
   chmod +x "${OVERLAY_COUPLEDDMA_DIR}/rerocc_lc_matrix_linux_coupleddma_verify-linux"
+  chmod +x "${OVERLAY_COUPLEDDMA_DIR}/rerocc_lc_coverage_linux_coupleddma-linux"
+  chmod +x "${OVERLAY_COUPLEDDMA_DIR}/rerocc_lc_nonblocking_linux_coupleddma-linux"
   popd >/dev/null
+}
+
+rebuild_pipeline_runtime_binary() {
+  local linux_cc="$1"
+
+  mkdir -p "${REROCC_LINUX_BUILD_DIR}"
+  rm -f "${REROCC_LINUX_BUILD_DIR}/rerocc_pipeline_runtime-linux"
+  rm -rf "${REROCC_LINUX_BUILD_DIR}/.pipeline_runtime_objs"
+  make \
+    -C "${REROCC_LINUX_BUILD_DIR}" \
+    -f "${GEMMINI_ROCC_TESTS_DIR}/rerocc-linux-tests/Makefile" \
+    abs_top_srcdir="${GEMMINI_ROCC_TESTS_DIR}" \
+    src_dir="${GEMMINI_ROCC_TESTS_DIR}/rerocc-linux-tests" \
+    XLEN=64 \
+    CC_LINUX="${linux_cc}" \
+    PIPELINE_RUNTIME_PROGRESS="${PIPELINE_RUNTIME_PROGRESS}" \
+    rerocc_pipeline_runtime-linux
 }
 
 stage_coupleddma_overlay() {
   mkdir -p "${OVERLAY_COUPLEDDMA_DIR}"
+  rm -f "${OVERLAY_COUPLEDDMA_DIR}/.pipeline_runtime_only"
   copy_required_file \
     "${GEMMINI_ROCC_TESTS_DIR}/build/rerocc-linux-tests/rerocc_gemmini_conv_matrix-linux" \
     "${OVERLAY_COUPLEDDMA_DIR}/rerocc_gemmini_conv_matrix-linux"
   copy_required_file \
     "${GEMMINI_ROCC_TESTS_DIR}/build/rerocc-linux-tests/rerocc_dma_matrix-linux" \
     "${OVERLAY_COUPLEDDMA_DIR}/rerocc_dma_matrix-linux"
+  copy_required_file \
+    "${REROCC_TESTS_DIR}/workload/run_rerocc_lc_linux_regression.sh" \
+    "${OVERLAY_COUPLEDDMA_DIR}/run_rerocc_lc_linux_regression.sh"
   chmod +x "${OVERLAY_COUPLEDDMA_DIR}/rerocc_gemmini_conv_matrix-linux"
   chmod +x "${OVERLAY_COUPLEDDMA_DIR}/rerocc_dma_matrix-linux"
+  chmod +x "${OVERLAY_COUPLEDDMA_DIR}/rerocc_dma_matrix_coupleddma-linux"
+  chmod +x "${OVERLAY_COUPLEDDMA_DIR}/rerocc_lc_gemmini_matrix_linux_coupleddma-linux"
+  chmod +x "${OVERLAY_COUPLEDDMA_DIR}/rerocc_lc_matrix_linux_coupleddma_verify-linux"
+  chmod +x "${OVERLAY_COUPLEDDMA_DIR}/rerocc_lc_coverage_linux_coupleddma-linux"
+  chmod +x "${OVERLAY_COUPLEDDMA_DIR}/rerocc_lc_nonblocking_linux_coupleddma-linux"
+  chmod +x "${OVERLAY_COUPLEDDMA_DIR}/run_rerocc_lc_linux_regression.sh"
+}
+
+reset_pipeline_runtime_overlay() {
+  rm -rf "${OVERLAY_PIPELINE_ROOT_DIR}"
 }
 
 stage_pipeline_runtime_overlay() {
-  mkdir -p "${PIPELINE_RUNTIME_BERT_DIR}/mapping_gemmini"
-  mkdir -p "${PIPELINE_RUNTIME_BERT_DIR}/entire_model"
+  rm -rf "${PIPELINE_RUNTIME_OVERLAY_DIR}"
+  mkdir -p "${PIPELINE_RUNTIME_BERT_DIR}"
 
   copy_required_file \
     "${GEMMINI_ROCC_TESTS_DIR}/build/rerocc-linux-tests/rerocc_pipeline_runtime-linux" \
@@ -142,30 +277,27 @@ stage_pipeline_runtime_overlay() {
   chmod +x "${PIPELINE_RUNTIME_OVERLAY_DIR}/rerocc_pipeline_runtime-linux"
   chmod +x "${OVERLAY_PIPELINE_ROOT_DIR}/run_rerocc_pipeline_runtime_bertmini.sh"
 
-  copy_required_file "${HYBRIDMAPPER_BERT_DIR}/layers_gemmini.yaml" "${PIPELINE_RUNTIME_BERT_DIR}/layers_gemmini.yaml"
-  copy_required_file "${HYBRIDMAPPER_BERT_DIR}/dummy_weight/model.bin" "${PIPELINE_RUNTIME_BERT_DIR}/model.bin"
-  copy_required_file "${HYBRIDMAPPER_BERT_DIR}/dummy_input/input.bin" "${PIPELINE_RUNTIME_BERT_DIR}/input.bin"
-  copy_required_file "${HYBRIDMAPPER_BERT_DIR}/dummy_input/golden/golden.bin" "${PIPELINE_RUNTIME_BERT_DIR}/golden.bin"
+  copy_required_file "${HYBRIDMAPPER_BERT_DIR}/model.layers.yaml" "${PIPELINE_RUNTIME_BERT_DIR}/model.layers.yaml"
+  copy_required_file "${HYBRIDMAPPER_BERT_DIR}/runtime_model.bin" "${PIPELINE_RUNTIME_BERT_DIR}/runtime_model.bin"
+  copy_required_file "${HYBRIDMAPPER_BERT_DIR}/runtime_input.${TARGET_KEY}.bin" "${PIPELINE_RUNTIME_BERT_DIR}/runtime_input.${TARGET_KEY}.bin"
+  copy_required_file "${HYBRIDMAPPER_BERT_DIR}/gemmini_layer_mapping.${TARGET_KEY}.yaml" "${PIPELINE_RUNTIME_BERT_DIR}/gemmini_layer_mapping.${TARGET_KEY}.yaml"
+  if [ -f "${HYBRIDMAPPER_BERT_DIR}/manifest.yaml" ]; then
+    copy_required_file "${HYBRIDMAPPER_BERT_DIR}/manifest.yaml" "${PIPELINE_RUNTIME_BERT_DIR}/manifest.yaml"
+  fi
+  if [ -f "${HYBRIDMAPPER_BERT_DIR}/hardware_target.${TARGET_KEY}.yaml" ]; then
+    copy_required_file \
+      "${HYBRIDMAPPER_BERT_DIR}/hardware_target.${TARGET_KEY}.yaml" \
+      "${PIPELINE_RUNTIME_BERT_DIR}/hardware_target.${TARGET_KEY}.yaml"
+  fi
 
   for method in ours2 gemini2 tangram2; do
     copy_required_file \
-      "${HYBRIDMAPPER_BERT_DIR}/entire_model/2_1024_16_19_64_${method}.yaml" \
-      "${PIPELINE_RUNTIME_BERT_DIR}/entire_model/2_1024_16_19_64_${method}.yaml"
+      "${HYBRIDMAPPER_BERT_DIR}/pipeline_mapping.${TARGET_KEY}.${method}.yaml" \
+      "${PIPELINE_RUNTIME_BERT_DIR}/pipeline_mapping.${TARGET_KEY}.${method}.yaml"
+    copy_required_file \
+      "${HYBRIDMAPPER_BERT_DIR}/golden.${TARGET_KEY}.${method}.bin" \
+      "${PIPELINE_RUNTIME_BERT_DIR}/golden.${TARGET_KEY}.${method}.bin"
   done
-
-  find "${HYBRIDMAPPER_BERT_DIR}/mapping_gemmini" -maxdepth 1 -name '*.yaml' -type f | while read -r src; do
-    copy_required_file "${src}" "${PIPELINE_RUNTIME_BERT_DIR}/mapping_gemmini/$(basename "${src}")"
-  done
-}
-
-stage_firemarshal_launcher() {
-  mkdir -p "${SCRIPT_DIR}/overlay/root"
-  cat > "${SCRIPT_DIR}/overlay/root/firemarshal.sh" <<'EOF'
-#!/bin/sh
-/root/rerocc-linux-tests/run_rerocc_pipeline_runtime_bertmini.sh
-sync; poweroff -f
-EOF
-  chmod +x "${SCRIPT_DIR}/overlay/root/firemarshal.sh"
 }
 
 check_runtime_artifacts
@@ -182,8 +314,16 @@ else
 fi
 
 check_built_linux_binaries
+if pipeline_runtime_enabled; then
+  verify_pipeline_runtime_binary "${GEMMINI_ROCC_TESTS_DIR}/build/rerocc-linux-tests/rerocc_pipeline_runtime-linux"
+fi
 stage_coupleddma_overlay
-stage_pipeline_runtime_overlay
-stage_firemarshal_launcher
+reset_pipeline_runtime_overlay
+if pipeline_runtime_enabled; then
+  stage_pipeline_runtime_overlay
+  if [ "${PIPELINE_RUNTIME_ONLY_MARKER}" != "0" ]; then
+    printf 'pipeline_runtime_only=1\n' > "${OVERLAY_COUPLEDDMA_DIR}/.pipeline_runtime_only"
+  fi
+fi
 
 echo "host-init overlay stage PASS"
