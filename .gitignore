@@ -6,3 +6,5 @@ configure
 .ipynb_checkpoints
 *.pyc
 include/gemmini_params.h
+*.yaml
+*.bin
