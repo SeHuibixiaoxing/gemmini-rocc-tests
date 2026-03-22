@@ -11,12 +11,15 @@ OVERLAY_PIPELINE_ROOT_DIR="${SCRIPT_DIR}/overlay/root/rerocc-linux-tests"
 PIPELINE_RUNTIME_OVERLAY_DIR="${OVERLAY_PIPELINE_ROOT_DIR}/pipeline-runtime"
 PIPELINE_RUNTIME_BERT_DIR="${PIPELINE_RUNTIME_OVERLAY_DIR}/bertmini"
 HYBRIDMAPPER_BERT_DIR="${CHIPYARD_ROOT}/conference/HybridMapper/output/pipeline_runtime/bertmini"
+PIPELINE_RUNTIME_SCRIPTS_DIR="${GEMMINI_ROCC_TESTS_DIR}/pipeline-runtime/scripts"
+MAPPING_CACHE_GENERATOR="${PIPELINE_RUNTIME_SCRIPTS_DIR}/generate_gemmini_mapping_cache.py"
 TARGET_KEY="${TARGET_KEY:-rerocc_globalnoc_coupleddma_c2_g2_d2_spad1024kb_dram19_noc64_mac1024}"
 
 HOST_INIT_CHECK_ONLY="${HOST_INIT_CHECK_ONLY:-0}"
 SKIP_BUILD="${SKIP_BUILD:-0}"
 ENABLE_PIPELINE_RUNTIME="${ENABLE_PIPELINE_RUNTIME:-auto}"
 PIPELINE_RUNTIME_PROGRESS="${PIPELINE_RUNTIME_PROGRESS:-1}"
+PIPELINE_RUNTIME_GEMMINI_PHASE="${PIPELINE_RUNTIME_GEMMINI_PHASE:-0}"
 PIPELINE_RUNTIME_ONLY_MARKER="${PIPELINE_RUNTIME_ONLY_MARKER:-1}"
 BUILD_DIR="${GEMMINI_ROCC_TESTS_DIR}/build"
 REROCC_LINUX_BUILD_DIR="${BUILD_DIR}/rerocc-linux-tests"
@@ -68,6 +71,7 @@ check_runtime_artifacts() {
   if ! pipeline_runtime_enabled; then
     return 0
   fi
+  require_file "${MAPPING_CACHE_GENERATOR}"
   require_file "${HYBRIDMAPPER_BERT_DIR}/model.layers.yaml"
   require_file "${HYBRIDMAPPER_BERT_DIR}/runtime_model.bin"
   require_file "${HYBRIDMAPPER_BERT_DIR}/runtime_input.${TARGET_KEY}.bin"
@@ -92,12 +96,32 @@ check_built_linux_binaries() {
   fi
 }
 
+generate_layer_mapping_cache() {
+  local yaml_path="$1"
+  local cache_path="${yaml_path}.cache.bin"
+
+  require_file "${yaml_path}"
+  require_file "${MAPPING_CACHE_GENERATOR}"
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "missing python3 for mapping cache generation" >&2
+    exit 1
+  fi
+
+  python3 "${MAPPING_CACHE_GENERATOR}" "${yaml_path}" "${cache_path}"
+}
+
 verify_pipeline_runtime_binary() {
   local bin="$1"
   require_file "${bin}"
   if [ "${PIPELINE_RUNTIME_PROGRESS}" != "0" ]; then
     if ! LC_ALL=C grep -aFq "[prt-early] enter main" "${bin}"; then
       echo "pipeline runtime binary missing expected early-init progress string: ${bin}" >&2
+      exit 1
+    fi
+  fi
+  if [ "${PIPELINE_RUNTIME_GEMMINI_PHASE}" = "0" ]; then
+    if LC_ALL=C grep -aFq "[gemmini-phase]" "${bin}"; then
+      echo "pipeline runtime binary unexpectedly contains gemmini-phase strings with PIPELINE_RUNTIME_GEMMINI_PHASE=0: ${bin}" >&2
       exit 1
     fi
   fi
@@ -111,7 +135,7 @@ build_linux_binaries() {
     exit 1
   fi
 
-  echo "Building rerocc-linux-tests binaries for coupled DMA + pipeline runtime with ${linux_cc} (PIPELINE_RUNTIME_PROGRESS=${PIPELINE_RUNTIME_PROGRESS})"
+  echo "Building rerocc-linux-tests binaries for coupled DMA + pipeline runtime with ${linux_cc} (PIPELINE_RUNTIME_PROGRESS=${PIPELINE_RUNTIME_PROGRESS}, PIPELINE_RUNTIME_GEMMINI_PHASE=${PIPELINE_RUNTIME_GEMMINI_PHASE})"
   pushd "${GEMMINI_ROCC_TESTS_DIR}" >/dev/null
   autoconf
   mkdir -p "${BUILD_DIR}"
@@ -121,6 +145,7 @@ build_linux_binaries() {
     CC_LINUX="${linux_cc}" \
     TARGET=riscv64-unknown-linux-gnu- \
     PIPELINE_RUNTIME_PROGRESS="${PIPELINE_RUNTIME_PROGRESS}" \
+    PIPELINE_RUNTIME_GEMMINI_PHASE="${PIPELINE_RUNTIME_GEMMINI_PHASE}" \
     -j rerocc-linux-tests
   popd >/dev/null
 
@@ -234,6 +259,7 @@ rebuild_pipeline_runtime_binary() {
     XLEN=64 \
     CC_LINUX="${linux_cc}" \
     PIPELINE_RUNTIME_PROGRESS="${PIPELINE_RUNTIME_PROGRESS}" \
+    PIPELINE_RUNTIME_GEMMINI_PHASE="${PIPELINE_RUNTIME_GEMMINI_PHASE}" \
     rerocc_pipeline_runtime-linux
 }
 
@@ -281,6 +307,7 @@ stage_pipeline_runtime_overlay() {
   copy_required_file "${HYBRIDMAPPER_BERT_DIR}/runtime_model.bin" "${PIPELINE_RUNTIME_BERT_DIR}/runtime_model.bin"
   copy_required_file "${HYBRIDMAPPER_BERT_DIR}/runtime_input.${TARGET_KEY}.bin" "${PIPELINE_RUNTIME_BERT_DIR}/runtime_input.${TARGET_KEY}.bin"
   copy_required_file "${HYBRIDMAPPER_BERT_DIR}/gemmini_layer_mapping.${TARGET_KEY}.yaml" "${PIPELINE_RUNTIME_BERT_DIR}/gemmini_layer_mapping.${TARGET_KEY}.yaml"
+  generate_layer_mapping_cache "${PIPELINE_RUNTIME_BERT_DIR}/gemmini_layer_mapping.${TARGET_KEY}.yaml"
   if [ -f "${HYBRIDMAPPER_BERT_DIR}/manifest.yaml" ]; then
     copy_required_file "${HYBRIDMAPPER_BERT_DIR}/manifest.yaml" "${PIPELINE_RUNTIME_BERT_DIR}/manifest.yaml"
   fi

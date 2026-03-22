@@ -11,6 +11,7 @@
 #include <unistd.h>
 
 #include "include/gemmini.h"
+#include "include/gemmini_nn.h"
 #include "include/gemmini_testutils.h"
 #include "include/rerocc_coupleddma.h"
 #include "rerocc-linux-tests/rerocc_control.h"
@@ -92,6 +93,10 @@
 #define N_PATCHES (BATCH_SIZE * OUT_ROW_DIM * OUT_COL_DIM)
 #define CONV_ELEM_COUNT ((size_t)BATCH_SIZE * OUT_ROW_DIM * OUT_COL_DIM * OUT_CHANNELS)
 
+#define POINTWISE_I 64
+#define POINTWISE_J 128
+#define POINTWISE_K 64
+
 #if (REROCC_DMA_BYTES < (DRAM_DMA_CROSS_OFFSET + REROCC_DMA_CROSS_BYTES))
 #error "REROCC_DMA_BYTES is too small for cross-page DMA validation"
 #endif
@@ -108,6 +113,11 @@ static elem_t reference_out[BATCH_SIZE][OUT_ROW_DIM][OUT_COL_DIM][OUT_CHANNELS] 
 static elem_t output_case1_dram[N_PATCHES][OUT_CHANNELS] __attribute__((aligned(64)));
 static elem_t output_case2_dram[N_PATCHES][OUT_CHANNELS] __attribute__((aligned(64)));
 static elem_t output_case3_dram[N_PATCHES][OUT_CHANNELS] __attribute__((aligned(64)));
+static elem_t pointwise_input_dram[POINTWISE_I][POINTWISE_K] __attribute__((aligned(64)));
+static elem_t pointwise_weight_dram[POINTWISE_K][POINTWISE_J] __attribute__((aligned(64)));
+static acc_t pointwise_bias_dram[POINTWISE_J] __attribute__((aligned(64)));
+static elem_t pointwise_output_dram[POINTWISE_I][POINTWISE_J] __attribute__((aligned(64)));
+static elem_t pointwise_gold_dram[POINTWISE_I][POINTWISE_J] __attribute__((aligned(64)));
 static elem_t resadd_a_dram[DIM][DIM] __attribute__((aligned(64)));
 static elem_t resadd_b_dram[DIM][DIM] __attribute__((aligned(64)));
 static elem_t resadd_out_dram[DIM][DIM] __attribute__((aligned(64)));
@@ -528,6 +538,45 @@ static bool run_resadd_case(const char *name, int gemmini_manager_id,
       break;
     }
   }
+  printf("CASE_RESULT %s %s\n", name, ok ? "PASS" : "FAIL");
+  fflush(stdout);
+  return ok;
+}
+
+static bool run_pointwise_matmul_case(const char *name, int gemmini_manager_id) {
+  bool ok = true;
+
+  printf("CASE_START %s\n", name);
+  fflush(stdout);
+  memset(pointwise_output_dram, 0, sizeof(pointwise_output_dram));
+
+  if (!rr_acquire_cfg_with_retry(GEMMINI_CFG_ID, (uint64_t)gemmini_manager_id)) {
+    printf("CASE_FAIL %s reason=acquire\n", name);
+    return false;
+  }
+
+  rr_set_opc(3, GEMMINI_CFG_ID);
+  gemmini_flush(0);
+
+  tiled_matmul_nn_auto(
+      POINTWISE_I, POINTWISE_J, POINTWISE_K,
+      (const elem_t (*)[POINTWISE_K])pointwise_input_dram,
+      (const elem_t (*)[POINTWISE_J])pointwise_weight_dram,
+      (const void *)pointwise_bias_dram,
+      (elem_t (*)[POINTWISE_J])pointwise_output_dram,
+      NO_ACTIVATION, ACC_SCALE_IDENTITY, true,
+      WS, false, (char *)"coverage_pointwise_matmul");
+
+  gemmini_wait_managed(GEMMINI_CFG_ID);
+  rr_release(GEMMINI_CFG_ID);
+
+  for (size_t i = 0; i < (size_t)(POINTWISE_I * POINTWISE_J); ++i) {
+    if (((const elem_t *)pointwise_output_dram)[i] != ((const elem_t *)pointwise_gold_dram)[i]) {
+      ok = false;
+      break;
+    }
+  }
+
   printf("CASE_RESULT %s %s\n", name, ok ? "PASS" : "FAIL");
   fflush(stdout);
   return ok;
@@ -986,6 +1035,7 @@ int main(int argc, char **argv) {
   bool case1;
   bool case2;
   bool case3;
+  bool case3b;
   bool case4;
   bool case4b;
   bool case4c;
@@ -1116,6 +1166,19 @@ int main(int argc, char **argv) {
   printf("[rerocc-coverage-linux] init convref_ready\n");
   fflush(stdout);
 
+  init_random_elem((elem_t *)pointwise_input_dram, POINTWISE_I * POINTWISE_K, &rnd);
+  init_random_elem((elem_t *)pointwise_weight_dram, POINTWISE_K * POINTWISE_J, &rnd);
+  init_random_acc(pointwise_bias_dram, POINTWISE_J, &rnd);
+  memset(pointwise_output_dram, 0, sizeof(pointwise_output_dram));
+  tiled_matmul_auto(
+      POINTWISE_I, POINTWISE_J, POINTWISE_K,
+      (const elem_t *)pointwise_input_dram, (const elem_t *)pointwise_weight_dram,
+      (const void *)pointwise_bias_dram, (void *)pointwise_gold_dram,
+      POINTWISE_K, POINTWISE_J, POINTWISE_J, POINTWISE_J,
+      MVIN_SCALE_IDENTITY, MVIN_SCALE_IDENTITY, MVIN_SCALE_IDENTITY,
+      NO_ACTIVATION, ACC_SCALE_IDENTITY, 0, true,
+      false, false, false, false, 0, CPU);
+
   memset(output_case1_dram, 0, sizeof(output_case1_dram));
   memset(output_case2_dram, 0, sizeof(output_case2_dram));
   memset(output_case3_dram, 0, sizeof(output_case3_dram));
@@ -1195,6 +1258,10 @@ int main(int argc, char **argv) {
       (uint64_t)(uintptr_t)shared_conv_output,
       (elem_t *)output_case3_dram,
       (const elem_t *)&reference_out[0][0][0][0]);
+
+  case3b = run_pointwise_matmul_case(
+      "pointwise_matmul_ws_bias_repeat",
+      gemmini_manager_id);
 
   case4 = run_resadd_shared_output_case(
       "resadd_shared_input_to_shared_output",
@@ -1340,11 +1407,11 @@ int main(int argc, char **argv) {
 
   rr_release_all(RR_MAX_CFGS);
 
-  all_ok = case0 && case1 && case2 && case3 && case4 && case4b && case4c &&
+  all_ok = case0 && case1 && case2 && case3 && case3b && case4 && case4b && case4c &&
            case5 && case6 && case7 && case8 && case9 && case10 && case11;
-  printf("COVERAGE_SUMMARY case0=%d case1=%d case2=%d case3=%d case4=%d case4b=%d case4c=%d case5=%d case6=%d case7=%d case8=%d case9=%d case10=%d case11=%d\n",
+  printf("COVERAGE_SUMMARY case0=%d case1=%d case2=%d case3=%d case3b=%d case4=%d case4b=%d case4c=%d case5=%d case6=%d case7=%d case8=%d case9=%d case10=%d case11=%d\n",
          case0 ? 1 : 0, case1 ? 1 : 0, case2 ? 1 : 0, case3 ? 1 : 0,
-         case4 ? 1 : 0, case4b ? 1 : 0, case4c ? 1 : 0, case5 ? 1 : 0,
+         case3b ? 1 : 0, case4 ? 1 : 0, case4b ? 1 : 0, case4c ? 1 : 0, case5 ? 1 : 0,
          case6 ? 1 : 0, case7 ? 1 : 0, case8 ? 1 : 0, case9 ? 1 : 0,
          case10 ? 1 : 0, case11 ? 1 : 0);
 

@@ -7,6 +7,12 @@
 #include <string.h>
 #include <time.h>
 
+#define PRT_MAPPING_CACHE_MAGIC0 0x5052544dU
+#define PRT_MAPPING_CACHE_MAGIC1 0x43414348U
+#define PRT_MAPPING_CACHE_VERSION 1U
+#define PRT_MAPPING_CACHE_HEADER_WORDS 8U
+#define PRT_MAPPING_CACHE_ENTRY_WORDS 58U
+#define PRT_MAPPING_CACHE_SUFFIX ".cache.bin"
 #define PRT_MAPPING_PARSE_PROGRESS_INTERVAL 2048U
 #define PRT_MAPPING_SCAN_PROGRESS_INTERVAL 2048U
 
@@ -35,6 +41,41 @@ typedef struct {
   uint32_t cap;
   size_t file_size_bytes;
 } mapping_db_t;
+
+typedef struct {
+  uint32_t magic0;
+  uint32_t magic1;
+  uint32_t version;
+  uint32_t max_layer_tensors;
+  uint32_t entry_count;
+  uint32_t entry_words;
+  uint32_t source_bytes;
+  uint32_t reserved0;
+} mapping_cache_header_t;
+
+typedef struct {
+  uint32_t layer_id;
+  uint32_t target_accel;
+  uint32_t split_kind;
+  uint32_t dram_n;
+  uint32_t dram[PRT_MAX_LAYER_TENSORS];
+  uint32_t spm_n;
+  uint32_t spm[PRT_MAX_LAYER_TENSORS];
+  uint32_t spm_addr_n;
+  uint32_t spm_addr[PRT_MAX_LAYER_TENSORS];
+  uint32_t first_vpage_n;
+  uint32_t first_vpage[PRT_MAX_LAYER_TENSORS];
+  uint32_t page_count_n;
+  uint32_t page_count[PRT_MAX_LAYER_TENSORS];
+  uint32_t spm_bytes_n;
+  uint32_t spm_bytes[PRT_MAX_LAYER_TENSORS];
+  uint32_t active;
+} mapping_cache_entry_t;
+
+typedef char prt_mapping_cache_header_size_must_match[
+  sizeof(mapping_cache_header_t) == PRT_MAPPING_CACHE_HEADER_WORDS * sizeof(uint32_t) ? 1 : -1];
+typedef char prt_mapping_cache_entry_size_must_match[
+  sizeof(mapping_cache_entry_t) == PRT_MAPPING_CACHE_ENTRY_WORDS * sizeof(uint32_t) ? 1 : -1];
 
 static uint64_t monotonic_ms(void) {
   struct timespec ts;
@@ -177,6 +218,15 @@ static void mapping_entry_reset(mapping_entry_t *entry) {
   memset(entry, 0, sizeof(*entry));
 }
 
+static void mapping_entry_copy_array(uint32_t *dst, uint32_t *dst_n,
+                                     const uint32_t *src, uint32_t src_n) {
+  if (!dst || !dst_n) return;
+  *dst_n = 0;
+  if (!src || src_n > PRT_MAX_LAYER_TENSORS) return;
+  if (src_n > 0) memcpy(dst, src, (size_t)src_n * sizeof(*dst));
+  *dst_n = src_n;
+}
+
 static void mapping_db_reset(mapping_db_t *db) {
   if (!db) return;
   free(db->entries);
@@ -213,6 +263,113 @@ static int mapping_db_append(mapping_db_t *db, const mapping_entry_t *entry) {
   if (rc != PRT_OK) return rc;
   db->entries[db->count++] = *entry;
   return PRT_OK;
+}
+
+static char *mapping_cache_path_from_yaml(const char *path) {
+  const size_t path_len = path ? strlen(path) : 0U;
+  const size_t suffix_len = sizeof(PRT_MAPPING_CACHE_SUFFIX) - 1U;
+  char *cache_path;
+
+  if (!path || path_len == 0U) return NULL;
+  cache_path = (char *)malloc(path_len + suffix_len + 1U);
+  if (!cache_path) return NULL;
+  memcpy(cache_path, path, path_len);
+  memcpy(cache_path + path_len, PRT_MAPPING_CACHE_SUFFIX, suffix_len + 1U);
+  return cache_path;
+}
+
+static int mapping_entry_from_cache(mapping_entry_t *entry, const mapping_cache_entry_t *cached) {
+  if (!entry || !cached) return PRT_ERR_INVAL;
+  if (cached->dram_n > PRT_MAX_LAYER_TENSORS ||
+      cached->spm_n > PRT_MAX_LAYER_TENSORS ||
+      cached->spm_addr_n > PRT_MAX_LAYER_TENSORS ||
+      cached->first_vpage_n > PRT_MAX_LAYER_TENSORS ||
+      cached->page_count_n > PRT_MAX_LAYER_TENSORS ||
+      cached->spm_bytes_n > PRT_MAX_LAYER_TENSORS) {
+    return PRT_ERR_PARSE;
+  }
+
+  mapping_entry_reset(entry);
+  entry->layer_id = cached->layer_id;
+  entry->target_accel = cached->target_accel;
+  entry->split_kind = cached->split_kind;
+  mapping_entry_copy_array(entry->dram, &entry->dram_n, cached->dram, cached->dram_n);
+  mapping_entry_copy_array(entry->spm, &entry->spm_n, cached->spm, cached->spm_n);
+  mapping_entry_copy_array(entry->spm_addr, &entry->spm_addr_n, cached->spm_addr, cached->spm_addr_n);
+  mapping_entry_copy_array(entry->first_vpage, &entry->first_vpage_n,
+                           cached->first_vpage, cached->first_vpage_n);
+  mapping_entry_copy_array(entry->page_count, &entry->page_count_n,
+                           cached->page_count, cached->page_count_n);
+  mapping_entry_copy_array(entry->spm_bytes, &entry->spm_bytes_n,
+                           cached->spm_bytes, cached->spm_bytes_n);
+  entry->active = cached->active ? 1 : 0;
+  return PRT_OK;
+}
+
+static int load_mapping_cache_file(const char *cache_path, mapping_db_t *db) {
+  FILE *f = NULL;
+  mapping_cache_header_t header;
+  uint64_t load_start_ms;
+  uint64_t parse_start_ms;
+  int rc = PRT_ERR_IO;
+
+  if (!cache_path || !db) return PRT_ERR_INVAL;
+  load_start_ms = monotonic_ms();
+  (void)load_start_ms;
+  PRT_PROGRESS_LOG("artifacts mapping cache load begin cache=%s", cache_path);
+
+  f = fopen(cache_path, "rb");
+  if (!f) return PRT_ERR_IO;
+  if (fread(&header, sizeof(header), 1, f) != 1U) {
+    rc = PRT_ERR_PARSE;
+    goto out;
+  }
+  if (header.magic0 != PRT_MAPPING_CACHE_MAGIC0 ||
+      header.magic1 != PRT_MAPPING_CACHE_MAGIC1 ||
+      header.version != PRT_MAPPING_CACHE_VERSION ||
+      header.max_layer_tensors != PRT_MAX_LAYER_TENSORS ||
+      header.entry_words != PRT_MAPPING_CACHE_ENTRY_WORDS) {
+    rc = PRT_ERR_PARSE;
+    goto out;
+  }
+
+  db->file_size_bytes = header.source_bytes;
+  rc = mapping_db_reserve(db, header.entry_count);
+  if (rc != PRT_OK) goto out;
+
+  parse_start_ms = monotonic_ms();
+  (void)parse_start_ms;
+  for (uint32_t entry_idx = 0; entry_idx < header.entry_count; ++entry_idx) {
+    mapping_cache_entry_t cached;
+    mapping_entry_t entry;
+    if (fread(&cached, sizeof(cached), 1, f) != 1U) {
+      rc = PRT_ERR_PARSE;
+      goto out;
+    }
+    rc = mapping_entry_from_cache(&entry, &cached);
+    if (rc != PRT_OK) goto out;
+    rc = mapping_db_append(db, &entry);
+    if (rc != PRT_OK) goto out;
+    if ((db->count % PRT_MAPPING_PARSE_PROGRESS_INTERVAL) == 0U ||
+        db->count == header.entry_count) {
+      PRT_PROGRESS_LOG("artifacts mapping cache progress cache=%s entries=%u elapsed_ms=%llu",
+                       cache_path, db->count,
+                       (unsigned long long)(monotonic_ms() - parse_start_ms));
+    }
+  }
+
+  PRT_PROGRESS_LOG("artifacts mapping cache load end cache=%s source_bytes=%zu entries=%u elapsed_ms=%llu",
+                   cache_path, db->file_size_bytes, db->count,
+                   (unsigned long long)(monotonic_ms() - load_start_ms));
+  rc = PRT_OK;
+
+out:
+  if (f) fclose(f);
+  if (rc != PRT_OK) {
+    mapping_db_reset(db);
+    fprintf(stderr, "mapping cache load failed: cache=%s rc=%d\n", cache_path, rc);
+  }
+  return rc;
 }
 
 static uint32_t count_mapping_entries_in_buf(const char *buf) {
@@ -271,6 +428,7 @@ static void stage_apply_mapping(prt_stage_map_t *stage, const mapping_entry_t *e
 
 static int parse_mapping_file(const char *path, mapping_db_t *db) {
   char *buf = NULL;
+  char *cache_path = NULL;
   char *p;
   size_t buf_len = 0;
   uint32_t estimated_entries;
@@ -280,6 +438,20 @@ static int parse_mapping_file(const char *path, mapping_db_t *db) {
   uint64_t parse_start_ms;
 
   if (!path || !db) return PRT_ERR_INVAL;
+  (void)load_start_ms;
+  (void)parse_start_ms;
+  cache_path = mapping_cache_path_from_yaml(path);
+  if (cache_path) {
+    rc = load_mapping_cache_file(cache_path, db);
+    if (rc == PRT_OK) {
+      free(cache_path);
+      return PRT_OK;
+    }
+    PRT_PROGRESS_LOG("artifacts mapping cache fallback layer_mapping=%s cache=%s rc=%d",
+                     path, cache_path, rc);
+    free(cache_path);
+  }
+
   load_start_ms = monotonic_ms();
   PRT_PROGRESS_LOG("artifacts mapping load begin layer_mapping=%s", path);
   rc = load_file(path, &buf, &buf_len);
@@ -441,8 +613,11 @@ static int validate_stage_against_mapping_entries(const char *path, const mappin
   uint64_t start_ms;
 
   if (!path || !db || !stage) return PRT_ERR_INVAL;
+  (void)seg_idx;
+  (void)stage_idx;
   mapping_entry_reset(&matched);
   start_ms = monotonic_ms();
+  (void)start_ms;
 
   PRT_PROGRESS_LOG("artifacts validate stage-begin seg=%u local_stage=%u global_stage=%u layer=%u acc=%u entries=%u",
                    seg_idx, stage_idx, stage->stage_id, stage->layer_id, stage->acc_util, db->count);
@@ -501,6 +676,7 @@ int prt_validate_gemmini_artifacts(const char *model_yaml, const char *layer_map
                    model_yaml, layer_mapping_yaml, pipeline->num_segments);
 
   parse_start_ms = monotonic_ms();
+  (void)parse_start_ms;
   rc = parse_mapping_file(layer_mapping_yaml, &db);
   if (rc != PRT_OK) goto out;
   PRT_PROGRESS_LOG("artifacts mapping parse end layer_mapping=%s bytes=%zu entries=%u elapsed_ms=%llu",
@@ -510,6 +686,7 @@ int prt_validate_gemmini_artifacts(const char *model_yaml, const char *layer_map
   for (uint32_t seg_idx = 0; seg_idx < pipeline->num_segments; ++seg_idx) {
     prt_segment_desc_t *seg = &pipeline->segments[seg_idx];
     uint64_t seg_start_ms = monotonic_ms();
+    (void)seg_start_ms;
     PRT_PROGRESS_LOG("artifacts validate segment-begin seg=%u stages=%u",
                      seg_idx, seg->num_stages);
     for (uint32_t stage_idx = 0; stage_idx < seg->num_stages; ++stage_idx) {

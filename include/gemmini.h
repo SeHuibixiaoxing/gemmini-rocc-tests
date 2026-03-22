@@ -14,6 +14,20 @@
 
 #include "include/gemmini_params.h"
 
+#ifndef PIPELINE_RUNTIME_GEMMINI_PHASE_LOG
+#define PIPELINE_RUNTIME_GEMMINI_PHASE_LOG 0
+#endif
+
+#if PIPELINE_RUNTIME_GEMMINI_PHASE_LOG
+#define PRT_GEMMINI_PHASE_LOG(...) do { \
+    printf(__VA_ARGS__); \
+    printf("\n"); \
+    fflush(stdout); \
+  } while (0)
+#else
+#define PRT_GEMMINI_PHASE_LOG(...) do { } while (0)
+#endif
+
 #define GEMMINI_ASSERTIONS
 
 // Accelerator interface
@@ -681,11 +695,71 @@ static void sp_tiled_matmul_ws(const elem_t * A, const elem_t * B,
 */
 
   // Combined loop
-  gemmini_loop_ws(I, J, K, pad_I, pad_J, pad_K, A, B, no_bias ? NULL : D, C,
-    A_row_stride, B_row_stride, repeating_bias ? 0 : D_row_stride, C_row_stride,
-    a_transpose, b_transpose,
-    full_C, low_D, !no_bias || D == NULL,
-    act, a_spad_id, b_spad_id, false);
+  {
+    const bool loop_ws_ex_accumulate = !no_bias || D == NULL;
+    const bool loop_ws_is_resadd = false;
+    PRT_GEMMINI_PHASE_LOG("[gemmini-phase] loop-ws begin I=%lu J=%lu K=%lu pad_I=%lu pad_J=%lu pad_K=%lu A_stride=%lu B_stride=%lu D_stride=%lu C_stride=%lu a_transpose=%d b_transpose=%d full_C=%d low_D=%d ex_accumulate=%d no_bias=%d repeating_bias=%d act=%d a_spad_id=%d b_spad_id=%d is_resadd=%d A_null=%d B_null=%d D_null=%d C_null=%d",
+      (unsigned long)I, (unsigned long)J, (unsigned long)K,
+      (unsigned long)pad_I, (unsigned long)pad_J, (unsigned long)pad_K,
+      (unsigned long)A_row_stride, (unsigned long)B_row_stride,
+      (unsigned long)D_row_stride, (unsigned long)C_row_stride,
+      a_transpose, b_transpose, full_C, low_D, loop_ws_ex_accumulate, no_bias, repeating_bias,
+      act, a_spad_id, b_spad_id, loop_ws_is_resadd,
+      A == NULL, B == NULL, D == NULL, C == NULL);
+    const void * const D_loop = no_bias ? NULL : D;
+    const size_t D_loop_stride = repeating_bias ? 0 : D_row_stride;
+    const uint64_t loop_ws_rs1 =
+      ((uint64_t)(a_spad_id) << 18) |
+      ((uint64_t)(b_spad_id) << 16) |
+      ((uint64_t)(act) << 8) |
+      ((uint64_t)(low_D) << 2) |
+      ((uint64_t)(full_C) << 1) |
+      (uint64_t)(loop_ws_ex_accumulate);
+    const uint64_t loop_ws_rs2 =
+      ((uint64_t)(loop_ws_is_resadd) << 2) |
+      ((uint64_t)(b_transpose) << 1) |
+      (uint64_t)(a_transpose);
+
+    PRT_GEMMINI_PHASE_LOG("[gemmini-phase] loop-ws cfg-bounds begin rs1=0x%lx rs2=0x%lx",
+        (unsigned long)((uint64_t)(pad_K) << 32 |
+                        (uint64_t)(pad_J) << 16 |
+                        (uint64_t)(pad_I)),
+        (unsigned long)((uint64_t)(K) << 32 |
+                        (uint64_t)(J) << 16 |
+                        (uint64_t)(I)));
+    ROCC_INSTRUCTION_RS1_RS2(XCUSTOM_ACC,
+        ((uint64_t)(pad_K) << 32) | ((uint64_t)(pad_J) << 16) | (uint64_t)(pad_I),
+        ((uint64_t)(K) << 32) | ((uint64_t)(J) << 16) | (uint64_t)(I),
+        k_LOOP_WS_CONFIG_BOUNDS);
+    PRT_GEMMINI_PHASE_LOG("[gemmini-phase] loop-ws cfg-bounds end");
+
+    PRT_GEMMINI_PHASE_LOG("[gemmini-phase] loop-ws cfg-addrs-ab begin A=0x%lx B=0x%lx",
+        (unsigned long)(uintptr_t)A, (unsigned long)(uintptr_t)B);
+    ROCC_INSTRUCTION_RS1_RS2(XCUSTOM_ACC, A, B, k_LOOP_WS_CONFIG_ADDRS_AB);
+    PRT_GEMMINI_PHASE_LOG("[gemmini-phase] loop-ws cfg-addrs-ab end");
+
+    PRT_GEMMINI_PHASE_LOG("[gemmini-phase] loop-ws cfg-addrs-dc begin D=0x%lx C=0x%lx",
+        (unsigned long)(uintptr_t)D_loop, (unsigned long)(uintptr_t)C);
+    ROCC_INSTRUCTION_RS1_RS2(XCUSTOM_ACC, D_loop, C, k_LOOP_WS_CONFIG_ADDRS_DC);
+    PRT_GEMMINI_PHASE_LOG("[gemmini-phase] loop-ws cfg-addrs-dc end");
+
+    PRT_GEMMINI_PHASE_LOG("[gemmini-phase] loop-ws cfg-strides-ab begin A_stride=%lu B_stride=%lu",
+        (unsigned long)A_row_stride, (unsigned long)B_row_stride);
+    ROCC_INSTRUCTION_RS1_RS2(XCUSTOM_ACC, A_row_stride, B_row_stride, k_LOOP_WS_CONFIG_STRIDES_AB);
+    PRT_GEMMINI_PHASE_LOG("[gemmini-phase] loop-ws cfg-strides-ab end");
+
+    PRT_GEMMINI_PHASE_LOG("[gemmini-phase] loop-ws cfg-strides-dc begin D_stride=%lu C_stride=%lu",
+        (unsigned long)D_loop_stride, (unsigned long)C_row_stride);
+    ROCC_INSTRUCTION_RS1_RS2(XCUSTOM_ACC, D_loop_stride, C_row_stride, k_LOOP_WS_CONFIG_STRIDES_DC);
+    PRT_GEMMINI_PHASE_LOG("[gemmini-phase] loop-ws cfg-strides-dc end");
+
+    PRT_GEMMINI_PHASE_LOG("[gemmini-phase] loop-ws run begin rs1=0x%lx rs2=0x%lx",
+        (unsigned long)loop_ws_rs1, (unsigned long)loop_ws_rs2);
+    ROCC_INSTRUCTION_RS1_RS2(XCUSTOM_ACC, loop_ws_rs1, loop_ws_rs2, k_LOOP_WS);
+    PRT_GEMMINI_PHASE_LOG("[gemmini-phase] loop-ws run end");
+  }
+  PRT_GEMMINI_PHASE_LOG("[gemmini-phase] loop-ws end I=%lu J=%lu K=%lu",
+      (unsigned long)I, (unsigned long)J, (unsigned long)K);
 }
 
 
@@ -782,10 +856,24 @@ static void tiled_matmul_outer(size_t dim_I, size_t dim_J, size_t dim_K,
   int b_spad_id = 0;
   bool b_reuse = (J0 * K0 <= 2) && (dataflow == WEIGHT_STATIONARY);
   bool a_reuse = (I0 * K0 <= 2) && (dataflow == WEIGHT_STATIONARY);
+  const size_t total_tiles = I0 * J0 * K0;
+
+  PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-outer begin dim_I=%lu dim_J=%lu dim_K=%lu dim_I_padded=%lu dim_J_padded=%lu dim_K_padded=%lu tile_I=%lu tile_J=%lu tile_K=%lu I0=%lu J0=%lu K0=%lu last_I=%lu last_J=%lu last_K=%lu padding_I=%lu padding_J=%lu padding_K=%lu stride_A=%lu stride_B=%lu stride_D=%lu stride_C=%lu dataflow=%d no_bias=%d repeating_bias=%d a_reuse=%d b_reuse=%d",
+      (unsigned long)dim_I, (unsigned long)dim_J, (unsigned long)dim_K,
+      (unsigned long)dim_I_padded, (unsigned long)dim_J_padded, (unsigned long)dim_K_padded,
+      (unsigned long)tile_I, (unsigned long)tile_J, (unsigned long)tile_K,
+      (unsigned long)I0, (unsigned long)J0, (unsigned long)K0,
+      (unsigned long)last_I, (unsigned long)last_J, (unsigned long)last_K,
+      (unsigned long)padding_I, (unsigned long)padding_J, (unsigned long)padding_K,
+      (unsigned long)stride_A, (unsigned long)stride_B,
+      (unsigned long)stride_D, (unsigned long)stride_C,
+      dataflow, no_bias, repeating_bias, a_reuse, b_reuse);
 
   for (size_t i0 = 0; i0 < I0; i0++)
     for (size_t j0 = 0; j0 < J0; j0++)
       for (size_t k0 = 0; k0 < K0; k0++) {
+        const size_t tile_seq = ((i0 * J0) + j0) * K0 + k0;
+        const bool log_this_tile = tile_seq < 8 || tile_seq + 1 == total_tiles;
         if(a_reuse)
           a_spad_id = ((i0+k0) == 0) ? 1 : 2;
         if(b_reuse)
@@ -819,6 +907,15 @@ static void tiled_matmul_outer(size_t dim_I, size_t dim_J, size_t dim_K,
         if(a_reuse && j0 >= 1) a = NULL;
         if(b_reuse && i0 >= 1) b = NULL;
         //printf("a_reuse: %d, b_reuse: %d, a_spad_id: %d, b_spad_id: %d, a: %llu, b: %llu \n", a_reuse, b_reuse, a_spad_id, b_spad_id, a, b);
+        if (log_this_tile) {
+          PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-inner begin tile=%lu/%lu i0=%lu j0=%lu k0=%lu I=%lu J=%lu K=%lu pad_I=%lu pad_J=%lu pad_K=%lu a_spad_id=%d b_spad_id=%d a_null=%d b_null=%d pre_null=%d out_null=%d",
+              (unsigned long)(tile_seq + 1), (unsigned long)total_tiles,
+              (unsigned long)i0, (unsigned long)j0, (unsigned long)k0,
+              (unsigned long)I, (unsigned long)J, (unsigned long)K,
+              (unsigned long)pad_I, (unsigned long)pad_J, (unsigned long)pad_K,
+              a_spad_id, b_spad_id,
+              a == NULL, b == NULL, pre == NULL, out == NULL);
+        }
         (*inner)(a, b, pre, out,
             A_scale_factor, B_scale_factor, D_scale_factor,
             I, J, K,
@@ -828,9 +925,18 @@ static void tiled_matmul_outer(size_t dim_I, size_t dim_J, size_t dim_K,
             full_C, low_D,
             no_bias, repeating_bias,
             act, a_spad_id, b_spad_id);
+        if (log_this_tile) {
+          PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-inner end tile=%lu/%lu i0=%lu j0=%lu k0=%lu",
+              (unsigned long)(tile_seq + 1), (unsigned long)total_tiles,
+              (unsigned long)i0, (unsigned long)j0, (unsigned long)k0);
+        }
       }
 
+  PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-outer fence-begin total_tiles=%lu",
+      (unsigned long)total_tiles);
   gemmini_fence();
+  PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-outer fence-end total_tiles=%lu",
+      (unsigned long)total_tiles);
 }
 
 
@@ -1326,6 +1432,19 @@ static void tiled_matmul_auto(size_t dim_I, size_t dim_J, size_t dim_K,
 #endif
 #endif
 
+    {
+      const size_t spad_rows = tiled_matmul_total_spad_rows(tile_I, tile_J, tile_K);
+      const size_t acc_rows = tiled_matmul_total_acc_rows(tile_I, tile_J);
+      PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-auto dim_I=%lu dim_J=%lu dim_K=%lu dim_I_padded=%lu dim_J_padded=%lu dim_K_padded=%lu tile_I=%lu tile_J=%lu tile_K=%lu spad_rows=%lu acc_rows=%lu max_spad_rows=%lu max_acc_rows=%lu double_buffered=%d act=%d transpose_A=%d transpose_B=%d full_C=%d low_D=%d repeating_bias=%d type=%d",
+          (unsigned long)dim_I, (unsigned long)dim_J, (unsigned long)dim_K,
+          (unsigned long)dim_I_padded, (unsigned long)dim_J_padded, (unsigned long)dim_K_padded,
+          (unsigned long)tile_I, (unsigned long)tile_J, (unsigned long)tile_K,
+          (unsigned long)spad_rows, (unsigned long)acc_rows,
+          (unsigned long)max_spad_rows, (unsigned long)max_acc_rows,
+          double_buffered, act, transpose_A, transpose_B, full_C, low_D,
+          repeating_bias, tiled_matmul_type);
+    }
+
     tiled_matmul(dim_I, dim_J, dim_K,
         A, B, D, C,
         stride_A, stride_B, stride_D, stride_C,
@@ -1436,7 +1555,11 @@ static void sp_tiled_conv(
     C_sp_addr_row = (C_sp_addr_row + ACC_ROWS / 2) % ACC_ROWS;
   }
 
+  PRT_GEMMINI_PHASE_LOG("[gemmini-phase] loop-conv begin batches=%d porows=%d pocols=%d pochs=%d krows=%d kcols=%d kchs=%d in_stride=%d weight_stride=%d out_stride=%d",
+      batches, porows, pocols, pochs, krows, kcols, kchs, in_stride, weight_stride, out_stride);
   gemmini_loop_conv_ws(batch_size, in_row_dim, in_col_dim, in_channels, out_channels, out_row_dim, out_col_dim, pool_out_row_dim, pool_out_col_dim, stride, padding, kernel_dim, kernel_dilation, pool_size, pool_stride, pool_padding, batches, porows, pocols, pochs, krows, kcols, kchs, lpad, rpad, upad, dpad, plpad, prpad, pupad, pdpad, orows, ocols, weights, output, bias, input, no_bias, no_pool, downsample, wrot180, input_dilated, act, trans_output_1203, trans_weight_1203, trans_weight_0132, trans_input_3120, max_pixels_per_row, in_stride, weight_stride, out_stride, dw, a_spad_id, b_spad_id);
+  PRT_GEMMINI_PHASE_LOG("[gemmini-phase] loop-conv end batches=%d porows=%d pocols=%d pochs=%d krows=%d kcols=%d kchs=%d",
+      batches, porows, pocols, pochs, krows, kcols, kchs);
 
 /*
   if (!no_pool) {
@@ -2412,6 +2535,9 @@ static void tiled_conv(
 							    if(a_reuse && (poch > 0)) in = NULL;
                                 //printf("a_reuse: %d, b_reuse: %d, a_spad_id: %d, b_spad_id: %d, in: %llu, weight: %llu \n", a_reuse, b_reuse, a_spad_id, b_spad_id, in, weights_slice);
  
+                                PRT_GEMMINI_PHASE_LOG("[gemmini-phase] outer begin b=%d porow=%d pocol=%d poch=%d krow=%d kcol=%d kch=%d batches_=%d porows_=%d pocols_=%d pochs_=%d krows_=%d kcols_=%d kchs_=%d",
+                                    b, porow, pocol, poch, krow, kcol, kch,
+                                    batches_, porows_, pocols_, pochs_, krows_, kcols_, kchs_);
                                 sp_tiled_conv(
                                     batch_size, in_row_dim, in_col_dim, in_channels,
                                     out_channels, out_row_dim, out_col_dim,
@@ -2441,6 +2567,8 @@ static void tiled_conv(
 
                                     no_bias, no_pool, downsample, input_dilated,
                                     false, a_spad_id, b_spad_id);
+                                PRT_GEMMINI_PHASE_LOG("[gemmini-phase] outer end b=%d porow=%d pocol=%d poch=%d krow=%d kcol=%d kch=%d",
+                                    b, porow, pocol, poch, krow, kcol, kch);
 
                             }
                         }
@@ -2751,7 +2879,11 @@ static void tiled_conv_stride_auto(
 
         for (size_t i = 0; i < sizeof(args)/sizeof(args[0]); i++) {
             int args_candidate[] = {args[0], args[1], args[2], args[3], args[4], args[5], args[6]};
-            args_candidate[i]++;
+            if (i == out_channels_idx || i == in_channels_idx) {
+                args_candidate[i] += DIM;
+            } else {
+                args_candidate[i]++;
+            }
 
             if (args_candidate[i] > max_args[i])
                 continue;

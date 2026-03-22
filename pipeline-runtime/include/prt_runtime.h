@@ -140,6 +140,13 @@ typedef struct prt_runtime_s {
 int prt_runtime_init(const prt_runtime_cfg_t *cfg, prt_runtime_t *rt);
 int prt_runtime_run(prt_runtime_t *rt, const prt_run_args_t *args);
 int prt_runtime_destroy(prt_runtime_t *rt);
+int prt_runtime_prepare_resadd_cpu_fallback(prt_runtime_t *rt, uint32_t stage_id,
+                                            const prt_gemmini_resadd_desc_t *src,
+                                            prt_gemmini_resadd_desc_t *host_desc,
+                                            uint64_t *out_output_host_base,
+                                            size_t *out_output_tensor_bytes,
+                                            const prt_page_list_t **out_output_pages,
+                                            uint32_t *out_output_tensor_id);
 
 uint64_t prt_now_ns(void);
 uint64_t prt_now_cycle(void);

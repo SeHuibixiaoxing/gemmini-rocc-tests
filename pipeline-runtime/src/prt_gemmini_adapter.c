@@ -12,6 +12,19 @@
 
 #if defined(__riscv)
 #include "include/gemmini.h"
+#include "include/gemmini_nn.h"
+#endif
+
+#if defined(__riscv)
+#ifndef PRT_GEMMINI_WS_SAFE_POINTWISE_KCHS_CAP
+#define PRT_GEMMINI_WS_SAFE_POINTWISE_KCHS_CAP 16
+#endif
+
+#ifndef PRT_GEMMINI_SAFE_POINTWISE_OC_CHUNK
+// FPGA runs showed direct OS fallback can still stall at J=128 after repeated
+// split-OC iterations, so keep canonical pointwise fallbacks below that size.
+#define PRT_GEMMINI_SAFE_POINTWISE_OC_CHUNK 64
+#endif
 #endif
 
 static int gemm_blocking_conv_run(prt_runtime_t *rt, const prt_conv_task_t *task, uint64_t timeout_ns);
@@ -22,6 +35,7 @@ static int gemm_async_fence(prt_runtime_t *rt, const prt_conv_task_t *task, uint
 static int gemm_issue_task(prt_runtime_t *rt, const prt_conv_task_t *task);
 
 static int task_issue_already_fenced(const prt_conv_task_t *task);
+static void resadd_cpu_ref(const prt_gemmini_resadd_desc_t *resadd);
 
 static void *prt_gemmini_alloc_aligned(size_t bytes, int zero_fill) {
   const size_t align_bytes = 64U;
@@ -40,6 +54,577 @@ static int flush_scope_after_drain(prt_rr_scope_t *scope) {
   rc = prt_rr_fence_scope(scope);
   gemmini_fence();
   return rc;
+}
+
+static int prt_floor_dim_or_one(int value) {
+  if (value <= 0) return 1;
+  if (value <= DIM) return value;
+  value = (value / DIM) * DIM;
+  return value > 0 ? value : 1;
+}
+
+static int prt_pick_safe_loop_conv_kchs_cap(const prt_gemmini_conv_desc_t *conv,
+                                            enum tiled_matmul_type_t tiled_type) {
+  if (!conv) return 0;
+  if (tiled_type != WS) return 0;
+  if (conv->kernel_dim != 1 || conv->stride != 1 || conv->padding != 0) return 0;
+  if (conv->in_channels <= PRT_GEMMINI_WS_SAFE_POINTWISE_KCHS_CAP) return 0;
+  return prt_floor_dim_or_one(PRT_GEMMINI_WS_SAFE_POINTWISE_KCHS_CAP);
+}
+
+static int prt_is_canonical_pointwise_matmul_conv(const prt_gemmini_conv_desc_t *conv,
+                                                  enum tiled_matmul_type_t tiled_type) {
+  if (!conv) return 0;
+  if (tiled_type != WS) return 0;
+  if (conv->kernel_dim != 1 || conv->stride != 1 || conv->padding != 0) return 0;
+  if (conv->pool_stride != 0 || conv->pool_size > 1 || conv->pool_padding != 0) return 0;
+  if (conv->input_dilation > 1 || conv->kernel_dilation > 1) return 0;
+  if (conv->wrot180 || conv->trans_output_1203 || conv->trans_input_3120 ||
+      conv->trans_weight_1203 || conv->trans_weight_0132) {
+    return 0;
+  }
+  if (conv->batch_size <= 0 || conv->in_channels <= 0 || conv->out_channels <= 0 ||
+      conv->out_row_dim <= 0 || conv->out_col_dim <= 0) {
+    return 0;
+  }
+  if (conv->in_row_dim != conv->out_row_dim || conv->in_col_dim != conv->out_col_dim) return 0;
+  return 1;
+}
+
+static void prt_pointwise_matmul_dims(const prt_gemmini_conv_desc_t *conv,
+                                      size_t *dim_i, size_t *dim_j, size_t *dim_k) {
+  if (!conv || !dim_i || !dim_j || !dim_k) return;
+  *dim_i = (size_t)conv->batch_size * (size_t)conv->out_row_dim * (size_t)conv->out_col_dim;
+  *dim_j = (size_t)conv->out_channels;
+  *dim_k = (size_t)conv->in_channels;
+}
+
+static int prt_pointwise_matmul_strides_supported(const prt_gemmini_conv_desc_t *conv,
+                                                  int in_stride, int weight_stride,
+                                                  int out_stride) {
+  size_t dim_i = 0;
+  size_t dim_j = 0;
+  size_t dim_k = 0;
+  (void)dim_i;
+  if (!conv) return 0;
+  if (in_stride <= 0 || weight_stride <= 0 || out_stride <= 0) return 0;
+  prt_pointwise_matmul_dims(conv, &dim_i, &dim_j, &dim_k);
+  return (size_t)in_stride >= dim_k &&
+         (size_t)weight_stride >= dim_j &&
+         (size_t)out_stride >= dim_j;
+}
+
+static int prt_pick_safe_pointwise_oc_chunk(const prt_gemmini_conv_desc_t *conv,
+                                            enum tiled_matmul_type_t tiled_type) {
+  if (!conv) return 0;
+  if (!prt_is_canonical_pointwise_matmul_conv(conv, tiled_type)) return 0;
+  if (conv->out_channels <= PRT_GEMMINI_SAFE_POINTWISE_OC_CHUNK) return 0;
+  return prt_floor_dim_or_one(PRT_GEMMINI_SAFE_POINTWISE_OC_CHUNK);
+}
+
+static const char *prt_tiled_matmul_type_name(enum tiled_matmul_type_t tiled_type) {
+  switch (tiled_type) {
+    case OS: return "OS";
+    case WS: return "WS";
+    case CPU: return "CPU";
+    default: return "UNKNOWN";
+  }
+}
+
+static const char *prt_split_kind_name(prt_layer_split_t split_kind) {
+  switch (split_kind) {
+    case PRT_LAYER_SPLIT_UNSPEC: return "unspec";
+    case PRT_LAYER_SPLIT_SINGLE: return "single";
+    case PRT_LAYER_SPLIT_OC: return "oc";
+    case PRT_LAYER_SPLIT_SPATIAL: return "spatial";
+    case PRT_LAYER_SPLIT_RESADD_SPATIAL: return "resadd_spatial";
+    default: return "unknown";
+  }
+}
+
+static enum tiled_matmul_type_t prt_conv_tiled_type(const prt_gemmini_conv_desc_t *conv) {
+  if (!conv) return WS;
+  if (conv->tiled_type == 0) return OS;
+  if (conv->tiled_type == 2) return CPU;
+  return WS;
+}
+
+static enum tiled_matmul_type_t prt_pick_resadd_type(const prt_gemmini_resadd_desc_t *resadd) {
+  if (!resadd) return WS;
+#if defined(__riscv)
+  // User hard constraint: live bertmini runs must stay on Gemmini. Ignore any
+  // historical CPU resadd artifact hints in the on-device runtime.
+  return WS;
+#else
+  return resadd->tiled_type == 2 ? CPU : WS;
+#endif
+}
+
+static int prt_writeback_resadd_cpu_output(prt_runtime_t *rt, uint32_t stage_id, uint32_t manager_id,
+                                           uint32_t tensor_id, uint64_t host_output_base,
+                                           size_t host_output_bytes,
+                                           const prt_page_list_t *output_pages) {
+  const uint32_t page_bytes =
+    rt && rt->cfg.page_size_bytes ? rt->cfg.page_size_bytes : PRT_PAGE_SIZE_BYTES;
+  const size_t spm_bytes =
+    output_pages ? (size_t)output_pages->size * (size_t)page_bytes : 0U;
+  uint64_t timeout_ns;
+  const uint8_t *src = (const uint8_t *)(uintptr_t)host_output_base;
+  uint8_t *padded = NULL;
+  int rc;
+
+  if (!rt || !output_pages || !output_pages->data || output_pages->size == 0 || !src) return PRT_OK;
+  timeout_ns = (uint64_t)rt->cfg.watchdog_timeout_ms * 1000000ULL;
+
+  if (host_output_bytes < spm_bytes) {
+    padded = (uint8_t *)prt_gemmini_alloc_aligned(spm_bytes, 1);
+    if (!padded) return PRT_ERR_NOMEM;
+    memcpy(padded, src, host_output_bytes);
+    src = padded;
+  }
+
+  PRT_PROGRESS_LOG("resadd-fallback-writeback stage=%u mgr=%u tensor=%u host_base=0x%llx tensor_bytes=%llu spm_bytes=%llu pages=%u begin",
+                   stage_id, manager_id, tensor_id,
+                   (unsigned long long)host_output_base,
+                   (unsigned long long)host_output_bytes,
+                   (unsigned long long)spm_bytes,
+                   output_pages->size);
+  rc = prt_dma_copy_dram_to_spm_pages(rt, output_pages, (uint64_t)(uintptr_t)src,
+                                      rt->stage_dma_ids[stage_id], stage_id, tensor_id, timeout_ns);
+  PRT_PROGRESS_LOG("resadd-fallback-writeback stage=%u mgr=%u tensor=%u end rc=%d",
+                   stage_id, manager_id, tensor_id, rc);
+
+  free(padded);
+  return rc;
+}
+
+static int prt_should_force_resadd_cpu_fallback(const prt_conv_task_t *task,
+                                                const prt_gemmini_resadd_desc_t *resadd,
+                                                enum tiled_matmul_type_t requested_type) {
+  (void)task;
+  (void)resadd;
+  (void)requested_type;
+
+  // User hard constraint: bertmini debugging must stay on Gemmini. Keep the
+  // old CPU fallback helpers available only as historical reference, but do not
+  // route live resadd traffic to CPU.
+  return 0;
+}
+
+static int prt_run_resadd_cpu_fallback(prt_runtime_t *rt, uint32_t stage_id, uint32_t manager_id,
+                                       const prt_conv_task_t *task,
+                                       const prt_gemmini_resadd_desc_t *resadd,
+                                       enum tiled_matmul_type_t requested_type) {
+  const prt_layer_split_t split_kind =
+    task ? task->split_kind : PRT_LAYER_SPLIT_UNSPEC;
+  const uint32_t tiles = (task && task->tile_count > 0) ? task->tile_count : 1U;
+  prt_gemmini_resadd_desc_t host_desc;
+  uint64_t host_output_base = 0;
+  size_t host_output_bytes = 0;
+  const prt_page_list_t *output_pages = NULL;
+  uint32_t output_tensor_id = 0;
+  int rc;
+  if (!resadd) return PRT_ERR_INVAL;
+
+  PRT_PROGRESS_LOG("resadd-fallback stage=%u mgr=%u begin I=%lu J=%lu stride=%lu split=%s tiles=%u requested_type=%s fallback_type=CPU reason=avoid-loop-ws-resadd",
+                   stage_id, manager_id,
+                   (unsigned long)resadd->I, (unsigned long)resadd->J,
+                   (unsigned long)resadd->stride,
+                   prt_split_kind_name(split_kind), tiles,
+                   prt_tiled_matmul_type_name(requested_type));
+  rc = prt_runtime_prepare_resadd_cpu_fallback(rt, stage_id, resadd, &host_desc,
+                                               &host_output_base, &host_output_bytes,
+                                               &output_pages, &output_tensor_id);
+  if (rc != PRT_OK) {
+    PRT_PROGRESS_LOG("resadd-fallback stage=%u mgr=%u map-failed rc=%d", stage_id, manager_id, rc);
+    return rc;
+  }
+  resadd_cpu_ref(&host_desc);
+  rc = prt_writeback_resadd_cpu_output(rt, stage_id, manager_id, output_tensor_id,
+                                       host_output_base, host_output_bytes, output_pages);
+  if (rc != PRT_OK) return rc;
+  PRT_PROGRESS_LOG("resadd-fallback stage=%u mgr=%u end I=%lu J=%lu stride=%lu split=%s tiles=%u requested_type=%s fallback_type=CPU",
+                   stage_id, manager_id,
+                   (unsigned long)resadd->I, (unsigned long)resadd->J,
+                   (unsigned long)resadd->stride,
+                   prt_split_kind_name(split_kind), tiles,
+                   prt_tiled_matmul_type_name(requested_type));
+  return PRT_OK;
+}
+
+static enum tiled_matmul_type_t prt_pick_pointwise_matmul_fallback_type(
+    enum tiled_matmul_type_t tiled_type, size_t dim_j) {
+  (void)dim_j;
+  // Live FireSim UART now proves the canonical 1x1 conv fallback enters
+  // gemmini_loop_ws and stalls on the LOOP_WS run command itself. Stay on the
+  // Gemmini path by switching just this narrow canonical pointwise fallback to
+  // OS instead of WS; CPU fallback is not allowed on bertmini.
+  return tiled_type == WS ? OS : tiled_type;
+}
+
+static int prt_run_pointwise_matmul_fallback_chunked_oc(uint32_t stage_id, uint32_t manager_id,
+                                                        const prt_gemmini_conv_desc_t *conv,
+                                                        enum tiled_matmul_type_t tiled_type,
+                                                        int oc_chunk, int in_stride,
+                                                        int weight_stride, int out_stride,
+                                                        int emit_logs);
+static int prt_run_pointwise_matmul_fallback_impl(uint32_t stage_id, uint32_t manager_id,
+                                                  const prt_gemmini_conv_desc_t *conv,
+                                                  enum tiled_matmul_type_t tiled_type,
+                                                  int emit_logs);
+static int prt_run_pointwise_matmul_fallback_strided_impl(uint32_t stage_id, uint32_t manager_id,
+                                                          const prt_gemmini_conv_desc_t *conv,
+                                                          enum tiled_matmul_type_t tiled_type,
+                                                          int in_stride, int weight_stride,
+                                                          int out_stride, int emit_logs);
+
+// Prefer the stable non-CISC matmul path for canonical pointwise convs.
+static int prt_run_pointwise_matmul_fallback(uint32_t stage_id, uint32_t manager_id,
+                                             const prt_gemmini_conv_desc_t *conv,
+                                             enum tiled_matmul_type_t tiled_type) {
+  return prt_run_pointwise_matmul_fallback_impl(stage_id, manager_id, conv, tiled_type, 1);
+}
+
+static int prt_run_pointwise_matmul_fallback_impl(uint32_t stage_id, uint32_t manager_id,
+                                                  const prt_gemmini_conv_desc_t *conv,
+                                                  enum tiled_matmul_type_t tiled_type,
+                                                  int emit_logs) {
+  size_t dim_i = 0;
+  size_t dim_j = 0;
+  size_t dim_k = 0;
+  int safe_oc_chunk = 0;
+  enum tiled_matmul_type_t fallback_type;
+  const elem_t (*input_mat)[dim_k];
+  const elem_t (*weight_mat)[dim_j];
+  elem_t (*output_mat)[dim_j];
+  prt_pointwise_matmul_dims(conv, &dim_i, &dim_j, &dim_k);
+  fallback_type = prt_pick_pointwise_matmul_fallback_type(tiled_type, dim_j);
+  safe_oc_chunk = prt_pick_safe_pointwise_oc_chunk(conv, tiled_type);
+  if (safe_oc_chunk > 0) {
+    return prt_run_pointwise_matmul_fallback_chunked_oc(stage_id, manager_id, conv, tiled_type,
+                                                        safe_oc_chunk, (int)dim_k, (int)dim_j,
+                                                        (int)dim_j, emit_logs);
+  }
+  input_mat = (const elem_t (*)[dim_k])conv->input;
+  weight_mat = (const elem_t (*)[dim_j])conv->weights;
+  output_mat = (elem_t (*)[dim_j])conv->output;
+  if (emit_logs) {
+    PRT_PROGRESS_HOT_LOG("pointwise-matmul-fallback stage=%u mgr=%u begin I=%lu J=%lu K=%lu requested_type=%s fallback_type=%s reason=avoid-loop-ws",
+                         stage_id, manager_id,
+                         (unsigned long)dim_i, (unsigned long)dim_j, (unsigned long)dim_k,
+                         prt_tiled_matmul_type_name(tiled_type),
+                         prt_tiled_matmul_type_name(fallback_type));
+  }
+  tiled_matmul_nn_auto(
+    dim_i, dim_j, dim_k,
+    input_mat, weight_mat,
+    conv->bias ? (const acc_t *)conv->bias : NULL, output_mat,
+    conv->act, (acc_scale_t)(conv->output_scale != 0.0f ? conv->output_scale : 1.0f),
+    conv->bias != NULL, fallback_type, false, (char *)"prt-pointwise-matmul-fallback");
+  if (emit_logs) {
+    PRT_PROGRESS_HOT_LOG("pointwise-matmul-fallback stage=%u mgr=%u end I=%lu J=%lu K=%lu requested_type=%s fallback_type=%s",
+                         stage_id, manager_id,
+                         (unsigned long)dim_i, (unsigned long)dim_j, (unsigned long)dim_k,
+                         prt_tiled_matmul_type_name(tiled_type),
+                         prt_tiled_matmul_type_name(fallback_type));
+  }
+  return PRT_OK;
+}
+
+static int prt_run_pointwise_matmul_fallback_strided(uint32_t stage_id, uint32_t manager_id,
+                                                     const prt_gemmini_conv_desc_t *conv,
+                                                     enum tiled_matmul_type_t tiled_type,
+                                                     int in_stride, int weight_stride,
+                                                     int out_stride) {
+  return prt_run_pointwise_matmul_fallback_strided_impl(stage_id, manager_id, conv, tiled_type,
+                                                        in_stride, weight_stride, out_stride, 1);
+}
+
+static int prt_run_pointwise_matmul_fallback_strided_impl(uint32_t stage_id, uint32_t manager_id,
+                                                          const prt_gemmini_conv_desc_t *conv,
+                                                          enum tiled_matmul_type_t tiled_type,
+                                                          int in_stride, int weight_stride,
+                                                          int out_stride, int emit_logs) {
+  size_t dim_i = 0;
+  size_t dim_j = 0;
+  size_t dim_k = 0;
+  int safe_oc_chunk = 0;
+  enum tiled_matmul_type_t fallback_type;
+  prt_pointwise_matmul_dims(conv, &dim_i, &dim_j, &dim_k);
+  fallback_type = prt_pick_pointwise_matmul_fallback_type(tiled_type, dim_j);
+  safe_oc_chunk = prt_pick_safe_pointwise_oc_chunk(conv, tiled_type);
+  if (safe_oc_chunk > 0) {
+    return prt_run_pointwise_matmul_fallback_chunked_oc(stage_id, manager_id, conv, tiled_type,
+                                                        safe_oc_chunk, in_stride, weight_stride,
+                                                        out_stride, emit_logs);
+  }
+  if (emit_logs) {
+    PRT_PROGRESS_HOT_LOG("pointwise-matmul-fallback stage=%u mgr=%u begin I=%lu J=%lu K=%lu in_stride=%d weight_stride=%d out_stride=%d requested_type=%s fallback_type=%s reason=avoid-loop-ws",
+                         stage_id, manager_id,
+                         (unsigned long)dim_i, (unsigned long)dim_j, (unsigned long)dim_k,
+                         in_stride, weight_stride, out_stride,
+                         prt_tiled_matmul_type_name(tiled_type),
+                         prt_tiled_matmul_type_name(fallback_type));
+  }
+  tiled_matmul_nn_stride_auto(
+    dim_i, dim_j, dim_k,
+    (size_t)in_stride, (size_t)weight_stride, (size_t)out_stride,
+    (const elem_t *)conv->input, (const elem_t *)conv->weights,
+    conv->bias ? (const acc_t *)conv->bias : NULL, (const elem_t *)conv->output,
+    conv->act, (acc_scale_t)(conv->output_scale != 0.0f ? conv->output_scale : 1.0f),
+    conv->bias != NULL, fallback_type);
+  if (emit_logs) {
+    PRT_PROGRESS_HOT_LOG("pointwise-matmul-fallback stage=%u mgr=%u end I=%lu J=%lu K=%lu in_stride=%d weight_stride=%d out_stride=%d requested_type=%s fallback_type=%s",
+                         stage_id, manager_id,
+                         (unsigned long)dim_i, (unsigned long)dim_j, (unsigned long)dim_k,
+                         in_stride, weight_stride, out_stride,
+                         prt_tiled_matmul_type_name(tiled_type),
+                         prt_tiled_matmul_type_name(fallback_type));
+  }
+  return PRT_OK;
+}
+
+static int prt_run_pointwise_matmul_fallback_chunked_oc(uint32_t stage_id, uint32_t manager_id,
+                                                        const prt_gemmini_conv_desc_t *conv,
+                                                        enum tiled_matmul_type_t tiled_type,
+                                                        int oc_chunk, int in_stride,
+                                                        int weight_stride, int out_stride,
+                                                        int emit_logs) {
+  size_t dim_i = 0;
+  size_t dim_j = 0;
+  size_t dim_k = 0;
+  const elem_t *weights;
+  const acc_t *bias;
+  elem_t *output;
+  int rc = PRT_OK;
+
+  if (!conv) return PRT_ERR_INVAL;
+  if (oc_chunk <= 0 || conv->out_channels <= oc_chunk) {
+    return prt_run_pointwise_matmul_fallback_strided_impl(stage_id, manager_id, conv, tiled_type,
+                                                          in_stride, weight_stride, out_stride,
+                                                          emit_logs);
+  }
+
+  prt_pointwise_matmul_dims(conv, &dim_i, &dim_j, &dim_k);
+  weights = (const elem_t *)conv->weights;
+  bias = (const acc_t *)conv->bias;
+  output = (elem_t *)conv->output;
+  if (emit_logs) {
+    PRT_PROGRESS_HOT_LOG("pointwise-matmul-fallback-chunked stage=%u mgr=%u begin I=%lu J=%lu K=%lu oc_chunk=%d requested_type=%s fallback_type=%s mode=direct-strided",
+                         stage_id, manager_id,
+                         (unsigned long)dim_i, (unsigned long)dim_j, (unsigned long)dim_k,
+                         oc_chunk,
+                         prt_tiled_matmul_type_name(tiled_type),
+                         prt_tiled_matmul_type_name(
+                           prt_pick_pointwise_matmul_fallback_type(
+                             tiled_type,
+                             (size_t)(oc_chunk > 0 && oc_chunk < conv->out_channels ? oc_chunk
+                                                                                    : conv->out_channels))));
+  }
+
+  for (int oc_beg = 0; oc_beg < conv->out_channels; oc_beg += oc_chunk) {
+    const int oc_tile =
+      (oc_beg + oc_chunk <= conv->out_channels) ? oc_chunk : (conv->out_channels - oc_beg);
+    prt_gemmini_conv_desc_t sub = *conv;
+
+    sub.out_channels = oc_tile;
+    sub.weights = weights + oc_beg;
+    sub.bias = bias ? (bias + oc_beg) : NULL;
+    sub.output = output + oc_beg;
+
+    if (emit_logs) {
+      PRT_PROGRESS_HOT_LOG("pointwise-matmul-fallback-chunked stage=%u mgr=%u chunk-begin oc_beg=%d oc_tile=%d mode=direct-strided",
+                           stage_id, manager_id, oc_beg, oc_tile);
+    }
+    rc = prt_run_pointwise_matmul_fallback_strided_impl(stage_id, manager_id, &sub, tiled_type,
+                                                        in_stride, weight_stride, out_stride, 0);
+    if (rc != PRT_OK) goto cleanup;
+    if (emit_logs) {
+      PRT_PROGRESS_HOT_LOG("pointwise-matmul-fallback-chunked stage=%u mgr=%u chunk-end oc_beg=%d oc_tile=%d",
+                           stage_id, manager_id, oc_beg, oc_tile);
+    }
+  }
+
+  if (emit_logs) {
+    PRT_PROGRESS_HOT_LOG("pointwise-matmul-fallback-chunked stage=%u mgr=%u end I=%lu J=%lu K=%lu oc_chunk=%d requested_type=%s fallback_type=%s mode=direct-strided",
+                         stage_id, manager_id,
+                         (unsigned long)dim_i, (unsigned long)dim_j, (unsigned long)dim_k,
+                         oc_chunk,
+                         prt_tiled_matmul_type_name(tiled_type),
+                         prt_tiled_matmul_type_name(
+                           prt_pick_pointwise_matmul_fallback_type(
+                             tiled_type,
+                             (size_t)(oc_chunk > 0 && oc_chunk < conv->out_channels ? oc_chunk
+                                                                                    : conv->out_channels))));
+  }
+cleanup:
+  return rc;
+}
+
+static void tiled_conv_stride_auto_capped_kchs(
+    int batch_size, int in_row_dim, int in_col_dim, int in_channels,
+    int out_channels, int out_row_dim, int out_col_dim,
+    int stride, int input_dilation, int kernel_dilation, int padding, int kernel_dim,
+    int in_stride, int weight_stride, int out_stride,
+    bool wrot180, bool trans_output_1203, bool trans_input_3120,
+    bool trans_weight_1203, bool trans_weight_0132,
+    const elem_t *input, const elem_t *weights, const acc_t *bias, elem_t *output,
+    int act, acc_scale_t scale,
+    int pool_size, int pool_stride, int pool_padding,
+    enum tiled_matmul_type_t tiled_conv_type,
+    int max_kchs,
+    int chosen_args[7]) {
+  const bool no_pool = pool_stride == 0;
+  const int orows_idx = 1;
+  const int ocols_idx = 2;
+  const int out_channels_idx = 3;
+  const int in_channels_idx = 6;
+  const int max_spad_rows = (BANK_NUM * BANK_ROWS / 2);
+  const int max_acc_rows = (ACC_ROWS / 2);
+  int pool_out_row_dim;
+  int pool_out_col_dim;
+  bool downsample;
+  int args[7];
+  int max_args[7];
+  int capped_kchs;
+  int spad_rows;
+  int acc_rows;
+
+  if (no_pool) {
+    pool_size = 1;
+    pool_stride = 1;
+    pool_padding = 0;
+  }
+
+  capped_kchs = max_kchs > 0 ? max_kchs : in_channels;
+  if (capped_kchs > in_channels) capped_kchs = in_channels;
+  capped_kchs = prt_floor_dim_or_one(capped_kchs);
+  if (capped_kchs > in_channels) capped_kchs = in_channels;
+
+  pool_out_row_dim = (out_row_dim + 2 * pool_padding - pool_size) / pool_stride + 1;
+  pool_out_col_dim = (out_col_dim + 2 * pool_padding - pool_size) / pool_stride + 1;
+
+  downsample = stride == 2 && kernel_dim == 1 && padding == 0 && no_pool &&
+               in_row_dim % 2 == 0 && in_col_dim % 2 == 0;
+
+  args[0] = batch_size;
+  args[1] = pool_out_row_dim;
+  args[2] = pool_out_col_dim;
+  args[3] = out_channels;
+  args[4] = kernel_dim;
+  args[5] = kernel_dim;
+  args[6] = capped_kchs;
+
+  memcpy(max_args, args, sizeof(args));
+
+  spad_rows = tiled_conv_total_spad_rows(false,
+      stride, input_dilation, kernel_dilation, downsample, trans_weight_0132, trans_input_3120,
+      args[0], args[1], args[2], args[3], args[4], args[5], args[6], pool_size, pool_stride);
+  acc_rows = tiled_conv_total_spad_rows(true,
+      stride, input_dilation, kernel_dilation, downsample, trans_weight_0132, trans_input_3120,
+      args[0], args[1], args[2], args[3], args[4], args[5], args[6], pool_size, pool_stride);
+
+  while (spad_rows > max_spad_rows || acc_rows > max_acc_rows) {
+    int max_val = -1;
+    int max_idx = -1;
+
+    for (size_t i = 0; i < sizeof(args) / sizeof(args[0]); ++i) {
+      if (!(i == ocols_idx && args[i] <= DIM && args[orows_idx] > 1) &&
+          args[i] > max_val) {
+        max_val = args[i];
+        max_idx = (int)i;
+      }
+    }
+
+    if (max_idx == out_channels_idx || max_idx == in_channels_idx) {
+      if (args[max_idx] % DIM != 0) args[max_idx] = (args[max_idx] / DIM) * DIM;
+      else args[max_idx] -= DIM;
+      args[max_idx] = args[max_idx] == 0 ? 1 : args[max_idx];
+    } else {
+      args[max_idx] -= 1;
+    }
+
+    spad_rows = tiled_conv_total_spad_rows(false,
+        stride, input_dilation, kernel_dilation, downsample, trans_weight_0132, trans_input_3120,
+        args[0], args[1], args[2], args[3], args[4], args[5], args[6], pool_size, pool_stride);
+    acc_rows = tiled_conv_total_spad_rows(true,
+        stride, input_dilation, kernel_dilation, downsample, trans_weight_0132, trans_input_3120,
+        args[0], args[1], args[2], args[3], args[4], args[5], args[6], pool_size, pool_stride);
+  }
+
+  {
+    bool not_increased = false;
+    while (!not_increased) {
+      int args_candidate[7];
+      not_increased = true;
+      memcpy(args_candidate, args, sizeof(args));
+      args_candidate[ocols_idx] += 1;
+
+      if (args_candidate[ocols_idx] > max_args[ocols_idx]) continue;
+
+      spad_rows = tiled_conv_total_spad_rows(false,
+          stride, input_dilation, kernel_dilation, downsample, trans_weight_0132, trans_input_3120,
+          args_candidate[0], args_candidate[1], args_candidate[2], args_candidate[3],
+          args_candidate[4], args_candidate[5], args_candidate[6], pool_size, pool_stride);
+      acc_rows = tiled_conv_total_spad_rows(true,
+          stride, input_dilation, kernel_dilation, downsample, trans_weight_0132, trans_input_3120,
+          args_candidate[0], args_candidate[1], args_candidate[2], args_candidate[3],
+          args_candidate[4], args_candidate[5], args_candidate[6], pool_size, pool_stride);
+
+      if (spad_rows <= max_spad_rows && acc_rows <= max_acc_rows) {
+        args[ocols_idx] = args_candidate[ocols_idx];
+        not_increased = false;
+      }
+    }
+  }
+
+  {
+    bool nothing_increased = false;
+    while (!nothing_increased) {
+      nothing_increased = true;
+
+      for (size_t i = 0; i < sizeof(args) / sizeof(args[0]); ++i) {
+        int args_candidate[7];
+        memcpy(args_candidate, args, sizeof(args));
+        if ((int)i == out_channels_idx || (int)i == in_channels_idx) args_candidate[i] += DIM;
+        else args_candidate[i] += 1;
+
+        if (args_candidate[i] > max_args[i]) continue;
+
+        spad_rows = tiled_conv_total_spad_rows(false,
+            stride, input_dilation, kernel_dilation, downsample, trans_weight_0132, trans_input_3120,
+            args_candidate[0], args_candidate[1], args_candidate[2], args_candidate[3],
+            args_candidate[4], args_candidate[5], args_candidate[6], pool_size, pool_stride);
+        acc_rows = tiled_conv_total_spad_rows(true,
+            stride, input_dilation, kernel_dilation, downsample, trans_weight_0132, trans_input_3120,
+            args_candidate[0], args_candidate[1], args_candidate[2], args_candidate[3],
+            args_candidate[4], args_candidate[5], args_candidate[6], pool_size, pool_stride);
+
+        if (spad_rows <= max_spad_rows && acc_rows <= max_acc_rows) {
+          args[i] = args_candidate[i];
+          nothing_increased = false;
+        }
+      }
+    }
+  }
+
+  if (chosen_args) memcpy(chosen_args, args, sizeof(args));
+
+  PRT_PROGRESS_LOG("tiled-conv-safe-args batches=%d porows=%d pocols=%d pochs=%d krows=%d kcols=%d kchs=%d cap=%d",
+                   args[0], args[1], args[2], args[3], args[4], args[5], args[6], capped_kchs);
+
+  tiled_conv(
+      batch_size, in_row_dim, in_col_dim, in_channels,
+      out_channels, out_row_dim, out_col_dim,
+      stride, input_dilation, kernel_dilation, padding, kernel_dim,
+      in_stride, weight_stride, out_stride,
+      wrot180, trans_output_1203, trans_input_3120,
+      trans_weight_1203, trans_weight_0132,
+      args[0], args[1], args[2], args[3], args[4], args[5], args[6],
+      input, weights, bias, output,
+      act, scale,
+      pool_size, pool_stride, pool_padding,
+      tiled_conv_type);
 }
 #endif
 
@@ -681,33 +1266,70 @@ static int conv_call_for_manager_nb(uint32_t stage_id, uint32_t manager_id,
   enum tiled_matmul_type_t tiled_type = WS;
   int input_dilation;
   int kernel_dilation;
+  int use_pointwise_matmul_fallback = 0;
+  int safe_kchs_cap = 0;
+  int chosen_args[7] = {0};
   float output_scale;
   int rc;
   if (!conv) return PRT_ERR_INVAL;
 
+  PRT_PROGRESS_HOT_LOG("conv-nb stage=%u mgr=%u acquire-begin out_ch=%d out_dim=%dx%d in_dim=%dx%d",
+                       stage_id, manager_id, conv->out_channels,
+                       conv->out_row_dim, conv->out_col_dim,
+                       conv->in_row_dim, conv->in_col_dim);
   rc = prt_rr_acquire_scope(NULL, stage_id, manager_id, 3U, &scope);
   if (rc != PRT_OK) return rc;
+  PRT_PROGRESS_HOT_LOG("conv-nb stage=%u mgr=%u acquire-end", stage_id, manager_id);
 
-  if (conv->tiled_type == 0) tiled_type = OS;
-  else if (conv->tiled_type == 2) tiled_type = CPU;
-  else tiled_type = WS;
+  tiled_type = prt_conv_tiled_type(conv);
 
   input_dilation = conv->input_dilation > 0 ? conv->input_dilation : 1;
   kernel_dilation = conv->kernel_dilation > 0 ? conv->kernel_dilation : 1;
   output_scale = conv->output_scale != 0.0f ? conv->output_scale : 1.0f;
+  use_pointwise_matmul_fallback = prt_is_canonical_pointwise_matmul_conv(conv, tiled_type);
   gemmini_flush(0);
-
-  tiled_conv_auto(
-    conv->batch_size, conv->in_row_dim, conv->in_col_dim, conv->in_channels,
-    conv->out_channels, conv->out_row_dim, conv->out_col_dim,
-    conv->stride, input_dilation, kernel_dilation, conv->padding, conv->kernel_dim,
-    conv->wrot180 != 0, conv->trans_output_1203 != 0, conv->trans_input_3120 != 0,
-    conv->trans_weight_1203 != 0, conv->trans_weight_0132 != 0,
-    (const elem_t *)conv->input, (const elem_t *)conv->weights,
-    (const acc_t *)conv->bias, (elem_t *)conv->output,
-    conv->act, (acc_scale_t)output_scale,
-    conv->pool_size, conv->pool_stride, conv->pool_padding,
-    tiled_type);
+  if (use_pointwise_matmul_fallback) {
+    rc = prt_run_pointwise_matmul_fallback(stage_id, manager_id, conv, tiled_type);
+  } else if ((safe_kchs_cap = prt_pick_safe_loop_conv_kchs_cap(conv, tiled_type)) > 0) {
+    PRT_PROGRESS_HOT_LOG("conv-nb stage=%u mgr=%u tiled-conv-begin safe-kchs-cap=%d",
+                         stage_id, manager_id, safe_kchs_cap);
+    tiled_conv_stride_auto_capped_kchs(
+      conv->batch_size, conv->in_row_dim, conv->in_col_dim, conv->in_channels,
+      conv->out_channels, conv->out_row_dim, conv->out_col_dim,
+      conv->stride, input_dilation, kernel_dilation, conv->padding, conv->kernel_dim,
+      conv->in_channels, conv->out_channels, conv->out_channels,
+      conv->wrot180 != 0, conv->trans_output_1203 != 0, conv->trans_input_3120 != 0,
+      conv->trans_weight_1203 != 0, conv->trans_weight_0132 != 0,
+      (const elem_t *)conv->input, (const elem_t *)conv->weights,
+      (const acc_t *)conv->bias, (elem_t *)conv->output,
+      conv->act, (acc_scale_t)output_scale,
+      conv->pool_size, conv->pool_stride, conv->pool_padding,
+      tiled_type, safe_kchs_cap, chosen_args);
+    PRT_PROGRESS_HOT_LOG("conv-nb stage=%u mgr=%u tiled-conv-safe-args batches=%d porows=%d pocols=%d pochs=%d krows=%d kcols=%d kchs=%d",
+                         stage_id, manager_id,
+                         chosen_args[0], chosen_args[1], chosen_args[2], chosen_args[3],
+                         chosen_args[4], chosen_args[5], chosen_args[6]);
+    rc = PRT_OK;
+  } else {
+    PRT_PROGRESS_HOT_LOG("conv-nb stage=%u mgr=%u tiled-conv-begin", stage_id, manager_id);
+    tiled_conv_auto(
+      conv->batch_size, conv->in_row_dim, conv->in_col_dim, conv->in_channels,
+      conv->out_channels, conv->out_row_dim, conv->out_col_dim,
+      conv->stride, input_dilation, kernel_dilation, conv->padding, conv->kernel_dim,
+      conv->wrot180 != 0, conv->trans_output_1203 != 0, conv->trans_input_3120 != 0,
+      conv->trans_weight_1203 != 0, conv->trans_weight_0132 != 0,
+      (const elem_t *)conv->input, (const elem_t *)conv->weights,
+      (const acc_t *)conv->bias, (elem_t *)conv->output,
+      conv->act, (acc_scale_t)output_scale,
+      conv->pool_size, conv->pool_stride, conv->pool_padding,
+      tiled_type);
+    PRT_PROGRESS_HOT_LOG("conv-nb stage=%u mgr=%u tiled-conv-end", stage_id, manager_id);
+    rc = PRT_OK;
+  }
+  if (rc != PRT_OK) {
+    (void)prt_rr_release_scope(&scope);
+    return rc;
+  }
 
   (void)prt_rr_release_scope(&scope);
   return PRT_OK;
@@ -719,47 +1341,79 @@ static int conv_call_for_manager_sync(uint32_t stage_id, uint32_t manager_id,
   enum tiled_matmul_type_t tiled_type = WS;
   int input_dilation;
   int kernel_dilation;
+  int use_pointwise_matmul_fallback = 0;
+  int safe_kchs_cap = 0;
+  int chosen_args[7] = {0};
   float output_scale;
   int rc;
   if (!conv) return PRT_ERR_INVAL;
 
-  PRT_PROGRESS_LOG("conv-sync stage=%u mgr=%u acquire-begin out_ch=%d out_dim=%dx%d in_dim=%dx%d",
-                   stage_id, manager_id, conv->out_channels,
-                   conv->out_row_dim, conv->out_col_dim,
-                   conv->in_row_dim, conv->in_col_dim);
+  PRT_PROGRESS_HOT_LOG("conv-sync stage=%u mgr=%u acquire-begin out_ch=%d out_dim=%dx%d in_dim=%dx%d",
+                       stage_id, manager_id, conv->out_channels,
+                       conv->out_row_dim, conv->out_col_dim,
+                       conv->in_row_dim, conv->in_col_dim);
 
   rc = prt_rr_acquire_scope(NULL, stage_id, manager_id, 3U, &scope);
   if (rc != PRT_OK) return rc;
-  PRT_PROGRESS_LOG("conv-sync stage=%u mgr=%u acquire-end", stage_id, manager_id);
+  PRT_PROGRESS_HOT_LOG("conv-sync stage=%u mgr=%u acquire-end", stage_id, manager_id);
 
-  if (conv->tiled_type == 0) tiled_type = OS;
-  else if (conv->tiled_type == 2) tiled_type = CPU;
-  else tiled_type = WS;
+  tiled_type = prt_conv_tiled_type(conv);
 
   input_dilation = conv->input_dilation > 0 ? conv->input_dilation : 1;
   kernel_dilation = conv->kernel_dilation > 0 ? conv->kernel_dilation : 1;
   output_scale = conv->output_scale != 0.0f ? conv->output_scale : 1.0f;
+  use_pointwise_matmul_fallback = prt_is_canonical_pointwise_matmul_conv(conv, tiled_type);
   gemmini_flush(0);
-  PRT_PROGRESS_LOG("conv-sync stage=%u mgr=%u tiled-conv-begin", stage_id, manager_id);
+  if (use_pointwise_matmul_fallback) {
+    rc = prt_run_pointwise_matmul_fallback(stage_id, manager_id, conv, tiled_type);
+  } else if ((safe_kchs_cap = prt_pick_safe_loop_conv_kchs_cap(conv, tiled_type)) > 0) {
+    PRT_PROGRESS_HOT_LOG("conv-sync stage=%u mgr=%u tiled-conv-begin safe-kchs-cap=%d",
+                         stage_id, manager_id, safe_kchs_cap);
+    tiled_conv_stride_auto_capped_kchs(
+      conv->batch_size, conv->in_row_dim, conv->in_col_dim, conv->in_channels,
+      conv->out_channels, conv->out_row_dim, conv->out_col_dim,
+      conv->stride, input_dilation, kernel_dilation, conv->padding, conv->kernel_dim,
+      conv->in_channels, conv->out_channels, conv->out_channels,
+      conv->wrot180 != 0, conv->trans_output_1203 != 0, conv->trans_input_3120 != 0,
+      conv->trans_weight_1203 != 0, conv->trans_weight_0132 != 0,
+      (const elem_t *)conv->input, (const elem_t *)conv->weights,
+      (const acc_t *)conv->bias, (elem_t *)conv->output,
+      conv->act, (acc_scale_t)output_scale,
+      conv->pool_size, conv->pool_stride, conv->pool_padding,
+      tiled_type, safe_kchs_cap, chosen_args);
+    PRT_PROGRESS_HOT_LOG("conv-sync stage=%u mgr=%u tiled-conv-safe-args batches=%d porows=%d pocols=%d pochs=%d krows=%d kcols=%d kchs=%d",
+                         stage_id, manager_id,
+                         chosen_args[0], chosen_args[1], chosen_args[2], chosen_args[3],
+                         chosen_args[4], chosen_args[5], chosen_args[6]);
+    rc = PRT_OK;
+  } else {
+    PRT_PROGRESS_HOT_LOG("conv-sync stage=%u mgr=%u tiled-conv-begin", stage_id, manager_id);
+    tiled_conv_auto(
+      conv->batch_size, conv->in_row_dim, conv->in_col_dim, conv->in_channels,
+      conv->out_channels, conv->out_row_dim, conv->out_col_dim,
+      conv->stride, input_dilation, kernel_dilation, conv->padding, conv->kernel_dim,
+      conv->wrot180 != 0, conv->trans_output_1203 != 0, conv->trans_input_3120 != 0,
+      conv->trans_weight_1203 != 0, conv->trans_weight_0132 != 0,
+      (const elem_t *)conv->input, (const elem_t *)conv->weights,
+      (const acc_t *)conv->bias, (elem_t *)conv->output,
+      conv->act, (acc_scale_t)output_scale,
+      conv->pool_size, conv->pool_stride, conv->pool_padding,
+      tiled_type);
+    rc = PRT_OK;
+  }
+  if (rc != PRT_OK) {
+    (void)prt_rr_release_scope(&scope);
+    return rc;
+  }
+  if (!use_pointwise_matmul_fallback) {
+    PRT_PROGRESS_HOT_LOG("conv-sync stage=%u mgr=%u tiled-conv-end", stage_id, manager_id);
+  }
 
-  tiled_conv_auto(
-    conv->batch_size, conv->in_row_dim, conv->in_col_dim, conv->in_channels,
-    conv->out_channels, conv->out_row_dim, conv->out_col_dim,
-    conv->stride, input_dilation, kernel_dilation, conv->padding, conv->kernel_dim,
-    conv->wrot180 != 0, conv->trans_output_1203 != 0, conv->trans_input_3120 != 0,
-    conv->trans_weight_1203 != 0, conv->trans_weight_0132 != 0,
-    (const elem_t *)conv->input, (const elem_t *)conv->weights,
-    (const acc_t *)conv->bias, (elem_t *)conv->output,
-    conv->act, (acc_scale_t)output_scale,
-    conv->pool_size, conv->pool_stride, conv->pool_padding,
-    tiled_type);
-  PRT_PROGRESS_LOG("conv-sync stage=%u mgr=%u tiled-conv-end", stage_id, manager_id);
-
-  PRT_PROGRESS_LOG("conv-sync stage=%u mgr=%u fence-begin", stage_id, manager_id);
+  PRT_PROGRESS_HOT_LOG("conv-sync stage=%u mgr=%u fence-begin", stage_id, manager_id);
   rc = prt_rr_fence_scope(&scope);
   gemmini_fence();
   if (rc == PRT_OK) rc = flush_scope_after_drain(&scope);
-  PRT_PROGRESS_LOG("conv-sync stage=%u mgr=%u fence-end rc=%d", stage_id, manager_id, rc);
+  PRT_PROGRESS_HOT_LOG("conv-sync stage=%u mgr=%u fence-end rc=%d", stage_id, manager_id, rc);
   (void)prt_rr_release_scope(&scope);
   return rc;
 }
@@ -772,49 +1426,84 @@ static int conv_call_for_manager_sync_strided(uint32_t stage_id, uint32_t manage
   enum tiled_matmul_type_t tiled_type = WS;
   int input_dilation;
   int kernel_dilation;
+  int use_pointwise_matmul_fallback = 0;
+  int safe_kchs_cap = 0;
+  int chosen_args[7] = {0};
   float output_scale;
   int rc;
   if (!conv) return PRT_ERR_INVAL;
 
-  PRT_PROGRESS_LOG("conv-sync stage=%u mgr=%u acquire-begin out_ch=%d out_dim=%dx%d in_dim=%dx%d",
-                   stage_id, manager_id, conv->out_channels,
-                   conv->out_row_dim, conv->out_col_dim,
-                   conv->in_row_dim, conv->in_col_dim);
+  PRT_PROGRESS_HOT_LOG("conv-sync stage=%u mgr=%u acquire-begin out_ch=%d out_dim=%dx%d in_dim=%dx%d",
+                       stage_id, manager_id, conv->out_channels,
+                       conv->out_row_dim, conv->out_col_dim,
+                       conv->in_row_dim, conv->in_col_dim);
 
   rc = prt_rr_acquire_scope(NULL, stage_id, manager_id, 3U, &scope);
   if (rc != PRT_OK) return rc;
-  PRT_PROGRESS_LOG("conv-sync stage=%u mgr=%u acquire-end", stage_id, manager_id);
+  PRT_PROGRESS_HOT_LOG("conv-sync stage=%u mgr=%u acquire-end", stage_id, manager_id);
 
-  if (conv->tiled_type == 0) tiled_type = OS;
-  else if (conv->tiled_type == 2) tiled_type = CPU;
-  else tiled_type = WS;
+  tiled_type = prt_conv_tiled_type(conv);
 
   input_dilation = conv->input_dilation > 0 ? conv->input_dilation : 1;
   kernel_dilation = conv->kernel_dilation > 0 ? conv->kernel_dilation : 1;
   output_scale = conv->output_scale != 0.0f ? conv->output_scale : 1.0f;
+  use_pointwise_matmul_fallback =
+    prt_is_canonical_pointwise_matmul_conv(conv, tiled_type) &&
+    prt_pointwise_matmul_strides_supported(conv, in_stride, weight_stride, out_stride);
   gemmini_flush(0);
-  PRT_PROGRESS_LOG("conv-sync stage=%u mgr=%u tiled-conv-begin in_stride=%d weight_stride=%d out_stride=%d",
-                   stage_id, manager_id, in_stride, weight_stride, out_stride);
+  if (use_pointwise_matmul_fallback) {
+    rc = prt_run_pointwise_matmul_fallback_strided(stage_id, manager_id, conv, tiled_type,
+                                                   in_stride, weight_stride, out_stride);
+  } else if ((safe_kchs_cap = prt_pick_safe_loop_conv_kchs_cap(conv, tiled_type)) > 0) {
+    PRT_PROGRESS_HOT_LOG("conv-sync stage=%u mgr=%u tiled-conv-begin in_stride=%d weight_stride=%d out_stride=%d safe-kchs-cap=%d",
+                         stage_id, manager_id, in_stride, weight_stride, out_stride, safe_kchs_cap);
+    tiled_conv_stride_auto_capped_kchs(
+      conv->batch_size, conv->in_row_dim, conv->in_col_dim, conv->in_channels,
+      conv->out_channels, conv->out_row_dim, conv->out_col_dim,
+      conv->stride, input_dilation, kernel_dilation, conv->padding, conv->kernel_dim,
+      in_stride, weight_stride, out_stride,
+      conv->wrot180 != 0, conv->trans_output_1203 != 0, conv->trans_input_3120 != 0,
+      conv->trans_weight_1203 != 0, conv->trans_weight_0132 != 0,
+      (const elem_t *)conv->input, (const elem_t *)conv->weights,
+      (const acc_t *)conv->bias, (elem_t *)conv->output,
+      conv->act, (acc_scale_t)output_scale,
+      conv->pool_size, conv->pool_stride, conv->pool_padding,
+      tiled_type, safe_kchs_cap, chosen_args);
+    PRT_PROGRESS_HOT_LOG("conv-sync stage=%u mgr=%u tiled-conv-safe-args batches=%d porows=%d pocols=%d pochs=%d krows=%d kcols=%d kchs=%d",
+                         stage_id, manager_id,
+                         chosen_args[0], chosen_args[1], chosen_args[2], chosen_args[3],
+                         chosen_args[4], chosen_args[5], chosen_args[6]);
+    rc = PRT_OK;
+  } else {
+    PRT_PROGRESS_HOT_LOG("conv-sync stage=%u mgr=%u tiled-conv-begin in_stride=%d weight_stride=%d out_stride=%d",
+                         stage_id, manager_id, in_stride, weight_stride, out_stride);
+    tiled_conv_stride_auto(
+      conv->batch_size, conv->in_row_dim, conv->in_col_dim, conv->in_channels,
+      conv->out_channels, conv->out_row_dim, conv->out_col_dim,
+      conv->stride, input_dilation, kernel_dilation, conv->padding, conv->kernel_dim,
+      in_stride, weight_stride, out_stride,
+      conv->wrot180 != 0, conv->trans_output_1203 != 0, conv->trans_input_3120 != 0,
+      conv->trans_weight_1203 != 0, conv->trans_weight_0132 != 0,
+      (const elem_t *)conv->input, (const elem_t *)conv->weights,
+      (const acc_t *)conv->bias, (elem_t *)conv->output,
+      conv->act, (acc_scale_t)output_scale,
+      conv->pool_size, conv->pool_stride, conv->pool_padding,
+      tiled_type);
+    rc = PRT_OK;
+  }
+  if (rc != PRT_OK) {
+    (void)prt_rr_release_scope(&scope);
+    return rc;
+  }
+  if (!use_pointwise_matmul_fallback) {
+    PRT_PROGRESS_HOT_LOG("conv-sync stage=%u mgr=%u tiled-conv-end", stage_id, manager_id);
+  }
 
-  tiled_conv_stride_auto(
-    conv->batch_size, conv->in_row_dim, conv->in_col_dim, conv->in_channels,
-    conv->out_channels, conv->out_row_dim, conv->out_col_dim,
-    conv->stride, input_dilation, kernel_dilation, conv->padding, conv->kernel_dim,
-    in_stride, weight_stride, out_stride,
-    conv->wrot180 != 0, conv->trans_output_1203 != 0, conv->trans_input_3120 != 0,
-    conv->trans_weight_1203 != 0, conv->trans_weight_0132 != 0,
-    (const elem_t *)conv->input, (const elem_t *)conv->weights,
-    (const acc_t *)conv->bias, (elem_t *)conv->output,
-    conv->act, (acc_scale_t)output_scale,
-    conv->pool_size, conv->pool_stride, conv->pool_padding,
-    tiled_type);
-  PRT_PROGRESS_LOG("conv-sync stage=%u mgr=%u tiled-conv-end", stage_id, manager_id);
-
-  PRT_PROGRESS_LOG("conv-sync stage=%u mgr=%u fence-begin", stage_id, manager_id);
+  PRT_PROGRESS_HOT_LOG("conv-sync stage=%u mgr=%u fence-begin", stage_id, manager_id);
   rc = prt_rr_fence_scope(&scope);
   gemmini_fence();
   if (rc == PRT_OK) rc = flush_scope_after_drain(&scope);
-  PRT_PROGRESS_LOG("conv-sync stage=%u mgr=%u fence-end rc=%d", stage_id, manager_id, rc);
+  PRT_PROGRESS_HOT_LOG("conv-sync stage=%u mgr=%u fence-end rc=%d", stage_id, manager_id, rc);
   (void)prt_rr_release_scope(&scope);
   return rc;
 }
@@ -866,11 +1555,34 @@ static int resadd_issue_no_fence(const prt_gemmini_resadd_desc_t *resadd,
       const elem_t *a = (const elem_t *)resadd->A + i * resadd->stride + j;
       const elem_t *b = (const elem_t *)resadd->B + i * resadd->stride + j;
       elem_t *c = (elem_t *)resadd->C + i * resadd->stride + j;
+      const size_t rounded_up_J = (J_tile / DIM + (J_tile % DIM != 0)) * DIM;
+      size_t blocks = rounded_up_J / DIM;
+      const uint32_t A_acc_addr_start = 1U << (ADDR_LEN - 1);
+      const uint32_t B_acc_addr_start = 3U << (ADDR_LEN - 2);
 
-      sp_tiled_resadd(I_tile, J_tile,
-                      (scale_t)resadd->A_scale, (scale_t)resadd->B_scale, a, b, c,
-                      resadd->stride, resadd->stride, resadd->stride,
-                      resadd->relu != 0);
+      if (blocks == 0) continue;
+      if (blocks > MAX_BLOCK_LEN) blocks = MAX_BLOCK_LEN;
+
+      // FireSim repeatedly stalls inside the loop-ws resadd microcode. Drive
+      // the same accumulator-backed resadd flow explicitly with mvin/mvin2/mvout
+      // so the computation stays on Gemmini without using LOOP_WS.
+      for (size_t ii = 0; ii < I_tile; ii += DIM) {
+        for (size_t jj = 0; jj < J_tile; jj += blocks * DIM) {
+          const size_t cols = jj + blocks * DIM <= J_tile ? blocks * DIM : J_tile - jj;
+          const size_t rows = ii + DIM <= I_tile ? DIM : I_tile - ii;
+          const elem_t *A_dram_addr = a + ii * resadd->stride + jj;
+          const elem_t *B_dram_addr = b + ii * resadd->stride + jj;
+          elem_t *C_dram_addr = c + ii * resadd->stride + jj;
+          const uint32_t acc_row_base =
+            (uint32_t)(ii * (rounded_up_J / DIM) + jj);
+          const uint32_t A_acc_addr = A_acc_addr_start + acc_row_base;
+          const uint32_t B_acc_addr = B_acc_addr_start + acc_row_base;
+
+          gemmini_extended_mvin(A_dram_addr, A_acc_addr, cols, rows);
+          gemmini_extended_mvin2(B_dram_addr, B_acc_addr, cols, rows);
+          gemmini_extended_mvout(C_dram_addr, A_acc_addr, cols, rows);
+        }
+      }
     }
   }
 
@@ -880,17 +1592,28 @@ static int resadd_issue_no_fence(const prt_gemmini_resadd_desc_t *resadd,
 static int resadd_call_for_manager_nb(uint32_t stage_id, uint32_t manager_id,
                                       const prt_gemmini_resadd_desc_t *resadd) {
   prt_rr_scope_t scope;
-  enum tiled_matmul_type_t matadd_type = WS;
+  enum tiled_matmul_type_t matadd_type;
   int rc;
   if (!resadd) return PRT_ERR_INVAL;
+  matadd_type = prt_pick_resadd_type(resadd);
+
+  PRT_PROGRESS_HOT_LOG("resadd-nb stage=%u mgr=%u acquire-begin I=%lu J=%lu stride=%lu requested_type=%s",
+                       stage_id, manager_id,
+                       (unsigned long)resadd->I, (unsigned long)resadd->J,
+                       (unsigned long)resadd->stride,
+                       prt_tiled_matmul_type_name(matadd_type));
   rc = prt_rr_acquire_scope(NULL, stage_id, manager_id, 3U, &scope);
   if (rc != PRT_OK) return rc;
-
-  if (resadd->tiled_type == 2) matadd_type = CPU;
-  else matadd_type = WS;
+  PRT_PROGRESS_HOT_LOG("resadd-nb stage=%u mgr=%u acquire-end", stage_id, manager_id);
 
   gemmini_flush(0);
+  PRT_PROGRESS_HOT_LOG("resadd-nb stage=%u mgr=%u issue-begin I=%lu J=%lu stride=%lu requested_type=%s",
+                       stage_id, manager_id,
+                       (unsigned long)resadd->I, (unsigned long)resadd->J,
+                       (unsigned long)resadd->stride,
+                       prt_tiled_matmul_type_name(matadd_type));
   rc = resadd_issue_no_fence(resadd, matadd_type);
+  PRT_PROGRESS_HOT_LOG("resadd-nb stage=%u mgr=%u issue-end rc=%d", stage_id, manager_id, rc);
   (void)prt_rr_release_scope(&scope);
   return rc;
 }
@@ -898,21 +1621,34 @@ static int resadd_call_for_manager_nb(uint32_t stage_id, uint32_t manager_id,
 static int resadd_call_for_manager_sync(uint32_t stage_id, uint32_t manager_id,
                                         const prt_gemmini_resadd_desc_t *resadd) {
   prt_rr_scope_t scope;
-  enum tiled_matmul_type_t matadd_type = WS;
+  enum tiled_matmul_type_t matadd_type;
   int rc;
   if (!resadd) return PRT_ERR_INVAL;
+  matadd_type = prt_pick_resadd_type(resadd);
+
+  PRT_PROGRESS_HOT_LOG("resadd-sync stage=%u mgr=%u acquire-begin I=%lu J=%lu stride=%lu requested_type=%s",
+                       stage_id, manager_id,
+                       (unsigned long)resadd->I, (unsigned long)resadd->J,
+                       (unsigned long)resadd->stride,
+                       prt_tiled_matmul_type_name(matadd_type));
   rc = prt_rr_acquire_scope(NULL, stage_id, manager_id, 3U, &scope);
   if (rc != PRT_OK) return rc;
-
-  if (resadd->tiled_type == 2) matadd_type = CPU;
-  else matadd_type = WS;
+  PRT_PROGRESS_HOT_LOG("resadd-sync stage=%u mgr=%u acquire-end", stage_id, manager_id);
 
   gemmini_flush(0);
+  PRT_PROGRESS_HOT_LOG("resadd-sync stage=%u mgr=%u issue-begin I=%lu J=%lu stride=%lu requested_type=%s",
+                       stage_id, manager_id,
+                       (unsigned long)resadd->I, (unsigned long)resadd->J,
+                       (unsigned long)resadd->stride,
+                       prt_tiled_matmul_type_name(matadd_type));
   rc = resadd_issue_no_fence(resadd, matadd_type);
+  PRT_PROGRESS_HOT_LOG("resadd-sync stage=%u mgr=%u issue-end rc=%d", stage_id, manager_id, rc);
   if (rc == PRT_OK) {
+    PRT_PROGRESS_HOT_LOG("resadd-sync stage=%u mgr=%u fence-begin", stage_id, manager_id);
     rc = prt_rr_fence_scope(&scope);
     gemmini_fence();
     if (rc == PRT_OK) rc = flush_scope_after_drain(&scope);
+    PRT_PROGRESS_HOT_LOG("resadd-sync stage=%u mgr=%u fence-end rc=%d", stage_id, manager_id, rc);
   }
   (void)prt_rr_release_scope(&scope);
   return rc;
@@ -929,9 +1665,61 @@ static int run_conv_oc_split(const prt_conv_task_t *task, const prt_gemmini_conv
   if (tiles > PRT_MAX_TILE_SPLITS) return PRT_ERR_INVAL;
   if ((uint32_t)conv->out_channels < tiles) return PRT_ERR_NOT_IMPL;
 
-  PRT_PROGRESS_LOG("oc-split stage=%u tiles=%u out_ch=%d out_dim=%dx%d begin",
-                   task->stage_id, tiles, conv->out_channels,
-                   conv->out_row_dim, conv->out_col_dim);
+  PRT_PROGRESS_HOT_ERR_LOG("oc-split-enter stage=%u tiles=%u out_ch=%d out_dim=%dx%d in_dim=%dx%d",
+                           task->stage_id, tiles, conv->out_channels,
+                           conv->out_row_dim, conv->out_col_dim,
+                           conv->in_row_dim, conv->in_col_dim);
+  PRT_PROGRESS_HOT_LOG("oc-split stage=%u tiles=%u out_ch=%d out_dim=%dx%d begin",
+                       task->stage_id, tiles, conv->out_channels,
+                       conv->out_row_dim, conv->out_col_dim);
+
+#if defined(__riscv)
+  {
+    enum tiled_matmul_type_t tiled_type = prt_conv_tiled_type(conv);
+    if (prt_is_canonical_pointwise_matmul_conv(conv, tiled_type) &&
+        prt_pointwise_matmul_strides_supported(conv, conv->in_channels,
+                                               conv->out_channels, conv->out_channels)) {
+      const elem_t *weights = (const elem_t *)conv->weights;
+      const acc_t *bias = (const acc_t *)conv->bias;
+      elem_t *output = (elem_t *)conv->output;
+      const int full_out_channels = conv->out_channels;
+
+      PRT_PROGRESS_HOT_LOG("oc-split stage=%u mode=pointwise-direct-strided full_out_ch=%d",
+                           task->stage_id, full_out_channels);
+
+      for (uint32_t t = 0; t < tiles; ++t) {
+        uint32_t oc_beg;
+        uint32_t oc_end;
+        uint32_t oc_tile;
+        prt_gemmini_conv_desc_t sub = *conv;
+        uint32_t mgr;
+        int rc;
+
+        split_1d_range((uint32_t)conv->out_channels, tiles, t, &oc_beg, &oc_end);
+        if (oc_end <= oc_beg) continue;
+        oc_tile = oc_end - oc_beg;
+        mgr = task->manager_ids[t % task->num_managers];
+
+        sub.out_channels = (int)oc_tile;
+        sub.weights = weights + oc_beg;
+        sub.bias = bias ? (bias + oc_beg) : NULL;
+        sub.output = output + oc_beg;
+
+        PRT_PROGRESS_HOT_LOG("oc-split stage=%u tile=%u/%u mgr=%u oc_beg=%u oc_tile=%u launch mode=pointwise-direct-strided",
+                             task->stage_id, t, tiles, mgr, oc_beg, oc_tile);
+        rc = conv_call_for_manager_sync_strided(task->stage_id, mgr, &sub,
+                                                conv->in_channels,
+                                                full_out_channels,
+                                                full_out_channels);
+        if (rc != PRT_OK) return rc;
+        PRT_PROGRESS_HOT_LOG("oc-split stage=%u tile=%u/%u mgr=%u done mode=pointwise-direct-strided",
+                             task->stage_id, t, tiles, mgr);
+      }
+
+      return PRT_OK;
+    }
+  }
+#endif
 
 #if defined(__riscv) && defined(PRT_ENABLE_GEMMINI_OCSPLIT_DIRECT_STRIDED)
   // The direct-strided split-OC path is useful for experimentation, but on the
@@ -946,8 +1734,8 @@ static int run_conv_oc_split(const prt_conv_task_t *task, const prt_gemmini_conv
     elem_t *output = (elem_t *)conv->output;
     const int full_out_channels = conv->out_channels;
 
-    PRT_PROGRESS_LOG("oc-split stage=%u mode=direct-strided full_out_ch=%d",
-                     task->stage_id, full_out_channels);
+    PRT_PROGRESS_HOT_LOG("oc-split stage=%u mode=direct-strided full_out_ch=%d",
+                         task->stage_id, full_out_channels);
 
     for (uint32_t t = 0; t < tiles; ++t) {
       uint32_t oc_beg;
@@ -967,15 +1755,15 @@ static int run_conv_oc_split(const prt_conv_task_t *task, const prt_gemmini_conv
       sub.bias = bias ? (bias + oc_beg) : NULL;
       sub.output = output + oc_beg;
 
-      PRT_PROGRESS_LOG("oc-split stage=%u tile=%u/%u mgr=%u oc_beg=%u oc_tile=%u launch",
-                       task->stage_id, t, tiles, mgr, oc_beg, oc_tile);
+      PRT_PROGRESS_HOT_LOG("oc-split stage=%u tile=%u/%u mgr=%u oc_beg=%u oc_tile=%u launch",
+                           task->stage_id, t, tiles, mgr, oc_beg, oc_tile);
       rc = conv_call_for_manager_sync_strided(task->stage_id, mgr, &sub,
                                               conv->in_channels,
                                               full_out_channels,
                                               full_out_channels);
       if (rc != PRT_OK) return rc;
-      PRT_PROGRESS_LOG("oc-split stage=%u tile=%u/%u mgr=%u done",
-                       task->stage_id, t, tiles, mgr);
+      PRT_PROGRESS_HOT_LOG("oc-split stage=%u tile=%u/%u mgr=%u done",
+                           task->stage_id, t, tiles, mgr);
     }
 
     return PRT_OK;
@@ -1035,8 +1823,8 @@ static int run_conv_oc_split(const prt_conv_task_t *task, const prt_gemmini_conv
       sub.weights = w_pack;
       sub.bias = b_pack;
       sub.output = o_pack;
-      PRT_PROGRESS_LOG("oc-split stage=%u tile=%u/%u mgr=%u oc_beg=%u oc_tile=%u launch",
-                       task->stage_id, t, tiles, mgr, oc_beg, oc_tile);
+      PRT_PROGRESS_HOT_LOG("oc-split stage=%u tile=%u/%u mgr=%u oc_beg=%u oc_tile=%u launch",
+                           task->stage_id, t, tiles, mgr, oc_beg, oc_tile);
 
       {
         int rc = conv_call_for_manager_sync(task->stage_id, mgr, &sub);
@@ -1048,8 +1836,8 @@ static int run_conv_oc_split(const prt_conv_task_t *task, const prt_gemmini_conv
           return rc;
         }
       }
-      PRT_PROGRESS_LOG("oc-split stage=%u tile=%u/%u mgr=%u done",
-                       task->stage_id, t, tiles, mgr);
+      PRT_PROGRESS_HOT_LOG("oc-split stage=%u tile=%u/%u mgr=%u done",
+                           task->stage_id, t, tiles, mgr);
       tile_ctx[t].oc_beg = oc_beg;
       tile_ctx[t].oc_tile = oc_tile;
       tile_ctx[t].w_pack = w_pack;
@@ -1057,7 +1845,7 @@ static int run_conv_oc_split(const prt_conv_task_t *task, const prt_gemmini_conv
       tile_ctx[t].o_pack = o_pack;
     }
 
-    PRT_PROGRESS_LOG("oc-split stage=%u repack-begin tiles=%u", task->stage_id, tiles);
+    PRT_PROGRESS_HOT_LOG("oc-split stage=%u repack-begin tiles=%u", task->stage_id, tiles);
     for (uint32_t t = 0; t < tiles; ++t) {
       uint32_t oc_beg = tile_ctx[t].oc_beg;
       uint32_t oc_tile = tile_ctx[t].oc_tile;
@@ -1076,7 +1864,7 @@ static int run_conv_oc_split(const prt_conv_task_t *task, const prt_gemmini_conv
       }
     }
 
-    PRT_PROGRESS_LOG("oc-split stage=%u repack-end tiles=%u", task->stage_id, tiles);
+    PRT_PROGRESS_HOT_LOG("oc-split stage=%u repack-end tiles=%u", task->stage_id, tiles);
     cleanup_conv_oc_split_tiles(tile_ctx, tiles);
     return PRT_OK;
   }
@@ -1213,17 +2001,32 @@ static int run_conv_spatial_split(const prt_conv_task_t *task, const prt_gemmini
   return PRT_OK;
 }
 
-static int run_resadd_split(const prt_conv_task_t *task, const prt_gemmini_resadd_desc_t *resadd) {
+static int run_resadd_split(prt_runtime_t *rt, const prt_conv_task_t *task,
+                            const prt_gemmini_resadd_desc_t *resadd) {
   uint32_t tiles;
   prt_rect2d_t rects[PRT_MAX_TILE_SPLITS];
+  const enum tiled_matmul_type_t requested_type = prt_pick_resadd_type(resadd);
+  const int force_cpu_fallback =
+    prt_should_force_resadd_cpu_fallback(task, resadd, requested_type);
   int rc;
   if (!task || !resadd) return PRT_ERR_INVAL;
   tiles = task->tile_count > 0 ? task->tile_count : 1U;
   if (tiles <= 1U) {
+    if (force_cpu_fallback) {
+      return prt_run_resadd_cpu_fallback(rt, task->stage_id, task->manager_ids[0], task, resadd,
+                                         requested_type);
+    }
     return resadd_call_for_manager_nb(task->stage_id, task->acc_id, resadd);
   }
   if (tiles > PRT_MAX_TILE_SPLITS) return PRT_ERR_INVAL;
 
+  PRT_PROGRESS_HOT_LOG("resadd-split stage=%u tiles=%u I=%lu J=%lu stride=%lu split=%s requested_type=%s fallback=%s begin",
+                       task->stage_id, tiles,
+                       (unsigned long)resadd->I, (unsigned long)resadd->J,
+                       (unsigned long)resadd->stride,
+                       prt_split_kind_name(task->split_kind),
+                       prt_tiled_matmul_type_name(requested_type),
+                       force_cpu_fallback ? "CPU" : prt_tiled_matmul_type_name(requested_type));
   rc = partition_2d_rects((uint32_t)resadd->I, (uint32_t)resadd->J, tiles, rects);
   if (rc != PRT_OK) return rc;
 
@@ -1242,10 +2045,21 @@ static int run_resadd_split(const prt_conv_task_t *task, const prt_gemmini_resad
     sub.A = (const elem_t *)resadd->A + (size_t)i_beg * resadd->stride + (size_t)j_beg;
     sub.B = (const elem_t *)resadd->B + (size_t)i_beg * resadd->stride + (size_t)j_beg;
     sub.C = (elem_t *)resadd->C + (size_t)i_beg * resadd->stride + (size_t)j_beg;
-    rc = resadd_call_for_manager_sync(task->stage_id, mgr, &sub);
+    PRT_PROGRESS_HOT_LOG("resadd-split stage=%u tile=%u/%u mgr=%u i_beg=%u i_end=%u j_beg=%u j_end=%u launch fallback=%s",
+                         task->stage_id, t, tiles, mgr,
+                         i_beg, i_end, j_beg, j_end,
+                         force_cpu_fallback ? "CPU" : prt_tiled_matmul_type_name(requested_type));
+    rc = force_cpu_fallback ?
+      prt_run_resadd_cpu_fallback(rt, task->stage_id, mgr, task, &sub, requested_type) :
+      resadd_call_for_manager_sync(task->stage_id, mgr, &sub);
     if (rc != PRT_OK) return rc;
+    PRT_PROGRESS_HOT_LOG("resadd-split stage=%u tile=%u/%u mgr=%u done",
+                         task->stage_id, t, tiles, mgr);
   }
 
+  PRT_PROGRESS_HOT_LOG("resadd-split stage=%u tiles=%u end fallback=%s",
+                       task->stage_id, tiles,
+                       force_cpu_fallback ? "CPU" : prt_tiled_matmul_type_name(requested_type));
   return PRT_OK;
 }
 #endif
@@ -1307,6 +2121,11 @@ static int gemm_issue_task(prt_runtime_t *rt, const prt_conv_task_t *task) {
   const prt_gemmini_resadd_desc_t *resadd = NULL;
   if (!rt || !task || !task->opaque_task) return PRT_OK;
   if (task->num_managers == 0) return PRT_ERR_INVAL;
+  PRT_PROGRESS_HOT_ERR_LOG("gemm-issue-enter stage=%u op=%u split=%u tiles=%u managers=%u mgr0=%u backend=%u",
+                           task->stage_id, (uint32_t)task->op_kind, (uint32_t)task->split_kind,
+                           task->tile_count, task->num_managers,
+                           task->num_managers > 0 ? task->manager_ids[0] : 0U,
+                           rt->cfg.backend);
 
   if (rt->cfg.backend == PRT_BACKEND_CPU) {
     if (task->op_kind == PRT_STAGE_OP_CONV) {
@@ -1367,18 +2186,32 @@ static int gemm_issue_task(prt_runtime_t *rt, const prt_conv_task_t *task) {
         conv->out_col_dim <= 0 || conv->kernel_dim <= 0) {
       return PRT_ERR_INVAL;
     }
+    PRT_PROGRESS_HOT_ERR_LOG("gemm-issue-conv stage=%u split=%u tiles=%u batch=%d in_dim=%dx%d ic=%d out_dim=%dx%d oc=%d kernel=%d",
+                             task->stage_id, (uint32_t)task->split_kind, task->tile_count,
+                             conv->batch_size, conv->in_row_dim, conv->in_col_dim, conv->in_channels,
+                             conv->out_row_dim, conv->out_col_dim, conv->out_channels, conv->kernel_dim);
     switch (task->split_kind) {
       case PRT_LAYER_SPLIT_SINGLE:
+        PRT_PROGRESS_HOT_ERR_LOG("gemm-issue-conv stage=%u dispatch=single mgr=%u",
+                                 task->stage_id, task->manager_ids[0]);
         return conv_call_for_manager_nb(task->stage_id, task->manager_ids[0], conv);
       case PRT_LAYER_SPLIT_OC:
+        PRT_PROGRESS_HOT_ERR_LOG("gemm-issue-conv stage=%u dispatch=oc-split", task->stage_id);
         return run_conv_oc_split(task, conv);
       case PRT_LAYER_SPLIT_SPATIAL:
+        PRT_PROGRESS_HOT_ERR_LOG("gemm-issue-conv stage=%u dispatch=spatial-split", task->stage_id);
         return run_conv_spatial_split(task, conv);
       case PRT_LAYER_SPLIT_UNSPEC:
         if (task->tile_count <= 1U) {
+          PRT_PROGRESS_HOT_ERR_LOG("gemm-issue-conv stage=%u dispatch=unspec-single mgr=%u",
+                                   task->stage_id, task->manager_ids[0]);
           return conv_call_for_manager_nb(task->stage_id, task->manager_ids[0], conv);
         }
-        if ((uint32_t)conv->out_channels >= task->tile_count) return run_conv_oc_split(task, conv);
+        if ((uint32_t)conv->out_channels >= task->tile_count) {
+          PRT_PROGRESS_HOT_ERR_LOG("gemm-issue-conv stage=%u dispatch=unspec-oc-split", task->stage_id);
+          return run_conv_oc_split(task, conv);
+        }
+        PRT_PROGRESS_HOT_ERR_LOG("gemm-issue-conv stage=%u dispatch=unspec-spatial-split", task->stage_id);
         return run_conv_spatial_split(task, conv);
       default:
         return PRT_ERR_NOT_IMPL;
@@ -1387,14 +2220,27 @@ static int gemm_issue_task(prt_runtime_t *rt, const prt_conv_task_t *task) {
     resadd = (const prt_gemmini_resadd_desc_t *)task->opaque_task;
     if (!resadd->A || !resadd->B || !resadd->C) return PRT_ERR_INVAL;
     if (resadd->I == 0 || resadd->J == 0 || resadd->stride == 0) return PRT_ERR_INVAL;
+    PRT_PROGRESS_HOT_ERR_LOG("gemm-issue-resadd stage=%u split=%u tiles=%u I=%lu J=%lu stride=%lu",
+                             task->stage_id, (uint32_t)task->split_kind, task->tile_count,
+                             (unsigned long)resadd->I, (unsigned long)resadd->J,
+                             (unsigned long)resadd->stride);
     switch (task->split_kind) {
       case PRT_LAYER_SPLIT_SINGLE:
+        if (prt_should_force_resadd_cpu_fallback(task, resadd, prt_pick_resadd_type(resadd))) {
+          PRT_PROGRESS_HOT_ERR_LOG("gemm-issue-resadd stage=%u dispatch=cpu-fallback", task->stage_id);
+          return prt_run_resadd_cpu_fallback(rt, task->stage_id, task->manager_ids[0], task, resadd,
+                                             prt_pick_resadd_type(resadd));
+        }
+        PRT_PROGRESS_HOT_ERR_LOG("gemm-issue-resadd stage=%u dispatch=single mgr=%u",
+                                 task->stage_id, task->manager_ids[0]);
         return resadd_call_for_manager_nb(task->stage_id, task->manager_ids[0], resadd);
       case PRT_LAYER_SPLIT_RESADD_SPATIAL:
       case PRT_LAYER_SPLIT_SPATIAL:
-        return run_resadd_split(task, resadd);
+        PRT_PROGRESS_HOT_ERR_LOG("gemm-issue-resadd stage=%u dispatch=split", task->stage_id);
+        return run_resadd_split(rt, task, resadd);
       case PRT_LAYER_SPLIT_UNSPEC:
-        return run_resadd_split(task, resadd);
+        PRT_PROGRESS_HOT_ERR_LOG("gemm-issue-resadd stage=%u dispatch=unspec-split", task->stage_id);
+        return run_resadd_split(rt, task, resadd);
       default:
         return PRT_ERR_NOT_IMPL;
     }

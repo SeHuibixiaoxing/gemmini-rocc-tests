@@ -920,24 +920,24 @@ static int dma_blocking_wait(prt_runtime_t *rt, prt_dma_token_t *tok, uint64_t t
 #if defined(__riscv)
   uint64_t fence_status = 0;
   if (progress_log) {
-    PRT_PROGRESS_LOG("dma-wait fence-enter token=%u stage=%u tensor=%u hw_done=%d src_mod64=0x%02llx dst_mod64=0x%02llx done_mod64=0x%02llx full_byte_mode_hint=%u",
-                     progress_token_id,
-                     progress_stage_idx,
-                     progress_tensor_id,
-                     tok->hw_done_flag,
-                     (unsigned long long)dma_debug_mod64(tok->debug_src_addr),
-                     (unsigned long long)dma_debug_mod64(tok->debug_dst_addr),
-                     (unsigned long long)dma_debug_mod64(tok->debug_done_flag_pa),
-                     dma_debug_full_byte_mode_hint(tok->debug_src_addr, tok->debug_dst_addr, tok->debug_bytes));
+    PRT_PROGRESS_HOT_LOG("dma-wait fence-enter token=%u stage=%u tensor=%u hw_done=%d src_mod64=0x%02llx dst_mod64=0x%02llx done_mod64=0x%02llx full_byte_mode_hint=%u",
+                         progress_token_id,
+                         progress_stage_idx,
+                         progress_tensor_id,
+                         tok->hw_done_flag,
+                         (unsigned long long)dma_debug_mod64(tok->debug_src_addr),
+                         (unsigned long long)dma_debug_mod64(tok->debug_dst_addr),
+                         (unsigned long long)dma_debug_mod64(tok->debug_done_flag_pa),
+                         dma_debug_full_byte_mode_hint(tok->debug_src_addr, tok->debug_dst_addr, tok->debug_bytes));
   }
   fence_status = hw_dma_fence();
   if (progress_log) {
-    PRT_PROGRESS_LOG("dma-wait fence-done token=%u stage=%u tensor=%u status=%llu hw_done=%d",
-                     progress_token_id,
-                     progress_stage_idx,
-                     progress_tensor_id,
-                     (unsigned long long)fence_status,
-                     tok->hw_done_flag);
+    PRT_PROGRESS_HOT_LOG("dma-wait fence-done token=%u stage=%u tensor=%u status=%llu hw_done=%d",
+                         progress_token_id,
+                         progress_stage_idx,
+                         progress_tensor_id,
+                         (unsigned long long)fence_status,
+                         tok->hw_done_flag);
   }
   dma_token_release_scope(tok, 1);
 #endif
@@ -977,15 +977,15 @@ static int dma_poll_wait(prt_runtime_t *rt, prt_dma_token_t *tok, uint64_t timeo
   if (!rt || !tok) return PRT_ERR_INVAL;
 
   if (dma_should_progress_log(tok)) {
-    PRT_PROGRESS_LOG("dma-wait begin token=%u stage=%u tensor=%u timeout_ns=%llu done_va=0x%llx done_pa=0x%llx done_pa_rc=%d(%s)",
-                     tok->id,
-                     tok->stage_idx,
-                     tok->tensor_id,
-                     (unsigned long long)timeout_ns,
-                     (unsigned long long)tok->debug_done_flag_va,
-                     (unsigned long long)tok->debug_done_flag_pa,
-                     tok->hw_done_flag_pa_rc,
-                     prt_err_str(tok->hw_done_flag_pa_rc));
+    PRT_PROGRESS_HOT_LOG("dma-wait begin token=%u stage=%u tensor=%u timeout_ns=%llu done_va=0x%llx done_pa=0x%llx done_pa_rc=%d(%s)",
+                         tok->id,
+                         tok->stage_idx,
+                         tok->tensor_id,
+                         (unsigned long long)timeout_ns,
+                         (unsigned long long)tok->debug_done_flag_va,
+                         (unsigned long long)tok->debug_done_flag_pa,
+                         tok->hw_done_flag_pa_rc,
+                         prt_err_str(tok->hw_done_flag_pa_rc));
   }
 
   pthread_mutex_lock(&tok->lock);
@@ -1032,8 +1032,8 @@ static int dma_poll_wait(prt_runtime_t *rt, prt_dma_token_t *tok, uint64_t timeo
   }
 
   if (dma_should_progress_log(tok)) {
-    PRT_PROGRESS_LOG("dma-wait done token=%u stage=%u tensor=%u status=%d",
-                     tok->id, tok->stage_idx, tok->tensor_id, rc);
+    PRT_PROGRESS_HOT_LOG("dma-wait done token=%u stage=%u tensor=%u status=%d",
+                         tok->id, tok->stage_idx, tok->tensor_id, rc);
   }
   dma_token_release_scope(tok, 1);
   dma_trace_complete_once(rt, tok);
