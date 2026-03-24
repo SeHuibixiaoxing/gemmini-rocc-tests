@@ -41,6 +41,7 @@ static uint64_t monotonic_ms(void) {
   return prt_now_ns() / 1000000ULL;
 }
 
+#if PRT_ENABLE_PROGRESS_LOG
 static const char *progress_pipebuf_kind_name(prt_pipebuf_kind_t kind) {
   switch (kind) {
     case PRT_BUF_C1_ENTRY_DRAM_OR_DEPEN: return "c1-entry";
@@ -51,6 +52,17 @@ static const char *progress_pipebuf_kind_name(prt_pipebuf_kind_t kind) {
     case PRT_BUF_C6_EXPORT_ISOLATE_WITH_RING: return "c6-export-ring";
     case PRT_BUF_C7_ENTRY_ALL_RING: return "c7-entry-allring";
     case PRT_BUF_C8_EXPORT_ALL_RING: return "c8-export-allring";
+    default: return "unknown";
+  }
+}
+
+static const char *progress_split_kind_name(prt_layer_split_t kind) {
+  switch (kind) {
+    case PRT_LAYER_SPLIT_UNSPEC: return "unspec";
+    case PRT_LAYER_SPLIT_SINGLE: return "single";
+    case PRT_LAYER_SPLIT_OC: return "oc";
+    case PRT_LAYER_SPLIT_SPATIAL: return "spatial";
+    case PRT_LAYER_SPLIT_RESADD_SPATIAL: return "resadd_spatial";
     default: return "unknown";
   }
 }
@@ -115,6 +127,20 @@ static void progress_log_worker_wait(uint32_t stage_id, uint32_t subbatch, const
     fanout_pending, fanout_total, ring_head, ring_tail, ring_size,
     (unsigned long long)elapsed_ms, rc);
 }
+#else
+static void progress_log_worker_wait(uint32_t stage_id, uint32_t subbatch, const char *phase,
+                                     prt_pipebuf_t *buf, uint32_t idx, uint64_t wait_begin_ms,
+                                     uint64_t *last_log_ms, int rc) {
+  (void)stage_id;
+  (void)subbatch;
+  (void)phase;
+  (void)buf;
+  (void)idx;
+  (void)wait_begin_ms;
+  (void)last_log_ms;
+  (void)rc;
+}
+#endif
 
 static uint32_t progress_pipebuf_sbatch(prt_pipebuf_t *b) {
   uint32_t sb = 0;
@@ -856,6 +882,160 @@ static size_t get_layer_tensor_slot_size_bytes(const prt_model_layer_t *layer, u
   return fallback;
 }
 
+static uint32_t prt_mul_u32_or_one(uint32_t a, uint32_t b) {
+  uint64_t aa = a > 0 ? a : 1U;
+  uint64_t bb = b > 0 ? b : 1U;
+  uint64_t prod = aa * bb;
+  return prod > UINT32_MAX ? UINT32_MAX : (uint32_t)prod;
+}
+
+static uint32_t get_layer_tensor_slot_stride_elems(const prt_model_layer_t *layer,
+                                                   uint32_t slot, uint32_t fallback) {
+  if (!layer) return fallback;
+  if (slot < layer->tensor_stride_count && layer->tensor_stride[slot] > 0) {
+    return layer->tensor_stride[slot];
+  }
+  return fallback;
+}
+
+static uint32_t default_conv_input_stride_elems(const prt_model_layer_t *layer) {
+  uint32_t IC = 1;
+  uint32_t G = 1;
+  if (!layer) return 1;
+  if (layer->param_len > 1 && layer->param[1] > 0) IC = layer->param[1];
+  if (layer->param_len > 7 && layer->param[7] > 0) G = layer->param[7];
+  return prt_mul_u32_or_one(IC, G);
+}
+
+static uint32_t default_conv_weight_stride_elems(const prt_model_layer_t *layer) {
+  if (!layer || layer->param_len <= 2 || layer->param[2] == 0) return 1;
+  return layer->param[2];
+}
+
+static uint32_t default_conv_output_stride_elems(const prt_model_layer_t *layer) {
+  uint32_t OC = 1;
+  uint32_t G = 1;
+  if (!layer) return 1;
+  if (layer->param_len > 2 && layer->param[2] > 0) OC = layer->param[2];
+  if (layer->param_len > 7 && layer->param[7] > 0) G = layer->param[7];
+  return prt_mul_u32_or_one(OC, G);
+}
+
+static uint32_t default_resadd_stride_elems(const prt_model_layer_t *layer) {
+  uint32_t C = 1;
+  uint32_t G = 1;
+  if (!layer) return 1;
+  if (layer->param_len > 1 && layer->param[1] > 0) C = layer->param[1];
+  if (layer->param_len > 4 && layer->param[4] > 0) G = layer->param[4];
+  return prt_mul_u32_or_one(C, G);
+}
+
+static int prt_mul_u64_checked(uint64_t a, uint64_t b, uint64_t *out) {
+  if (!out) return PRT_ERR_INVAL;
+  if (a != 0 && b > UINT64_MAX / a) return PRT_ERR_INVAL;
+  *out = a * b;
+  return PRT_OK;
+}
+
+static int prt_mul_u64_4_checked(uint64_t a, uint64_t b, uint64_t c, uint64_t d, uint64_t *out) {
+  uint64_t t0 = 0;
+  uint64_t t1 = 0;
+  int rc;
+  if (!out) return PRT_ERR_INVAL;
+  rc = prt_mul_u64_checked(a, b, &t0);
+  if (rc != PRT_OK) return rc;
+  rc = prt_mul_u64_checked(t0, c, &t1);
+  if (rc != PRT_OK) return rc;
+  return prt_mul_u64_checked(t1, d, out);
+}
+
+static int prt_infer_conv_input_dims_and_pad(uint32_t N, uint32_t OH, uint32_t OW,
+                                             uint32_t KH, uint32_t KW,
+                                             uint32_t sH, uint32_t sW,
+                                             uint32_t in_stride, uint64_t input_bytes,
+                                             uint32_t *out_ih, uint32_t *out_iw,
+                                             uint32_t *out_pad) {
+  uint32_t max_pad;
+  if (!out_ih || !out_iw || !out_pad) return PRT_ERR_INVAL;
+  if (N == 0 || OH == 0 || OW == 0 || KH == 0 || KW == 0 || sH == 0 || sW == 0 || in_stride == 0) {
+    return PRT_ERR_INVAL;
+  }
+  max_pad = KH > KW ? KH : KW;
+  for (uint32_t pad = 0; pad <= max_pad; ++pad) {
+    int64_t ih = (int64_t)(OH - 1U) * (int64_t)sH + (int64_t)KH - 2LL * (int64_t)pad;
+    int64_t iw = (int64_t)(OW - 1U) * (int64_t)sW + (int64_t)KW - 2LL * (int64_t)pad;
+    uint64_t expect = 0;
+    int rc;
+    if (ih <= 0 || iw <= 0) continue;
+    rc = prt_mul_u64_4_checked((uint64_t)N, (uint64_t)ih, (uint64_t)iw, (uint64_t)in_stride, &expect);
+    if (rc != PRT_OK) return rc;
+    if (expect == input_bytes) {
+      *out_ih = (uint32_t)ih;
+      *out_iw = (uint32_t)iw;
+      *out_pad = pad;
+      return PRT_OK;
+    }
+  }
+  return PRT_ERR_INVAL;
+}
+
+static int prt_validate_conv_tensor_layout(const prt_model_layer_t *layer,
+                                           uint32_t N, uint32_t IC, uint32_t OC,
+                                           uint32_t OH, uint32_t OW,
+                                           uint32_t KH, uint32_t KW,
+                                           uint32_t G, uint32_t sH, uint32_t sW,
+                                           uint32_t in_stride, uint32_t weight_stride,
+                                           uint32_t out_stride,
+                                           uint32_t *out_ih, uint32_t *out_iw,
+                                           uint32_t *out_pad) {
+  uint64_t expect_bias = 0;
+  uint64_t expect_weight = 0;
+  uint64_t expect_output = 0;
+  uint64_t input_bytes = 0;
+  int rc;
+  if (!layer || !out_ih || !out_iw || !out_pad) return PRT_ERR_INVAL;
+  if (layer->tensor_size_count < 4) return PRT_ERR_NOT_READY;
+  if (N == 0 || IC == 0 || OC == 0 || OH == 0 || OW == 0 || KH == 0 || KW == 0 ||
+      G == 0 || sH == 0 || sW == 0 || in_stride == 0 || weight_stride == 0 || out_stride == 0) {
+    return PRT_ERR_INVAL;
+  }
+  rc = prt_mul_u64_checked((uint64_t)G, (uint64_t)OC, &expect_bias);
+  if (rc != PRT_OK) return rc;
+  rc = prt_mul_u64_checked(expect_bias, 4ULL, &expect_bias);
+  if (rc != PRT_OK) return rc;
+  rc = prt_mul_u64_4_checked((uint64_t)KH, (uint64_t)KW, (uint64_t)G * (uint64_t)IC,
+                             (uint64_t)weight_stride, &expect_weight);
+  if (rc != PRT_OK) return rc;
+  rc = prt_mul_u64_4_checked((uint64_t)N, (uint64_t)OH, (uint64_t)OW, (uint64_t)out_stride, &expect_output);
+  if (rc != PRT_OK) return rc;
+  if ((uint64_t)layer->tensor_size[0] != expect_bias ||
+      (uint64_t)layer->tensor_size[1] != expect_weight ||
+      (uint64_t)layer->tensor_size[3] != expect_output) {
+    return PRT_ERR_INVAL;
+  }
+  input_bytes = (uint64_t)layer->tensor_size[2];
+  return prt_infer_conv_input_dims_and_pad(N, OH, OW, KH, KW, sH, sW, in_stride, input_bytes,
+                                           out_ih, out_iw, out_pad);
+}
+
+static int prt_validate_resadd_tensor_layout(const prt_model_layer_t *layer,
+                                             uint32_t N, uint32_t H, uint32_t W,
+                                             uint32_t stride) {
+  uint64_t expect = 0;
+  int rc;
+  if (!layer) return PRT_ERR_INVAL;
+  if (layer->tensor_size_count < 3) return PRT_ERR_NOT_READY;
+  if (N == 0 || H == 0 || W == 0 || stride == 0) return PRT_ERR_INVAL;
+  rc = prt_mul_u64_4_checked((uint64_t)N, (uint64_t)H, (uint64_t)W, (uint64_t)stride, &expect);
+  if (rc != PRT_OK) return rc;
+  if ((uint64_t)layer->tensor_size[0] != expect ||
+      (uint64_t)layer->tensor_size[1] != expect ||
+      (uint64_t)layer->tensor_size[2] != expect) {
+    return PRT_ERR_INVAL;
+  }
+  return PRT_OK;
+}
+
 static void normalize_copy_prefix_zero(uint8_t *dst, size_t dst_size,
                                        const uint8_t *src, size_t src_size) {
   size_t copy_n;
@@ -1014,11 +1194,23 @@ static int stage_tensor_current_pages(prt_runtime_t *rt, const prt_stage_map_t *
   }
   buf = find_stage_pipebuf(rt, stage_id, tensor_id, 1);
   if (buf) {
+    if ((buf->kind == PRT_BUF_C7_ENTRY_ALL_RING || buf->kind == PRT_BUF_C8_EXPORT_ALL_RING) &&
+        buf->ring && buf->ring->size > 0 &&
+        (!buf->slot_pages[buf->in_use_idx].data || buf->slot_pages[buf->in_use_idx].size == 0U)) {
+      *out_pages = &buf->ring->slot_pages[buf->subbatch_offset % buf->ring->size];
+      return PRT_OK;
+    }
     *out_pages = &buf->slot_pages[buf->in_use_idx];
     return PRT_OK;
   }
   buf = find_stage_pipebuf(rt, stage_id, tensor_id, 0);
   if (buf) {
+    if ((buf->kind == PRT_BUF_C7_ENTRY_ALL_RING || buf->kind == PRT_BUF_C8_EXPORT_ALL_RING) &&
+        buf->ring && buf->ring->size > 0 &&
+        (!buf->slot_pages[buf->in_use_idx].data || buf->slot_pages[buf->in_use_idx].size == 0U)) {
+      *out_pages = &buf->ring->slot_pages[buf->subbatch_offset % buf->ring->size];
+      return PRT_OK;
+    }
     *out_pages = &buf->slot_pages[buf->in_use_idx];
     return PRT_OK;
   }
@@ -1846,6 +2038,19 @@ static uint32_t runtime_stage_local_accs(const prt_runtime_t *rt, uint32_t stage
   return n;
 }
 
+static uint32_t runtime_stage_local_page_accs(const prt_runtime_t *rt, uint32_t stage_idx,
+                                              uint32_t stage_acc,
+                                              uint32_t *out, uint32_t out_cap) {
+  uint32_t n;
+  if (!out || out_cap == 0) return 0;
+  n = runtime_stage_local_accs(rt, stage_idx, out, out_cap);
+  if (n == 0) {
+    out[0] = stage_acc;
+    n = 1;
+  }
+  return n;
+}
+
 static int collect_tensor_owner_accs(const prt_runtime_t *rt, uint32_t target_seg_idx, uint32_t tensor_id,
                                      int search_entry, int search_export,
                                      uint32_t *out, uint32_t *out_n, uint32_t out_cap) {
@@ -2331,8 +2536,13 @@ static int build_topology_from_pipeline(prt_runtime_t *rt) {
                                       shared_plans, &shared_plan_count, PRT_MAX_TENSORS);
             if (rc != PRT_OK) return rc;
           } else {
-            preferred_accs[0] = stage_acc;
-            preferred_cnt = 1;
+            preferred_cnt = runtime_stage_local_page_accs(rt, flat_stage_idx, stage_acc,
+                                                          preferred_accs, PRT_MAX_CORES);
+            PRT_PROGRESS_LOG("topology-local-pages stage=%u kind=entry tensor=%u slots=%u pages_per_slot=%u preferred_cnt=%u pref0=%u pref1=%u",
+                             flat_stage_idx, tb->tensor_id, slots, pages_per_slot,
+                             preferred_cnt,
+                             preferred_cnt > 0 ? preferred_accs[0] : UINT32_MAX,
+                             preferred_cnt > 1 ? preferred_accs[1] : UINT32_MAX);
             for (uint32_t slot = 0; slot < slots; ++slot) {
               rc = alloc_slot_pages(rt, &alloc_key_cursor, pages_per_slot,
                                     preferred_accs, preferred_cnt, &b->slot_pages[slot]);
@@ -2397,8 +2607,13 @@ static int build_topology_from_pipeline(prt_runtime_t *rt) {
                                       shared_plans, &shared_plan_count, PRT_MAX_TENSORS);
             if (rc != PRT_OK) return rc;
           } else {
-            preferred_accs[0] = stage_acc;
-            preferred_cnt = 1;
+            preferred_cnt = runtime_stage_local_page_accs(rt, flat_stage_idx, stage_acc,
+                                                          preferred_accs, PRT_MAX_CORES);
+            PRT_PROGRESS_LOG("topology-local-pages stage=%u kind=export tensor=%u slots=%u pages_per_slot=%u preferred_cnt=%u pref0=%u pref1=%u",
+                             flat_stage_idx, tb->tensor_id, slots, pages_per_slot,
+                             preferred_cnt,
+                             preferred_cnt > 0 ? preferred_accs[0] : UINT32_MAX,
+                             preferred_cnt > 1 ? preferred_accs[1] : UINT32_MAX);
             for (uint32_t slot = 0; slot < slots; ++slot) {
               rc = alloc_slot_pages(rt, &alloc_key_cursor, pages_per_slot,
                                     preferred_accs, preferred_cnt, &b->slot_pages[slot]);
@@ -2714,7 +2929,12 @@ static int build_stage_conv_desc(prt_runtime_t *rt, uint32_t stage_id, prt_gemmi
   uint64_t addr_b;
   uint64_t addr_out;
   uint32_t N, IC, OC, OH, OW, KH, KW, G, sH, sW;
-  int use_host_addrs = 0;
+  uint32_t in_stride = 0;
+  uint32_t weight_stride = 0;
+  uint32_t out_stride = 0;
+  uint32_t inferred_ih = 0;
+  uint32_t inferred_iw = 0;
+  uint32_t inferred_pad = 0;
 
   if (!rt || !out) return PRT_ERR_INVAL;
   if (stage_id >= rt->stage_thread_count) return PRT_ERR_NOT_READY;
@@ -2734,50 +2954,45 @@ static int build_stage_conv_desc(prt_runtime_t *rt, uint32_t stage_id, prt_gemmi
   G = layer->param[7];
   sH = layer->param[8];
   sW = layer->param[9];
-  if (G != 1 || sH == 0 || sW == 0 || KH != KW) return PRT_ERR_NOT_IMPL;
+  in_stride = get_layer_tensor_slot_stride_elems(layer, 2U, default_conv_input_stride_elems(layer));
+  weight_stride = get_layer_tensor_slot_stride_elems(layer, 1U, default_conv_weight_stride_elems(layer));
+  out_stride = get_layer_tensor_slot_stride_elems(layer, 3U, default_conv_output_stride_elems(layer));
+  if (sH == 0 || sW == 0 || KH != KW || sH != sW) return PRT_ERR_NOT_IMPL;
+  if (prt_validate_conv_tensor_layout(layer, N, IC, OC, OH, OW, KH, KW, G, sH, sW,
+                                      in_stride, weight_stride, out_stride,
+                                      &inferred_ih, &inferred_iw, &inferred_pad) != PRT_OK) {
+    return PRT_ERR_INVAL;
+  }
 
   if (stage_prepare_exec_views(rt, stage_id, layer) != PRT_OK) {
     return PRT_ERR_STATE;
   }
-#if defined(__riscv)
-  use_host_addrs =
-    rt->cfg.backend == PRT_BACKEND_FPGA &&
-    (rt->stage_split_kinds[stage_id] == PRT_LAYER_SPLIT_OC ||
-     rt->stage_split_kinds[stage_id] == PRT_LAYER_SPLIT_SPATIAL);
-#else
-  use_host_addrs = 0;
-#endif
-  if (((use_host_addrs &&
-        stage_tensor_host_addr(rt, layer, stage_id, layer->tensor_ids[0], &addr_b) != PRT_OK) ||
-       (!use_host_addrs &&
-        stage_tensor_exec_addr(rt, layer, stage_id, layer->tensor_ids[0], &addr_b) != PRT_OK)) ||
-      ((use_host_addrs &&
-        stage_tensor_host_addr(rt, layer, stage_id, layer->tensor_ids[1], &addr_w) != PRT_OK) ||
-       (!use_host_addrs &&
-        stage_tensor_exec_addr(rt, layer, stage_id, layer->tensor_ids[1], &addr_w) != PRT_OK)) ||
-      ((use_host_addrs &&
-        stage_tensor_host_addr(rt, layer, stage_id, layer->tensor_ids[2], &addr_in) != PRT_OK) ||
-       (!use_host_addrs &&
-        stage_tensor_exec_addr(rt, layer, stage_id, layer->tensor_ids[2], &addr_in) != PRT_OK)) ||
-      ((use_host_addrs &&
-        stage_tensor_host_addr(rt, layer, stage_id, layer->tensor_ids[3], &addr_out) != PRT_OK) ||
-       (!use_host_addrs &&
-        stage_tensor_exec_addr(rt, layer, stage_id, layer->tensor_ids[3], &addr_out) != PRT_OK))) {
+  // Keep conv descriptors on the pipeline-buffer/exec-address contract even
+  // for split stages. The Gemmini path should decide based on those runtime
+  // views, instead of bypassing them with host-backed aliases.
+  if (stage_tensor_exec_addr(rt, layer, stage_id, layer->tensor_ids[0], &addr_b) != PRT_OK ||
+      stage_tensor_exec_addr(rt, layer, stage_id, layer->tensor_ids[1], &addr_w) != PRT_OK ||
+      stage_tensor_exec_addr(rt, layer, stage_id, layer->tensor_ids[2], &addr_in) != PRT_OK ||
+      stage_tensor_exec_addr(rt, layer, stage_id, layer->tensor_ids[3], &addr_out) != PRT_OK) {
     return PRT_ERR_INVAL;
   }
 
   memset(out, 0, sizeof(*out));
   out->batch_size = (int)N;
-  out->in_row_dim = (int)((OH - 1U) * sH + KH);
-  out->in_col_dim = (int)((OW - 1U) * sW + KW);
+  out->in_row_dim = (int)inferred_ih;
+  out->in_col_dim = (int)inferred_iw;
   out->in_channels = (int)IC;
   out->out_channels = (int)OC;
   out->out_row_dim = (int)OH;
   out->out_col_dim = (int)OW;
+  out->in_stride = (int)in_stride;
+  out->weight_stride = (int)weight_stride;
+  out->out_stride = (int)out_stride;
+  out->groups = (int)G;
   out->stride = (int)sH;
   out->input_dilation = 1;
   out->kernel_dilation = 1;
-  out->padding = 0;
+  out->padding = (int)inferred_pad;
   out->kernel_dim = (int)KH;
   out->input = (const void *)(uintptr_t)addr_in;
   out->weights = (const void *)(uintptr_t)addr_w;
@@ -2789,6 +3004,11 @@ static int build_stage_conv_desc(prt_runtime_t *rt, uint32_t stage_id, prt_gemmi
   out->pool_stride = 0;
   out->pool_padding = 0;
   out->tiled_type = 1;
+  if (out->in_stride < out->in_channels ||
+      out->weight_stride < out->out_channels ||
+      out->out_stride < out->out_channels) {
+    return PRT_ERR_INVAL;
+  }
   return PRT_OK;
 }
 
@@ -2799,13 +3019,27 @@ static int build_stage_resadd_desc(prt_runtime_t *rt, uint32_t stage_id, prt_gem
   uint64_t addr_c;
   uint32_t N = 1;
   uint32_t C = 0;
-  uint32_t HW = 0;
+  uint32_t H = 0;
+  uint32_t W = 0;
+  uint32_t G = 1;
   size_t I = 0;
   size_t J = 0;
   size_t elems_out = 0;
+  uint32_t stride_a = 0;
+  uint32_t stride_b = 0;
+  uint32_t stride_c = 0;
+#if PRT_ENABLE_PROGRESS_LOG
+  const prt_stage_map_t *stage;
+  uint32_t entry0 = UINT32_MAX;
+  uint32_t entry1 = UINT32_MAX;
+  uint32_t export0 = UINT32_MAX;
+#endif
 
   if (!rt || !out) return PRT_ERR_INVAL;
   if (stage_id >= rt->stage_thread_count) return PRT_ERR_NOT_READY;
+#if PRT_ENABLE_PROGRESS_LOG
+  stage = runtime_stage_map(rt, stage_id);
+#endif
   layer = find_model_layer(&rt->model, rt->stage_layer_ids[stage_id]);
   if (!layer) return PRT_ERR_NOT_READY;
   if (strcmp(layer->type, "resadd") != 0) return PRT_ERR_NOT_READY;
@@ -2823,11 +3057,16 @@ static int build_stage_resadd_desc(prt_runtime_t *rt, uint32_t stage_id, prt_gem
 
   if (layer->param_len > 0 && layer->param[0] > 0) N = layer->param[0];
   if (layer->param_len > 1 && layer->param[1] > 0) C = layer->param[1];
-  if (layer->param_len > 2 && layer->param[2] > 0) HW = layer->param[2];
+  if (layer->param_len > 2 && layer->param[2] > 0) H = layer->param[2];
+  if (layer->param_len > 3 && layer->param[3] > 0) W = layer->param[3];
+  if (layer->param_len > 4 && layer->param[4] > 0) G = layer->param[4];
   if (layer->tensor_size_count > 2 && layer->tensor_size[2] > 0) elems_out = (size_t)layer->tensor_size[2];
+  stride_a = get_layer_tensor_slot_stride_elems(layer, 0U, default_resadd_stride_elems(layer));
+  stride_b = get_layer_tensor_slot_stride_elems(layer, 1U, default_resadd_stride_elems(layer));
+  stride_c = get_layer_tensor_slot_stride_elems(layer, 2U, default_resadd_stride_elems(layer));
 
-  if (C > 0) J = (size_t)C;
-  if (HW > 0) I = (size_t)N * (size_t)HW;
+  if (C > 0) J = (size_t)C * (size_t)(G > 0 ? G : 1U);
+  if (H > 0 && W > 0) I = (size_t)(N > 0 ? N : 1U) * (size_t)H * (size_t)W;
 
   if (J == 0 && elems_out > 0) J = elems_out;
   if (J == 0) J = 1;
@@ -2849,13 +3088,79 @@ static int build_stage_resadd_desc(prt_runtime_t *rt, uint32_t stage_id, prt_gem
   out->A_scale = 1.0f;
   out->B_scale = 1.0f;
   out->C_scale = 1.0f;
-  out->stride = J;
+  if (stride_a == 0 || stride_b == 0 || stride_c == 0) return PRT_ERR_INVAL;
+  if (stride_a != stride_b || stride_a != stride_c) return PRT_ERR_NOT_IMPL;
+  if (prt_validate_resadd_tensor_layout(layer, N, H, W, stride_c) != PRT_OK) return PRT_ERR_INVAL;
+  out->stride = stride_c;
   out->A = (const void *)(uintptr_t)addr_a;
   out->B = (const void *)(uintptr_t)addr_b;
   out->C = (void *)(uintptr_t)addr_c;
   out->relu = 0;
   out->tiled_type = 1;
+  if (out->stride < out->J) return PRT_ERR_INVAL;
+
+#if PRT_ENABLE_PROGRESS_LOG
+  if (stage && stage->entry && stage->num_entry > 0) entry0 = stage->entry[0].tensor_id;
+  if (stage && stage->entry && stage->num_entry > 1) entry1 = stage->entry[1].tensor_id;
+  if (stage && stage->exports && stage->num_export > 0) export0 = stage->exports[0].tensor_id;
+  if (stage &&
+      stage->split_kind == PRT_LAYER_SPLIT_RESADD_SPATIAL &&
+      (rt->stage_tile_counts[stage_id] > 1U || stage->acc_util > 1U)) {
+    PRT_PROGRESS_LOG(
+      "stage-resadd-desc local_stage=%u global_stage=%u layer=%u split=%s acc_util=%u tiles=%u acc=%u dma=%u mgr0=%u mgr1=%u entry0=%u entry1=%u export0=%u A=0x%llx B=0x%llx C=0x%llx I=%llu J=%llu stride=%llu",
+      stage_id,
+      stage->stage_id,
+      stage->layer_id,
+      progress_split_kind_name((prt_layer_split_t)stage->split_kind),
+      stage->acc_util,
+      rt->stage_tile_counts[stage_id],
+      rt->stage_acc_ids[stage_id],
+      rt->stage_dma_ids[stage_id],
+      rt->stage_mgr_ids[stage_id][0],
+      rt->stage_mgr_ids[stage_id][1],
+      entry0,
+      entry1,
+      export0,
+      (unsigned long long)addr_a,
+      (unsigned long long)addr_b,
+      (unsigned long long)addr_c,
+      (unsigned long long)out->I,
+      (unsigned long long)out->J,
+      (unsigned long long)out->stride);
+  }
+#endif
   return PRT_OK;
+}
+
+static int build_stage_task_desc(prt_runtime_t *rt, uint32_t stage_id,
+                                 prt_conv_task_t *task,
+                                 prt_gemmini_conv_desc_t *conv_desc,
+                                 prt_gemmini_resadd_desc_t *resadd_desc) {
+  const prt_model_layer_t *layer;
+  int rc;
+  if (!rt || !task || !conv_desc || !resadd_desc) return PRT_ERR_INVAL;
+  if (stage_id >= rt->stage_thread_count) return PRT_ERR_NOT_READY;
+  layer = find_model_layer(&rt->model, rt->stage_layer_ids[stage_id]);
+  if (!layer) return PRT_ERR_NOT_READY;
+
+  if (strcmp(layer->type, "conv") == 0) {
+    rc = build_stage_conv_desc(rt, stage_id, conv_desc);
+    if (rc != PRT_OK) return rc;
+    task->op_kind = PRT_STAGE_OP_CONV;
+    task->opaque_task = conv_desc;
+    return PRT_OK;
+  }
+  if (strcmp(layer->type, "resadd") == 0) {
+    rc = build_stage_resadd_desc(rt, stage_id, resadd_desc);
+    if (rc != PRT_OK) return rc;
+    task->op_kind = PRT_STAGE_OP_RESADD;
+    task->opaque_task = resadd_desc;
+    return PRT_OK;
+  }
+
+  task->op_kind = PRT_STAGE_OP_NONE;
+  task->opaque_task = NULL;
+  return PRT_ERR_NOT_IMPL;
 }
 
 #if !defined(__riscv)
@@ -2893,6 +3198,9 @@ static int run_segment_host_serial(prt_runtime_t *rt, const prt_segment_desc_t *
   if (!rt || !seg) return PRT_ERR_INVAL;
   if (seg->num_stages > PRT_MAX_STAGES) return PRT_ERR_NOT_IMPL;
   if (rt->active_action) segment_idx = rt->active_action->segment_idx;
+#if !PRT_ENABLE_PROGRESS_LOG
+  (void)segment_idx;
+#endif
 
   rt->stage_thread_count = seg->num_stages;
   for (uint32_t stage_id = 0; stage_id < seg->num_stages; ++stage_id) {
@@ -2926,16 +3234,8 @@ static int run_segment_host_serial(prt_runtime_t *rt, const prt_segment_desc_t *
       }
       if (task.manager_ids[0] == 0) task.manager_ids[0] = task.acc_id;
 
-      if (build_stage_conv_desc(rt, stage_id, &conv_desc) == PRT_OK) {
-        task.op_kind = PRT_STAGE_OP_CONV;
-        task.opaque_task = &conv_desc;
-      } else if (build_stage_resadd_desc(rt, stage_id, &resadd_desc) == PRT_OK) {
-        task.op_kind = PRT_STAGE_OP_RESADD;
-        task.opaque_task = &resadd_desc;
-      } else {
-        task.op_kind = PRT_STAGE_OP_NONE;
-        task.opaque_task = NULL;
-      }
+      rc = build_stage_task_desc(rt, stage_id, &task, &conv_desc, &resadd_desc);
+      if (rc != PRT_OK) return rc;
 
       PRT_PROGRESS_LOG("segment=%u host-serial subbatch=%u stage=%u begin op=%u acc=%u dma=%u tiles=%u",
                        segment_idx, sb, stage_id, (uint32_t)task.op_kind,
@@ -3125,15 +3425,10 @@ static void *stage_worker_main(void *arg) {
       } else {
         task.manager_ids[0] = task.acc_id;
       }
-      task.opaque_task = NULL;
-      if (build_stage_conv_desc(rt, ctx->stage_id, &conv_desc) == PRT_OK) {
-        task.op_kind = PRT_STAGE_OP_CONV;
-        task.opaque_task = (void *)&conv_desc;
-      } else if (build_stage_resadd_desc(rt, ctx->stage_id, &resadd_desc) == PRT_OK) {
-        task.op_kind = PRT_STAGE_OP_RESADD;
-        task.opaque_task = (void *)&resadd_desc;
-      } else {
-        task.op_kind = PRT_STAGE_OP_NONE;
+      rc = build_stage_task_desc(rt, ctx->stage_id, &task, &conv_desc, &resadd_desc);
+      if (rc != PRT_OK) {
+        rt->fatal_error = rc;
+        break;
       }
       PRT_PROGRESS_LOG("worker stage=%u subbatch=%u begin op=%u acc=%u dma=%u tiles=%u",
                        ctx->stage_id, progress_sbatch, (uint32_t)task.op_kind,
@@ -3508,6 +3803,9 @@ int prt_runtime_run(prt_runtime_t *rt, const prt_run_args_t *args) {
   int pipeline_swizzled = 0;
   int run_rc = PRT_OK;
   prt_schedule_action_t *action = NULL;
+#if !PRT_ENABLE_PROGRESS_LOG
+  (void)init_step_start_ms;
+#endif
 #define PRT_GOTO_OUT_ON_ERR(tag) \
   do { \
     if (rc != PRT_OK) { \

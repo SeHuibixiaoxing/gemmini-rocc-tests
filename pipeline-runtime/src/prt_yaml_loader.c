@@ -683,6 +683,17 @@ int prt_load_model_yaml(const char *path, prt_model_desc_t *out) {
       continue;
     }
 
+    if (starts_key(t, "tensorStride")) {
+      uint32_t *vals = NULL;
+      uint32_t n = 0;
+      if (parse_int_list_from_value(value_after_colon(t), &vals, &n) == PRT_OK) {
+        cur_layer->tensor_stride_count = n > 8 ? 8 : n;
+        for (uint32_t i = 0; i < cur_layer->tensor_stride_count; ++i) cur_layer->tensor_stride[i] = vals[i];
+      }
+      free(vals);
+      continue;
+    }
+
     if (starts_key(t, "tensorSize")) {
       uint32_t *vals = NULL;
       uint32_t n = 0;

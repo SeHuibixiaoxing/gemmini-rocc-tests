@@ -318,6 +318,8 @@ typedef struct {
   uint32_t param_len;
   uint32_t tensor_ids[8];
   uint32_t tensor_count;
+  uint32_t tensor_stride[8];
+  uint32_t tensor_stride_count;
   uint32_t tensor_size[8];
   uint32_t tensor_size_count;
   uint64_t address[8];

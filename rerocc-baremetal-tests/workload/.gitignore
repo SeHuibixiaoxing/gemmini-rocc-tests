@@ -1,2 +1,2 @@
-rerocc_lc_matrix_baremetal.riscv
+*.riscv
 build-config.txt

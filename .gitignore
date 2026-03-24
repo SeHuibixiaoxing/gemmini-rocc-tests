@@ -10,6 +10,9 @@ include/gemmini_params.h
 *.bin
 *.o
 *.d
+bareMetalC/*-baremetal
+bareMetalC/*-linux
+bareMetalC/*-pk
 pipeline-runtime/pipeline_runtime
 pipeline-runtime/*.log
 rerocc-linux-tests/*-linux

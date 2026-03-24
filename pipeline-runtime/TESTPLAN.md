@@ -1,5 +1,7 @@
 # Pipeline Runtime Test Plan
 
+日期：2026-03-24
+
 ## 1. 验收目标
 
 最终验收固定为：
@@ -8,18 +10,129 @@
 - 方法：`ours2 / gemini2 / tangram2`
 - 目标平台：Linux on FireSim F2
 - 目标硬件：`GemminiLearningConfigSpadReRoCCGlobalNoC2C1x2G2x1x2D2x1x2CoupledDMA`
-- 判据：runtime 输出与 CPU golden 一致
+- 判据：runtime 输出与 CPU golden 一致，且 `uartlog` 中出现 `BERTMINI_PIPELINE_RUNTIME_PASS`
 
-当前验证层级固定为：
+固定约束：
+
+- 不改硬件，只做软件修复
+- 不恢复 `host_addr` 特判
+- 不把多 manager 路径降级成 single manager
+- 不破坏 shared-spad `all-bank / 1KB interleaved / multi-manager` 设计目标
+- bertmini 路径禁止 CPU fallback
+- Linux 启动阶段只要没有明确错误且 heartbeat 继续增长，就继续等待
+
+## 2. 当前验证基线
+
+当前推荐的验证阶梯：
 
 1. artifact export gate
 2. host closure gate
 3. Linux packaging gate
 4. Linux coupleddma interface-reference gate
-5. FireMarshal build/install gate
-6. FireSim F2 replay gate
+5. baremetal shared-spad interleaved regression gate
+6. FireMarshal build/install gate
+7. FireSim F2 replay gate
 
-## 2. Artifact Export Gate
+## 3. 当前已锁定结论
+
+### 3.1 baremetal correctness gate 已闭环
+
+决定性回归目录：
+
+- `/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-03-24--12-47-02-rerocc-lc-baremetal-coupleddma-explicit-interleaved-small-f2-rerocc-baremetal-explicit-interleaved-small`
+
+决定性结论：
+
+- `ALL_TESTS_PASS`
+- `*** PASSED *** after 27505375802 cycles`
+
+已确认通过的关键历史卡点包括：
+
+- `copy_explicit_cross_1kb_interleaved_b_mvin2`
+- `copy_explicit_cross_1kb_interleaved_b_mvin2_clean`
+- `resadd_explicit_cross_1kb_interleaved`
+
+因此 baremetal 已不再是 active blocker；它现在是 runtime 语义回归门。
+
+### 3.2 已闭环问题的根因
+
+1. `copy_explicit_cross_1kb_interleaved_b_mvin2`
+   - 根因不是 interleaved shared-spad 翻译坏掉
+   - 根因是 accumulator address / accumulate-on-write 语义理解错误
+   - 修复方式是先显式初始化目标 acc 行，再 `mvin2`
+2. `resadd_explicit_cross_1kb_interleaved`
+   - 根因不是 hardware / alias translation
+   - 根因是手写 explicit overlap 序列缺少完整 manager-visible completion chain
+   - 修复方式是：
+     `A mvin -> rr_fence -> B mvin2 -> rr_fence -> mvout`
+3. pointwise `J=128`
+   - 根因不是硬件块宽上限
+   - 根因是早期 baremetal VA / PTE overlap
+
+### 3.3 当前不应再重开的假设
+
+- shared-spad `1KB` interleaved alias translation 天然有问题
+- `mvin2` 天然不能读 interleaved shared-spad
+- standard WS resadd 不能用于当前 shared-spad 设计
+- pointwise `J=128` 天然不被支持
+- 需要 RTL 改动才能继续推进
+
+## 4. pipeline-runtime 当前改进方向
+
+### 4.1 优先检查 runtime 的 page-placement / manager contract
+
+当前最强怀疑是：
+
+- fixed-weight 页分配已经按多 manager 视图处理
+- 但 entry/export tensor 的 local slot 页分配、exec-view rebase、manager binding 仍可能残留 `stage_acc` 偏置
+
+因此先看：
+
+- `prt_runtime.c`
+  - `build_topology_from_pipeline(...)`
+  - `runtime_stage_local_page_accs(...)`
+  - `register_shared_plan(...)`
+  - `stage_prepare_exec_views(...)`
+  - `stage_tensor_exec_addr(...)`
+
+目标 contract：
+
+- 同一 stage 的多 manager 共享一段连续 shared-spad alias VA 视图
+- 每个 manager 对这段 VA 独立完成页表翻译
+- 物理页仍保持 `all-bank / 1KB interleaved` 分配
+
+### 4.2 收紧 HybridMapper -> runtime 元数据语义
+
+当前已经进入主线的方向：
+
+- `tensorStride` 已开始由 HybridMapper 导出
+- runtime 已开始消费 `tensorStride`
+
+仍需继续验证：
+
+- `input / weight / output size`
+- `in_stride / weight_stride / out_stride`
+- `pad`
+
+之间的关系是否完全自洽。
+
+原则：
+
+- 不再回到 guessed stride
+- 若 `pad` 仍通过 runtime 推导，则必须继续做 size/shape 校验
+
+### 4.3 Gemmini adapter 优先标准语义
+
+- standard WS path 优先
+- 手写 explicit path 只能在必要时保留
+- 手写 explicit path 必须满足 baremetal 已验证语义：
+  - accumulator 地址位语义
+  - `rr_fence(cfg_id)` completion 语义
+  - 不能把 `mvin2` 当成纯覆盖写
+
+## 5. 各 gate 的执行与通过标准
+
+### 5.1 Artifact Export Gate
 
 导出命令：
 
@@ -28,24 +141,13 @@ cd /home/ubuntu/chipyard
 python3 conference/HybridMapper/scripts/create-pipeline-runtime-artifacts.py --model bertmini
 ```
 
-至少检查这些文件存在：
-
-- `conference/HybridMapper/output/pipeline_runtime/bertmini/model.layers.yaml`
-- `conference/HybridMapper/output/pipeline_runtime/bertmini/gemmini_layer_mapping.rerocc_globalnoc_coupleddma_c2_g2_d2_spad1024kb_dram19_noc64_mac1024.yaml`
-- `conference/HybridMapper/output/pipeline_runtime/bertmini/pipeline_mapping.rerocc_globalnoc_coupleddma_c2_g2_d2_spad1024kb_dram19_noc64_mac1024.ours2.yaml`
-- `conference/HybridMapper/output/pipeline_runtime/bertmini/pipeline_mapping.rerocc_globalnoc_coupleddma_c2_g2_d2_spad1024kb_dram19_noc64_mac1024.gemini2.yaml`
-- `conference/HybridMapper/output/pipeline_runtime/bertmini/pipeline_mapping.rerocc_globalnoc_coupleddma_c2_g2_d2_spad1024kb_dram19_noc64_mac1024.tangram2.yaml`
-- `conference/HybridMapper/output/pipeline_runtime/bertmini/runtime_model.bin`
-- `conference/HybridMapper/output/pipeline_runtime/bertmini/runtime_input.rerocc_globalnoc_coupleddma_c2_g2_d2_spad1024kb_dram19_noc64_mac1024.bin`
-- `conference/HybridMapper/output/pipeline_runtime/bertmini/golden.rerocc_globalnoc_coupleddma_c2_g2_d2_spad1024kb_dram19_noc64_mac1024.ours2.bin`
-
 通过标准：
 
 - exporter 不报错
-- runtime 需要的文件名齐全
-- 没有回退到旧接口命名
+- `conference/HybridMapper/output/pipeline_runtime/bertmini/` 中 runtime 所需文件齐全
+- `model.layers.yaml` 保持 `tensorStride` / `tensorSize` 元数据
 
-## 3. Host Closure Gate
+### 5.2 Host Closure Gate
 
 构建命令：
 
@@ -64,18 +166,17 @@ bash /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeli
 
 - `pipeline_runtime` 构建成功
 - closure 脚本最终打印 `BERTMINI_HOST_CLOSURE_PASS`
-- 至少能确认 `ours2` 路径通过；完整基线应继续覆盖 `ours2 / gemini2 / tangram2`
 
-## 4. Linux Packaging Gate
+### 5.3 Linux Packaging Gate
 
-当前静态检查入口：
+静态检查：
 
 ```bash
 cd /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/rerocc-linux-tests-coupleddma/workload
 HOST_INIT_CHECK_ONLY=1 bash host-init.sh
 ```
 
-若当前机器具备 RISC-V Linux 交叉编译器，则执行完整 staging：
+完整 staging：
 
 ```bash
 cd /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/rerocc-linux-tests-coupleddma/workload
@@ -84,41 +185,55 @@ bash host-init.sh
 
 通过标准：
 
-- `host-init.sh` 能完成 artifact presence 检查
-- 若执行完整 staging，overlay 中出现：
-  - `/root/rerocc-linux-tests/pipeline-runtime/rerocc_pipeline_runtime-linux`
-  - `/root/rerocc-linux-tests/pipeline-runtime/bertmini/model.layers.yaml`
-  - `/root/rerocc-linux-tests/pipeline-runtime/bertmini/gemmini_layer_mapping.<target_key>.yaml`
-  - `/root/rerocc-linux-tests/pipeline-runtime/bertmini/pipeline_mapping.<target_key>.<method>.yaml`
-  - `/root/rerocc-linux-tests/pipeline-runtime/bertmini/runtime_model.bin`
-  - `/root/rerocc-linux-tests/pipeline-runtime/bertmini/runtime_input.<target_key>.bin`
-  - `/root/rerocc-linux-tests/pipeline-runtime/bertmini/golden.<target_key>.<method>.bin`
-- 最终 binary 仍包含 `[prt-early] enter main` 这类早期进度字符串
+- overlay 中存在 runtime binary 和 bertmini artifacts
+- 最终 binary 保留早期进度字符串
 
-## 5. Linux Coupleddma Interface-Reference Gate
+### 5.4 Linux Coupleddma Interface-Reference Gate
 
-凡是涉及 `prt_dma.c`、`prt_rerocc.c`、`GemminiCoupledDMA.scala`、`Controller.scala` 或相关 DMA/Gemmini 接口调用的改动，必须先对照这些 Linux 正例：
+涉及 Linux coupleddma / DMA helper / ReRoCC helper 改动时，对照这些正例：
 
-- `generators/gemmini/software/gemmini-rocc-tests/rerocc-linux-tests-coupleddma/rerocc_dma_matrix_linux_coupleddma.c`
-- `generators/gemmini/software/gemmini-rocc-tests/rerocc-linux-tests-coupleddma/rerocc_lc_gemmini_matrix_linux_coupleddma.c`
-- `generators/gemmini/software/gemmini-rocc-tests/rerocc-linux-tests-coupleddma/rerocc_lc_coverage_linux_coupleddma.c`
-- `generators/gemmini/software/gemmini-rocc-tests/rerocc-linux-tests-coupleddma/rerocc_lc_nonblocking_linux_coupleddma.c`
+- `rerocc_dma_matrix_linux_coupleddma.c`
+- `rerocc_lc_gemmini_matrix_linux_coupleddma.c`
+- `rerocc_lc_coverage_linux_coupleddma.c`
+- `rerocc_lc_nonblocking_linux_coupleddma.c`
 
 通过标准：
 
-- 关键调用序列没有明显背离 Linux 正例
-- 不在 `set_dst -> set_src -> wait` 临界区里长期保留重日志或额外 probe
-- 涉及 Linux host DRAM <-> shared-SPM DMA 的改动时，额外满足：
-  - 仍然按 host page 分 chunk
-  - 每 chunk 单独做 `virt_to_phys`
-  - `bytes >= 64` 且 `src_mod64 != dst_mod64` 时不 direct submit 原始 host pointer
-  - DRAM path 不新增绕过 chunk helper 的 overlap single-request shortcut
-- 具体 guardrails 与当前审计结论见：
-  `docs/linux_dma_guardrails.md`
+- 不背离 Linux 正例的关键调用顺序
+- 不绕过 host-page chunk helper
+- 不新增危险的 DRAM 直通 shortcut
 
-## 6. FireMarshal Build/Install Gate
+### 5.5 Baremetal Shared-SPad Interleaved Regression Gate
 
-必须在真实环境中执行：
+最小回归源码：
+
+- `generators/gemmini/software/gemmini-rocc-tests/bareMetalC/learn-gemmini/rerocc_lc_resadd_explicit_interleaved.c`
+
+workload：
+
+- `generators/gemmini/software/gemmini-rocc-tests/rerocc-baremetal-tests-coupleddma/workload/rerocc-lc-baremetal-coupleddma-explicit-interleaved-small.json`
+
+runtime config：
+
+- `sims/firesim/deploy/config_runtime_f2_rerocc_lc_baremetal_explicit_interleaved_small.yaml`
+
+当前通过标准：
+
+- `uartlog` 中关键用例全 PASS
+- 最终出现 `ALL_TESTS_PASS`
+- 最终出现 `*** PASSED ***`
+
+注意：
+
+- 该 gate 现在是“全绿回归门”，不再是“旧差分必须继续保持 FAIL/PASS 组合”的调查门
+
+### 5.6 FireMarshal Build/Install Gate
+
+必须通过 `tmux` wrapper 执行：
+
+- `/home/ubuntu/chipyard/scripts/firemarshal-tmux-run.sh`
+
+固定流程：
 
 ```bash
 cd /home/ubuntu/chipyard
@@ -127,54 +242,31 @@ marshal build generators/gemmini/software/gemmini-rocc-tests/rerocc-linux-tests-
 marshal install generators/gemmini/software/gemmini-rocc-tests/rerocc-linux-tests-coupleddma/workload/rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime.json
 ```
 
-通过标准：
+### 5.7 FireSim F2 Replay Gate
 
-- build/install 成功
-- 失败时先区分环境问题与 workload 问题，不把沙箱/挂载异常误判成 runtime regression
-
-## 7. FireSim F2 Replay Gate
-
-进入 manager 环境：
+FireSim manager 固定流程：
 
 ```bash
 cd /home/ubuntu/chipyard/sims/firesim
-source sourceme-manager.sh
+source sourceme-manager.sh --skip-ssh-setup
 ```
 
-长任务统一通过 tmux wrapper，例如：
+然后通过 `/home/ubuntu/chipyard/scripts/firesim-tmux-run.sh` 依次执行：
 
-```bash
-/home/ubuntu/chipyard/scripts/firesim-tmux-run.sh launchrunfarm -c config_runtime_f2_rerocc_lc_linux_bertmini_pipeline_runtime.yaml -a <hwdb> -r <build-recipes>
-/home/ubuntu/chipyard/scripts/firesim-tmux-run.sh infrasetup -c config_runtime_f2_rerocc_lc_linux_bertmini_pipeline_runtime.yaml -a <hwdb> -r <build-recipes>
-/home/ubuntu/chipyard/scripts/firesim-tmux-run.sh runworkload -c config_runtime_f2_rerocc_lc_linux_bertmini_pipeline_runtime.yaml -a <hwdb> -r <build-recipes>
-/home/ubuntu/chipyard/scripts/firesim-tmux-run.sh terminaterunfarm --forceterminate -c config_runtime_f2_rerocc_lc_linux_bertmini_pipeline_runtime.yaml -a <hwdb> -r <build-recipes>
-```
-
-运行时证据优先查看：
-
-- `sims/firesim/deploy/logs/`
-- `sims/firesim/deploy/results-workload/`
-- `tmp/firesim-aws-f2/tmux/`
-- 若 manager 尚未回收结果，则到 run host 上查看：
-  `/home/ubuntu/sim_slot_0/uartlog`
-  和 `/home/ubuntu/sim_slot_0/heartbeat.csv`
+1. `launchrunfarm`
+2. `infrasetup`
+3. `runworkload`
+4. `terminaterunfarm`
 
 通过标准：
 
-- guest workload 真正进入 `rerocc_pipeline_runtime-linux`
-- `uartlog` 中出现最终 PASS 标记，而不是只看 manager exit code
-- 如果 run 明确卡死，先回收 run farm，再写分析结论
-- 若本轮改动触及 Linux DMA 路径，先用 small Linux coupleddma regression 做快门：
-  - `DMA_MATRIX_RESULT`
-  - `CASE_RESULT dma_dram_to_shared_misaligned_fullpage`
-  - `SCENARIO_RESULT name=conv_dma_parallel_nonblocking`
-  - `NONBLOCKING_SUMMARY`
-  都应先过，再继续跑 bertmini / pipeline-runtime
+- 不能只看 manager exit code
+- 必须看 guest `uartlog`
+- Linux boot 若无明确失败且 heartbeat 在动，则继续等待
 
-## 8. 结果采信规则
+## 6. 当前主线的成功标准
 
-- `uartlog` 是最终行为证据；`heartbeat.csv` 只用于判断 guest 是否仍在推进
-- 慢启动不是 blocker；没有明确报错时不要过早把 Linux boot 判成 stuck
-- 当前 live blocker、最新停点与下一轮实验，统一维护在：
-  `conference/mudnac_hybridmapper_collab_docs/STATUS.md`
-  和 `NEXT_SESSION_PROMPT.md`
+- Linux `bertmini` pipeline-runtime 闭环
+- `ours2 / gemini2 / tangram2` 都能过
+- `BERTMINI_PIPELINE_RUNTIME_PASS` 出现在 `uartlog`
+- baremetal regression 保持全绿

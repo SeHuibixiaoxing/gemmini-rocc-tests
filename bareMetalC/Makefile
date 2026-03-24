@@ -12,6 +12,7 @@ tests = \
 	latency_test \
 	mt_hello \
 	rerocc_lc_matrix_baremetal \
+	rerocc_lc_resadd_explicit_interleaved \
 	mvin_mvout \
 	mvin_mvout_zeros \
 	mvin_mvout_stride \

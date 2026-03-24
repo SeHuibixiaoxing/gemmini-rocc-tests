@@ -12,6 +12,20 @@
 #include <limits.h>
 #include <stdbool.h>
 
+#ifndef PRT_ENABLE_PROGRESS_RAW_LOG
+#define PRT_ENABLE_PROGRESS_RAW_LOG 0
+#endif
+
+#if PRT_ENABLE_PROGRESS_RAW_LOG
+#include <unistd.h>
+#define PRT_GEMMINI_RAW_LINE(msg_literal) do { \
+    static const char _prt_gemmini_raw_line[] = msg_literal "\n"; \
+    (void)write(STDERR_FILENO, _prt_gemmini_raw_line, sizeof(_prt_gemmini_raw_line) - 1U); \
+  } while (0)
+#else
+#define PRT_GEMMINI_RAW_LINE(...) do { } while (0)
+#endif
+
 #include "include/gemmini_params.h"
 
 #ifndef PIPELINE_RUNTIME_GEMMINI_PHASE_LOG
@@ -410,6 +424,8 @@ static void sp_tiled_matmul_os(const elem_t * A, const elem_t * B, const void * 
   const int B_blocks = J <= MAX_BLOCK_LEN ? J : MAX_BLOCK_LEN;
   const int D_blocks = J <= MAX_BLOCK_LEN_ACC ? J : MAX_BLOCK_LEN_ACC;
 
+  PRT_GEMMINI_RAW_LINE("[prt-raw] matmul-os-enter");
+
   // Move-in D
   if (D != NULL && !no_bias) {
     const size_t D_stride = repeating_bias ? 0 : D_row_stride * sizeof(acc_t);
@@ -431,6 +447,7 @@ static void sp_tiled_matmul_os(const elem_t * A, const elem_t * B, const void * 
       }
     }
   }
+  PRT_GEMMINI_RAW_LINE("[prt-raw] matmul-os-after-bias");
 
   // Move-in B
   gemmini_extended_config_ld(B_row_stride * sizeof(elem_t), B_scale_factor);
@@ -444,6 +461,7 @@ static void sp_tiled_matmul_os(const elem_t * A, const elem_t * B, const void * 
       gemmini_extended_mvin(B_dram_addr, B_sp_addr, cols, rows);
     }
   }
+  PRT_GEMMINI_RAW_LINE("[prt-raw] matmul-os-after-b");
 
   // Move-in A
   gemmini_extended_config_ld(A_row_stride * sizeof(elem_t), A_scale_factor);
@@ -457,6 +475,7 @@ static void sp_tiled_matmul_os(const elem_t * A, const elem_t * B, const void * 
       gemmini_extended_mvin(A_dram_addr, A_sp_addr, cols, rows);
     }
   }
+  PRT_GEMMINI_RAW_LINE("[prt-raw] matmul-os-after-a");
 
   for (size_t i = 0; i < I; i++) {
     for (size_t j = 0; j < J; j++) {
@@ -493,6 +512,7 @@ static void sp_tiled_matmul_os(const elem_t * A, const elem_t * B, const void * 
       }
     }
   }
+  PRT_GEMMINI_RAW_LINE("[prt-raw] matmul-os-after-compute");
 
   // Move-out C
   if (C != NULL) {
@@ -510,6 +530,7 @@ static void sp_tiled_matmul_os(const elem_t * A, const elem_t * B, const void * 
       }
     }
   }
+  PRT_GEMMINI_RAW_LINE("[prt-raw] matmul-os-after-mvout");
 }
 
 
@@ -810,6 +831,7 @@ static void tiled_matmul_outer(size_t dim_I, size_t dim_J, size_t dim_K,
   gemmini_extended3_config_ld(stride_A * sizeof(elem_t), A_scale_factor, false, 0);
   gemmini_extended3_config_ld(stride_B * sizeof(elem_t), B_scale_factor, false, 1)
   gemmini_extended3_config_ld(repeating_bias ? 0 : (stride_D * sizeof_D), D_scale_factor, low_D, 2);
+  PRT_GEMMINI_RAW_LINE("[prt-raw] matmul-outer-configured");
 
   if (act == IGELU) {
     const acc_scale_t sqrt_2 = 1.41421356237;

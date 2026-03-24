@@ -18,6 +18,10 @@ typedef struct {
   int out_channels;
   int out_row_dim;
   int out_col_dim;
+  int in_stride;
+  int weight_stride;
+  int out_stride;
+  int groups;
 
   int stride;
   int input_dilation;

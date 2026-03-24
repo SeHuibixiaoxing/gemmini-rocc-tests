@@ -327,6 +327,7 @@ int prt_action_alloc_acc(prt_runtime_t *rt, prt_schedule_action_t *action) {
         return PRT_ERR_NOT_READY;
       }
     }
+#if PRT_ENABLE_PROGRESS_LOG
     {
       uint32_t gm0 = assign->acc_util > 0 ? assign->gemmini_mgr_ids[0] : 0U;
       uint32_t dm0 = assign->acc_util > 0 ? assign->dma_mgr_ids[0] : 0U;
@@ -334,6 +335,7 @@ int prt_action_alloc_acc(prt_runtime_t *rt, prt_schedule_action_t *action) {
                        action->action_id, i, stage->layer_id, assign->acc_util,
                        (uint32_t)stage->split_kind, gm0, dm0, stage->physical_acc_ids_present);
     }
+#endif
   }
 
   if (action->acc_source.num_acc < action->acc_source.all_count) {

@@ -72,6 +72,9 @@
 #define SHARED_RESADD_OUT_OFFSET 0x02740ULL
 #define SHARED_DMA_A_OFFSET 0x10000ULL
 #define SHARED_DMA_B_OFFSET 0x20000ULL
+#define SHARED_RESADD_STRESS_A_OFFSET 0x30000ULL
+#define SHARED_RESADD_STRESS_B_OFFSET 0x40000ULL
+#define SHARED_RESADD_STRESS_OUT_OFFSET 0x50000ULL
 
 #define SHARED_DMA_CROSS_OFFSET (REROCC_SPM_PAGE_BYTES - 64U)
 #define DRAM_DMA_CROSS_OFFSET 64U
@@ -96,6 +99,14 @@
 #define POINTWISE_I 64
 #define POINTWISE_J 128
 #define POINTWISE_K 64
+
+#define RESADD_STRESS_I 256
+#define RESADD_STRESS_J 256
+#define RESADD_STRESS_SPLIT_I (RESADD_STRESS_I / 2)
+
+#if (RESADD_STRESS_I % 2) != 0
+#error "RESADD_STRESS_I must be even for the split regression"
+#endif
 
 #if (REROCC_DMA_BYTES < (DRAM_DMA_CROSS_OFFSET + REROCC_DMA_CROSS_BYTES))
 #error "REROCC_DMA_BYTES is too small for cross-page DMA validation"
@@ -122,6 +133,13 @@ static elem_t resadd_a_dram[DIM][DIM] __attribute__((aligned(64)));
 static elem_t resadd_b_dram[DIM][DIM] __attribute__((aligned(64)));
 static elem_t resadd_out_dram[DIM][DIM] __attribute__((aligned(64)));
 static elem_t resadd_gold_dram[DIM][DIM] __attribute__((aligned(64)));
+static elem_t resadd_stress_a_dram[RESADD_STRESS_I][RESADD_STRESS_J] __attribute__((aligned(64)));
+static elem_t resadd_stress_b_dram[RESADD_STRESS_I][RESADD_STRESS_J] __attribute__((aligned(64)));
+static elem_t resadd_stress_out_loop_ws_dram[RESADD_STRESS_I][RESADD_STRESS_J] __attribute__((aligned(64)));
+static elem_t resadd_stress_out_explicit_dram[RESADD_STRESS_I][RESADD_STRESS_J] __attribute__((aligned(64)));
+static elem_t resadd_stress_out_split_dram[RESADD_STRESS_I][RESADD_STRESS_J] __attribute__((aligned(64)));
+static elem_t resadd_stress_out_split_shared_dram[RESADD_STRESS_I][RESADD_STRESS_J] __attribute__((aligned(64)));
+static elem_t resadd_stress_gold_dram[RESADD_STRESS_I][RESADD_STRESS_J] __attribute__((aligned(64)));
 
 static uint8_t dma_dram_src[REROCC_DMA_BYTES] __attribute__((aligned(4096)));
 static uint8_t dma_dram_dst[REROCC_DMA_BYTES] __attribute__((aligned(4096)));
@@ -279,6 +297,15 @@ static bool conv_output_matches(const elem_t *reference, const elem_t *output) {
   return true;
 }
 
+static bool elem_buffer_matches(const elem_t *reference, const elem_t *output, size_t count) {
+  for (size_t i = 0; i < count; ++i) {
+    if (reference[i] != output[i]) {
+      return false;
+    }
+  }
+  return true;
+}
+
 static inline uint64_t shared_spad_vaddr(uint64_t paddr) {
   return g_spm_alias_base + (paddr - SHARED_SPAD_GLOBAL_ADDR_BASE);
 }
@@ -337,6 +364,13 @@ static inline void spm_xlate_reset(void) {
 static inline void gemmini_wait_managed(uint32_t cfg_id) {
   rr_fence(cfg_id);
   gemmini_flush(0);
+  rr_fence(cfg_id);
+}
+
+static inline void gemmini_wait_for_resadd_acc_reuse(uint32_t cfg_id) {
+  // The explicit resadd path reuses the same accumulator rows across outer
+  // tiles, so each tile boundary must wait for the previous tile's mvout to
+  // retire before reusing those rows.
   rr_fence(cfg_id);
 }
 
@@ -538,6 +572,397 @@ static bool run_resadd_case(const char *name, int gemmini_manager_id,
       break;
     }
   }
+  printf("CASE_RESULT %s %s\n", name, ok ? "PASS" : "FAIL");
+  fflush(stdout);
+  return ok;
+}
+
+static bool resadd_explicit_issue_no_fence(const elem_t *a, const elem_t *b, elem_t *out,
+                                           size_t I, size_t J, size_t stride, bool relu) {
+  size_t tile_I = I;
+  size_t tile_J = J;
+  size_t total_acc_rows;
+
+  if (!a || !b || !out || I == 0 || J == 0 || stride == 0) {
+    return false;
+  }
+
+  total_acc_rows = (tile_I / DIM + (tile_I % DIM != 0)) * DIM *
+                   (tile_J / DIM + (tile_J % DIM != 0));
+
+  while (total_acc_rows > ACC_ROWS / 2) {
+    if (tile_I >= tile_J || tile_J <= DIM) {
+      tile_I /= 2;
+    } else {
+      tile_J -= DIM;
+    }
+    if (tile_I == 0 || tile_J == 0) {
+      return false;
+    }
+    total_acc_rows = (tile_I / DIM + (tile_I % DIM != 0)) * DIM *
+                     (tile_J / DIM + (tile_J % DIM != 0));
+  }
+
+  gemmini_extended_config_st(stride * sizeof(elem_t),
+                             relu ? RELU : NO_ACTIVATION,
+                             ACC_SCALE_IDENTITY);
+  gemmini_config_ex(WS, 0, 0);
+  gemmini_extended4_config_ld(stride * sizeof(elem_t), MVIN_SCALE_IDENTITY, true, DIM, 0);
+  gemmini_extended4_config_ld(stride * sizeof(elem_t), MVIN_SCALE_IDENTITY, true, DIM, 1);
+
+  for (size_t i = 0; i < I; i += tile_I) {
+    for (size_t j = 0; j < J; j += tile_J) {
+      const size_t I_tile = i + tile_I <= I ? tile_I : I - i;
+      const size_t J_tile = j + tile_J <= J ? tile_J : J - j;
+      const elem_t *tile_a = a + i * stride + j;
+      const elem_t *tile_b = b + i * stride + j;
+      elem_t *tile_out = out + i * stride + j;
+      const size_t rounded_up_J = (J_tile / DIM + (J_tile % DIM != 0)) * DIM;
+      size_t blocks = rounded_up_J / DIM;
+      const uint32_t A_acc_addr_start = 1U << (ADDR_LEN - 1);
+      const uint32_t B_acc_addr_start = 3U << (ADDR_LEN - 2);
+
+      if (blocks == 0) {
+        continue;
+      }
+      if (blocks > MAX_BLOCK_LEN) {
+        blocks = MAX_BLOCK_LEN;
+      }
+
+      // Mirror the current runtime workaround exactly so this coverage test can
+      // distinguish LOOP_WS behavior from the explicit accumulator-backed issue path.
+      for (size_t ii = 0; ii < I_tile; ii += DIM) {
+        for (size_t jj = 0; jj < J_tile; jj += blocks * DIM) {
+          const size_t cols = jj + blocks * DIM <= J_tile ? blocks * DIM : J_tile - jj;
+          const size_t rows = ii + DIM <= I_tile ? DIM : I_tile - ii;
+          const elem_t *A_dram_addr = tile_a + ii * stride + jj;
+          const elem_t *B_dram_addr = tile_b + ii * stride + jj;
+          elem_t *C_dram_addr = tile_out + ii * stride + jj;
+          const uint32_t acc_row_base = (uint32_t)(ii * (rounded_up_J / DIM) + jj);
+          const uint32_t A_acc_addr = A_acc_addr_start + acc_row_base;
+          const uint32_t B_acc_addr = B_acc_addr_start + acc_row_base;
+
+          gemmini_extended_mvin(A_dram_addr, A_acc_addr, cols, rows);
+          gemmini_extended_mvin2(B_dram_addr, B_acc_addr, cols, rows);
+          gemmini_extended_mvout(C_dram_addr, A_acc_addr, cols, rows);
+        }
+      }
+
+      if (j + tile_J < J || i + tile_I < I) {
+        gemmini_wait_for_resadd_acc_reuse(GEMMINI_CFG_ID);
+      }
+    }
+  }
+
+  return true;
+}
+
+static bool run_resadd_stress_loop_ws_case(const char *name, int gemmini_manager_id) {
+  bool ok = true;
+  const size_t elem_count = (size_t)RESADD_STRESS_I * RESADD_STRESS_J;
+
+  printf("CASE_START %s\n", name);
+  fflush(stdout);
+  memset(resadd_stress_out_loop_ws_dram, 0, sizeof(resadd_stress_out_loop_ws_dram));
+  if (!rr_acquire_cfg_with_retry(GEMMINI_CFG_ID, (uint64_t)gemmini_manager_id)) {
+    printf("CASE_FAIL %s reason=acquire\n", name);
+    return false;
+  }
+
+  rr_set_opc(3, GEMMINI_CFG_ID);
+  gemmini_flush(0);
+  tiled_resadd_stride_auto(
+      RESADD_STRESS_I, RESADD_STRESS_J,
+      MVIN_SCALE_IDENTITY, MVIN_SCALE_IDENTITY, ACC_SCALE_IDENTITY,
+      RESADD_STRESS_J,
+      (const elem_t *)resadd_stress_a_dram,
+      (const elem_t *)resadd_stress_b_dram,
+      (elem_t *)resadd_stress_out_loop_ws_dram,
+      false, WS);
+  gemmini_wait_managed(GEMMINI_CFG_ID);
+  rr_release(GEMMINI_CFG_ID);
+
+  ok = elem_buffer_matches((const elem_t *)resadd_stress_gold_dram,
+                           (const elem_t *)resadd_stress_out_loop_ws_dram,
+                           elem_count);
+  printf("CASE_RESULT %s %s\n", name, ok ? "PASS" : "FAIL");
+  fflush(stdout);
+  return ok;
+}
+
+static bool run_resadd_stress_loop_ws_tile(int gemmini_manager_id,
+                                           const elem_t *a, const elem_t *b, elem_t *out,
+                                           size_t I, size_t J, size_t stride) {
+  if (!rr_acquire_cfg_with_retry(GEMMINI_CFG_ID, (uint64_t)gemmini_manager_id)) {
+    return false;
+  }
+
+  rr_set_opc(3, GEMMINI_CFG_ID);
+  gemmini_flush(0);
+  tiled_resadd_stride_auto(
+      I, J,
+      MVIN_SCALE_IDENTITY, MVIN_SCALE_IDENTITY, ACC_SCALE_IDENTITY,
+      stride,
+      a,
+      b,
+      out,
+      false, WS);
+  gemmini_wait_managed(GEMMINI_CFG_ID);
+  rr_release(GEMMINI_CFG_ID);
+  return true;
+}
+
+static bool run_resadd_stress_loop_ws_split_case(const char *name, int gemmini_manager_id_0,
+                                                 int gemmini_manager_id_1) {
+  bool ok = true;
+  const size_t elem_count = (size_t)RESADD_STRESS_I * RESADD_STRESS_J;
+  const size_t stride = RESADD_STRESS_J;
+
+  printf("CASE_START %s\n", name);
+  fflush(stdout);
+  if (gemmini_manager_id_1 < 0 || gemmini_manager_id_0 == gemmini_manager_id_1) {
+    printf("CASE_SKIP %s reason=requires_two_gemmini\n", name);
+    fflush(stdout);
+    return true;
+  }
+
+  memset(resadd_stress_out_split_dram, 0, sizeof(resadd_stress_out_split_dram));
+  if (!run_resadd_stress_loop_ws_tile(
+          gemmini_manager_id_0,
+          (const elem_t *)resadd_stress_a_dram,
+          (const elem_t *)resadd_stress_b_dram,
+          (elem_t *)resadd_stress_out_split_dram,
+          RESADD_STRESS_SPLIT_I, RESADD_STRESS_J, stride)) {
+    printf("CASE_FAIL %s reason=tile0\n", name);
+    fflush(stdout);
+    return false;
+  }
+
+  if (!run_resadd_stress_loop_ws_tile(
+          gemmini_manager_id_1,
+          (const elem_t *)resadd_stress_a_dram + (size_t)RESADD_STRESS_SPLIT_I * stride,
+          (const elem_t *)resadd_stress_b_dram + (size_t)RESADD_STRESS_SPLIT_I * stride,
+          (elem_t *)resadd_stress_out_split_dram + (size_t)RESADD_STRESS_SPLIT_I * stride,
+          RESADD_STRESS_I - RESADD_STRESS_SPLIT_I, RESADD_STRESS_J, stride)) {
+    printf("CASE_FAIL %s reason=tile1\n", name);
+    fflush(stdout);
+    return false;
+  }
+
+  ok = elem_buffer_matches((const elem_t *)resadd_stress_gold_dram,
+                           (const elem_t *)resadd_stress_out_split_dram,
+                           elem_count);
+  printf("CASE_RESULT %s %s\n", name, ok ? "PASS" : "FAIL");
+  fflush(stdout);
+  return ok;
+}
+
+static bool run_resadd_stress_explicit_case(const char *name, int gemmini_manager_id) {
+  bool ok = true;
+  const size_t elem_count = (size_t)RESADD_STRESS_I * RESADD_STRESS_J;
+
+  printf("CASE_START %s\n", name);
+  fflush(stdout);
+  memset(resadd_stress_out_explicit_dram, 0, sizeof(resadd_stress_out_explicit_dram));
+  if (!rr_acquire_cfg_with_retry(GEMMINI_CFG_ID, (uint64_t)gemmini_manager_id)) {
+    printf("CASE_FAIL %s reason=acquire\n", name);
+    return false;
+  }
+
+  rr_set_opc(3, GEMMINI_CFG_ID);
+  gemmini_flush(0);
+  if (!resadd_explicit_issue_no_fence((const elem_t *)resadd_stress_a_dram,
+                                      (const elem_t *)resadd_stress_b_dram,
+                                      (elem_t *)resadd_stress_out_explicit_dram,
+                                      RESADD_STRESS_I, RESADD_STRESS_J,
+                                      RESADD_STRESS_J, false)) {
+    rr_release(GEMMINI_CFG_ID);
+    printf("CASE_FAIL %s reason=issue\n", name);
+    fflush(stdout);
+    return false;
+  }
+  gemmini_wait_managed(GEMMINI_CFG_ID);
+  rr_release(GEMMINI_CFG_ID);
+
+  ok = elem_buffer_matches((const elem_t *)resadd_stress_gold_dram,
+                           (const elem_t *)resadd_stress_out_explicit_dram,
+                           elem_count);
+  printf("CASE_RESULT %s %s\n", name, ok ? "PASS" : "FAIL");
+  fflush(stdout);
+  return ok;
+}
+
+static bool run_resadd_stress_explicit_tile(int gemmini_manager_id,
+                                            const elem_t *a, const elem_t *b, elem_t *out,
+                                            size_t I, size_t J, size_t stride) {
+  if (!rr_acquire_cfg_with_retry(GEMMINI_CFG_ID, (uint64_t)gemmini_manager_id)) {
+    return false;
+  }
+
+  rr_set_opc(3, GEMMINI_CFG_ID);
+  gemmini_flush(0);
+  if (!resadd_explicit_issue_no_fence(a, b, out, I, J, stride, false)) {
+    rr_release(GEMMINI_CFG_ID);
+    return false;
+  }
+  gemmini_wait_managed(GEMMINI_CFG_ID);
+  rr_release(GEMMINI_CFG_ID);
+  return true;
+}
+
+static bool run_resadd_stress_explicit_shared_tile(int gemmini_manager_id,
+                                                   uint64_t shared_a_pa, uint64_t shared_b_pa,
+                                                   uint64_t shared_out_pa,
+                                                   size_t I, size_t J, size_t stride) {
+  const uint64_t mapped_bytes = (uint64_t)I * (uint64_t)stride * sizeof(elem_t);
+  const uint64_t paddrs[3] = {shared_a_pa, shared_b_pa, shared_out_pa};
+  const uint64_t vaddrs[3] = {
+      shared_spad_vaddr(shared_a_pa),
+      shared_spad_vaddr(shared_b_pa),
+      shared_spad_vaddr(shared_out_pa)};
+  const uint64_t sizes[3] = {mapped_bytes, mapped_bytes, mapped_bytes};
+  const elem_t *a_req = (const elem_t *)(uintptr_t)vaddrs[0];
+  const elem_t *b_req = (const elem_t *)(uintptr_t)vaddrs[1];
+  elem_t *out_req = (elem_t *)(uintptr_t)vaddrs[2];
+
+  if (!rr_acquire_cfg_with_retry(GEMMINI_CFG_ID, (uint64_t)gemmini_manager_id)) {
+    return false;
+  }
+
+  rr_set_opc(3, GEMMINI_CFG_ID);
+  gemmini_flush(0);
+  if (!spm_xlate_program_segments(vaddrs, paddrs, sizes, 3)) {
+    spm_xlate_reset();
+    rr_fence(GEMMINI_CFG_ID);
+    rr_release(GEMMINI_CFG_ID);
+    return false;
+  }
+  if (!resadd_explicit_issue_no_fence(a_req, b_req, out_req, I, J, stride, false)) {
+    spm_xlate_reset();
+    rr_fence(GEMMINI_CFG_ID);
+    rr_release(GEMMINI_CFG_ID);
+    return false;
+  }
+  gemmini_wait_managed(GEMMINI_CFG_ID);
+  spm_xlate_reset();
+  rr_fence(GEMMINI_CFG_ID);
+  rr_release(GEMMINI_CFG_ID);
+  return true;
+}
+
+static bool run_resadd_stress_explicit_split_case(const char *name, int gemmini_manager_id_0,
+                                                  int gemmini_manager_id_1) {
+  bool ok = true;
+  const size_t elem_count = (size_t)RESADD_STRESS_I * RESADD_STRESS_J;
+  const size_t stride = RESADD_STRESS_J;
+
+  printf("CASE_START %s\n", name);
+  fflush(stdout);
+  if (gemmini_manager_id_1 < 0 || gemmini_manager_id_0 == gemmini_manager_id_1) {
+    printf("CASE_SKIP %s reason=requires_two_gemmini\n", name);
+    fflush(stdout);
+    return true;
+  }
+
+  memset(resadd_stress_out_split_dram, 0, sizeof(resadd_stress_out_split_dram));
+  if (!run_resadd_stress_explicit_tile(
+          gemmini_manager_id_0,
+          (const elem_t *)resadd_stress_a_dram,
+          (const elem_t *)resadd_stress_b_dram,
+          (elem_t *)resadd_stress_out_split_dram,
+          RESADD_STRESS_SPLIT_I, RESADD_STRESS_J, stride)) {
+    printf("CASE_FAIL %s reason=tile0\n", name);
+    fflush(stdout);
+    return false;
+  }
+
+  if (!run_resadd_stress_explicit_tile(
+          gemmini_manager_id_1,
+          (const elem_t *)resadd_stress_a_dram + (size_t)RESADD_STRESS_SPLIT_I * stride,
+          (const elem_t *)resadd_stress_b_dram + (size_t)RESADD_STRESS_SPLIT_I * stride,
+          (elem_t *)resadd_stress_out_split_dram + (size_t)RESADD_STRESS_SPLIT_I * stride,
+          RESADD_STRESS_I - RESADD_STRESS_SPLIT_I, RESADD_STRESS_J, stride)) {
+    printf("CASE_FAIL %s reason=tile1\n", name);
+    fflush(stdout);
+    return false;
+  }
+
+  ok = elem_buffer_matches((const elem_t *)resadd_stress_gold_dram,
+                           (const elem_t *)resadd_stress_out_split_dram,
+                           elem_count);
+  printf("CASE_RESULT %s %s\n", name, ok ? "PASS" : "FAIL");
+  fflush(stdout);
+  return ok;
+}
+
+static bool run_resadd_stress_explicit_split_shared_case(const char *name,
+                                                         int gemmini_manager_id_0,
+                                                         int gemmini_manager_id_1,
+                                                         int dma_manager_id,
+                                                         uint64_t shared_a_pa,
+                                                         uint64_t shared_b_pa,
+                                                         uint64_t shared_out_pa) {
+  bool ok = true;
+  const size_t elem_count = (size_t)RESADD_STRESS_I * RESADD_STRESS_J;
+  const size_t total_bytes = elem_count * sizeof(elem_t);
+  const size_t stride = RESADD_STRESS_J;
+  const uint64_t tile0_bytes =
+      (uint64_t)RESADD_STRESS_SPLIT_I * (uint64_t)stride * sizeof(elem_t);
+
+  printf("CASE_START %s\n", name);
+  fflush(stdout);
+  if (gemmini_manager_id_1 < 0 || gemmini_manager_id_0 == gemmini_manager_id_1) {
+    printf("CASE_SKIP %s reason=requires_two_gemmini\n", name);
+    fflush(stdout);
+    return true;
+  }
+
+  memset(resadd_stress_out_split_shared_dram, 0, sizeof(resadd_stress_out_split_shared_dram));
+  if (!dma_copy_buffer_to_shared(dma_manager_id, resadd_stress_a_dram, shared_a_pa, total_bytes) ||
+      !dma_copy_buffer_to_shared(dma_manager_id, resadd_stress_b_dram, shared_b_pa, total_bytes) ||
+      !dma_copy_buffer_to_shared(dma_manager_id, resadd_stress_out_split_shared_dram,
+                                 shared_out_pa, total_bytes)) {
+    printf("CASE_FAIL %s reason=stage_shared\n", name);
+    fflush(stdout);
+    return false;
+  }
+
+  if (!run_resadd_stress_explicit_shared_tile(
+          gemmini_manager_id_0,
+          shared_a_pa,
+          shared_b_pa,
+          shared_out_pa,
+          RESADD_STRESS_SPLIT_I,
+          RESADD_STRESS_J,
+          stride)) {
+    printf("CASE_FAIL %s reason=tile0\n", name);
+    fflush(stdout);
+    return false;
+  }
+
+  if (!run_resadd_stress_explicit_shared_tile(
+          gemmini_manager_id_1,
+          shared_a_pa + tile0_bytes,
+          shared_b_pa + tile0_bytes,
+          shared_out_pa + tile0_bytes,
+          RESADD_STRESS_I - RESADD_STRESS_SPLIT_I,
+          RESADD_STRESS_J,
+          stride)) {
+    printf("CASE_FAIL %s reason=tile1\n", name);
+    fflush(stdout);
+    return false;
+  }
+
+  if (!dma_copy_shared_to_buffer(dma_manager_id, shared_out_pa,
+                                 resadd_stress_out_split_shared_dram, total_bytes)) {
+    printf("CASE_FAIL %s reason=drain_shared\n", name);
+    fflush(stdout);
+    return false;
+  }
+
+  ok = elem_buffer_matches((const elem_t *)resadd_stress_gold_dram,
+                           (const elem_t *)resadd_stress_out_split_shared_dram,
+                           elem_count);
   printf("CASE_RESULT %s %s\n", name, ok ? "PASS" : "FAIL");
   fflush(stdout);
   return ok;
@@ -1012,6 +1437,7 @@ int main(int argc, char **argv) {
   int dma_base_id = -1;
   int local_gemmini_id = REROCC_TEST_LOCAL_GEMMINI_ID;
   int gemmini_manager_id;
+  int peer_gemmini_manager_id = -1;
   int dma_manager_id;
   uint64_t shared_base;
   uint64_t dma_completion_pa = 0;
@@ -1024,6 +1450,9 @@ int main(int argc, char **argv) {
   elem_t *shared_resadd_a;
   elem_t *shared_resadd_b;
   elem_t *shared_resadd_out;
+  uint64_t shared_resadd_stress_a_pa;
+  uint64_t shared_resadd_stress_b_pa;
+  uint64_t shared_resadd_stress_out_pa;
   uint8_t *shared_dma_a;
   uint8_t *shared_dma_b;
   uint8_t *shared_dma_a_cross;
@@ -1037,6 +1466,11 @@ int main(int argc, char **argv) {
   bool case3;
   bool case3b;
   bool case4;
+  bool case4d;
+  bool case4e;
+  bool case4f;
+  bool case4g;
+  bool case4h;
   bool case4b;
   bool case4c;
   bool case5;
@@ -1130,6 +1564,12 @@ int main(int argc, char **argv) {
   g_dma_completion_pa = dma_completion_pa;
 
   gemmini_manager_id = gemmini_base_id + local_gemmini_id;
+  if (num_gemmini > 1) {
+    int peer_local_gemmini_id = local_gemmini_id == 0 ? 1 : 0;
+    if (peer_local_gemmini_id >= 0 && peer_local_gemmini_id < num_gemmini) {
+      peer_gemmini_manager_id = gemmini_base_id + peer_local_gemmini_id;
+    }
+  }
   dma_manager_id = dma_base_id + local_gemmini_id;
   shared_base = SHARED_SPAD_LOCAL_ADDR_BASE(local_gemmini_id);
 
@@ -1139,6 +1579,9 @@ int main(int argc, char **argv) {
   shared_resadd_a = (elem_t *)(uintptr_t)(shared_base + SHARED_RESADD_A_OFFSET);
   shared_resadd_b = (elem_t *)(uintptr_t)(shared_base + SHARED_RESADD_B_OFFSET);
   shared_resadd_out = (elem_t *)(uintptr_t)(shared_base + SHARED_RESADD_OUT_OFFSET);
+  shared_resadd_stress_a_pa = shared_base + SHARED_RESADD_STRESS_A_OFFSET;
+  shared_resadd_stress_b_pa = shared_base + SHARED_RESADD_STRESS_B_OFFSET;
+  shared_resadd_stress_out_pa = shared_base + SHARED_RESADD_STRESS_OUT_OFFSET;
   shared_dma_a = (uint8_t *)(uintptr_t)(shared_base + SHARED_DMA_A_OFFSET);
   shared_dma_b = (uint8_t *)(uintptr_t)(shared_base + SHARED_DMA_B_OFFSET);
   shared_dma_a_cross = shared_dma_a + SHARED_DMA_CROSS_OFFSET;
@@ -1218,6 +1661,21 @@ int main(int argc, char **argv) {
   fflush(stdout);
   resadd_cpu(DIM, DIM, DIM, MVIN_SCALE_IDENTITY, MVIN_SCALE_IDENTITY, ACC_SCALE_IDENTITY,
              (elem_t *)resadd_a_dram, (elem_t *)resadd_b_dram, (elem_t *)resadd_gold_dram, false);
+  for (size_t i = 0; i < (size_t)(RESADD_STRESS_I * RESADD_STRESS_J); ++i) {
+    ((elem_t *)resadd_stress_a_dram)[i] = (elem_t)((int32_t)(lcg_next(&rnd) % 9) - 4);
+    ((elem_t *)resadd_stress_b_dram)[i] = (elem_t)((int32_t)(lcg_next(&rnd) % 9) - 4);
+    ((elem_t *)resadd_stress_out_loop_ws_dram)[i] = 0;
+    ((elem_t *)resadd_stress_out_explicit_dram)[i] = 0;
+    ((elem_t *)resadd_stress_out_split_dram)[i] = 0;
+    ((elem_t *)resadd_stress_out_split_shared_dram)[i] = 0;
+    ((elem_t *)resadd_stress_gold_dram)[i] = 0;
+  }
+  resadd_cpu(RESADD_STRESS_I, RESADD_STRESS_J, RESADD_STRESS_J,
+             MVIN_SCALE_IDENTITY, MVIN_SCALE_IDENTITY, ACC_SCALE_IDENTITY,
+             (elem_t *)resadd_stress_a_dram,
+             (elem_t *)resadd_stress_b_dram,
+             (elem_t *)resadd_stress_gold_dram,
+             false);
   printf("[rerocc-coverage-linux] init refs_done\n");
   fflush(stdout);
 
@@ -1272,6 +1730,33 @@ int main(int argc, char **argv) {
       (uint64_t)(uintptr_t)shared_resadd_out,
       (elem_t *)resadd_out_dram,
       (const elem_t *)resadd_gold_dram);
+
+  case4d = run_resadd_stress_explicit_case(
+      "resadd_256_explicit_single_mgr",
+      gemmini_manager_id);
+
+  case4e = run_resadd_stress_explicit_split_case(
+      "resadd_256_explicit_split_mgrs",
+      gemmini_manager_id,
+      peer_gemmini_manager_id);
+
+  case4f = run_resadd_stress_loop_ws_case(
+      "resadd_256_loop_ws_single_mgr",
+      gemmini_manager_id);
+
+  case4g = run_resadd_stress_explicit_split_shared_case(
+      "resadd_256_explicit_split_shared_mgrs",
+      gemmini_manager_id,
+      peer_gemmini_manager_id,
+      dma_manager_id,
+      shared_resadd_stress_a_pa,
+      shared_resadd_stress_b_pa,
+      shared_resadd_stress_out_pa);
+
+  case4h = run_resadd_stress_loop_ws_split_case(
+      "resadd_256_loop_ws_split_mgrs",
+      gemmini_manager_id,
+      peer_gemmini_manager_id);
 
   case4b = run_shared_mv_case(
       "shared_mv_xlate",
@@ -1407,11 +1892,15 @@ int main(int argc, char **argv) {
 
   rr_release_all(RR_MAX_CFGS);
 
-  all_ok = case0 && case1 && case2 && case3 && case3b && case4 && case4b && case4c &&
+  all_ok = case0 && case1 && case2 && case3 && case3b && case4 && case4d && case4e && case4f &&
+           case4g && case4h &&
+           case4b && case4c &&
            case5 && case6 && case7 && case8 && case9 && case10 && case11;
-  printf("COVERAGE_SUMMARY case0=%d case1=%d case2=%d case3=%d case3b=%d case4=%d case4b=%d case4c=%d case5=%d case6=%d case7=%d case8=%d case9=%d case10=%d case11=%d\n",
+  printf("COVERAGE_SUMMARY case0=%d case1=%d case2=%d case3=%d case3b=%d case4=%d case4d=%d case4e=%d case4f=%d case4g=%d case4h=%d case4b=%d case4c=%d case5=%d case6=%d case7=%d case8=%d case9=%d case10=%d case11=%d\n",
          case0 ? 1 : 0, case1 ? 1 : 0, case2 ? 1 : 0, case3 ? 1 : 0,
-         case3b ? 1 : 0, case4 ? 1 : 0, case4b ? 1 : 0, case4c ? 1 : 0, case5 ? 1 : 0,
+         case3b ? 1 : 0, case4 ? 1 : 0, case4d ? 1 : 0, case4e ? 1 : 0, case4f ? 1 : 0,
+         case4g ? 1 : 0, case4h ? 1 : 0,
+         case4b ? 1 : 0, case4c ? 1 : 0, case5 ? 1 : 0,
          case6 ? 1 : 0, case7 ? 1 : 0, case8 ? 1 : 0, case9 ? 1 : 0,
          case10 ? 1 : 0, case11 ? 1 : 0);
 

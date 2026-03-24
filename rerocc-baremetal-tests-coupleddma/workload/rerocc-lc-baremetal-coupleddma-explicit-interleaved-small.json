@@ -1,0 +1,7 @@
+{
+  "name" : "rerocc-lc-baremetal-coupleddma-explicit-interleaved-small",
+  "base" : "bare-base.json",
+  "workdir" : ".",
+  "host-init" : "host-init-explicit-interleaved.sh",
+  "bin" : "rerocc_lc_resadd_explicit_interleaved.riscv"
+}

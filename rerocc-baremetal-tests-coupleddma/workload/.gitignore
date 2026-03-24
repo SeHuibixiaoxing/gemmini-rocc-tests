@@ -1,1 +1,2 @@
-# Generated artifacts now live under ../../build/.
+# Generated workload payloads are built locally and should not be tracked.
+*.riscv
