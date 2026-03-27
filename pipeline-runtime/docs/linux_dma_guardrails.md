@@ -169,6 +169,25 @@
 - `pipeline-runtime` 已经吸收了这次 Linux coupleddma 小回归暴露的同类经验
 - 这次在小回归里重新出现的 `dma_dram_to_shared_misaligned_fullpage` 卡住，根因是在 regression helper 本身，而不是 `pipeline-runtime`
 
+2026-03-25 补充审计：
+
+- 对文档里此前 baremetal 闭环过的问题再次对照后，当前 `pipeline-runtime`
+  Linux/F2 主路径没有重新落回这些旧根因：
+  - `mvin2` accumulator dirty-row 语义问题
+  - 缺少 `rr_fence(cfg_id)` 的 manager-visible completion 链
+  - pointwise `J=128` 的 chunk-bias VA/PTE overlap
+- 其中 pointwise 旧 VA/PTE overlap 在 runtime 里被新的地址空间合同结构性规避：
+  - action 级独占 alias VA window
+  - 独立 vpage 分配与绑定
+- 同时，`pipeline-runtime/src/main.c` 入口已经显式关闭 `stdout/stderr` 缓冲。
+  因此后续 Linux/F2 stall 取证应优先依赖低噪声 build 和少量边界日志，
+  而不是继续增加 hot/raw `printf`。
+- 2026-03-25 的低噪声 live replay 也支持这个判断：
+  - 关闭大部分 progress log 后，guest 仍能稳定 boot 到 bertmini wrapper
+  - 但在 `ours2` method 启动后再次进入 silent window
+  - 所以下一步需要的是更少但更强判别力的 runtime 边界 marker，
+    而不是恢复整套重日志
+
 ## 3. 回归与取证建议
 
 只要改动涉及下面任一类代码：

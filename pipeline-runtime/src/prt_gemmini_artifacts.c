@@ -426,6 +426,21 @@ static void stage_apply_mapping(prt_stage_map_t *stage, const mapping_entry_t *e
   stage->local_spm_page_span = span;
 }
 
+static int stage_local_mapping_matches(const prt_stage_map_t *stage, const mapping_entry_t *entry) {
+  uint32_t span = 0;
+  if (!stage || !entry) return 0;
+  if (stage->local_spm_tensor_count != entry->spm_addr_n) return 0;
+  for (uint32_t i = 0; i < entry->spm_addr_n && i < PRT_MAX_LAYER_TENSORS; ++i) {
+    uint32_t end_vpage = entry->first_vpage[i] + entry->page_count[i];
+    if (stage->local_spm_tensor_addr[i] != entry->spm_addr[i]) return 0;
+    if (stage->local_spm_first_vpage[i] != entry->first_vpage[i]) return 0;
+    if (stage->local_spm_page_count[i] != entry->page_count[i]) return 0;
+    if (stage->local_spm_tensor_bytes[i] != entry->spm_bytes[i]) return 0;
+    if (end_vpage > span) span = end_vpage;
+  }
+  return stage->local_spm_page_span == span;
+}
+
 static int parse_mapping_file(const char *path, mapping_db_t *db) {
   char *buf = NULL;
   char *cache_path = NULL;
@@ -608,6 +623,7 @@ static int validate_stage_against_mapping_entries(const char *path, const mappin
                                                   uint32_t seg_idx, uint32_t stage_idx,
                                                   prt_stage_map_t *stage) {
   int matches = 0;
+  int layout_matches = 0;
   uint32_t matched_split_kind = PRT_LAYER_SPLIT_UNSPEC;
   mapping_entry_t matched;
   uint64_t start_ms;
@@ -631,34 +647,61 @@ static int validate_stage_against_mapping_entries(const char *path, const mappin
       PRT_PROGRESS_LOG("artifacts validate stage-hit seg=%u local_stage=%u global_stage=%u layer=%u entry=%u matches=%d split_kind=%u",
                        seg_idx, stage_idx, stage->stage_id, stage->layer_id,
                        entry_idx, matches, matched_split_kind);
+    } else if (stage->local_spm_tensor_count > 0U &&
+               entry->active &&
+               entry->layer_id == stage->layer_id &&
+               stage_local_mapping_matches(stage, entry)) {
+      layout_matches += 1;
+      if (layout_matches == 1) {
+        matched_split_kind = entry->split_kind;
+        matched = *entry;
+      }
+      PRT_PROGRESS_HOT_LOG("artifacts validate stage-layout-hit seg=%u local_stage=%u global_stage=%u layer=%u entry=%u layout_matches=%d split_kind=%u",
+                           seg_idx, stage_idx, stage->stage_id, stage->layer_id,
+                           entry_idx, layout_matches, entry->split_kind);
     }
     if (((entry_idx + 1U) % PRT_MAPPING_SCAN_PROGRESS_INTERVAL) == 0U) {
-      PRT_PROGRESS_LOG("artifacts validate stage-scan seg=%u local_stage=%u global_stage=%u scanned=%u/%u elapsed_ms=%llu matches=%d",
-                       seg_idx, stage_idx, stage->stage_id, entry_idx + 1U, db->count,
-                       (unsigned long long)(monotonic_ms() - start_ms), matches);
+      PRT_PROGRESS_HOT_LOG("artifacts validate stage-scan seg=%u local_stage=%u global_stage=%u scanned=%u/%u elapsed_ms=%llu matches=%d layout_matches=%d",
+                           seg_idx, stage_idx, stage->stage_id, entry_idx + 1U, db->count,
+                           (unsigned long long)(monotonic_ms() - start_ms), matches, layout_matches);
     }
   }
-  if (matches != 1) {
+  if (matches == 0 && layout_matches > 0) {
+    PRT_PROGRESS_LOG("artifacts validate stage-layout-fallback seg=%u local_stage=%u global_stage=%u layer=%u layout_matches=%d",
+                     seg_idx, stage_idx, stage->stage_id, stage->layer_id, layout_matches);
+  } else if (matches != 1) {
     fprintf(stderr,
-            "layer mapping match failure: file=%s layer=%u stage=%u accUtil=%u matches=%d dramBypassCount=%u spmBypassCount=%u\n",
-            path, stage->layer_id, stage->stage_id, stage->acc_util, matches,
+            "layer mapping match failure: file=%s layer=%u stage=%u accUtil=%u matches=%d layout_matches=%d dramBypassCount=%u spmBypassCount=%u\n",
+            path, stage->layer_id, stage->stage_id, stage->acc_util, matches, layout_matches,
             stage->dram_bypass_count, stage->spm_bypass_count);
     return PRT_ERR_NOT_READY;
   }
-  if (matched_split_kind == PRT_LAYER_SPLIT_UNSPEC) {
+  if (matches == 1 && matched_split_kind == PRT_LAYER_SPLIT_UNSPEC) {
     fprintf(stderr, "layer mapping missing split_kind: file=%s layer=%u stage=%u\n",
             path, stage->layer_id, stage->stage_id);
     return PRT_ERR_PARSE;
   }
-  if (stage->split_kind == PRT_LAYER_SPLIT_UNSPEC) {
+  if (matches == 1 && stage->split_kind == PRT_LAYER_SPLIT_UNSPEC) {
     stage->split_kind = matched_split_kind;
-  } else if (stage->split_kind != matched_split_kind) {
+  } else if (matches == 1 && stage->split_kind != matched_split_kind) {
+    if (stage->local_spm_tensor_count > 0U && stage_local_mapping_matches(stage, &matched)) {
+      PRT_PROGRESS_LOG(
+        "artifacts validate split-kind-fallback seg=%u local_stage=%u global_stage=%u layer=%u pipeline=%u mapping=%u",
+        seg_idx, stage_idx, stage->stage_id, stage->layer_id, stage->split_kind, matched_split_kind);
+    } else {
+      fprintf(stderr,
+              "split_kind mismatch: file=%s layer=%u stage=%u pipeline=%u mapping=%u\n",
+              path, stage->layer_id, stage->stage_id, stage->split_kind, matched_split_kind);
+      return PRT_ERR_PARSE;
+    }
+  }
+  if (stage->local_spm_tensor_count == 0U) stage_apply_mapping(stage, &matched);
+  else if (!stage_local_mapping_matches(stage, &matched)) {
     fprintf(stderr,
-            "split_kind mismatch: file=%s layer=%u stage=%u pipeline=%u mapping=%u\n",
-            path, stage->layer_id, stage->stage_id, stage->split_kind, matched_split_kind);
+            "local_spm layout mismatch: file=%s layer=%u stage=%u\n",
+            path, stage->layer_id, stage->stage_id);
     return PRT_ERR_PARSE;
   }
-  stage_apply_mapping(stage, &matched);
   PRT_PROGRESS_LOG("artifacts validate stage-end seg=%u local_stage=%u global_stage=%u layer=%u elapsed_ms=%llu span_pages=%u tensors=%u",
                    seg_idx, stage_idx, stage->stage_id, stage->layer_id,
                    (unsigned long long)(monotonic_ms() - start_ms),

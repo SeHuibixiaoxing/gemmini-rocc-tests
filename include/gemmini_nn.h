@@ -172,6 +172,22 @@ static void tiled_matmul_nn_stride_auto(size_t dim_I, size_t dim_J, size_t dim_K
         int act, acc_scale_t scale, bool repeating_bias,
         enum tiled_matmul_type_t tiled_matmul_type)
 {
+    PRT_GEMMINI_RAW_LINE("[graw] matmul-nn-stride-auto-enter");
+    PRT_GEMMINI_RAW_LINE("[graw] matmul-nn-stride-auto-pre-shape");
+    PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-nn-stride-auto-shape dim_I=%lu dim_J=%lu dim_K=%lu",
+        (unsigned long)dim_I, (unsigned long)dim_J, (unsigned long)dim_K);
+    PRT_GEMMINI_RAW_LINE("[graw] matmul-nn-stride-auto-post-shape");
+    PRT_GEMMINI_RAW_LINE("[graw] matmul-nn-stride-auto-pre-addrs");
+    PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-nn-stride-auto-addrs A=0x%lx B=0x%lx D=0x%lx C=0x%lx",
+        (unsigned long)(uintptr_t)A, (unsigned long)(uintptr_t)B,
+        (unsigned long)(uintptr_t)D, (unsigned long)(uintptr_t)C);
+    PRT_GEMMINI_RAW_LINE("[graw] matmul-nn-stride-auto-post-addrs");
+    PRT_GEMMINI_RAW_LINE("[graw] matmul-nn-stride-auto-pre-flags");
+    PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-nn-stride-auto-flags stride_A=%lu stride_B=%lu stride_C=%lu act=%d repeating_bias=%d type=%d",
+        (unsigned long)A_stride, (unsigned long)B_stride, (unsigned long)C_stride,
+        act, repeating_bias, tiled_matmul_type);
+    PRT_GEMMINI_RAW_LINE("[graw] matmul-nn-stride-auto-post-flags");
+    PRT_GEMMINI_RAW_LINE("[graw] matmul-nn-stride-auto-pre-auto");
 
     tiled_matmul_auto(dim_I, dim_J, dim_K,
         (elem_t*)A, (elem_t*)B, D, (elem_t*)C,
@@ -182,6 +198,7 @@ static void tiled_matmul_nn_stride_auto(size_t dim_I, size_t dim_J, size_t dim_K
         false, false,
         0,
         tiled_matmul_type);
+    PRT_GEMMINI_RAW_LINE("[graw] matmul-nn-stride-auto-post-auto");
 }
 static void conv_dw(size_t I, size_t J,
     const size_t batch_size, const size_t channels,
@@ -573,4 +590,3 @@ void pool_with_col2im(size_t I, size_t J,
 }
 
 #endif // GEMMINI_NN_H
-

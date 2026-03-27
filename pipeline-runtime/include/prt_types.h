@@ -11,7 +11,8 @@
 extern "C" {
 #endif
 
-#define PRT_MAX_CORES 32
+#define PRT_MAX_CORES 64
+#define PRT_MAX_ACTIONS 6
 #define PRT_MAX_TILE_SPLITS 32
 #define PRT_MAX_STAGES 128
 #define PRT_MAX_TENSORS 1024
@@ -163,6 +164,7 @@ typedef struct {
 
 typedef struct {
   uint32_t segment_idx;
+  uint32_t buffer_id;
   uint32_t tensor_id;
   uint32_t size;
   uint32_t head;
@@ -176,6 +178,7 @@ typedef struct {
 } prt_ringbuf_t;
 
 typedef struct prt_pipebuf_s {
+  uint32_t buffer_id;
   uint32_t tensor_id;
   uint32_t stage_idx;
   uint32_t segment_idx;
@@ -235,7 +238,26 @@ typedef struct {
   uint32_t tensor_id;
   char tensor_type[32];
   uint32_t double_buffer;
+  uint32_t buffer_id;
 } prt_tensor_binding_t;
+
+typedef enum {
+  PRT_BUFFER_BINDING_UNKNOWN = 0,
+  PRT_BUFFER_BINDING_WEIGHT = 1,
+  PRT_BUFFER_BINDING_PIPE = 2,
+  PRT_BUFFER_BINDING_RING = 3
+} prt_buffer_binding_kind_t;
+
+typedef struct {
+  uint32_t buffer_id;
+  uint32_t tensor_id;
+  uint32_t stage_local_id;
+  uint32_t is_entry;
+  uint32_t kind;
+  uint32_t slot_count;
+  uint32_t pages_per_slot;
+  uint32_t alias_group_id;
+} prt_buffer_binding_t;
 
 typedef struct {
   uint32_t stage_id;
@@ -278,6 +300,7 @@ typedef struct {
   uint32_t local_spm_page_count[PRT_MAX_LAYER_TENSORS];
   uint32_t local_spm_tensor_bytes[PRT_MAX_LAYER_TENSORS];
   uint32_t local_spm_page_span;
+  uint32_t exec_base_vpage;
 } prt_stage_map_t;
 
 typedef struct {
@@ -294,6 +317,9 @@ typedef struct {
   prt_stage_map_t *stages;
   uint32_t num_ring_cfg;
   prt_ring_cfg_t *ring_cfgs;
+  uint32_t segment_spm_page_span;
+  uint32_t buffer_binding_count;
+  prt_buffer_binding_t *buffer_bindings;
   uint32_t num_stage_spm_util;
   prt_u32_map_t *tensor_spm_util_in_stage;
   prt_u32_map_t shared_tensor_is_read_first;
@@ -359,6 +385,9 @@ typedef struct {
   uint32_t pages_per_acc;
   uint64_t spm_xlate_range_base;
   uint64_t spm_xlate_range_size;
+  uint32_t spm_pt_pool_prealloc_hugepages;
+  uint32_t spm_pt_pool_max_hugepages;
+  uint32_t spm_pt_require_hugetlb;
   prt_dma_backend_t dma_backend;
   prt_gemmini_mode_t gemmini_mode;
   prt_sync_mode_t sync_mode;

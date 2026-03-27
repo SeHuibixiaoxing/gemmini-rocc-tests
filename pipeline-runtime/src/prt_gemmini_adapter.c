@@ -119,13 +119,25 @@ static void *prt_grouped_conv_output_ptr(const prt_gemmini_conv_desc_t *conv, in
 #if defined(__riscv)
 static uint64_t prt_spm_xlate_range_base_cache = 0;
 static uint64_t prt_spm_xlate_range_size_cache = 0;
+static uint64_t prt_spm_xlate_ptbr_cache = 0;
+static uint32_t prt_spm_xlate_pte_count_cache = 0;
 static int prt_spm_xlate_enabled_cache = 0;
+static const char *prt_tiled_matmul_type_name(enum tiled_matmul_type_t tiled_type);
 
 static void prt_cache_spm_xlate_cfg(const prt_runtime_t *rt) {
-  if (!rt) return;
-  prt_spm_xlate_range_base_cache = rt->cfg.spm_xlate_range_base;
-  prt_spm_xlate_range_size_cache = rt->cfg.spm_xlate_range_size;
-  prt_spm_xlate_enabled_cache = rt->cfg.spm_xlate_enable != 0;
+  const prt_schedule_action_t *action = prt_runtime_current_action(rt);
+  prt_spm_xlate_range_base_cache = 0;
+  prt_spm_xlate_range_size_cache = 0;
+  prt_spm_xlate_ptbr_cache = 0;
+  prt_spm_xlate_pte_count_cache = 0;
+  prt_spm_xlate_enabled_cache = 0;
+  if (!rt || !rt->cfg.spm_xlate_enable || !action) return;
+  if (action->alias_bytes == 0U || action->spm_xlate.pte_count == 0U) return;
+  prt_spm_xlate_range_base_cache = action->alias_base_va;
+  prt_spm_xlate_range_size_cache = action->alias_bytes;
+  prt_spm_xlate_ptbr_cache = action->spm_xlate.ptbr_pa;
+  prt_spm_xlate_pte_count_cache = action->spm_xlate.pte_count;
+  prt_spm_xlate_enabled_cache = 1;
 }
 
 static int prt_addr_uses_spm_xlate_alias(const void *ptr) {
@@ -146,12 +158,103 @@ static int prt_conv_uses_spm_xlate_alias(const prt_gemmini_conv_desc_t *conv) {
          prt_addr_uses_spm_xlate_alias(conv->output);
 }
 
+static void prt_log_scope_marker(const char *tag, uint32_t stage_id, uint32_t manager_id,
+                                 const prt_rr_scope_t *scope) {
+  if (!tag) return;
+  PRT_MARKER_CRIT_LOG("%s stage=%u mgr=%u scope_valid=%u cfg=%u opcode=%u",
+                      tag, stage_id, manager_id,
+                      scope ? (uint32_t)(scope->valid != 0) : 0U,
+                      scope ? scope->cfg_id : 0U,
+                      scope ? scope->opcode_id : 0U);
+}
+
+static void prt_log_spm_xlate_snapshot_impl(const char *tag, uint32_t stage_id,
+                                            uint32_t manager_id,
+                                            const prt_rr_scope_t *scope,
+                                            int read_fault_reg) {
+  uint64_t fault_vaddr = 0;
+  uint32_t fault_cause = 0;
+  int rc = PRT_OK;
+  if (!tag) return;
+  if (read_fault_reg && prt_spm_xlate_enabled_cache) {
+    if (scope && scope->valid && scope->manager_id == manager_id && scope->opcode_id == 3U) {
+      rc = prt_gemmini_spm_xlate_fault_read_scoped(scope, &fault_vaddr, &fault_cause);
+    } else {
+      rc = prt_gemmini_spm_xlate_fault_read(manager_id, &fault_vaddr, &fault_cause);
+    }
+  }
+  PRT_MARKER_LOG("%s stage=%u mgr=%u xlate_en=%u base=0x%llx bytes=%llu ptbr=0x%llx ptes=%u fault_read=%u fault_rc=%d fault_vaddr=0x%llx fault_cause=%u",
+                 tag, stage_id, manager_id,
+                 (uint32_t)(prt_spm_xlate_enabled_cache != 0),
+                 (unsigned long long)prt_spm_xlate_range_base_cache,
+                 (unsigned long long)prt_spm_xlate_range_size_cache,
+                 (unsigned long long)prt_spm_xlate_ptbr_cache,
+                 prt_spm_xlate_pte_count_cache,
+                 (uint32_t)(read_fault_reg != 0),
+                 rc,
+                 (unsigned long long)fault_vaddr,
+                 fault_cause);
+}
+
+static void prt_log_spm_xlate_snapshot(const char *tag, uint32_t stage_id, uint32_t manager_id,
+                                       const prt_rr_scope_t *scope) {
+  prt_log_spm_xlate_snapshot_impl(tag, stage_id, manager_id, scope, 1);
+}
+
+static void prt_log_spm_xlate_snapshot_cached(const char *tag, uint32_t stage_id,
+                                              uint32_t manager_id,
+                                              const prt_rr_scope_t *scope) {
+  prt_log_spm_xlate_snapshot_impl(tag, stage_id, manager_id, scope, 0);
+}
+
+static void prt_log_pointwise_state(const char *tag, uint32_t stage_id, uint32_t manager_id,
+                                    const prt_gemmini_conv_desc_t *conv,
+                                    size_t dim_i, size_t dim_j, size_t dim_k,
+                                    int in_stride, int weight_stride, int out_stride,
+                                    enum tiled_matmul_type_t tiled_type,
+                                    enum tiled_matmul_type_t fallback_type,
+                                    const prt_rr_scope_t *scope) {
+  if (!tag || !conv) return;
+  prt_log_scope_marker(tag, stage_id, manager_id, scope);
+  PRT_MARKER_CRIT_LOG("%s stage=%u mgr=%u dims_IJK=%llu,%llu,%llu strides_in_w_out=%d,%d,%d type_req=%s type_fb=%s act=%d scale=%g bias=%u alias_in=%u alias_w=%u alias_b=%u alias_out=%u",
+                      tag, stage_id, manager_id,
+                      (unsigned long long)dim_i,
+                      (unsigned long long)dim_j,
+                      (unsigned long long)dim_k,
+                      in_stride, weight_stride, out_stride,
+                      prt_tiled_matmul_type_name(tiled_type),
+                      prt_tiled_matmul_type_name(fallback_type),
+                      conv->act,
+                      (double)(conv->output_scale != 0.0f ? conv->output_scale : 1.0f),
+                      (uint32_t)(conv->bias != NULL),
+                      (uint32_t)prt_addr_uses_spm_xlate_alias(conv->input),
+                      (uint32_t)prt_addr_uses_spm_xlate_alias(conv->weights),
+                      (uint32_t)prt_addr_uses_spm_xlate_alias(conv->bias),
+                      (uint32_t)prt_addr_uses_spm_xlate_alias(conv->output));
+  PRT_MARKER_LOG("%s stage=%u mgr=%u addrs in=0x%llx weights=0x%llx bias=0x%llx out=0x%llx shape_nhwc=%d,%d,%d,%d kernel=%d stride=%d padding=%d pool=%d,%d,%d groups=%d",
+                 tag, stage_id, manager_id,
+                 (unsigned long long)(uintptr_t)conv->input,
+                 (unsigned long long)(uintptr_t)conv->weights,
+                 (unsigned long long)(uintptr_t)conv->bias,
+                 (unsigned long long)(uintptr_t)conv->output,
+                 conv->batch_size, conv->in_row_dim, conv->in_col_dim, conv->in_channels,
+                 conv->kernel_dim, conv->stride, conv->padding,
+                 conv->pool_size, conv->pool_stride, conv->pool_padding, prt_conv_groups(conv));
+  // Keep pointwise hot-path logging side-effect free: reading the live fault
+  // CSR injects another custom instruction on the same ReRoCC/Gemmini lane.
+  prt_log_spm_xlate_snapshot_cached(tag, stage_id, manager_id, scope);
+}
+
 static int flush_scope_after_drain(prt_rr_scope_t *scope) {
   int rc;
   if (!scope) return PRT_ERR_INVAL;
+  prt_log_scope_marker("scope-drain begin", scope->stage_id, scope->manager_id, scope);
   gemmini_flush(0);
+  prt_log_scope_marker("scope-drain post-gemmini-flush", scope->stage_id, scope->manager_id, scope);
   rc = prt_rr_fence_scope(scope);
+  prt_log_scope_marker("scope-drain post-rr-fence", scope->stage_id, scope->manager_id, scope);
   gemmini_fence();
+  prt_log_scope_marker("scope-drain end", scope->stage_id, scope->manager_id, scope);
   return rc;
 }
 
@@ -263,6 +366,7 @@ static int prt_writeback_resadd_cpu_output(prt_runtime_t *rt, uint32_t stage_id,
                                            uint32_t tensor_id, uint64_t host_output_base,
                                            size_t host_output_bytes,
                                            const prt_page_list_t *output_pages) {
+  const prt_action_exec_t *exec;
   const uint32_t page_bytes =
     rt && rt->cfg.page_size_bytes ? rt->cfg.page_size_bytes : PRT_PAGE_SIZE_BYTES;
   const size_t spm_bytes =
@@ -273,6 +377,8 @@ static int prt_writeback_resadd_cpu_output(prt_runtime_t *rt, uint32_t stage_id,
   int rc;
 
   if (!rt || !output_pages || !output_pages->data || output_pages->size == 0 || !src) return PRT_OK;
+  exec = prt_runtime_current_exec_const(rt);
+  if (!exec || stage_id >= exec->stage_thread_count) return PRT_ERR_STATE;
   timeout_ns = (uint64_t)rt->cfg.watchdog_timeout_ms * 1000000ULL;
 
   if (host_output_bytes < spm_bytes) {
@@ -289,7 +395,7 @@ static int prt_writeback_resadd_cpu_output(prt_runtime_t *rt, uint32_t stage_id,
                    (unsigned long long)spm_bytes,
                    output_pages->size);
   rc = prt_dma_copy_dram_to_spm_pages(rt, output_pages, (uint64_t)(uintptr_t)src,
-                                      rt->stage_dma_ids[stage_id], stage_id, tensor_id, timeout_ns);
+                                      exec->stage_dma_ids[stage_id], stage_id, tensor_id, timeout_ns);
   PRT_PROGRESS_LOG("resadd-fallback-writeback stage=%u mgr=%u tensor=%u end rc=%d",
                    stage_id, manager_id, tensor_id, rc);
 
@@ -456,7 +562,18 @@ static int prt_run_pointwise_matmul_fallback_strided_impl(uint32_t stage_id, uin
   fallback_type = prt_pick_pointwise_matmul_fallback_type(tiled_type, dim_j);
   safe_oc_chunk = prt_pick_safe_pointwise_oc_chunk(conv, tiled_type);
   if (safe_oc_chunk > 0) {
+    PRT_MARKER_LOG("pointwise-route stage=%u mgr=%u mode=chunked I=%llu J=%llu K=%llu oc_chunk=%d emit_logs=%d fallback=%s",
+                   stage_id, manager_id,
+                   (unsigned long long)dim_i, (unsigned long long)dim_j,
+                   (unsigned long long)dim_k, safe_oc_chunk, emit_logs,
+                   prt_tiled_matmul_type_name(fallback_type));
     if (emit_logs) {
+      PRT_MARKER_LOG("pointwise stage=%u mgr=%u chunked I=%llu J=%llu K=%llu oc_chunk=%d requested=%s fallback=%s",
+                     stage_id, manager_id,
+                     (unsigned long long)dim_i, (unsigned long long)dim_j, (unsigned long long)dim_k,
+                     safe_oc_chunk,
+                     prt_tiled_matmul_type_name(tiled_type),
+                     prt_tiled_matmul_type_name(fallback_type));
       PRT_PROGRESS_LOG("pointwise-matmul-fallback stage=%u mgr=%u chunked I=%llu J=%llu K=%llu oc_chunk=%d in_stride=%d weight_stride=%d out_stride=%d requested_type=%s fallback_type=%s",
                        stage_id, manager_id,
                        (unsigned long long)dim_i, (unsigned long long)dim_j, (unsigned long long)dim_k,
@@ -469,6 +586,11 @@ static int prt_run_pointwise_matmul_fallback_strided_impl(uint32_t stage_id, uin
                                                         out_stride, emit_logs, scope);
   }
   if (emit_logs) {
+    PRT_MARKER_LOG("pointwise stage=%u mgr=%u begin I=%llu J=%llu K=%llu requested=%s fallback=%s",
+                   stage_id, manager_id,
+                   (unsigned long long)dim_i, (unsigned long long)dim_j, (unsigned long long)dim_k,
+                   prt_tiled_matmul_type_name(tiled_type),
+                   prt_tiled_matmul_type_name(fallback_type));
     PRT_PROGRESS_LOG("pointwise-matmul-fallback stage=%u mgr=%u begin I=%llu J=%llu K=%llu in_stride=%d weight_stride=%d out_stride=%d requested_type=%s fallback_type=%s",
                      stage_id, manager_id,
                      (unsigned long long)dim_i, (unsigned long long)dim_j, (unsigned long long)dim_k,
@@ -482,6 +604,19 @@ static int prt_run_pointwise_matmul_fallback_strided_impl(uint32_t stage_id, uin
                          prt_tiled_matmul_type_name(tiled_type),
                          prt_tiled_matmul_type_name(fallback_type));
   }
+  PRT_PROGRESS_RAW_LINE("[prt-raw] pointwise-inner-precall");
+  prt_log_pointwise_state("pointwise-inner precall", stage_id, manager_id, conv,
+                          dim_i, dim_j, dim_k, in_stride, weight_stride, out_stride,
+                          tiled_type, fallback_type, scope);
+  PRT_PROGRESS_RAW_LINE("[prt-raw] pointwise-inner-pre-matmul-call");
+  PRT_MARKER_CRIT_LOG("pointwise-inner stage=%u mgr=%u matmul-call-enter fallback=%s emit_logs=%d I=%llu J=%llu K=%llu in_stride=%d weight_stride=%d out_stride=%d bias=%u",
+                      stage_id, manager_id,
+                      prt_tiled_matmul_type_name(fallback_type), emit_logs,
+                      (unsigned long long)dim_i,
+                      (unsigned long long)dim_j,
+                      (unsigned long long)dim_k,
+                      in_stride, weight_stride, out_stride,
+                      (uint32_t)(conv->bias != NULL));
   tiled_matmul_nn_stride_auto(
     dim_i, dim_j, dim_k,
     (size_t)in_stride, (size_t)weight_stride, (size_t)out_stride,
@@ -489,7 +624,24 @@ static int prt_run_pointwise_matmul_fallback_strided_impl(uint32_t stage_id, uin
     conv->bias ? (const acc_t *)conv->bias : NULL, (const elem_t *)conv->output,
     conv->act, (acc_scale_t)(conv->output_scale != 0.0f ? conv->output_scale : 1.0f),
     conv->bias != NULL, fallback_type);
+  PRT_PROGRESS_RAW_LINE("[prt-raw] pointwise-inner-post-matmul-call");
+  PRT_MARKER_CRIT_LOG("pointwise-inner stage=%u mgr=%u matmul-call-return fallback=%s emit_logs=%d I=%llu J=%llu K=%llu",
+                      stage_id, manager_id,
+                      prt_tiled_matmul_type_name(fallback_type), emit_logs,
+                      (unsigned long long)dim_i,
+                      (unsigned long long)dim_j,
+                      (unsigned long long)dim_k);
+  PRT_PROGRESS_RAW_LINE("[prt-raw] pointwise-inner-pre-postcall-state");
+  prt_log_pointwise_state("pointwise-inner postcall", stage_id, manager_id, conv,
+                          dim_i, dim_j, dim_k, in_stride, weight_stride, out_stride,
+                          tiled_type, fallback_type, scope);
+  PRT_PROGRESS_RAW_LINE("[prt-raw] pointwise-inner-post-postcall-state");
   if (emit_logs) {
+    PRT_MARKER_LOG("pointwise stage=%u mgr=%u end I=%llu J=%llu K=%llu requested=%s fallback=%s",
+                   stage_id, manager_id,
+                   (unsigned long long)dim_i, (unsigned long long)dim_j, (unsigned long long)dim_k,
+                   prt_tiled_matmul_type_name(tiled_type),
+                   prt_tiled_matmul_type_name(fallback_type));
     PRT_PROGRESS_LOG("pointwise-matmul-fallback stage=%u mgr=%u end I=%llu J=%llu K=%llu in_stride=%d weight_stride=%d out_stride=%d requested_type=%s fallback_type=%s",
                      stage_id, manager_id,
                      (unsigned long long)dim_i, (unsigned long long)dim_j, (unsigned long long)dim_k,
@@ -532,30 +684,12 @@ static int prt_run_pointwise_matmul_fallback_chunked_oc(uint32_t stage_id, uint3
   weights = (const elem_t *)conv->weights;
   bias = (const acc_t *)conv->bias;
   output = (elem_t *)conv->output;
-  PRT_PROGRESS_RAW_LINE("[prt-raw] pw-chunked-enter");
   if (emit_logs) {
-    PRT_PROGRESS_LOG("pointwise-matmul-fallback-chunked stage=%u mgr=%u begin I=%llu J=%llu K=%llu oc_chunk=%d in_stride=%d weight_stride=%d out_stride=%d requested_type=%s fallback_type=%s",
-                     stage_id, manager_id,
-                     (unsigned long long)dim_i, (unsigned long long)dim_j, (unsigned long long)dim_k,
-                     oc_chunk, in_stride, weight_stride, out_stride,
-                     prt_tiled_matmul_type_name(tiled_type),
-                     prt_tiled_matmul_type_name(
-                       prt_pick_pointwise_matmul_fallback_type(
-                         tiled_type,
-                         (size_t)(oc_chunk > 0 && oc_chunk < conv->out_channels ? oc_chunk
-                                                                                : conv->out_channels))));
-    PRT_PROGRESS_HOT_LOG("pointwise-matmul-fallback-chunked stage=%u mgr=%u begin I=%lu J=%lu K=%lu oc_chunk=%d requested_type=%s fallback_type=%s mode=direct-strided",
-                         stage_id, manager_id,
-                         (unsigned long)dim_i, (unsigned long)dim_j, (unsigned long)dim_k,
-                         oc_chunk,
-                         prt_tiled_matmul_type_name(tiled_type),
-                         prt_tiled_matmul_type_name(
-                           prt_pick_pointwise_matmul_fallback_type(
-                             tiled_type,
-                             (size_t)(oc_chunk > 0 && oc_chunk < conv->out_channels ? oc_chunk
-                                                                                    : conv->out_channels))));
+    PRT_MARKER_LOG("pointwise-chunk stage=%u mgr=%u begin I=%llu J=%llu K=%llu oc_chunk=%d",
+                   stage_id, manager_id,
+                   (unsigned long long)dim_i, (unsigned long long)dim_j, (unsigned long long)dim_k,
+                   oc_chunk);
   }
-  PRT_PROGRESS_RAW_LINE("[prt-raw] pw-chunked-after-begin-log");
 
   for (int oc_beg = 0; oc_beg < conv->out_channels; oc_beg += oc_chunk) {
     const int oc_tile =
@@ -567,50 +701,37 @@ static int prt_run_pointwise_matmul_fallback_chunked_oc(uint32_t stage_id, uint3
     sub.bias = bias ? (bias + oc_beg) : NULL;
     sub.output = output + oc_beg;
 
-    PRT_PROGRESS_RAW_LINE("[prt-raw] pw-chunked-before-chunk-log");
     if (emit_logs) {
-      PRT_PROGRESS_HOT_LOG("pointwise-matmul-fallback-chunked stage=%u mgr=%u chunk-begin oc_beg=%d oc_tile=%d mode=direct-strided",
-                           stage_id, manager_id, oc_beg, oc_tile);
+      PRT_MARKER_LOG("pointwise-chunk stage=%u mgr=%u chunk-begin oc_beg=%d oc_tile=%d",
+                     stage_id, manager_id, oc_beg, oc_tile);
+      PRT_MARKER_LOG("pointwise-chunk stage=%u mgr=%u subcall-begin oc_beg=%d oc_tile=%d",
+                     stage_id, manager_id, oc_beg, oc_tile);
     }
-    PRT_PROGRESS_RAW_LINE("[prt-raw] pw-chunked-before-inner");
     rc = prt_run_pointwise_matmul_fallback_strided_impl(stage_id, manager_id, &sub, tiled_type,
                                                         in_stride, weight_stride, out_stride, 0,
                                                         scope);
     if (rc != PRT_OK) goto cleanup;
-    PRT_PROGRESS_RAW_LINE("[prt-raw] pw-chunked-after-inner");
+    if (emit_logs) {
+      PRT_MARKER_LOG("pointwise-chunk stage=%u mgr=%u subcall-return oc_beg=%d oc_tile=%d rc=%d",
+                     stage_id, manager_id, oc_beg, oc_tile, rc);
+    }
     if (scope && scope->valid && oc_beg + oc_chunk < conv->out_channels) {
-      PRT_PROGRESS_LOG("pointwise-matmul-fallback-chunked stage=%u mgr=%u chunk-drain oc_beg=%d oc_tile=%d",
-                       stage_id, manager_id, oc_beg, oc_tile);
+      PRT_MARKER_LOG("pointwise-chunk stage=%u mgr=%u chunk-drain oc_beg=%d oc_tile=%d",
+                     stage_id, manager_id, oc_beg, oc_tile);
       rc = flush_scope_after_drain(scope);
       if (rc != PRT_OK) goto cleanup;
     }
     if (emit_logs) {
-      PRT_PROGRESS_HOT_LOG("pointwise-matmul-fallback-chunked stage=%u mgr=%u chunk-end oc_beg=%d oc_tile=%d",
-                           stage_id, manager_id, oc_beg, oc_tile);
+      PRT_MARKER_LOG("pointwise-chunk stage=%u mgr=%u chunk-end oc_beg=%d oc_tile=%d",
+                     stage_id, manager_id, oc_beg, oc_tile);
     }
   }
 
   if (emit_logs) {
-    PRT_PROGRESS_LOG("pointwise-matmul-fallback-chunked stage=%u mgr=%u end I=%llu J=%llu K=%llu oc_chunk=%d requested_type=%s fallback_type=%s",
-                     stage_id, manager_id,
-                     (unsigned long long)dim_i, (unsigned long long)dim_j, (unsigned long long)dim_k,
-                     oc_chunk,
-                     prt_tiled_matmul_type_name(tiled_type),
-                     prt_tiled_matmul_type_name(
-                       prt_pick_pointwise_matmul_fallback_type(
-                         tiled_type,
-                         (size_t)(oc_chunk > 0 && oc_chunk < conv->out_channels ? oc_chunk
-                                                                                : conv->out_channels))));
-    PRT_PROGRESS_HOT_LOG("pointwise-matmul-fallback-chunked stage=%u mgr=%u end I=%lu J=%lu K=%lu oc_chunk=%d requested_type=%s fallback_type=%s mode=direct-strided",
-                         stage_id, manager_id,
-                         (unsigned long)dim_i, (unsigned long)dim_j, (unsigned long)dim_k,
-                         oc_chunk,
-                         prt_tiled_matmul_type_name(tiled_type),
-                         prt_tiled_matmul_type_name(
-                           prt_pick_pointwise_matmul_fallback_type(
-                             tiled_type,
-                             (size_t)(oc_chunk > 0 && oc_chunk < conv->out_channels ? oc_chunk
-                                                                                    : conv->out_channels))));
+    PRT_MARKER_LOG("pointwise-chunk stage=%u mgr=%u end I=%llu J=%llu K=%llu oc_chunk=%d",
+                   stage_id, manager_id,
+                   (unsigned long long)dim_i, (unsigned long long)dim_j, (unsigned long long)dim_k,
+                   oc_chunk);
   }
 cleanup:
   return rc;
@@ -1352,14 +1473,38 @@ static int fence_task_managers(const prt_conv_task_t *task) {
     }
   }
 
+  PRT_MARKER_LOG("gemm-fence-task stage=%u op=%u split=%u mgr_count=%u unique=%u mgr0=%u mgr1=%u mgr2=%u mgr3=%u",
+                 task->stage_id, (uint32_t)task->op_kind, (uint32_t)task->split_kind,
+                 mgr_count, unique_count,
+                 unique_count > 0 ? unique_mgrs[0] : 0U,
+                 unique_count > 1 ? unique_mgrs[1] : 0U,
+                 unique_count > 2 ? unique_mgrs[2] : 0U,
+                 unique_count > 3 ? unique_mgrs[3] : 0U);
   for (uint32_t i = 0; i < unique_count; ++i) {
     prt_rr_scope_t scope;
+    PRT_MARKER_LOG("gemm-fence-task stage=%u mgr=%u acquire-begin idx=%u/%u",
+                   task->stage_id, unique_mgrs[i], i, unique_count);
     int rc = prt_rr_acquire_scope(NULL, task->stage_id, unique_mgrs[i], 3U, &scope);
     if (rc != PRT_OK) return rc;
+    prt_log_scope_marker("gemm-fence-task acquire-end", task->stage_id, unique_mgrs[i], &scope);
+    PRT_MARKER_LOG("gemm-fence-task stage=%u mgr=%u rr-fence-begin idx=%u/%u",
+                   task->stage_id, unique_mgrs[i], i, unique_count);
     rc = prt_rr_fence_scope(&scope);
+    PRT_MARKER_LOG("gemm-fence-task stage=%u mgr=%u rr-fence-end rc=%d idx=%u/%u",
+                   task->stage_id, unique_mgrs[i], rc, i, unique_count);
     gemmini_fence();
-    if (rc == PRT_OK) rc = flush_scope_after_drain(&scope);
+    if (rc == PRT_OK) {
+      PRT_MARKER_LOG("gemm-fence-task stage=%u mgr=%u drain-begin idx=%u/%u",
+                     task->stage_id, unique_mgrs[i], i, unique_count);
+      rc = flush_scope_after_drain(&scope);
+      PRT_MARKER_LOG("gemm-fence-task stage=%u mgr=%u drain-end rc=%d idx=%u/%u",
+                     task->stage_id, unique_mgrs[i], rc, i, unique_count);
+    }
+    PRT_MARKER_LOG("gemm-fence-task stage=%u mgr=%u release-begin idx=%u/%u",
+                   task->stage_id, unique_mgrs[i], i, unique_count);
     (void)prt_rr_release_scope(&scope);
+    PRT_MARKER_LOG("gemm-fence-task stage=%u mgr=%u release-end idx=%u/%u",
+                   task->stage_id, unique_mgrs[i], i, unique_count);
     if (rc != PRT_OK) return rc;
   }
 
@@ -1386,9 +1531,11 @@ static int conv_call_for_manager_nb(uint32_t stage_id, uint32_t manager_id,
                        stage_id, manager_id, conv->out_channels,
                        conv->out_row_dim, conv->out_col_dim,
                        conv->in_row_dim, conv->in_col_dim);
+  PRT_MARKER_LOG("conv-nb stage=%u mgr=%u acquire-begin", stage_id, manager_id);
   rc = prt_rr_acquire_scope(NULL, stage_id, manager_id, 3U, &scope);
   if (rc != PRT_OK) return rc;
   PRT_PROGRESS_HOT_LOG("conv-nb stage=%u mgr=%u acquire-end", stage_id, manager_id);
+  prt_log_scope_marker("conv-nb acquire-end", stage_id, manager_id, &scope);
 
   tiled_type = prt_conv_tiled_type(conv);
 
@@ -1405,10 +1552,39 @@ static int conv_call_for_manager_nb(uint32_t stage_id, uint32_t manager_id,
   use_pointwise_matmul_fallback =
     prt_is_canonical_pointwise_matmul_conv(conv, tiled_type) &&
     prt_pointwise_matmul_strides_supported(conv, in_stride, weight_stride, out_stride);
-  gemmini_flush(0);
+  PRT_MARKER_LOG("conv-nb stage=%u mgr=%u dispatch-select tiled=%s pointwise=%u safe_kchs_cap=%d",
+                 stage_id, manager_id,
+                 prt_tiled_matmul_type_name(tiled_type),
+                 (uint32_t)use_pointwise_matmul_fallback, safe_kchs_cap);
+  PRT_MARKER_CRIT_LOG("conv-nb stage=%u mgr=%u dispatch-snapshot tiled=%s pointwise=%u safe_kchs_cap=%d in_stride=%d weight_stride=%d out_stride=%d input=0x%llx weights=0x%llx bias=0x%llx output=0x%llx kernel=%d stride=%d padding=%d act=%d",
+                      stage_id, manager_id,
+                      prt_tiled_matmul_type_name(tiled_type),
+                      (uint32_t)use_pointwise_matmul_fallback, safe_kchs_cap,
+                      in_stride, weight_stride, out_stride,
+                      (unsigned long long)(uintptr_t)conv->input,
+                      (unsigned long long)(uintptr_t)conv->weights,
+                      (unsigned long long)(uintptr_t)conv->bias,
+                      (unsigned long long)(uintptr_t)conv->output,
+                      conv->kernel_dim, conv->stride, conv->padding, conv->act);
+  if (!use_pointwise_matmul_fallback) gemmini_flush(0);
+  prt_log_spm_xlate_snapshot_cached("conv-nb post-initial-flush", stage_id, manager_id, &scope);
   if (use_pointwise_matmul_fallback) {
+    PRT_MARKER_LOG("conv-nb stage=%u mgr=%u dispatch=pointwise oc=%d out=%dx%d in=%dx%d",
+                   stage_id, manager_id, conv->out_channels,
+                   conv->out_row_dim, conv->out_col_dim,
+                   conv->in_row_dim, conv->in_col_dim);
+    PRT_MARKER_CRIT_LOG("conv-nb stage=%u mgr=%u pointwise-call-begin in_stride=%d weight_stride=%d out_stride=%d oc=%d out=%dx%d in=%dx%d kernel=%d stride=%d padding=%d act=%d",
+                        stage_id, manager_id, in_stride, weight_stride, out_stride,
+                        conv->out_channels, conv->out_row_dim, conv->out_col_dim,
+                        conv->in_row_dim, conv->in_col_dim,
+                        conv->kernel_dim, conv->stride, conv->padding, conv->act);
+    PRT_PROGRESS_RAW_LINE("[prt-raw] conv-nb-pointwise-subcall-enter");
     rc = prt_run_pointwise_matmul_fallback_scoped(stage_id, manager_id, conv, tiled_type, &scope);
+    PRT_PROGRESS_RAW_LINE("[prt-raw] conv-nb-pointwise-subcall-return");
+    PRT_MARKER_CRIT_LOG("conv-nb stage=%u mgr=%u pointwise-return rc=%d", stage_id, manager_id, rc);
   } else if ((safe_kchs_cap = prt_pick_safe_loop_conv_kchs_cap(conv, tiled_type)) > 0) {
+    PRT_MARKER_LOG("conv-nb stage=%u mgr=%u dispatch=conv-loop-capped cap=%d",
+                   stage_id, manager_id, safe_kchs_cap);
     PRT_PROGRESS_HOT_LOG("conv-nb stage=%u mgr=%u tiled-conv-begin in_stride=%d weight_stride=%d out_stride=%d safe-kchs-cap=%d",
                          stage_id, manager_id, in_stride, weight_stride, out_stride, safe_kchs_cap);
     tiled_conv_stride_auto_capped_kchs(
@@ -1429,6 +1605,7 @@ static int conv_call_for_manager_nb(uint32_t stage_id, uint32_t manager_id,
                          chosen_args[4], chosen_args[5], chosen_args[6]);
     rc = PRT_OK;
   } else {
+    PRT_MARKER_LOG("conv-nb stage=%u mgr=%u dispatch=conv-loop", stage_id, manager_id);
     PRT_PROGRESS_HOT_LOG("conv-nb stage=%u mgr=%u tiled-conv-begin in_stride=%d weight_stride=%d out_stride=%d",
                          stage_id, manager_id, in_stride, weight_stride, out_stride);
     tiled_conv_stride_auto(
@@ -1447,11 +1624,22 @@ static int conv_call_for_manager_nb(uint32_t stage_id, uint32_t manager_id,
     rc = PRT_OK;
   }
   if (rc != PRT_OK) {
+    PRT_MARKER_LOG("conv-nb stage=%u mgr=%u issue-failed rc=%d", stage_id, manager_id, rc);
     (void)prt_rr_release_scope(&scope);
     return rc;
   }
 
+  PRT_MARKER_LOG("conv-nb stage=%u mgr=%u issue-done use_pointwise=%u",
+                 stage_id, manager_id, (uint32_t)use_pointwise_matmul_fallback);
+  PRT_MARKER_LOG("conv-nb stage=%u mgr=%u release-begin", stage_id, manager_id);
+  if (use_pointwise_matmul_fallback) {
+    PRT_PROGRESS_RAW_LINE("[prt-raw] conv-nb-pointwise-release-begin");
+  }
   (void)prt_rr_release_scope(&scope);
+  if (use_pointwise_matmul_fallback) {
+    PRT_PROGRESS_RAW_LINE("[prt-raw] conv-nb-pointwise-release-end");
+  }
+  PRT_MARKER_LOG("conv-nb stage=%u mgr=%u release-end", stage_id, manager_id);
   return PRT_OK;
 }
 
@@ -1495,7 +1683,7 @@ static int conv_call_for_manager_sync(uint32_t stage_id, uint32_t manager_id,
   use_pointwise_matmul_fallback =
     prt_is_canonical_pointwise_matmul_conv(conv, tiled_type) &&
     prt_pointwise_matmul_strides_supported(conv, in_stride, weight_stride, out_stride);
-  gemmini_flush(0);
+  if (!use_pointwise_matmul_fallback) gemmini_flush(0);
   if (use_pointwise_matmul_fallback) {
     rc = prt_run_pointwise_matmul_fallback_scoped(stage_id, manager_id, conv, tiled_type, &scope);
   } else if ((safe_kchs_cap = prt_pick_safe_loop_conv_kchs_cap(conv, tiled_type)) > 0) {
@@ -1577,9 +1765,12 @@ static int conv_call_for_manager_sync_strided(uint32_t stage_id, uint32_t manage
                        stage_id, manager_id, conv->out_channels,
                        conv->out_row_dim, conv->out_col_dim,
                        conv->in_row_dim, conv->in_col_dim);
+  PRT_MARKER_LOG("conv-sync stage=%u mgr=%u acquire-begin in_stride=%d weight_stride=%d out_stride=%d",
+                 stage_id, manager_id, in_stride, weight_stride, out_stride);
 
   rc = prt_rr_acquire_scope(NULL, stage_id, manager_id, 3U, &scope);
   if (rc != PRT_OK) return rc;
+  prt_log_scope_marker("conv-sync acquire-end", stage_id, manager_id, &scope);
   PRT_PROGRESS_LOG("conv-sync-strided stage=%u mgr=%u acquired", stage_id, manager_id);
   PRT_PROGRESS_HOT_LOG("conv-sync stage=%u mgr=%u acquire-end", stage_id, manager_id);
 
@@ -1591,14 +1782,40 @@ static int conv_call_for_manager_sync_strided(uint32_t stage_id, uint32_t manage
   use_pointwise_matmul_fallback =
     prt_is_canonical_pointwise_matmul_conv(conv, tiled_type) &&
     prt_pointwise_matmul_strides_supported(conv, in_stride, weight_stride, out_stride);
-  gemmini_flush(0);
+  PRT_MARKER_LOG("conv-sync stage=%u mgr=%u dispatch-select tiled=%s pointwise=%u safe_kchs_cap=%d",
+                 stage_id, manager_id,
+                 prt_tiled_matmul_type_name(tiled_type),
+                 (uint32_t)use_pointwise_matmul_fallback, safe_kchs_cap);
+  PRT_MARKER_CRIT_LOG("conv-sync stage=%u mgr=%u dispatch-snapshot tiled=%s pointwise=%u safe_kchs_cap=%d in_stride=%d weight_stride=%d out_stride=%d input=0x%llx weights=0x%llx bias=0x%llx output=0x%llx",
+                      stage_id, manager_id,
+                      prt_tiled_matmul_type_name(tiled_type),
+                      (uint32_t)use_pointwise_matmul_fallback, safe_kchs_cap,
+                      in_stride, weight_stride, out_stride,
+                      (unsigned long long)(uintptr_t)conv->input,
+                      (unsigned long long)(uintptr_t)conv->weights,
+                      (unsigned long long)(uintptr_t)conv->bias,
+                      (unsigned long long)(uintptr_t)conv->output);
+  if (!use_pointwise_matmul_fallback) gemmini_flush(0);
+  prt_log_spm_xlate_snapshot_cached("conv-sync post-initial-flush", stage_id, manager_id, &scope);
   PRT_PROGRESS_LOG("conv-sync-strided stage=%u mgr=%u flushed use_pointwise=%d", stage_id, manager_id,
                    use_pointwise_matmul_fallback);
   if (use_pointwise_matmul_fallback) {
+    PRT_MARKER_LOG("conv-sync stage=%u mgr=%u dispatch=pointwise oc=%d out=%dx%d in=%dx%d",
+                   stage_id, manager_id, conv->out_channels,
+                   conv->out_row_dim, conv->out_col_dim,
+                   conv->in_row_dim, conv->in_col_dim);
+    PRT_MARKER_CRIT_LOG("conv-sync stage=%u mgr=%u pointwise-call-begin in_stride=%d weight_stride=%d out_stride=%d oc=%d out=%dx%d in=%dx%d kernel=%d stride=%d padding=%d act=%d",
+                        stage_id, manager_id, in_stride, weight_stride, out_stride,
+                        conv->out_channels, conv->out_row_dim, conv->out_col_dim,
+                        conv->in_row_dim, conv->in_col_dim,
+                        conv->kernel_dim, conv->stride, conv->padding, conv->act);
     PRT_PROGRESS_LOG("conv-sync-strided stage=%u mgr=%u dispatch=pointwise", stage_id, manager_id);
+    PRT_PROGRESS_RAW_LINE("[prt-raw] conv-sync-pointwise-subcall-enter");
     rc = prt_run_pointwise_matmul_fallback_strided_scoped(stage_id, manager_id, conv, tiled_type,
                                                           in_stride, weight_stride, out_stride,
                                                           &scope);
+    PRT_PROGRESS_RAW_LINE("[prt-raw] conv-sync-pointwise-subcall-return");
+    PRT_MARKER_CRIT_LOG("conv-sync stage=%u mgr=%u pointwise-return rc=%d", stage_id, manager_id, rc);
     PRT_PROGRESS_LOG("conv-sync-strided stage=%u mgr=%u dispatch=pointwise-return rc=%d",
                      stage_id, manager_id, rc);
   } else if ((safe_kchs_cap = prt_pick_safe_loop_conv_kchs_cap(conv, tiled_type)) > 0) {
@@ -1642,6 +1859,7 @@ static int conv_call_for_manager_sync_strided(uint32_t stage_id, uint32_t manage
     rc = PRT_OK;
   }
   if (rc != PRT_OK) {
+    PRT_MARKER_LOG("conv-sync stage=%u mgr=%u issue-failed rc=%d", stage_id, manager_id, rc);
     (void)prt_rr_release_scope(&scope);
     return rc;
   }
@@ -1653,12 +1871,24 @@ static int conv_call_for_manager_sync_strided(uint32_t stage_id, uint32_t manage
 
   PRT_PROGRESS_LOG("conv-sync-strided stage=%u mgr=%u fence-begin", stage_id, manager_id);
   PRT_PROGRESS_HOT_LOG("conv-sync stage=%u mgr=%u fence-begin", stage_id, manager_id);
+  prt_log_scope_marker("conv-sync fence-begin", stage_id, manager_id, &scope);
+  if (use_pointwise_matmul_fallback) {
+    PRT_PROGRESS_RAW_LINE("[prt-raw] conv-sync-pointwise-fence-begin");
+  }
   rc = prt_rr_fence_scope(&scope);
   gemmini_fence();
   if (rc == PRT_OK) rc = flush_scope_after_drain(&scope);
+  prt_log_spm_xlate_snapshot("conv-sync post-fence", stage_id, manager_id, &scope);
   PRT_PROGRESS_LOG("conv-sync-strided stage=%u mgr=%u fence-end rc=%d", stage_id, manager_id, rc);
   PRT_PROGRESS_HOT_LOG("conv-sync stage=%u mgr=%u fence-end rc=%d", stage_id, manager_id, rc);
+  prt_log_scope_marker("conv-sync release-begin", stage_id, manager_id, &scope);
+  if (use_pointwise_matmul_fallback) {
+    PRT_PROGRESS_RAW_LINE("[prt-raw] conv-sync-pointwise-release-begin");
+  }
   (void)prt_rr_release_scope(&scope);
+  if (use_pointwise_matmul_fallback) {
+    PRT_PROGRESS_RAW_LINE("[prt-raw] conv-sync-pointwise-release-end");
+  }
   return rc;
 }
 
@@ -2295,18 +2525,20 @@ static int gemm_issue_conv_task(prt_runtime_t *rt, const prt_conv_task_t *task,
       return PRT_ERR_NOT_IMPL;
   }
 #else
+  int uses_spm_xlate_alias = 0;
   prt_cache_spm_xlate_cfg(rt);
+  uses_spm_xlate_alias = prt_conv_uses_spm_xlate_alias(conv);
   if (!conv->input || !conv->weights || !conv->output) return PRT_ERR_INVAL;
   if (conv->batch_size <= 0 || conv->in_row_dim <= 0 || conv->in_col_dim <= 0 ||
       conv->in_channels <= 0 || conv->out_channels <= 0 || conv->out_row_dim <= 0 ||
       conv->out_col_dim <= 0 || conv->kernel_dim <= 0) {
     return PRT_ERR_INVAL;
   }
-  PRT_PROGRESS_HOT_ERR_LOG("gemm-issue-conv stage=%u split=%u tiles=%u batch=%d in_dim=%dx%d ic=%d out_dim=%dx%d oc=%d kernel=%d groups=%d",
+  PRT_PROGRESS_HOT_ERR_LOG("gemm-issue-conv stage=%u split=%u tiles=%u batch=%d in_dim=%dx%d ic=%d out_dim=%dx%d oc=%d kernel=%d groups=%d spm_alias=%d",
                            task->stage_id, (uint32_t)task->split_kind, task->tile_count,
                            conv->batch_size, conv->in_row_dim, conv->in_col_dim, conv->in_channels,
                            conv->out_row_dim, conv->out_col_dim, conv->out_channels, conv->kernel_dim,
-                           prt_conv_groups(conv));
+                           prt_conv_groups(conv), uses_spm_xlate_alias);
   switch (task->split_kind) {
     case PRT_LAYER_SPLIT_SINGLE:
       PRT_PROGRESS_HOT_ERR_LOG("gemm-issue-conv stage=%u dispatch=single mgr=%u",
@@ -2374,6 +2606,14 @@ static int gemm_issue_task(prt_runtime_t *rt, const prt_conv_task_t *task) {
   const prt_gemmini_resadd_desc_t *resadd = NULL;
   if (!rt || !task || !task->opaque_task) return PRT_OK;
   if (task->num_managers == 0) return PRT_ERR_INVAL;
+  PRT_MARKER_LOG("gemm-issue stage=%u op=%u split=%u tiles=%u managers=%u acc=%u mgr0=%u mgr1=%u mgr2=%u mgr3=%u backend=%u",
+                 task->stage_id, (uint32_t)task->op_kind, (uint32_t)task->split_kind,
+                 task->tile_count, task->num_managers, task->acc_id,
+                 task->num_managers > 0 ? task->manager_ids[0] : 0U,
+                 task->num_managers > 1 ? task->manager_ids[1] : 0U,
+                 task->num_managers > 2 ? task->manager_ids[2] : 0U,
+                 task->num_managers > 3 ? task->manager_ids[3] : 0U,
+                 rt->cfg.backend);
   PRT_PROGRESS_HOT_ERR_LOG("gemm-issue-enter stage=%u op=%u split=%u tiles=%u managers=%u mgr0=%u backend=%u",
                            task->stage_id, (uint32_t)task->op_kind, (uint32_t)task->split_kind,
                            task->tile_count, task->num_managers,

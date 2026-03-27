@@ -1,0 +1,7 @@
+{
+  "name" : "rerocc-lc-baremetal-coupleddma-pointwise-os-inner-focus",
+  "base" : "bare-base.json",
+  "workdir" : ".",
+  "host-init" : "host-init-pointwise-os-inner-focus.sh",
+  "bin" : "rerocc_lc_pointwise_os_inner_runtime_alias_focus.riscv"
+}

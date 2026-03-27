@@ -13,6 +13,10 @@ tests = \
 	mt_hello \
 	rerocc_lc_matrix_baremetal \
 	rerocc_lc_resadd_explicit_interleaved \
+	rerocc_lc_bias_mvin3_runtime_alias_focus \
+	rerocc_lc_pointwise_os_first_pair_runtime_alias_focus \
+	rerocc_lc_pointwise_os_inner_runtime_alias_focus \
+	rerocc_lc_pointwise_stage0_runtime_interleaved_focus \
 	mvin_mvout \
 	mvin_mvout_zeros \
 	mvin_mvout_stride \

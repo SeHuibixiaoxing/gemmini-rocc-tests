@@ -523,6 +523,7 @@ int prt_process_c3(prt_runtime_t *rt, prt_isolate_pair_t *pair, uint64_t timeout
 }
 
 int prt_process_c4(prt_runtime_t *rt, prt_shared_pair_t *pair) {
+  const prt_action_exec_t *exec;
   prt_pipebuf_t *pre;
   prt_pipebuf_t *nxt_list[PRT_MAX_TENSORS];
   uint32_t nxt_count = 0;
@@ -532,12 +533,14 @@ int prt_process_c4(prt_runtime_t *rt, prt_shared_pair_t *pair) {
 
   if (!rt || !pair || !pair->pre_export || !pair->nxt_entry || !pair->tag) return PRT_ERR_INVAL;
   if (pair->buffer_idx > 1U) return PRT_ERR_INVAL;
+  exec = prt_runtime_current_exec_const(rt);
+  if (!exec) return PRT_ERR_STATE;
 
   pre = pair->pre_export;
   idx = pair->buffer_idx;
 
-  for (uint32_t i = 0; i < rt->shared_pair_count; ++i) {
-    prt_shared_pair_t *p = &rt->shared_pairs[i];
+  for (uint32_t i = 0; i < exec->shared_pair_count; ++i) {
+    prt_shared_pair_t *p = &exec->shared_pairs[i];
     int seen = 0;
     if (p->pre_export != pre || p->buffer_idx != idx || !p->nxt_entry) continue;
     for (uint32_t j = 0; j < nxt_count; ++j) {

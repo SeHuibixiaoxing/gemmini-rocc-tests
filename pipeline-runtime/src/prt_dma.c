@@ -240,12 +240,15 @@ static int dma_chunk_needs_bounce(uint64_t src_addr, uint64_t dst_addr, uint64_t
 }
 
 static int dma_stage_bounce_ensure(prt_runtime_t *rt, uint32_t stage_idx) {
+  prt_action_exec_t *exec;
   void *buf = NULL;
   size_t host_page_bytes;
   int rc = PRT_OK;
 
   if (!rt || stage_idx >= PRT_MAX_STAGES) return PRT_ERR_INVAL;
-  if (rt->stage_dma_bounce[stage_idx] && rt->stage_dma_bounce_bytes[stage_idx] != 0U) {
+  exec = prt_runtime_current_exec(rt);
+  if (!exec) return PRT_ERR_STATE;
+  if (exec->stage_dma_bounce[stage_idx] && exec->stage_dma_bounce_bytes[stage_idx] != 0U) {
     return PRT_OK;
   }
 
@@ -253,13 +256,13 @@ static int dma_stage_bounce_ensure(prt_runtime_t *rt, uint32_t stage_idx) {
   if (host_page_bytes == 0U) return PRT_ERR_STATE;
 
   pthread_mutex_lock(&rt->state_lock);
-  if (!rt->stage_dma_bounce[stage_idx] || rt->stage_dma_bounce_bytes[stage_idx] == 0U) {
+  if (!exec->stage_dma_bounce[stage_idx] || exec->stage_dma_bounce_bytes[stage_idx] == 0U) {
     if (posix_memalign(&buf, host_page_bytes, host_page_bytes) != 0) {
       rc = PRT_ERR_NOMEM;
     } else {
       memset(buf, 0, host_page_bytes);
-      rt->stage_dma_bounce[stage_idx] = (uint8_t *)buf;
-      rt->stage_dma_bounce_bytes[stage_idx] = host_page_bytes;
+      exec->stage_dma_bounce[stage_idx] = (uint8_t *)buf;
+      exec->stage_dma_bounce_bytes[stage_idx] = host_page_bytes;
     }
   }
   pthread_mutex_unlock(&rt->state_lock);
@@ -269,6 +272,7 @@ static int dma_stage_bounce_ensure(prt_runtime_t *rt, uint32_t stage_idx) {
 
 static int dma_stage_bounce_region(prt_runtime_t *rt, uint32_t stage_idx, uint64_t align_mod64,
                                    uint8_t **out_ptr, uint64_t *out_room) {
+  prt_action_exec_t *exec;
   int rc;
 
   if (!out_ptr || !out_room) return PRT_ERR_INVAL;
@@ -277,13 +281,15 @@ static int dma_stage_bounce_region(prt_runtime_t *rt, uint32_t stage_idx, uint64
 
   rc = dma_stage_bounce_ensure(rt, stage_idx);
   if (rc != PRT_OK) return rc;
-  if (!rt->stage_dma_bounce[stage_idx] || rt->stage_dma_bounce_bytes[stage_idx] == 0U) {
+  exec = prt_runtime_current_exec(rt);
+  if (!exec) return PRT_ERR_STATE;
+  if (!exec->stage_dma_bounce[stage_idx] || exec->stage_dma_bounce_bytes[stage_idx] == 0U) {
     return PRT_ERR_NOT_READY;
   }
-  if (align_mod64 >= rt->stage_dma_bounce_bytes[stage_idx]) return PRT_ERR_STATE;
+  if (align_mod64 >= exec->stage_dma_bounce_bytes[stage_idx]) return PRT_ERR_STATE;
 
-  *out_ptr = rt->stage_dma_bounce[stage_idx] + align_mod64;
-  *out_room = (uint64_t)rt->stage_dma_bounce_bytes[stage_idx] - align_mod64;
+  *out_ptr = exec->stage_dma_bounce[stage_idx] + align_mod64;
+  *out_room = (uint64_t)exec->stage_dma_bounce_bytes[stage_idx] - align_mod64;
   return PRT_OK;
 }
 #endif
@@ -604,12 +610,6 @@ void prt_dma_backend_destroy(prt_runtime_t *rt) {
     pthread_cond_destroy(&rt->dma_pending_cv);
     pthread_mutex_destroy(&rt->dma_pending_lock);
     rt->progress_thread_enabled = 0;
-  }
-
-  for (uint32_t i = 0; i < PRT_MAX_STAGES; ++i) {
-    free(rt->stage_dma_bounce[i]);
-    rt->stage_dma_bounce[i] = NULL;
-    rt->stage_dma_bounce_bytes[i] = 0;
   }
 }
 

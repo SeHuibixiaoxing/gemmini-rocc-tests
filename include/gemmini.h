@@ -8,22 +8,123 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdarg.h>
 #include <math.h>
 #include <limits.h>
 #include <stdbool.h>
+#include <string.h>
 
 #ifndef PRT_ENABLE_PROGRESS_RAW_LOG
 #define PRT_ENABLE_PROGRESS_RAW_LOG 0
 #endif
 
 #if PRT_ENABLE_PROGRESS_RAW_LOG
+#ifdef BAREMETAL
+#define PRT_GEMMINI_RAW_LINE(msg_literal) do { \
+    printf("%s\n", msg_literal); \
+  } while (0)
+#else
 #include <unistd.h>
 #define PRT_GEMMINI_RAW_LINE(msg_literal) do { \
     static const char _prt_gemmini_raw_line[] = msg_literal "\n"; \
-    (void)write(STDERR_FILENO, _prt_gemmini_raw_line, sizeof(_prt_gemmini_raw_line) - 1U); \
+    const char *_prt_gemmini_raw_ptr = _prt_gemmini_raw_line; \
+    size_t _prt_gemmini_raw_remaining = sizeof(_prt_gemmini_raw_line) - 1U; \
+    while (_prt_gemmini_raw_remaining > 0U) { \
+      ssize_t _prt_gemmini_raw_written = write(STDERR_FILENO, _prt_gemmini_raw_ptr, _prt_gemmini_raw_remaining); \
+      if (_prt_gemmini_raw_written <= 0) break; \
+      _prt_gemmini_raw_ptr += (size_t)_prt_gemmini_raw_written; \
+      _prt_gemmini_raw_remaining -= (size_t)_prt_gemmini_raw_written; \
+    } \
   } while (0)
+#endif
 #else
 #define PRT_GEMMINI_RAW_LINE(...) do { } while (0)
+#endif
+
+#ifndef PRT_ENABLE_CRITICAL_UART_PROBE
+#define PRT_ENABLE_CRITICAL_UART_PROBE 1
+#endif
+
+// Large filler bursts helped diagnose missing flushes, but on Linux/FireSim they
+// can become the bottleneck themselves and mask the real execution point.
+#ifndef PRT_ENABLE_CRITICAL_UART_PAD_BURST
+#define PRT_ENABLE_CRITICAL_UART_PAD_BURST 0
+#endif
+
+#if PRT_ENABLE_CRITICAL_UART_PROBE
+#ifdef BAREMETAL
+#define PRT_GEMMINI_CRIT_LINE(msg_literal) do { \
+    printf("[gcrit] %s\n", msg_literal); \
+  } while (0)
+#define PRT_GEMMINI_CRIT_LOG(fmt, ...) do { \
+    printf("[gcrit] " fmt "\n", ##__VA_ARGS__); \
+  } while (0)
+#else
+static inline void prt_gemmini_write_all_impl(const char *buf, size_t len) {
+  if (!buf || len == 0U) return;
+#include <unistd.h>
+  const char *ptr = buf;
+  size_t remaining = len;
+  while (remaining > 0U) {
+    ssize_t written = write(STDERR_FILENO, ptr, remaining);
+    if (written <= 0) break;
+    ptr += (size_t)written;
+    remaining -= (size_t)written;
+  }
+}
+static inline void prt_gemmini_emit_pad_burst_impl(void) {
+#if PRT_ENABLE_CRITICAL_UART_PAD_BURST
+  static const char pad0[] = "[gpad] crit-pad-0-0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\n";
+  static const char pad1[] = "[gpad] crit-pad-1-fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210\n";
+  static const char pad2[] = "[gpad] crit-pad-2-00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff\n";
+  prt_gemmini_write_all_impl(pad0, sizeof(pad0) - 1U);
+  prt_gemmini_write_all_impl(pad1, sizeof(pad1) - 1U);
+  prt_gemmini_write_all_impl(pad2, sizeof(pad2) - 1U);
+#endif
+}
+static inline void prt_gemmini_crit_log_impl(const char *fmt, ...) {
+  char line[2048];
+  int prefix_rc;
+  int body_rc;
+  size_t used = 0U;
+  va_list ap;
+
+  prefix_rc = snprintf(line, sizeof(line), "[gcrit] ");
+  if (prefix_rc < 0) return;
+  if ((size_t)prefix_rc >= sizeof(line)) {
+    line[sizeof(line) - 2U] = '\n';
+    line[sizeof(line) - 1U] = '\0';
+    prt_gemmini_write_all_impl(line, sizeof(line) - 1U);
+    prt_gemmini_emit_pad_burst_impl();
+    return;
+  }
+
+  used = (size_t)prefix_rc;
+  va_start(ap, fmt);
+  body_rc = vsnprintf(line + used, sizeof(line) - used, fmt, ap);
+  va_end(ap);
+  if (body_rc < 0) return;
+
+  used += (size_t)body_rc;
+  if (used >= sizeof(line) - 1U) {
+    used = sizeof(line) - 2U;
+  }
+  line[used++] = '\n';
+  line[used] = '\0';
+
+  prt_gemmini_write_all_impl(line, used);
+  prt_gemmini_emit_pad_burst_impl();
+}
+#define PRT_GEMMINI_CRIT_LINE(msg_literal) do { \
+    prt_gemmini_crit_log_impl("%s", msg_literal); \
+  } while (0)
+#define PRT_GEMMINI_CRIT_LOG(fmt, ...) do { \
+    prt_gemmini_crit_log_impl(fmt, ##__VA_ARGS__); \
+  } while (0)
+#endif
+#else
+#define PRT_GEMMINI_CRIT_LINE(...) do { } while (0)
+#define PRT_GEMMINI_CRIT_LOG(...) do { } while (0)
 #endif
 
 #include "include/gemmini_params.h"
@@ -33,11 +134,18 @@
 #endif
 
 #if PIPELINE_RUNTIME_GEMMINI_PHASE_LOG
+#ifdef BAREMETAL
 #define PRT_GEMMINI_PHASE_LOG(...) do { \
     printf(__VA_ARGS__); \
     printf("\n"); \
-    fflush(stdout); \
   } while (0)
+#else
+#define PRT_GEMMINI_PHASE_LOG(...) do { \
+    fprintf(stderr, __VA_ARGS__); \
+    fputc('\n', stderr); \
+    fflush(stderr); \
+  } while (0)
+#endif
 #else
 #define PRT_GEMMINI_PHASE_LOG(...) do { } while (0)
 #endif
@@ -221,6 +329,192 @@ static acc_scale_t_bits acc_scale_t_to_acc_scale_t_bits(acc_scale_t x) {
 
 #define ROCC_INSTRUCTION_RS1_RS2(x, rs1, rs2, funct) \
   ROCC_INSTRUCTION_0_R_R(x, rs1, rs2, funct)
+
+static inline uint64_t prt_gemmini_pack_mvin_rs2(uint32_t spad_addr, size_t cols, size_t rows) {
+  return ((uint64_t)rows << (ADDR_LEN + 16)) |
+         ((uint64_t)cols << ADDR_LEN) |
+         (uint64_t)spad_addr;
+}
+
+static inline uint64_t prt_gemmini_pack_exec_rs(uint32_t local_addr, size_t cols, size_t rows) {
+  return ((uint64_t)rows << (ADDR_LEN + 16)) |
+         ((uint64_t)cols << ADDR_LEN) |
+         (uint64_t)local_addr;
+}
+
+static inline void prt_gemmini_debug_localaddr(const char *tag, uint32_t local_addr) {
+  const unsigned long is_acc = (unsigned long)((local_addr >> (ADDR_LEN - 1)) & 0x1);
+  const unsigned long accumulate = (unsigned long)((local_addr >> (ADDR_LEN - 2)) & 0x1);
+  const unsigned long read_full = (unsigned long)((local_addr >> (ADDR_LEN - 3)) & 0x1);
+  const unsigned long acc_row = (unsigned long)(local_addr & (ACC_ROWS - 1));
+  const unsigned long sp_row = (unsigned long)(local_addr & (BANK_ROWS - 1));
+  PRT_GEMMINI_CRIT_LOG("%s local=0x%x is_acc=%lu accumulate=%lu read_full=%lu acc_row=%lu sp_row=%lu",
+      tag, local_addr, is_acc, accumulate, read_full, acc_row, sp_row);
+}
+
+static inline void prt_gemmini_issue_bias_mvin0_debug(const void *dram_addr,
+                                                      uint32_t spad_addr,
+                                                      size_t cols,
+                                                      size_t rows) {
+  const uint64_t rs1 = (uint64_t)(uintptr_t)dram_addr;
+  const uint64_t rs2 = prt_gemmini_pack_mvin_rs2(spad_addr, cols, rows);
+  PRT_GEMMINI_CRIT_LINE("matmul-os-bias-mvin0-debug-enter");
+  PRT_GEMMINI_CRIT_LOG("matmul-os-bias-mvin0-debug-addr dram=0x%lx sp=0x%x",
+      (unsigned long)rs1, spad_addr);
+  PRT_GEMMINI_CRIT_LOG("matmul-os-bias-mvin0-debug-shape cols=%lu rows=%lu",
+      (unsigned long)cols, (unsigned long)rows);
+  PRT_GEMMINI_CRIT_LOG("matmul-os-bias-mvin0-debug-rs rs1=0x%lx rs2=0x%lx",
+      (unsigned long)rs1, (unsigned long)rs2);
+  PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-os bias-mvin0-call-rs1 rs1=0x%lx",
+      (unsigned long)rs1);
+  PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-os bias-mvin0-call-rs2 rs2=0x%lx",
+      (unsigned long)rs2);
+  asm volatile(
+      ".insn r " STR(CAT(CUSTOM_, XCUSTOM_ACC)) ", " STR(0x3) ", " STR(k_MVIN) ", x0, %0, %1"
+      :
+      : "r"(dram_addr), "r"(rs2));
+  PRT_GEMMINI_CRIT_LINE("matmul-os-bias-mvin0-debug-return");
+}
+
+static inline void prt_gemmini_issue_bias_mvin3_debug(const void *dram_addr,
+                                                      uint32_t spad_addr,
+                                                      size_t cols,
+                                                      size_t rows) {
+  const uint64_t rs1 = (uint64_t)(uintptr_t)dram_addr;
+  const uint64_t rs2 = prt_gemmini_pack_mvin_rs2(spad_addr, cols, rows);
+  PRT_GEMMINI_CRIT_LINE("matmul-os-bias-mvin3-debug-enter");
+  PRT_GEMMINI_CRIT_LOG("matmul-os-bias-mvin3-debug-addr dram=0x%lx sp=0x%x",
+      (unsigned long)rs1, spad_addr);
+  PRT_GEMMINI_CRIT_LOG("matmul-os-bias-mvin3-debug-shape cols=%lu rows=%lu",
+      (unsigned long)cols, (unsigned long)rows);
+  PRT_GEMMINI_CRIT_LOG("matmul-os-bias-mvin3-debug-rs rs1=0x%lx rs2=0x%lx",
+      (unsigned long)rs1, (unsigned long)rs2);
+  PRT_GEMMINI_RAW_LINE("[graw] bm0ce");
+  PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-os bias-mvin3-call-rs1 rs1=0x%lx",
+      (unsigned long)rs1);
+  PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-os bias-mvin3-call-rs2 rs2=0x%lx",
+      (unsigned long)rs2);
+  PRT_GEMMINI_RAW_LINE("[graw] bm0ca");
+  asm volatile(
+      ".insn r " STR(CAT(CUSTOM_, XCUSTOM_ACC)) ", " STR(0x3) ", " STR(k_MVIN3) ", x0, %0, %1"
+      :
+      : "r"(dram_addr), "r"(rs2));
+  PRT_GEMMINI_RAW_LINE("[graw] bm0cb");
+  PRT_GEMMINI_CRIT_LINE("matmul-os-bias-mvin3-debug-return");
+}
+
+static inline void prt_gemmini_issue_b_mvin2_debug(const void *dram_addr,
+                                                   uint32_t spad_addr,
+                                                   size_t cols,
+                                                   size_t rows) {
+  const uint64_t rs1 = (uint64_t)(uintptr_t)dram_addr;
+  const uint64_t rs2 = prt_gemmini_pack_mvin_rs2(spad_addr, cols, rows);
+  PRT_GEMMINI_CRIT_LINE("matmul-os-b-mvin2-debug-enter");
+  PRT_GEMMINI_CRIT_LOG("matmul-os-b-mvin2-debug-addr dram=0x%lx sp=0x%x",
+      (unsigned long)rs1, spad_addr);
+  PRT_GEMMINI_CRIT_LOG("matmul-os-b-mvin2-debug-shape cols=%lu rows=%lu",
+      (unsigned long)cols, (unsigned long)rows);
+  PRT_GEMMINI_CRIT_LOG("matmul-os-b-mvin2-debug-rs rs1=0x%lx rs2=0x%lx",
+      (unsigned long)rs1, (unsigned long)rs2);
+  PRT_GEMMINI_RAW_LINE("[graw] bm2c0");
+  asm volatile(
+      ".insn r " STR(CAT(CUSTOM_, XCUSTOM_ACC)) ", " STR(0x3) ", " STR(k_MVIN2) ", x0, %0, %1"
+      :
+      : "r"(dram_addr), "r"(rs2));
+  PRT_GEMMINI_RAW_LINE("[graw] bm2c1");
+  PRT_GEMMINI_CRIT_LINE("matmul-os-b-mvin2-debug-return");
+}
+
+static inline void prt_gemmini_issue_a_mvin0_debug(const void *dram_addr,
+                                                   uint32_t spad_addr,
+                                                   size_t cols,
+                                                   size_t rows) {
+  const uint64_t rs1 = (uint64_t)(uintptr_t)dram_addr;
+  const uint64_t rs2 = prt_gemmini_pack_mvin_rs2(spad_addr, cols, rows);
+  PRT_GEMMINI_CRIT_LINE("matmul-os-a-mvin0-debug-enter");
+  PRT_GEMMINI_CRIT_LOG("matmul-os-a-mvin0-debug-addr dram=0x%lx sp=0x%x",
+      (unsigned long)rs1, spad_addr);
+  PRT_GEMMINI_CRIT_LOG("matmul-os-a-mvin0-debug-shape cols=%lu rows=%lu",
+      (unsigned long)cols, (unsigned long)rows);
+  PRT_GEMMINI_CRIT_LOG("matmul-os-a-mvin0-debug-rs rs1=0x%lx rs2=0x%lx",
+      (unsigned long)rs1, (unsigned long)rs2);
+  PRT_GEMMINI_RAW_LINE("[graw] am0c0");
+  asm volatile(
+      ".insn r " STR(CAT(CUSTOM_, XCUSTOM_ACC)) ", " STR(0x3) ", " STR(k_MVIN) ", x0, %0, %1"
+      :
+      : "r"(dram_addr), "r"(rs2));
+  PRT_GEMMINI_RAW_LINE("[graw] am0c1");
+  PRT_GEMMINI_CRIT_LINE("matmul-os-a-mvin0-debug-return");
+}
+
+static inline void prt_gemmini_issue_preload_debug(uint32_t bd_addr,
+                                                   uint32_t c_addr,
+                                                   size_t bd_cols,
+                                                   size_t bd_rows,
+                                                   size_t c_cols,
+                                                   size_t c_rows) {
+  const uint64_t rs1 = prt_gemmini_pack_exec_rs(bd_addr, bd_cols, bd_rows);
+  const uint64_t rs2 = prt_gemmini_pack_exec_rs(c_addr, c_cols, c_rows);
+  PRT_GEMMINI_CRIT_LINE("matmul-os-preload-debug-enter");
+  prt_gemmini_debug_localaddr("matmul-os-preload-debug-bd", bd_addr);
+  prt_gemmini_debug_localaddr("matmul-os-preload-debug-c", c_addr);
+  PRT_GEMMINI_CRIT_LOG("matmul-os-preload-debug-shape bd_cols=%lu bd_rows=%lu c_cols=%lu c_rows=%lu",
+      (unsigned long)bd_cols, (unsigned long)bd_rows,
+      (unsigned long)c_cols, (unsigned long)c_rows);
+  PRT_GEMMINI_CRIT_LOG("matmul-os-preload-debug-rs rs1=0x%lx rs2=0x%lx",
+      (unsigned long)rs1, (unsigned long)rs2);
+  asm volatile(
+      ".insn r " STR(CAT(CUSTOM_, XCUSTOM_ACC)) ", " STR(0x3) ", " STR(k_PRELOAD) ", x0, %0, %1"
+      :
+      : "r"(rs1), "r"(rs2));
+  PRT_GEMMINI_CRIT_LINE("matmul-os-preload-debug-return");
+}
+
+static inline void prt_gemmini_issue_compute_preloaded_debug(uint32_t a_addr,
+                                                             uint32_t bd_addr,
+                                                             size_t a_cols,
+                                                             size_t a_rows,
+                                                             size_t bd_cols,
+                                                             size_t bd_rows) {
+  const uint64_t rs1 = prt_gemmini_pack_exec_rs(a_addr, a_cols, a_rows);
+  const uint64_t rs2 = prt_gemmini_pack_exec_rs(bd_addr, bd_cols, bd_rows);
+  PRT_GEMMINI_CRIT_LINE("matmul-os-compute-preloaded-debug-enter");
+  prt_gemmini_debug_localaddr("matmul-os-compute-preloaded-debug-a", a_addr);
+  prt_gemmini_debug_localaddr("matmul-os-compute-preloaded-debug-bd", bd_addr);
+  PRT_GEMMINI_CRIT_LOG("matmul-os-compute-preloaded-debug-shape a_cols=%lu a_rows=%lu bd_cols=%lu bd_rows=%lu",
+      (unsigned long)a_cols, (unsigned long)a_rows,
+      (unsigned long)bd_cols, (unsigned long)bd_rows);
+  PRT_GEMMINI_CRIT_LOG("matmul-os-compute-preloaded-debug-rs rs1=0x%lx rs2=0x%lx",
+      (unsigned long)rs1, (unsigned long)rs2);
+  asm volatile(
+      ".insn r " STR(CAT(CUSTOM_, XCUSTOM_ACC)) ", " STR(0x3) ", " STR(k_COMPUTE_PRELOADED) ", x0, %0, %1"
+      :
+      : "r"(rs1), "r"(rs2));
+  PRT_GEMMINI_CRIT_LINE("matmul-os-compute-preloaded-debug-return");
+}
+
+static inline void prt_gemmini_issue_compute_accumulated_debug(uint32_t a_addr,
+                                                               uint32_t bd_addr,
+                                                               size_t a_cols,
+                                                               size_t a_rows,
+                                                               size_t bd_cols,
+                                                               size_t bd_rows) {
+  const uint64_t rs1 = prt_gemmini_pack_exec_rs(a_addr, a_cols, a_rows);
+  const uint64_t rs2 = prt_gemmini_pack_exec_rs(bd_addr, bd_cols, bd_rows);
+  PRT_GEMMINI_CRIT_LINE("matmul-os-compute-accum-debug-enter");
+  prt_gemmini_debug_localaddr("matmul-os-compute-accum-debug-a", a_addr);
+  prt_gemmini_debug_localaddr("matmul-os-compute-accum-debug-bd", bd_addr);
+  PRT_GEMMINI_CRIT_LOG("matmul-os-compute-accum-debug-shape a_cols=%lu a_rows=%lu bd_cols=%lu bd_rows=%lu",
+      (unsigned long)a_cols, (unsigned long)a_rows,
+      (unsigned long)bd_cols, (unsigned long)bd_rows);
+  PRT_GEMMINI_CRIT_LOG("matmul-os-compute-accum-debug-rs rs1=0x%lx rs2=0x%lx",
+      (unsigned long)rs1, (unsigned long)rs2);
+  asm volatile(
+      ".insn r " STR(CAT(CUSTOM_, XCUSTOM_ACC)) ", " STR(0x3) ", " STR(k_COMPUTE_ACCUMULATE) ", x0, %0, %1"
+      :
+      : "r"(rs1), "r"(rs2));
+  PRT_GEMMINI_CRIT_LINE("matmul-os-compute-accum-debug-return");
+}
 
 // mvin and mvout
 #define gemmini_extended_mvin(dram_addr, spad_addr, cols, rows) \
@@ -423,18 +717,60 @@ static void sp_tiled_matmul_os(const elem_t * A, const elem_t * B, const void * 
   const int A_blocks = K <= MAX_BLOCK_LEN ? K : MAX_BLOCK_LEN;
   const int B_blocks = J <= MAX_BLOCK_LEN ? J : MAX_BLOCK_LEN;
   const int D_blocks = J <= MAX_BLOCK_LEN_ACC ? J : MAX_BLOCK_LEN_ACC;
+  const size_t sizeof_D = low_D ? sizeof(elem_t) : sizeof(acc_t);
 
   PRT_GEMMINI_RAW_LINE("[prt-raw] matmul-os-enter");
+  PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-os ptrs A=0x%lx B=0x%lx D=0x%lx C=0x%lx",
+      (unsigned long)(uintptr_t)A, (unsigned long)(uintptr_t)B,
+      (unsigned long)(uintptr_t)D, (unsigned long)(uintptr_t)C);
+  PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-os shape I=%lu J=%lu K=%lu pad_I=%lu pad_J=%lu pad_K=%lu stride_A=%lu stride_B=%lu stride_D=%lu stride_C=%lu",
+      (unsigned long)I, (unsigned long)J, (unsigned long)K,
+      (unsigned long)pad_I, (unsigned long)pad_J, (unsigned long)pad_K,
+      (unsigned long)A_row_stride, (unsigned long)B_row_stride,
+      (unsigned long)D_row_stride, (unsigned long)C_row_stride);
+  PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-os flags act=%d a_spad_id=%d b_spad_id=%d a_transpose=%d b_transpose=%d full_C=%d low_D=%d no_bias=%d repeating_bias=%d",
+      act, a_spad_id, b_spad_id,
+      a_transpose, b_transpose, full_C, low_D, no_bias, repeating_bias);
+  PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-os derived A_sp=0x%x B_sp=0x%x D_sp=0x%x C_sp=0x%x A_blocks=%d B_blocks=%d D_blocks=%d",
+      A_sp_addr_start, B_sp_addr_start, D_sp_addr_start, C_sp_addr_start,
+      A_blocks, B_blocks, D_blocks);
+  PRT_GEMMINI_RAW_LINE("[graw] matmul-os-pre-spaddrs-ab");
+  PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-os spaddrs-ab A=0x%x B=0x%x",
+      A_sp_addr_start, B_sp_addr_start);
+  PRT_GEMMINI_RAW_LINE("[graw] matmul-os-post-spaddrs-ab");
+  PRT_GEMMINI_RAW_LINE("[graw] matmul-os-pre-spaddrs-dc");
+  PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-os spaddrs-dc D=0x%x C=0x%x A_blocks=%d B_blocks=%d D_blocks=%d",
+      D_sp_addr_start, C_sp_addr_start, A_blocks, B_blocks, D_blocks);
+  PRT_GEMMINI_RAW_LINE("[graw] matmul-os-post-spaddrs-dc");
 
+  // tiled_matmul_outer() configures the load states before dispatching this
+  // inner OS kernel. Keep the operand-to-mvin channel mapping consistent here:
+  //   A -> mvin/id0, B -> mvin2/id1, D/bias -> mvin3/id2.
+  //
+  // If this helper ever gains a standalone caller, that caller must program the
+  // three load states before entering this function.
   // Move-in D
   if (D != NULL && !no_bias) {
-    const size_t D_stride = repeating_bias ? 0 : D_row_stride * sizeof(acc_t);
-    gemmini_extended_config_ld(D_stride, D_scale_factor);
+    const size_t D_stride = repeating_bias ? 0 : D_row_stride * sizeof_D;
+    (void)D_stride;
+    PRT_GEMMINI_CRIT_LINE("matmul-os-biascfg-enter");
+    PRT_GEMMINI_CRIT_LOG("matmul-os-biascfg-shape I=%lu J=%lu K=%lu pad_I=%lu pad_J=%lu pad_K=%lu",
+        (unsigned long)I, (unsigned long)J, (unsigned long)K,
+        (unsigned long)pad_I, (unsigned long)pad_J, (unsigned long)pad_K);
+    PRT_GEMMINI_CRIT_LOG("matmul-os-biascfg-flags D_row_stride=%lu D_stride_bytes=%lu sizeof_D=%lu D_blocks=%d low_D=%d no_bias=%d repeating_bias=%d act=%d",
+        (unsigned long)D_row_stride, (unsigned long)D_stride, (unsigned long)sizeof_D,
+        D_blocks, low_D, no_bias, repeating_bias, act);
+    PRT_GEMMINI_CRIT_LOG("matmul-os-biascfg-addrs D=0x%lx D_sp_start=0x%x C_sp_start=0x%x",
+        (unsigned long)(uintptr_t)D, D_sp_addr_start, C_sp_addr_start);
+    PRT_GEMMINI_CRIT_LINE("matmul-os-biascfg-reuse-outer");
+    PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-os bias-loop I=%lu J=%lu D_blocks=%d",
+        (unsigned long)I, (unsigned long)J, D_blocks);
 
     for (size_t i = 0; i < I; i++) {
       for (size_t j = 0; j < J; j += D_blocks) {
         const size_t bias_row = repeating_bias ? 0 : i;
-        const acc_t * const D_dram_addr = (acc_t *)D + (bias_row * D_row_stride + j)*DIM;
+        const void * const D_dram_addr =
+            (const uint8_t *)D + (bias_row * D_row_stride + j) * DIM * sizeof_D;
 
         const uint32_t D_sp_addr_acc = D_sp_addr_start + (i*J + j)*DIM;
 
@@ -442,15 +778,53 @@ static void sp_tiled_matmul_os(const elem_t * A, const elem_t * B, const void * 
 
         const size_t cols = blocks * DIM - (j + blocks >= J ? pad_J : 0);
         const size_t rows = DIM - (i == I-1 ? pad_I : 0);
+        const bool first_bias_iter = i == 0 && j == 0;
+        const bool last_bias_iter = i == I - 1 && j + blocks >= J;
 
-        gemmini_extended_mvin(D_dram_addr, D_sp_addr_acc, cols, rows);
+        if (first_bias_iter || last_bias_iter) {
+          PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-os bias-iter tag=%s i=%lu j=%lu bias_row=%lu dram=0x%lx sp=0x%x blocks=%lu cols=%lu rows=%lu sizeof_D=%lu low_D=%d",
+              first_bias_iter ? "first" : "last",
+              (unsigned long)i, (unsigned long)j, (unsigned long)bias_row,
+              (unsigned long)(uintptr_t)D_dram_addr, D_sp_addr_acc,
+              (unsigned long)blocks, (unsigned long)cols, (unsigned long)rows,
+              (unsigned long)sizeof_D, low_D);
+        }
+
+        if (first_bias_iter) {
+          PRT_GEMMINI_CRIT_LINE("matmul-os-biascfg-first-iter-enter");
+          PRT_GEMMINI_CRIT_LOG("matmul-os-biascfg-first-iter-addr i=%lu j=%lu bias_row=%lu dram=0x%lx sp=0x%x",
+              (unsigned long)i, (unsigned long)j, (unsigned long)bias_row,
+              (unsigned long)(uintptr_t)D_dram_addr, D_sp_addr_acc);
+          PRT_GEMMINI_CRIT_LOG("matmul-os-biascfg-first-iter-shape blocks=%lu cols=%lu rows=%lu",
+              (unsigned long)blocks, (unsigned long)cols, (unsigned long)rows);
+          PRT_GEMMINI_RAW_LINE("[graw] matmul-os-pre-bias-mvin3");
+          PRT_GEMMINI_RAW_LINE("[graw] matmul-os-pre-bias-mvin3-line-a");
+          PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-os bias-mvin3-a bias_row=%lu dram=0x%lx",
+              (unsigned long)bias_row, (unsigned long)(uintptr_t)D_dram_addr);
+          PRT_GEMMINI_RAW_LINE("[graw] matmul-os-post-bias-mvin3-line-a");
+          PRT_GEMMINI_RAW_LINE("[graw] matmul-os-pre-bias-mvin3-line-b");
+          PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-os bias-mvin3-b sp=0x%x blocks=%lu cols=%lu rows=%lu",
+              D_sp_addr_acc, (unsigned long)blocks, (unsigned long)cols, (unsigned long)rows);
+          PRT_GEMMINI_RAW_LINE("[graw] matmul-os-post-bias-mvin3-line-b");
+          PRT_GEMMINI_RAW_LINE("[graw] bm0c0");
+          prt_gemmini_issue_bias_mvin3_debug(D_dram_addr, D_sp_addr_acc, cols, rows);
+          PRT_GEMMINI_RAW_LINE("[graw] bm0c1");
+          PRT_GEMMINI_CRIT_LINE("matmul-os-biascfg-first-iter-return");
+        } else {
+          gemmini_extended_mvin3(D_dram_addr, D_sp_addr_acc, cols, rows);
+        }
+        if (first_bias_iter) {
+          PRT_GEMMINI_RAW_LINE("[graw] matmul-os-post-bias-mvin3");
+        }
       }
     }
+  } else {
+    PRT_GEMMINI_RAW_LINE("[graw] matmul-os-bias-skip");
   }
   PRT_GEMMINI_RAW_LINE("[prt-raw] matmul-os-after-bias");
 
   // Move-in B
-  gemmini_extended_config_ld(B_row_stride * sizeof(elem_t), B_scale_factor);
+  PRT_GEMMINI_RAW_LINE("[graw] matmul-os-reuse-b-config-ld");
   for (size_t j = 0; j < J; j += B_blocks) {
     for (size_t k = 0; k < K; k++) {
       const elem_t * const B_dram_addr = B + (k*B_row_stride + j)*DIM;
@@ -458,13 +832,35 @@ static void sp_tiled_matmul_os(const elem_t * A, const elem_t * B, const void * 
       const size_t blocks = j + B_blocks <= J ? B_blocks : J-j;
       const size_t cols = blocks * DIM - (j + blocks >= J ? pad_J : 0);
       const size_t rows = DIM - (k == K-1 ? pad_K : 0);
-      gemmini_extended_mvin(B_dram_addr, B_sp_addr, cols, rows);
+      const bool first_b_iter = j == 0 && k == 0;
+      const bool last_b_iter = j + blocks >= J && k == K - 1;
+      if (first_b_iter || last_b_iter) {
+        PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-os b-iter tag=%s j=%lu k=%lu dram=0x%lx sp=0x%x blocks=%lu cols=%lu rows=%lu",
+            first_b_iter ? "first" : "last",
+            (unsigned long)j, (unsigned long)k,
+            (unsigned long)(uintptr_t)B_dram_addr, B_sp_addr,
+            (unsigned long)blocks, (unsigned long)cols, (unsigned long)rows);
+      }
+      if (first_b_iter) {
+        PRT_GEMMINI_RAW_LINE("[graw] matmul-os-pre-b-mvin2");
+        PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-os b-mvin2 dram=0x%lx sp=0x%x blocks=%lu cols=%lu rows=%lu",
+            (unsigned long)(uintptr_t)B_dram_addr, B_sp_addr,
+            (unsigned long)blocks, (unsigned long)cols, (unsigned long)rows);
+      }
+      if (first_b_iter) {
+        prt_gemmini_issue_b_mvin2_debug(B_dram_addr, B_sp_addr, cols, rows);
+      } else {
+        gemmini_extended_mvin2(B_dram_addr, B_sp_addr, cols, rows);
+      }
+      if (first_b_iter) {
+        PRT_GEMMINI_RAW_LINE("[graw] matmul-os-post-b-mvin2");
+      }
     }
   }
   PRT_GEMMINI_RAW_LINE("[prt-raw] matmul-os-after-b");
 
   // Move-in A
-  gemmini_extended_config_ld(A_row_stride * sizeof(elem_t), A_scale_factor);
+  PRT_GEMMINI_RAW_LINE("[graw] matmul-os-reuse-a-config-ld");
   for (size_t i = 0; i < I; i++) {
     for (size_t k = 0; k < K; k += A_blocks) {
       const elem_t * const A_dram_addr = A + (i*A_row_stride + k)*DIM;
@@ -472,11 +868,35 @@ static void sp_tiled_matmul_os(const elem_t * A, const elem_t * B, const void * 
       const size_t blocks = k + A_blocks <= K ? A_blocks : K-k;
       const size_t cols = blocks * DIM - (k + blocks >= K ? pad_K : 0);
       const size_t rows = DIM - (i == I-1 ? pad_I : 0);
-      gemmini_extended_mvin(A_dram_addr, A_sp_addr, cols, rows);
+      const bool first_a_iter = i == 0 && k == 0;
+      const bool last_a_iter = i == I - 1 && k + blocks >= K;
+      if (first_a_iter || last_a_iter) {
+        PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-os a-iter tag=%s i=%lu k=%lu dram=0x%lx sp=0x%x blocks=%lu cols=%lu rows=%lu",
+            first_a_iter ? "first" : "last",
+            (unsigned long)i, (unsigned long)k,
+            (unsigned long)(uintptr_t)A_dram_addr, A_sp_addr,
+            (unsigned long)blocks, (unsigned long)cols, (unsigned long)rows);
+      }
+      if (first_a_iter) {
+        PRT_GEMMINI_RAW_LINE("[graw] matmul-os-pre-a-mvin0");
+        PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-os a-mvin0 dram=0x%lx sp=0x%x blocks=%lu cols=%lu rows=%lu",
+            (unsigned long)(uintptr_t)A_dram_addr, A_sp_addr,
+            (unsigned long)blocks, (unsigned long)cols, (unsigned long)rows);
+      }
+      if (first_a_iter) {
+        prt_gemmini_issue_a_mvin0_debug(A_dram_addr, A_sp_addr, cols, rows);
+      } else {
+        gemmini_extended_mvin(A_dram_addr, A_sp_addr, cols, rows);
+      }
+      if (first_a_iter) {
+        PRT_GEMMINI_RAW_LINE("[graw] matmul-os-post-a-mvin0");
+      }
     }
   }
   PRT_GEMMINI_RAW_LINE("[prt-raw] matmul-os-after-a");
 
+  PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-os compute-loop begin I=%lu J=%lu K=%lu",
+      (unsigned long)I, (unsigned long)J, (unsigned long)K);
   for (size_t i = 0; i < I; i++) {
     for (size_t j = 0; j < J; j++) {
       const uint32_t C_sp_addr = C_sp_addr_start + (i*J + j)*DIM;
@@ -501,13 +921,68 @@ static void sp_tiled_matmul_os(const elem_t * A, const elem_t * B, const void * 
         const size_t B_rows = DIM - (k == K - 1 ? pad_K : 0);
         const size_t C_cols = DIM - (j == J - 1 ? pad_J : 0);
         const size_t C_rows = DIM - (i == I - 1 ? pad_I : 0);
+        const bool first_compute_iter = i == 0 && j == 0 && k == 0;
+        const bool first_accum_iter = i == 0 && j == 0 && k == 1;
+        const bool last_compute_iter = i == I - 1 && j == J - 1 && k == K - 1;
 
-        gemmini_extended_preload(GARBAGE_ADDR, out_sp_addr, DIM, DIM, C_cols, C_rows);
+        if (first_compute_iter || first_accum_iter || last_compute_iter) {
+          PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-os compute-iter tag=%s i=%lu j=%lu k=%lu A_sp=0x%x B_sp=0x%x C_sp=0x%x out_sp=0x%x no_bias_new_matrix=%d A_cols=%lu A_rows=%lu B_cols=%lu B_rows=%lu C_cols=%lu C_rows=%lu",
+              first_compute_iter ? "first" : (first_accum_iter ? "first-accum" : "last"),
+              (unsigned long)i, (unsigned long)j, (unsigned long)k,
+              A_sp_addr, B_sp_addr, C_sp_addr, out_sp_addr, no_bias_new_matrix,
+              (unsigned long)A_cols, (unsigned long)A_rows,
+              (unsigned long)B_cols, (unsigned long)B_rows,
+              (unsigned long)C_cols, (unsigned long)C_rows);
+        }
+
+        if (first_compute_iter) {
+          PRT_GEMMINI_RAW_LINE("[graw] matmul-os-pre-preload0");
+          PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-os preload0 out_sp=0x%x C_cols=%lu C_rows=%lu",
+              out_sp_addr, (unsigned long)C_cols, (unsigned long)C_rows);
+        }
+        if (first_compute_iter) {
+          prt_gemmini_issue_preload_debug(GARBAGE_ADDR, out_sp_addr, DIM, DIM, C_cols, C_rows);
+        } else {
+          gemmini_extended_preload(GARBAGE_ADDR, out_sp_addr, DIM, DIM, C_cols, C_rows);
+        }
+        if (first_compute_iter) {
+          PRT_GEMMINI_RAW_LINE("[graw] matmul-os-post-preload0");
+        }
 
         if (k == 0) { // First iteration
-          gemmini_extended_compute_preloaded(A_sp_addr, B_sp_addr, A_cols, A_rows, B_cols, B_rows);
+          if (i == 0 && j == 0) {
+            PRT_GEMMINI_RAW_LINE("[graw] matmul-os-pre-compute-preloaded0");
+            PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-os compute-preloaded0 A_sp=0x%x B_sp=0x%x A_cols=%lu A_rows=%lu B_cols=%lu B_rows=%lu",
+                A_sp_addr, B_sp_addr,
+                (unsigned long)A_cols, (unsigned long)A_rows,
+                (unsigned long)B_cols, (unsigned long)B_rows);
+          }
+          if (i == 0 && j == 0) {
+            prt_gemmini_issue_compute_preloaded_debug(A_sp_addr, B_sp_addr,
+                A_cols, A_rows, B_cols, B_rows);
+          } else {
+            gemmini_extended_compute_preloaded(A_sp_addr, B_sp_addr, A_cols, A_rows, B_cols, B_rows);
+          }
+          if (i == 0 && j == 0) {
+            PRT_GEMMINI_RAW_LINE("[graw] matmul-os-post-compute-preloaded0");
+          }
         } else { // All other iterations
-          gemmini_extended_compute_accumulated(A_sp_addr, B_sp_addr, A_cols, A_rows, B_cols, B_rows);
+          if (first_accum_iter) {
+            PRT_GEMMINI_RAW_LINE("[graw] matmul-os-pre-compute-accum1");
+            PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-os compute-accum1 A_sp=0x%x B_sp=0x%x A_cols=%lu A_rows=%lu B_cols=%lu B_rows=%lu",
+                A_sp_addr, B_sp_addr,
+                (unsigned long)A_cols, (unsigned long)A_rows,
+                (unsigned long)B_cols, (unsigned long)B_rows);
+          }
+          if (first_accum_iter) {
+            prt_gemmini_issue_compute_accumulated_debug(A_sp_addr, B_sp_addr,
+                A_cols, A_rows, B_cols, B_rows);
+          } else {
+            gemmini_extended_compute_accumulated(A_sp_addr, B_sp_addr, A_cols, A_rows, B_cols, B_rows);
+          }
+          if (first_accum_iter) {
+            PRT_GEMMINI_RAW_LINE("[graw] matmul-os-post-compute-accum1");
+          }
         }
       }
     }
@@ -525,8 +1000,26 @@ static void sp_tiled_matmul_os(const elem_t * A, const elem_t * B, const void * 
 
         const size_t C_cols = DIM - (j == J - 1 ? pad_J : 0);
         const size_t C_rows = DIM - (i == I - 1 ? pad_I : 0);
+        const bool first_mvout_iter = i == 0 && j == 0;
+        const bool last_mvout_iter = i == I - 1 && j == J - 1;
 
+        if (first_mvout_iter || last_mvout_iter) {
+          PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-os mvout-iter tag=%s i=%lu j=%lu dram=0x%lx sp=0x%x cols=%lu rows=%lu",
+              first_mvout_iter ? "first" : "last",
+              (unsigned long)i, (unsigned long)j,
+              (unsigned long)(uintptr_t)C_dram_addr, C_sp_addr,
+              (unsigned long)C_cols, (unsigned long)C_rows);
+        }
+        if (first_mvout_iter) {
+          PRT_GEMMINI_RAW_LINE("[graw] matmul-os-pre-mvout0");
+          PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-os mvout0 dram=0x%lx sp=0x%x cols=%lu rows=%lu",
+              (unsigned long)(uintptr_t)C_dram_addr, C_sp_addr,
+              (unsigned long)C_cols, (unsigned long)C_rows);
+        }
         gemmini_extended_mvout(C_dram_addr, C_sp_addr, C_cols, C_rows);
+        if (first_mvout_iter) {
+          PRT_GEMMINI_RAW_LINE("[graw] matmul-os-post-mvout0");
+        }
       }
     }
   }
@@ -826,11 +1319,49 @@ static void tiled_matmul_outer(size_t dim_I, size_t dim_J, size_t dim_K,
   const size_t sizeof_D = low_D ? sizeof(elem_t) : sizeof(acc_t) ;
   const size_t sizeof_C = full_C ? sizeof(acc_t) : sizeof(elem_t);
 
+  PRT_GEMMINI_RAW_LINE("[graw] matmul-config-enter");
+  PRT_GEMMINI_RAW_LINE("[graw] matmul-config-pre-shape");
+  PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-config-shape dataflow=%d dim_I=%lu dim_J=%lu dim_K=%lu tile_I=%lu tile_J=%lu tile_K=%lu",
+      dataflow,
+      (unsigned long)dim_I, (unsigned long)dim_J, (unsigned long)dim_K,
+      (unsigned long)tile_I, (unsigned long)tile_J, (unsigned long)tile_K);
+  PRT_GEMMINI_RAW_LINE("[graw] matmul-config-post-shape");
+  PRT_GEMMINI_RAW_LINE("[graw] matmul-config-pre-strides");
+  PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-config-strides stride_A=%lu stride_B=%lu stride_D=%lu stride_C=%lu sizeof_D=%lu sizeof_C=%lu",
+      (unsigned long)stride_A, (unsigned long)stride_B,
+      (unsigned long)stride_D, (unsigned long)stride_C,
+      (unsigned long)sizeof_D, (unsigned long)sizeof_C);
+  PRT_GEMMINI_RAW_LINE("[graw] matmul-config-post-strides");
+  PRT_GEMMINI_RAW_LINE("[graw] matmul-config-pre-flags");
+  PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-config-flags no_bias=%d repeating_bias=%d act=%d full_C=%d low_D=%d a_transpose=%d b_transpose=%d",
+      no_bias, repeating_bias, act, full_C, low_D, a_transpose, b_transpose);
+  PRT_GEMMINI_RAW_LINE("[graw] matmul-config-post-flags");
+  PRT_GEMMINI_RAW_LINE("[graw] matmul-config-pre-ex");
   gemmini_extended_config_ex(dataflow, act & 3, 0, 1, a_transpose, b_transpose);
+  PRT_GEMMINI_RAW_LINE("[graw] matmul-config-post-ex");
+  PRT_GEMMINI_RAW_LINE("[graw] matmul-config-pre-st");
   gemmini_extended_config_st(stride_C * sizeof_C, act & 3, scale);
+  PRT_GEMMINI_RAW_LINE("[graw] matmul-config-post-st");
+  PRT_GEMMINI_RAW_LINE("[graw] matmul-config-pre-ld-a");
   gemmini_extended3_config_ld(stride_A * sizeof(elem_t), A_scale_factor, false, 0);
+  PRT_GEMMINI_RAW_LINE("[graw] matmul-config-post-ld-a");
+  PRT_GEMMINI_RAW_LINE("[graw] matmul-config-pre-ld-b");
   gemmini_extended3_config_ld(stride_B * sizeof(elem_t), B_scale_factor, false, 1)
+  PRT_GEMMINI_RAW_LINE("[graw] matmul-config-post-ld-b");
+  PRT_GEMMINI_RAW_LINE("[graw] matmul-config-pre-ld-d");
+  PRT_GEMMINI_CRIT_LINE("matmul-os-biascfg-pre-ld");
+  PRT_GEMMINI_CRIT_LOG("matmul-os-biascfg-ld-shape tile_I=%lu tile_J=%lu tile_K=%lu dim_I=%lu dim_J=%lu dim_K=%lu",
+      (unsigned long)tile_I, (unsigned long)tile_J, (unsigned long)tile_K,
+      (unsigned long)dim_I, (unsigned long)dim_J, (unsigned long)dim_K);
+  PRT_GEMMINI_CRIT_LOG("matmul-os-biascfg-ld-flags stride_bytes=%lu scale=%g low_D=%d repeating_bias=%d sizeof_D=%lu",
+      (unsigned long)(repeating_bias ? 0 : (stride_D * sizeof_D)),
+      (double)D_scale_factor, low_D, repeating_bias,
+      (unsigned long)sizeof_D);
+  PRT_GEMMINI_RAW_LINE("[graw] matmul-config-pre-ld-d-instr");
   gemmini_extended3_config_ld(repeating_bias ? 0 : (stride_D * sizeof_D), D_scale_factor, low_D, 2);
+  PRT_GEMMINI_RAW_LINE("[graw] matmul-config-post-ld-d-instr");
+  PRT_GEMMINI_CRIT_LINE("matmul-os-biascfg-post-ld");
+  PRT_GEMMINI_RAW_LINE("[graw] matmul-config-post-ld-d");
   PRT_GEMMINI_RAW_LINE("[prt-raw] matmul-outer-configured");
 
   if (act == IGELU) {
@@ -880,16 +1411,19 @@ static void tiled_matmul_outer(size_t dim_I, size_t dim_J, size_t dim_K,
   bool a_reuse = (I0 * K0 <= 2) && (dataflow == WEIGHT_STATIONARY);
   const size_t total_tiles = I0 * J0 * K0;
 
-  PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-outer begin dim_I=%lu dim_J=%lu dim_K=%lu dim_I_padded=%lu dim_J_padded=%lu dim_K_padded=%lu tile_I=%lu tile_J=%lu tile_K=%lu I0=%lu J0=%lu K0=%lu last_I=%lu last_J=%lu last_K=%lu padding_I=%lu padding_J=%lu padding_K=%lu stride_A=%lu stride_B=%lu stride_D=%lu stride_C=%lu dataflow=%d no_bias=%d repeating_bias=%d a_reuse=%d b_reuse=%d",
-      (unsigned long)dim_I, (unsigned long)dim_J, (unsigned long)dim_K,
-      (unsigned long)dim_I_padded, (unsigned long)dim_J_padded, (unsigned long)dim_K_padded,
-      (unsigned long)tile_I, (unsigned long)tile_J, (unsigned long)tile_K,
+  PRT_GEMMINI_RAW_LINE("[graw] tiled-pre-outer");
+  PRT_GEMMINI_RAW_LINE("[graw] matmul-outer-pre-shape");
+  PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-outer-shape tiles=%lu I0=%lu J0=%lu K0=%lu tile_I=%lu tile_J=%lu tile_K=%lu last_I=%lu last_J=%lu last_K=%lu",
+      (unsigned long)total_tiles,
       (unsigned long)I0, (unsigned long)J0, (unsigned long)K0,
-      (unsigned long)last_I, (unsigned long)last_J, (unsigned long)last_K,
-      (unsigned long)padding_I, (unsigned long)padding_J, (unsigned long)padding_K,
-      (unsigned long)stride_A, (unsigned long)stride_B,
-      (unsigned long)stride_D, (unsigned long)stride_C,
+      (unsigned long)tile_I, (unsigned long)tile_J, (unsigned long)tile_K,
+      (unsigned long)last_I, (unsigned long)last_J, (unsigned long)last_K);
+  PRT_GEMMINI_RAW_LINE("[graw] matmul-outer-post-shape");
+  PRT_GEMMINI_RAW_LINE("[graw] matmul-outer-pre-flags");
+  PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-outer-flags dataflow=%d no_bias=%d repeat_bias=%d a_reuse=%d b_reuse=%d",
       dataflow, no_bias, repeating_bias, a_reuse, b_reuse);
+  PRT_GEMMINI_RAW_LINE("[graw] matmul-outer-post-flags");
+  PRT_GEMMINI_RAW_LINE("[graw] tiled-post-outer");
 
   for (size_t i0 = 0; i0 < I0; i0++)
     for (size_t j0 = 0; j0 < J0; j0++)
@@ -930,14 +1464,25 @@ static void tiled_matmul_outer(size_t dim_I, size_t dim_J, size_t dim_K,
         if(b_reuse && i0 >= 1) b = NULL;
         //printf("a_reuse: %d, b_reuse: %d, a_spad_id: %d, b_spad_id: %d, a: %llu, b: %llu \n", a_reuse, b_reuse, a_spad_id, b_spad_id, a, b);
         if (log_this_tile) {
-          PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-inner begin tile=%lu/%lu i0=%lu j0=%lu k0=%lu I=%lu J=%lu K=%lu pad_I=%lu pad_J=%lu pad_K=%lu a_spad_id=%d b_spad_id=%d a_null=%d b_null=%d pre_null=%d out_null=%d",
+          PRT_GEMMINI_RAW_LINE("[graw] tiled-pre-innerlog");
+          PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-inner begin tile=%lu/%lu i0=%lu j0=%lu k0=%lu",
               (unsigned long)(tile_seq + 1), (unsigned long)total_tiles,
-              (unsigned long)i0, (unsigned long)j0, (unsigned long)k0,
+              (unsigned long)i0, (unsigned long)j0, (unsigned long)k0);
+          PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-inner ptrs a=0x%lx b=0x%lx pre=0x%lx out=0x%lx",
+              (unsigned long)(uintptr_t)a, (unsigned long)(uintptr_t)b,
+              (unsigned long)(uintptr_t)pre, (unsigned long)(uintptr_t)out);
+          PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-inner shape I=%lu J=%lu K=%lu pad_I=%lu pad_J=%lu pad_K=%lu stride_A=%lu stride_B=%lu stride_D=%lu stride_C=%lu",
               (unsigned long)I, (unsigned long)J, (unsigned long)K,
               (unsigned long)pad_I, (unsigned long)pad_J, (unsigned long)pad_K,
+              (unsigned long)stride_A, (unsigned long)stride_B,
+              (unsigned long)stride_D, (unsigned long)stride_C);
+          PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-inner flags a_spad_id=%d b_spad_id=%d a_transpose=%d b_transpose=%d full_C=%d low_D=%d no_bias=%d repeating_bias=%d act=%d a_null=%d b_null=%d pre_null=%d out_null=%d",
               a_spad_id, b_spad_id,
+              a_transpose, b_transpose, full_C, low_D, no_bias, repeating_bias, act,
               a == NULL, b == NULL, pre == NULL, out == NULL);
+          PRT_GEMMINI_RAW_LINE("[graw] tiled-post-innerlog");
         }
+        if (log_this_tile) PRT_GEMMINI_RAW_LINE("[graw] tiled-pre-innercall");
         (*inner)(a, b, pre, out,
             A_scale_factor, B_scale_factor, D_scale_factor,
             I, J, K,
@@ -947,6 +1492,7 @@ static void tiled_matmul_outer(size_t dim_I, size_t dim_J, size_t dim_K,
             full_C, low_D,
             no_bias, repeating_bias,
             act, a_spad_id, b_spad_id);
+        if (log_this_tile) PRT_GEMMINI_RAW_LINE("[graw] tiled-post-innercall");
         if (log_this_tile) {
           PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-inner end tile=%lu/%lu i0=%lu j0=%lu k0=%lu",
               (unsigned long)(tile_seq + 1), (unsigned long)total_tiles,
@@ -1241,6 +1787,7 @@ static void tiled_matmul(size_t dim_I, size_t dim_J, size_t dim_K,
         bool full_C, bool low_D,
         uint8_t weightA,
         enum tiled_matmul_type_t tiled_matmul_type) {
+  PRT_GEMMINI_RAW_LINE("[graw] tiled-enter");
 
 #ifdef GEMMINI_ASSERTIONS
   // Make sure that the tiling factors make sense
@@ -1381,6 +1928,24 @@ static void tiled_matmul_auto(size_t dim_I, size_t dim_J, size_t dim_K,
 #define db_max_tile_i_j ((size_t)sqrt(db_mats_in_acc))
 #define db_max_tile_k (db_mats_in_partition / db_max_tile_i_j)
 
+    PRT_GEMMINI_RAW_LINE("[graw] matmul-auto-enter");
+    PRT_GEMMINI_RAW_LINE("[graw] matmul-auto-pre-shape");
+    PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-auto-shape dim_I=%lu dim_J=%lu dim_K=%lu",
+        (unsigned long)dim_I, (unsigned long)dim_J, (unsigned long)dim_K);
+    PRT_GEMMINI_RAW_LINE("[graw] matmul-auto-post-shape");
+    PRT_GEMMINI_RAW_LINE("[graw] matmul-auto-pre-addrs");
+    PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-auto-addrs A=0x%lx B=0x%lx D=0x%lx C=0x%lx",
+        (unsigned long)(uintptr_t)A, (unsigned long)(uintptr_t)B,
+        (unsigned long)(uintptr_t)D, (unsigned long)(uintptr_t)C);
+    PRT_GEMMINI_RAW_LINE("[graw] matmul-auto-post-addrs");
+    PRT_GEMMINI_RAW_LINE("[graw] matmul-auto-pre-flags");
+    PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-auto-flags stride_A=%lu stride_B=%lu stride_D=%lu stride_C=%lu act=%d transpose_A=%d transpose_B=%d full_C=%d low_D=%d repeating_bias=%d type=%d",
+        (unsigned long)stride_A, (unsigned long)stride_B,
+        (unsigned long)stride_D, (unsigned long)stride_C,
+        act, transpose_A, transpose_B, full_C, low_D, repeating_bias,
+        tiled_matmul_type);
+    PRT_GEMMINI_RAW_LINE("[graw] matmul-auto-post-flags");
+
     const size_t dim_I_padded = (dim_I / DIM + (dim_I % DIM != 0)) * DIM;
     const size_t dim_J_padded = (dim_J / DIM + (dim_J % DIM != 0)) * DIM;
     const size_t dim_K_padded = (dim_K / DIM + (dim_K % DIM != 0)) * DIM;
@@ -1457,16 +2022,25 @@ static void tiled_matmul_auto(size_t dim_I, size_t dim_J, size_t dim_K,
     {
       const size_t spad_rows = tiled_matmul_total_spad_rows(tile_I, tile_J, tile_K);
       const size_t acc_rows = tiled_matmul_total_acc_rows(tile_I, tile_J);
-      PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-auto dim_I=%lu dim_J=%lu dim_K=%lu dim_I_padded=%lu dim_J_padded=%lu dim_K_padded=%lu tile_I=%lu tile_J=%lu tile_K=%lu spad_rows=%lu acc_rows=%lu max_spad_rows=%lu max_acc_rows=%lu double_buffered=%d act=%d transpose_A=%d transpose_B=%d full_C=%d low_D=%d repeating_bias=%d type=%d",
+      PRT_GEMMINI_RAW_LINE("[graw] matmul-auto-pre-padded");
+      PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-auto-padded dim_I=%lu dim_J=%lu dim_K=%lu dim_I_padded=%lu dim_J_padded=%lu dim_K_padded=%lu",
           (unsigned long)dim_I, (unsigned long)dim_J, (unsigned long)dim_K,
-          (unsigned long)dim_I_padded, (unsigned long)dim_J_padded, (unsigned long)dim_K_padded,
+          (unsigned long)dim_I_padded, (unsigned long)dim_J_padded, (unsigned long)dim_K_padded);
+      PRT_GEMMINI_RAW_LINE("[graw] matmul-auto-post-padded");
+      PRT_GEMMINI_RAW_LINE("[graw] matmul-auto-pre-tiles");
+      PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-auto-tiles tile_I=%lu tile_J=%lu tile_K=%lu spad_rows=%lu acc_rows=%lu max_spad_rows=%lu max_acc_rows=%lu",
           (unsigned long)tile_I, (unsigned long)tile_J, (unsigned long)tile_K,
           (unsigned long)spad_rows, (unsigned long)acc_rows,
-          (unsigned long)max_spad_rows, (unsigned long)max_acc_rows,
+          (unsigned long)max_spad_rows, (unsigned long)max_acc_rows);
+      PRT_GEMMINI_RAW_LINE("[graw] matmul-auto-post-tiles");
+      PRT_GEMMINI_RAW_LINE("[graw] matmul-auto-pre-mode");
+      PRT_GEMMINI_PHASE_LOG("[gemmini-phase] matmul-auto-mode double_buffered=%d act=%d transpose_A=%d transpose_B=%d full_C=%d low_D=%d repeating_bias=%d type=%d",
           double_buffered, act, transpose_A, transpose_B, full_C, low_D,
           repeating_bias, tiled_matmul_type);
+      PRT_GEMMINI_RAW_LINE("[graw] matmul-auto-post-mode");
     }
 
+    PRT_GEMMINI_RAW_LINE("[graw] auto-call-tiled");
     tiled_matmul(dim_I, dim_J, dim_K,
         A, B, D, C,
         stride_A, stride_B, stride_D, stride_C,

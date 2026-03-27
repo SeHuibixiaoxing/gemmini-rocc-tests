@@ -1,0 +1,7 @@
+{
+  "name" : "rerocc-lc-baremetal-coupleddma-pointwise-stage0-highva-vpage0-focus",
+  "base" : "bare-base.json",
+  "workdir" : ".",
+  "host-init" : "host-init-pointwise-stage0-highva-vpage0-focus.sh",
+  "bin" : "rerocc_lc_pointwise_stage0_runtime_highva_vpage0_focus.riscv"
+}

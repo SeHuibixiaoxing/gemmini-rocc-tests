@@ -1,92 +1,95 @@
 # Pipeline Runtime Roadmap
 
-当前主线阶段：`bertmini end-to-end closure on Linux/FireSim F2`
+当前阶段：`action-private runtime refactor completed, but immediate priority is to bring back the previous bertmini path`
 
-## Phase 1. Export Interface 收敛
+当前优先级：
 
-目标：
+- 暂时先不做多 action 验证
+- 先跑通之前的 `bertmini` 单 action 路径
+- 先确认旧的 `bertmini` baremetal / host / Linux / F2 主线恢复
+- 之后再回到 true multi-active-action execution
 
-- 固定 `conference/HybridMapper` 的 runtime exporter 输出
-- 固定当前 runtime interface 文件名和目录布局
-- 不回退到旧接口或手工拼装 artifacts
+## Phase 1. 文档收敛
 
-状态：已完成基础收敛。
+状态：已完成
 
-当前产物：
+- 历史协作文档归档到 `conference/mudnac_hybridmapper_collab_docs/archive/2026Q1/`
+- `pipeline-runtime/*.md` 和 `pipeline-runtime/docs/*.md` 成为当前规范文档
 
-- exporter 已固定
-- `conference/HybridMapper/output/pipeline_runtime/bertmini/` 已成为 canonical artifact 根目录
-- `model.layers.yaml` / `gemmini_layer_mapping.*` / `pipeline_mapping.*` / `runtime_model.bin` / `runtime_input.*` / `golden.*` 已形成稳定命名
+## Phase 2. Action 私有地址空间
 
-## Phase 2. Host Closure
+状态：已完成
 
-目标：
+- 每个 action 独立 alias window
+- 每个 action 独立 shared-spad 页表
+- manager 安装按 action 粒度进行
 
-- host `pipeline_runtime` 能在 `ours2 / gemini2 / tangram2` 上完成 CPU golden 与 FPGA backend 闭环
+## Phase 3. Action 私有执行态
 
-状态：已完成当前基线。
+状态：已完成
 
-说明：
+- `pipebuf/ringbuf/pairs`
+- stage shadow/bounce/lazy state
+- stage mapping 和 worker ctx
+- weight bindings / topology alloc keys
 
-- host closure 仍然是改动后的第一道 correctness gate
-- 当前是否继续扩大 synthetic coverage，不影响主线阶段判断
+已经从 `prt_runtime_t` 全局状态迁移到 `action->exec`。
 
-## Phase 3. Linux Packaging 与回归对照
+## Phase 4. 先恢复 bertmini 主线
 
-目标：
+状态：当前最高优先级
 
-- `rerocc_pipeline_runtime-linux` 构建稳定
-- `host-init.sh` 能稳定把 runtime artifacts staged 到 FireMarshal overlay
-- 调用序列持续贴近 Linux coupleddma 正例
+需要完成：
 
-状态：进行中。
+- 在新 action-private runtime 上重跑之前的 `bertmini` 路径
+- 优先确认旧 `segment0/stage0/pointwise` 卡点是否还在
+- 先恢复单 action 的 baremetal / host / Linux / F2 闭环
 
-当前重点：
+当前最新验证状态：
 
-- 维持 `rerocc-linux-tests-coupleddma/workload/host-init.sh`
-- 维持 guest wrapper `run_rerocc_pipeline_runtime_bertmini.sh`
-- 以三个 Linux coupleddma 回归为接口写法基准
+- 已在新 runtime 的 Linux/F2 live run 上越过旧的 `matmul-os-biascfg-post-ld` 边界
+- 当前新的最深边界是 `matmul-os-biascfg-state` 长日志的半行写出 / 其紧邻位置
+- 下一轮单 action 验证前，需要先把 deepest-path 日志拆短，再继续往 `bias mvin3` 和后续 compute path 钻
 
-## Phase 4. FireMarshal / FireSim F2 Bring-up
+## Phase 5. 多 active action 调度器
 
-目标：
+状态：下一步
 
-- dedicated `bertmini` workload image 稳定 build/install
-- run farm 能稳定启动并进入 guest workload
-- 正确收集 `uartlog`、`heartbeat.csv` 和 tmux pane log
+需要完成：
 
-状态：进行中。
+- 同时存在多个 active action 的 scheduler
+- 多 action worker 生命周期
+- runtime-global fatal/trace/accounting 的 action 化
+- 不同 hart 与 action 的稳定绑定
 
-注意：
+## Phase 6. ReRoCC 竞争管理
 
-- 真实环境流程固定为 `env.sh -> sourceme-manager.sh`
-- manager 长任务固定走 `scripts/firesim-tmux-run.sh`
-- 当前 live blocker 不在本文件维护，统一看 `NEXT_SESSION_PROMPT.md` 和 `STATUS.md`
+状态：下一步
 
-## Phase 5. Bertmini FPGA Correctness Closure
+需要完成：
 
-目标：
+- cfg/opcode 竞争策略
+- Gemmini/DMA lane 占用策略
+- 多 hart 并发时的 route management
 
-- 在 F2 目标上让 `ours2 / gemini2 / tangram2` 全部通过
-- guest 内打印最终 PASS 标记
-- 输出与 CPU golden 完全一致
+这部分直接关系到你最终要的“64 核、6 action、6 CPU 并发管理”是否可持续。
 
-状态：未完成。
+## Phase 7. 历史卡死回归
 
-退出条件：
+状态：下一步
 
-- `BERTMINI_PIPELINE_RUNTIME_PASS`
-- 三种 method 都通过
-- 结果不是基于 manager exit code 推断，而是有 `uartlog` 证据
+在新的 action-private runtime 上重新验证：
 
-## Phase 6. Post-Closure Work
+- 之前 Linux/F2 `segment0 stage0 pointwise` 卡死是否还存在
+- 是否能在 baremetal 上更快复现
+- 是否是 bias/config_ld/Gemmini path 本身问题，而不是旧的全局状态污染
 
-目标：
+## Phase 8. 真正的多 CPU/多 action 负载
 
-- profiling、schedule point、QoS 或更大 workload
+状态：未开始
 
-状态：未开始。
+进入条件：
 
-前置条件：
-
-- 只有 Phase 5 完成后才进入这一阶段
+- Phase 5 完成
+- Phase 6 有可行竞争策略
+- Phase 7 证明旧卡点不再被新 runtime 引入

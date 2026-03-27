@@ -370,6 +370,18 @@ static int ensure_stage_spm_util_capacity(prt_segment_desc_t *seg, uint32_t need
   return PRT_OK;
 }
 
+static int ensure_buffer_binding_capacity(prt_segment_desc_t *seg, uint32_t need) {
+  if (!seg) return PRT_ERR_INVAL;
+  if (seg->buffer_binding_count >= need) return PRT_OK;
+  prt_buffer_binding_t *tmp =
+    (prt_buffer_binding_t *)realloc(seg->buffer_bindings, sizeof(prt_buffer_binding_t) * need);
+  if (!tmp) return PRT_ERR_NOMEM;
+  for (uint32_t i = seg->buffer_binding_count; i < need; ++i) memset(&tmp[i], 0, sizeof(tmp[i]));
+  seg->buffer_bindings = tmp;
+  seg->buffer_binding_count = need;
+  return PRT_OK;
+}
+
 static int u32_map_set_from_kv(prt_u32_map_t *dst, const map_kv_t *kv, uint32_t n) {
   if (!dst) return PRT_ERR_INVAL;
   free(dst->data);
@@ -455,6 +467,16 @@ static void stage_set_export_dbuf(prt_stage_map_t *st, const uint32_t *db, uint3
   for (uint32_t i = 0; i < m; ++i) st->exports[i].double_buffer = db[i];
 }
 
+static void stage_set_entry_buffer_ids(prt_stage_map_t *st, const uint32_t *ids, uint32_t n) {
+  uint32_t m = (st->num_entry < n) ? st->num_entry : n;
+  for (uint32_t i = 0; i < m; ++i) st->entry[i].buffer_id = ids[i];
+}
+
+static void stage_set_export_buffer_ids(prt_stage_map_t *st, const uint32_t *ids, uint32_t n) {
+  uint32_t m = (st->num_export < n) ? st->num_export : n;
+  for (uint32_t i = 0; i < m; ++i) st->exports[i].buffer_id = ids[i];
+}
+
 static void stage_set_layer_id(prt_stage_map_t *st, const uint32_t *ids, uint32_t n) {
   if (!st) return;
   st->layer_count = n;
@@ -533,6 +555,69 @@ static void stage_set_tensor_lazy_fetch(prt_stage_map_t *st, const uint32_t *val
   st->tensor_lazy_fetch_present = 1U;
   st->tensor_lazy_fetch_count = m;
   for (uint32_t i = 0; i < m; ++i) st->tensor_lazy_fetch[i] = vals[i];
+}
+
+static void stage_set_local_spm_tensor_addr(prt_stage_map_t *st, const uint32_t *vals, uint32_t n) {
+  uint32_t m = n > PRT_MAX_LAYER_TENSORS ? PRT_MAX_LAYER_TENSORS : n;
+  if (!st) return;
+  st->local_spm_tensor_count = m;
+  for (uint32_t i = 0; i < m; ++i) st->local_spm_tensor_addr[i] = vals[i];
+}
+
+static void stage_set_local_spm_first_vpage(prt_stage_map_t *st, const uint32_t *vals, uint32_t n) {
+  uint32_t m = n > PRT_MAX_LAYER_TENSORS ? PRT_MAX_LAYER_TENSORS : n;
+  if (!st) return;
+  if (st->local_spm_tensor_count < m) st->local_spm_tensor_count = m;
+  for (uint32_t i = 0; i < m; ++i) st->local_spm_first_vpage[i] = vals[i];
+}
+
+static void stage_set_local_spm_page_count(prt_stage_map_t *st, const uint32_t *vals, uint32_t n) {
+  uint32_t m = n > PRT_MAX_LAYER_TENSORS ? PRT_MAX_LAYER_TENSORS : n;
+  if (!st) return;
+  if (st->local_spm_tensor_count < m) st->local_spm_tensor_count = m;
+  for (uint32_t i = 0; i < m; ++i) st->local_spm_page_count[i] = vals[i];
+}
+
+static void stage_set_local_spm_tensor_bytes(prt_stage_map_t *st, const uint32_t *vals, uint32_t n) {
+  uint32_t m = n > PRT_MAX_LAYER_TENSORS ? PRT_MAX_LAYER_TENSORS : n;
+  if (!st) return;
+  if (st->local_spm_tensor_count < m) st->local_spm_tensor_count = m;
+  for (uint32_t i = 0; i < m; ++i) st->local_spm_tensor_bytes[i] = vals[i];
+}
+
+static uint32_t parse_buffer_binding_kind_str(const char *s) {
+  if (!s) return PRT_BUFFER_BINDING_UNKNOWN;
+  if (!strcmp(s, "WEIGHT")) return PRT_BUFFER_BINDING_WEIGHT;
+  if (!strcmp(s, "PIPE")) return PRT_BUFFER_BINDING_PIPE;
+  if (!strcmp(s, "RING")) return PRT_BUFFER_BINDING_RING;
+  return PRT_BUFFER_BINDING_UNKNOWN;
+}
+
+static void segment_set_buffer_binding_u32(prt_segment_desc_t *seg, const uint32_t *vals, uint32_t n,
+                                           uint32_t field) {
+  if (!seg || !vals) return;
+  if (ensure_buffer_binding_capacity(seg, n) != PRT_OK) return;
+  for (uint32_t i = 0; i < n; ++i) {
+    prt_buffer_binding_t *b = &seg->buffer_bindings[i];
+    switch (field) {
+      case 0: b->buffer_id = vals[i]; break;
+      case 1: b->tensor_id = vals[i]; break;
+      case 2: b->stage_local_id = vals[i]; break;
+      case 3: b->is_entry = vals[i]; break;
+      case 4: b->slot_count = vals[i]; break;
+      case 5: b->pages_per_slot = vals[i]; break;
+      case 6: b->alias_group_id = vals[i]; break;
+      default: break;
+    }
+  }
+}
+
+static void segment_set_buffer_binding_kinds(prt_segment_desc_t *seg, char **vals, uint32_t n) {
+  if (!seg || !vals) return;
+  if (ensure_buffer_binding_capacity(seg, n) != PRT_OK) return;
+  for (uint32_t i = 0; i < n; ++i) {
+    seg->buffer_bindings[i].kind = parse_buffer_binding_kind_str(vals[i]);
+  }
 }
 
 static uint32_t parse_split_kind_str(const char *s) {
@@ -994,6 +1079,11 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
       continue;
     }
 
+    if (starts_key(t, "segmentSpmPageSpan")) {
+      (void)parse_u32_scalar(t, &cur_seg->segment_spm_page_span);
+      continue;
+    }
+
     if (starts_key(t, "ring_buffer_count") || starts_key(t, "ring_buffer_size_per") || starts_key(t, "ring_buffer_use_count")) {
       map_kv_t *kv = NULL;
       uint32_t n = 0;
@@ -1074,6 +1164,87 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
       in_stage_spm_util_list = 1;
       stage_spm_util_indent = indent;
       stage_spm_util_idx = 0;
+      continue;
+    }
+
+    if (starts_key(t, "bufferBindingIdList")) {
+      uint32_t *vals = NULL;
+      uint32_t n = 0;
+      if (parse_int_list_from_value(value_after_colon(t), &vals, &n) == PRT_OK) {
+        segment_set_buffer_binding_u32(cur_seg, vals, n, 0);
+      }
+      free(vals);
+      continue;
+    }
+
+    if (starts_key(t, "bufferBindingTensorIdList")) {
+      uint32_t *vals = NULL;
+      uint32_t n = 0;
+      if (parse_int_list_from_value(value_after_colon(t), &vals, &n) == PRT_OK) {
+        segment_set_buffer_binding_u32(cur_seg, vals, n, 1);
+      }
+      free(vals);
+      continue;
+    }
+
+    if (starts_key(t, "bufferBindingStageLocalIdList")) {
+      uint32_t *vals = NULL;
+      uint32_t n = 0;
+      if (parse_int_list_from_value(value_after_colon(t), &vals, &n) == PRT_OK) {
+        segment_set_buffer_binding_u32(cur_seg, vals, n, 2);
+      }
+      free(vals);
+      continue;
+    }
+
+    if (starts_key(t, "bufferBindingIsEntryList")) {
+      uint32_t *vals = NULL;
+      uint32_t n = 0;
+      if (parse_int_list_from_value(value_after_colon(t), &vals, &n) == PRT_OK) {
+        segment_set_buffer_binding_u32(cur_seg, vals, n, 3);
+      }
+      free(vals);
+      continue;
+    }
+
+    if (starts_key(t, "bufferBindingKindList")) {
+      char **vals = NULL;
+      uint32_t n = 0;
+      if (parse_str_list_from_value(value_after_colon(t), &vals, &n) == PRT_OK) {
+        segment_set_buffer_binding_kinds(cur_seg, vals, n);
+      }
+      for (uint32_t i = 0; i < n; ++i) free(vals[i]);
+      free(vals);
+      continue;
+    }
+
+    if (starts_key(t, "bufferBindingSlotCountList")) {
+      uint32_t *vals = NULL;
+      uint32_t n = 0;
+      if (parse_int_list_from_value(value_after_colon(t), &vals, &n) == PRT_OK) {
+        segment_set_buffer_binding_u32(cur_seg, vals, n, 4);
+      }
+      free(vals);
+      continue;
+    }
+
+    if (starts_key(t, "bufferBindingPagesPerSlotList")) {
+      uint32_t *vals = NULL;
+      uint32_t n = 0;
+      if (parse_int_list_from_value(value_after_colon(t), &vals, &n) == PRT_OK) {
+        segment_set_buffer_binding_u32(cur_seg, vals, n, 5);
+      }
+      free(vals);
+      continue;
+    }
+
+    if (starts_key(t, "bufferBindingAliasGroupIdList")) {
+      uint32_t *vals = NULL;
+      uint32_t n = 0;
+      if (parse_int_list_from_value(value_after_colon(t), &vals, &n) == PRT_OK) {
+        segment_set_buffer_binding_u32(cur_seg, vals, n, 6);
+      }
+      free(vals);
       continue;
     }
 
@@ -1211,6 +1382,11 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
       continue;
     }
 
+    if (starts_key(t, "execBaseVPage")) {
+      (void)parse_u32_scalar(t, &cur_stage->exec_base_vpage);
+      continue;
+    }
+
     if (starts_key(t, "entryTensorIdList")) {
       uint32_t *ids = NULL;
       uint32_t n = 0;
@@ -1236,12 +1412,32 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
       continue;
     }
 
+    if (starts_key(t, "entryBufferIdList")) {
+      uint32_t *ids = NULL;
+      uint32_t n = 0;
+      if (parse_int_list_from_value(value_after_colon(t), &ids, &n) == PRT_OK) {
+        stage_set_entry_buffer_ids(cur_stage, ids, n);
+      }
+      free(ids);
+      continue;
+    }
+
     if (starts_key(t, "exportTensorTypeList")) {
       char **types = NULL;
       uint32_t n = 0;
       if (parse_str_list_from_value(value_after_colon(t), &types, &n) == PRT_OK) stage_set_export_types(cur_stage, types, n);
       for (uint32_t i = 0; i < n; ++i) free(types[i]);
       free(types);
+      continue;
+    }
+
+    if (starts_key(t, "exportBufferIdList")) {
+      uint32_t *ids = NULL;
+      uint32_t n = 0;
+      if (parse_int_list_from_value(value_after_colon(t), &ids, &n) == PRT_OK) {
+        stage_set_export_buffer_ids(cur_stage, ids, n);
+      }
+      free(ids);
       continue;
     }
 
@@ -1322,6 +1518,51 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
       in_stage_tensor_lazy_fetch_list = 1;
       continue;
     }
+
+    if (starts_key(t, "localSpmTensorAddrList")) {
+      uint32_t *vals = NULL;
+      uint32_t n = 0;
+      if (parse_int_list_from_value(value_after_colon(t), &vals, &n) == PRT_OK) {
+        stage_set_local_spm_tensor_addr(cur_stage, vals, n);
+      }
+      free(vals);
+      continue;
+    }
+
+    if (starts_key(t, "localSpmFirstVPageList")) {
+      uint32_t *vals = NULL;
+      uint32_t n = 0;
+      if (parse_int_list_from_value(value_after_colon(t), &vals, &n) == PRT_OK) {
+        stage_set_local_spm_first_vpage(cur_stage, vals, n);
+      }
+      free(vals);
+      continue;
+    }
+
+    if (starts_key(t, "localSpmPageCountList")) {
+      uint32_t *vals = NULL;
+      uint32_t n = 0;
+      if (parse_int_list_from_value(value_after_colon(t), &vals, &n) == PRT_OK) {
+        stage_set_local_spm_page_count(cur_stage, vals, n);
+      }
+      free(vals);
+      continue;
+    }
+
+    if (starts_key(t, "localSpmTensorBytesList")) {
+      uint32_t *vals = NULL;
+      uint32_t n = 0;
+      if (parse_int_list_from_value(value_after_colon(t), &vals, &n) == PRT_OK) {
+        stage_set_local_spm_tensor_bytes(cur_stage, vals, n);
+      }
+      free(vals);
+      continue;
+    }
+
+    if (starts_key(t, "localSpmPageSpan")) {
+      (void)parse_u32_scalar(t, &cur_stage->local_spm_page_span);
+      continue;
+    }
   }
 
   if (out->num_segments > 0) out->subbatch_size = out->segments[0].subbatch_size;
@@ -1329,8 +1570,10 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
 
   for (uint32_t s = 0; s < out->num_segments; ++s) {
     prt_segment_desc_t *seg = &out->segments[s];
+    uint32_t seg_span_fallback = 0;
     total_stages += seg->num_stages;
     for (uint32_t i = 0; i < seg->num_stages; ++i) {
+      uint32_t local_span = 0;
       if (!seg->stages[i].acc_util_present || seg->stages[i].layer_count != 1 ||
           seg->stages[i].dram_bypass_count == 0 || seg->stages[i].spm_bypass_count == 0 ||
           !seg->stages[i].virtual_acc_ids_present ||
@@ -1338,11 +1581,22 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
           seg->stages[i].num_virtual_acc_ids != seg->stages[i].acc_util ||
           (seg->stages[i].physical_acc_ids_present &&
            seg->stages[i].num_physical_acc_ids != seg->stages[i].acc_util)) {
+        PRT_PROGRESS_LOG(
+          "yaml pipeline validate stage-shape-error seg=%u local_stage=%u global_stage=%u "
+          "acc_present=%u acc=%u layers=%u dram=%u spm=%u virt_present=%u virt=%u phys_present=%u phys=%u",
+          s, i, seg->stages[i].stage_id,
+          seg->stages[i].acc_util_present, seg->stages[i].acc_util,
+          seg->stages[i].layer_count, seg->stages[i].dram_bypass_count, seg->stages[i].spm_bypass_count,
+          seg->stages[i].virtual_acc_ids_present, seg->stages[i].num_virtual_acc_ids,
+          seg->stages[i].physical_acc_ids_present, seg->stages[i].num_physical_acc_ids);
         free(buf);
         return PRT_ERR_PARSE;
       }
       for (uint32_t k = 0; k < seg->stages[i].num_virtual_acc_ids; ++k) {
         if (seg->stages[i].virtual_acc_ids[k] >= seg->stages[i].acc_util) {
+          PRT_PROGRESS_LOG(
+            "yaml pipeline validate virtual-acc-error seg=%u local_stage=%u global_stage=%u idx=%u v_acc=%u acc=%u",
+            s, i, seg->stages[i].stage_id, k, seg->stages[i].virtual_acc_ids[k], seg->stages[i].acc_util);
           free(buf);
           return PRT_ERR_PARSE;
         }
@@ -1351,6 +1605,46 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
           seg->stages[i].tensor_usage_count_count != seg->stages[i].tensor_id_count ||
           !seg->stages[i].tensor_lazy_fetch_present ||
           seg->stages[i].tensor_lazy_fetch_count != seg->stages[i].tensor_id_count) {
+        PRT_PROGRESS_LOG(
+          "yaml pipeline validate tensor-meta-error seg=%u local_stage=%u global_stage=%u "
+          "tensor_ids=%u usage_present=%u usage=%u lazy_present=%u lazy=%u",
+          s, i, seg->stages[i].stage_id, seg->stages[i].tensor_id_count,
+          seg->stages[i].tensor_usage_count_present, seg->stages[i].tensor_usage_count_count,
+          seg->stages[i].tensor_lazy_fetch_present, seg->stages[i].tensor_lazy_fetch_count);
+        free(buf);
+        return PRT_ERR_PARSE;
+      }
+      if (seg->stages[i].local_spm_tensor_count > 0) {
+        if (seg->stages[i].local_spm_tensor_count != seg->stages[i].tensor_id_count) {
+          PRT_PROGRESS_LOG(
+            "yaml pipeline validate local-spm-count-error seg=%u local_stage=%u global_stage=%u "
+            "local_spm_tensors=%u tensor_ids=%u",
+            s, i, seg->stages[i].stage_id,
+            seg->stages[i].local_spm_tensor_count, seg->stages[i].tensor_id_count);
+          free(buf);
+          return PRT_ERR_PARSE;
+        }
+        if (seg->stages[i].local_spm_page_span == 0U) {
+          for (uint32_t t_idx = 0; t_idx < seg->stages[i].local_spm_tensor_count; ++t_idx) {
+            uint32_t end_vpage =
+              seg->stages[i].local_spm_first_vpage[t_idx] + seg->stages[i].local_spm_page_count[t_idx];
+            if (end_vpage > local_span) local_span = end_vpage;
+          }
+          seg->stages[i].local_spm_page_span = local_span;
+        } else {
+          local_span = seg->stages[i].local_spm_page_span;
+        }
+        if (seg->stages[i].exec_base_vpage + local_span > seg_span_fallback) {
+          seg_span_fallback = seg->stages[i].exec_base_vpage + local_span;
+        }
+      }
+    }
+    if (seg->segment_spm_page_span == 0U) seg->segment_spm_page_span = seg_span_fallback;
+    for (uint32_t i = 0; i < seg->buffer_binding_count; ++i) {
+      if (seg->buffer_bindings[i].kind == PRT_BUFFER_BINDING_UNKNOWN) {
+        PRT_PROGRESS_LOG(
+          "yaml pipeline validate buffer-binding-kind-error seg=%u binding=%u buffer_id=%u tensor_id=%u",
+          s, i, seg->buffer_bindings[i].buffer_id, seg->buffer_bindings[i].tensor_id);
         free(buf);
         return PRT_ERR_PARSE;
       }
@@ -1400,6 +1694,7 @@ void prt_free_pipeline_desc(prt_pipeline_desc_t *pipeline) {
       free(seg->tensor_spm_util_in_ringbuffer.data);
       free(seg->tensor_spm_util_weight.data);
       free(seg->ring_cfgs);
+      free(seg->buffer_bindings);
     }
     free(pipeline->segments);
   }

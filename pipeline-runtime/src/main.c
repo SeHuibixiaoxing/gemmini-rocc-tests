@@ -1,4 +1,5 @@
 #include "prt_cli.h"
+#include "prt_progress.h"
 #include "prt_runtime.h"
 
 #include <stdio.h>
@@ -50,7 +51,7 @@ static void prt_try_lock_process_memory(void) {
 
 static void usage(const char *prog) {
   fprintf(stderr,
-    "Usage: %s --backend <cpu|fpga> --model-yaml <path> --layer-mapping-yaml <path> [--model-bin <path>] [--model-offset <bytes>] --pipeline-yaml <path> [--num-cores <n>] [--num-gemmini-mgrs <n>] [--num-dma-mgrs <n>] [--gemmini-base-id <n>] [--dma-base-id <n>] [--sync-mode <async|blocking_debug>] [--pages-per-acc <n>] [--spm-page-bytes <n>] [--spm-xlate-enable <0|1>] [--spm-xlate-range-base <hex>] [--spm-xlate-range-size <bytes>] [--watchdog-ms <n>] [--hw-validate-only] [--input <path>] [--golden <path>] [--golden-out <path>] [--batch <n>] [--trace <path>]\\n"
+    "Usage: %s --backend <cpu|fpga> --model-yaml <path> --layer-mapping-yaml <path> [--model-bin <path>] [--model-offset <bytes>] --pipeline-yaml <path> [--num-cores <n>] [--num-gemmini-mgrs <n>] [--num-dma-mgrs <n>] [--gemmini-base-id <n>] [--dma-base-id <n>] [--sync-mode <async|blocking_debug>] [--pages-per-acc <n>] [--spm-page-bytes <n>] [--spm-xlate-enable <0|1>] [--spm-xlate-range-base <hex>] [--spm-xlate-range-size <bytes>] [--spm-pt-pool-prealloc-hugepages <n>] [--spm-pt-pool-max-hugepages <n>] [--spm-pt-require-hugetlb <0|1>] [--watchdog-ms <n>] [--hw-validate-only] [--input <path>] [--golden <path>] [--golden-out <path>] [--batch <n>] [--trace <path>]\\n"
     "       %s --hw-validate-only [runtime knobs above]\\n",
     prog, prog);
 }
@@ -96,6 +97,9 @@ int prt_main_entry(int argc, char **argv) {
   cfg.spm_xlate_range_base = 0;
   cfg.spm_xlate_range_size = 0;
   cfg.pages_per_acc = 256;
+  cfg.spm_pt_pool_prealloc_hugepages = 0;
+  cfg.spm_pt_pool_max_hugepages = 0;
+  cfg.spm_pt_require_hugetlb = 0;
   cfg.dma_backend = PRT_DMA_BACKEND_POLL_PROGRESS_THREAD;
   cfg.gemmini_mode = PRT_GEMMINI_MODE_ASYNC_EXPERIMENTAL;
   cfg.sync_mode = PRT_SYNC_MODE_ASYNC;
@@ -147,6 +151,12 @@ int prt_main_entry(int argc, char **argv) {
       cfg.spm_xlate_range_size = (uint64_t)strtoull(argv[++i], NULL, 0);
     } else if (!strcmp(argv[i], "--pages-per-acc") && i + 1 < argc) {
       cfg.pages_per_acc = (uint32_t)strtoul(argv[++i], NULL, 10);
+    } else if (!strcmp(argv[i], "--spm-pt-pool-prealloc-hugepages") && i + 1 < argc) {
+      cfg.spm_pt_pool_prealloc_hugepages = (uint32_t)strtoul(argv[++i], NULL, 10);
+    } else if (!strcmp(argv[i], "--spm-pt-pool-max-hugepages") && i + 1 < argc) {
+      cfg.spm_pt_pool_max_hugepages = (uint32_t)strtoul(argv[++i], NULL, 10);
+    } else if (!strcmp(argv[i], "--spm-pt-require-hugetlb") && i + 1 < argc) {
+      cfg.spm_pt_require_hugetlb = (uint32_t)strtoul(argv[++i], NULL, 10) ? 1U : 0U;
     } else if (!strcmp(argv[i], "--hw-validate-only")) {
       cfg.hw_validate_only = 1U;
     } else if (!strcmp(argv[i], "--input") && i + 1 < argc) {
@@ -197,16 +207,24 @@ int prt_main_entry(int argc, char **argv) {
     prt_try_lock_process_memory();
   }
 
+  PRT_MARKER_LOG("main runtime-init-begin backend=%u cores=%u gemmini=%u dma=%u spm_xlate=%u pages_per_acc=%u",
+                 (uint32_t)cfg.backend, cfg.num_cores, cfg.num_gemmini_mgrs, cfg.num_dma_mgrs,
+                 cfg.spm_xlate_enable, cfg.pages_per_acc);
   prt_early_progress("[prt-early] calling runtime_init");
   rc = prt_runtime_init(&cfg, &rt);
   if (rc != PRT_OK) {
     fprintf(stderr, "runtime_init failed: %s (%d)\\n", prt_err_str(rc), rc);
     return 1;
   }
+  PRT_MARKER_LOG("main runtime-init-end backend=%u gemm_mode=%u dma_backend=%u",
+                 (uint32_t)rt.cfg.backend, (uint32_t)rt.cfg.gemmini_mode,
+                 (uint32_t)rt.cfg.dma_backend);
   prt_early_progress("[prt-early] runtime_init done");
 
+  PRT_MARKER_LOG("main runtime-run-begin");
   prt_early_progress("[prt-early] calling runtime_run");
   rc = prt_runtime_run(&rt, &args);
+  PRT_MARKER_LOG("main runtime-run-end rc=%d", rc);
   if (rc != PRT_OK) {
     fprintf(stderr, "runtime_run failed: %s (%d)\\n", prt_err_str(rc), rc);
   }

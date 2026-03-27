@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include "encoding.h"
+#include "rocc-software/src/xcustom.h"
 
 #ifndef XCUSTOM_ACC
 #define XCUSTOM_ACC 3

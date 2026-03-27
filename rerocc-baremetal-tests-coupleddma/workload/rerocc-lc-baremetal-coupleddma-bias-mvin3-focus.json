@@ -1,0 +1,7 @@
+{
+  "name" : "rerocc-lc-baremetal-coupleddma-bias-mvin3-focus",
+  "base" : "bare-base.json",
+  "workdir" : ".",
+  "host-init" : "host-init-bias-mvin3-focus.sh",
+  "bin" : "rerocc_lc_bias_mvin3_runtime_alias_focus.riscv"
+}

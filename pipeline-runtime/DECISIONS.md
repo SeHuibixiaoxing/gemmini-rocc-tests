@@ -1,61 +1,50 @@
-# Pipeline Runtime Locked Decisions
+# Pipeline Runtime 冻结决策
 
-## 1. 目标范围
+## 1. 总体原则
 
-1. `pipeline-runtime` 是 Gemmini pipeline 软件栈的执行实现，不引入 `backend {mudnacsim, gemmini}` 之类运行时分叉。
-2. 当前阶段保留 single-layer-stage 契约，不实现 MudnacSim 风格的假多层 stage 语义。
-3. 不修改 model 定义文件；HybridMapper 原有行为保持不变，只通过额外 exporter 产出 runtime 专用 artifacts。
-4. 最终 correctness gate 只看 Linux on FireSim F2；metasim/baremetal 回归只承担回归安全网角色。
-5. 当前目标硬件锚定为 `GemminiLearningConfigSpadReRoCCGlobalNoC2C1x2G2x1x2D2x1x2CoupledDMA`。
+1. 不引入 `mudnacsim/gemmini` 运行时分叉；只在当前 ISA/软件栈上实现需求。
+2. 编排期决定逻辑布局，运行时只兑现物理资源与地址。
+3. 一个 action 必须拥有独立 alias window、独立 shared-spad 页表、独立执行态。
+4. 不再使用全局 shared-spad VA 切片去复用多个 action。
 
-## 2. Artifact 契约
+## 2. Artifact 与布局
 
-6. Canonical exporter 是 `conference/HybridMapper/scripts/create-pipeline-runtime-artifacts.py`。
-7. Canonical artifact 目录是 `conference/HybridMapper/output/pipeline_runtime/bertmini/`。
-8. 当前固定消费的文件名是：
-   `model.layers.yaml`、
-   `gemmini_layer_mapping.<target_key>.yaml`、
-   `pipeline_mapping.<target_key>.<method>.yaml`、
-   `runtime_model.bin`、
-   `runtime_input.<target_key>.bin`、
-   `golden.<target_key>.<method>.bin`。
-9. generated layer mapping 中的 SPM 地址是 local zero-based 视图；runtime 在执行时负责 rebasing、页表装载和 accelerator 动态分配。
-10. 当前 generated mapping 中，`physicalAccIds` 不是主语义路径；活动语义仍然是 runtime 侧分配与 `vAccIdxList + accUtil`。
+5. canonical exporter 仍是 `conference/HybridMapper/scripts/create-pipeline-runtime-artifacts.py`。
+6. canonical artifact 根目录仍是 `conference/HybridMapper/output/pipeline_runtime/bertmini/`。
+7. `pipeline-runtime` 必须直接消费 pre-orchestrated mapping，不在执行期重建逻辑 buffer/tensor 位置。
 
 ## 3. Runtime 与硬件接口
 
-11. 当前 CLI 契约固定显式传入 `--layer-mapping-yaml`，不要再假设 runtime 自动发现该文件。
-12. shared-spad xlate 控制面固定复用 Gemmini controller 的 `SPM_XLATE_CFG / RANGE / FLUSH / FAULT`，不再为 CoupledDMA 单独发明第二套软件接口。
-13. Linux 执行中，DRAM backing 与 shared-spad alias/PT backing 必须保持两套独立语义；不能把 userspace VA 同时拿来当 shared-spad PTE 的物理页号。
-14. 当前 critical DMA programming 区域应尽量保持为：
-    `rr_set_opc -> fence rw, rw -> set_dst -> set_src -> wait`
-    不要在这段临界区里长期保留重日志、`printf/fflush`、`getcpu()` 或额外系统调用。
-15. 遇到 Gemmini/DMA 接口调用问题时，先对照这三个 Linux 正例：
-    `rerocc_dma_matrix_linux_coupleddma.c`、
-    `rerocc_lc_gemmini_matrix_linux_coupleddma.c`、
-    `rerocc_lc_coverage_linux_coupleddma.c`。
-16. 若问题涉及 overlap 或 completion/wait 语义，再补看：
-    `rerocc_lc_nonblocking_linux_coupleddma.c`。
+8. shared-spad xlate 继续复用 Gemmini controller 现有 `CFG/RANGE/FLUSH/FAULT` 接口。
+9. 每个 action 把自己的一整段 alias VA window 安装到所分配的所有 Gemmini manager 上。
+10. PTE 查找语义按 `(vaddr - range_base)` 解释；因此 alias window 必须是一段连续区间。
+11. 物理页分配策略当前保持 all-bank 语义。
 
-## 4. FireMarshal / FireSim 执行规则
+## 4. 多 action 方向
 
-17. FireMarshal 前先执行 `source /home/ubuntu/chipyard/env.sh`。
-18. FireSim manager 前必须先执行：
-    `cd /home/ubuntu/chipyard/sims/firesim`
-    然后 `source sourceme-manager.sh`。
-19. 不要再使用 `--skip-ssh-setup`。
-20. 长时间 FireSim manager 任务统一通过 `/home/ubuntu/chipyard/scripts/firesim-tmux-run.sh` 启动。
-21. FPGA 标准流程固定为：
-    `marshal build -> marshal install -> launchrunfarm -> infrasetup -> runworkload -> terminaterunfarm`。
-22. F2 只使用 `f2.6xlarge`。
-23. 不手工修改 `sims/firesim/deploy/workloads/*`。
-24. 一旦确认 run 已明确卡死，先 `terminaterunfarm`，再做 postmortem。
-25. 成功判据不能只看 manager exit code；必须检查 `uartlog` 完成标记，必要时联查 `heartbeat.csv`。
+12. 本轮已经冻结“topology/execution state 归 action 所有”，不再回到 runtime 全局单例。
+13. 但当前仍未宣称已经支持“多个 active action 同时执行”。
+14. 在真正并发前，不允许再把 runtime-global trace/fatal/worker lifecycle 误写成“已经 action 化”。
 
-## 5. 文档规则
+## 5. ReRoCC/Gemmini 并发边界
 
-26. 入口只看 `README.md`，架构只看 `ARCHITECTURE.md`，计划只看 `ROADMAP.md`，验证只看 `TESTPLAN.md`。
-27. 当前 live 状态只看：
-    `conference/mudnac_hybridmapper_collab_docs/STATUS.md`
-    和 `NEXT_SESSION_PROMPT.md`。
-28. 历史时间线、旧 run/log、失效路径只看 `docs/archive/2026Q1_history.md`，不要再把 dated updates 堆回主文档。
+15. 现有软件栈下，Gemmini 指令固定走 `custom3`，DMA 固定走 `custom2`。
+16. 因此单 hart 当前稳定拥有的是：
+  - 1 条 Gemmini live route lane
+  - 1 条 DMA live route lane
+17. `cfg` 数量不等于 Gemmini 并发 issue lane 数量。
+18. 未来如果要实现 6 个 action、6 个 CPU 并发管理，还需要单独设计 cfg/opcode 竞争策略，不能靠当前软件路径自然得到。
+
+## 6. 调试规则
+
+19. Linux/F2 卡点判断不能只看 process log，必须联查 `uartlog` 和 `heartbeat.csv`。
+20. guest `stdout/stderr` 必须保持 unbuffered；必要时可以加额外 filler log 逼出关键 marker。
+21. 若 runfarm 已确认卡死，先停 farm 再分析。
+22. 等 Linux 启动要有耐心；heartbeat 前进时不要过早误判 boot hang。
+    Linux 启动阶段，只要没有明确 boot error / panic / crash，就不要仅凭 UART 静默窗口把它记成新的卡点。
+    慢启动本身不是 blocker，至少要等到明确报错，或已经进入用户态 workload 后再次停住。
+
+## 7. 当前临时策略
+
+23. activation 当前统一按 `RELU` 处理，这是调试期策略，不代表最终 artifact contract 已补齐。
+24. 旧协作文档不再是规范来源；它们已归档，仅供追溯。

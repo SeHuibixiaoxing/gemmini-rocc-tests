@@ -1,0 +1,7 @@
+{
+  "name" : "rerocc-lc-baremetal-coupleddma-pointwise-stage0-linuxphys-focus",
+  "base" : "bare-base.json",
+  "workdir" : ".",
+  "host-init" : "host-init-pointwise-stage0-linuxphys-focus.sh",
+  "bin" : "rerocc_lc_pointwise_stage0_runtime_linuxphys_focus.riscv"
+}

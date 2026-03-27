@@ -18,10 +18,12 @@ TARGET_KEY="${TARGET_KEY:-rerocc_globalnoc_coupleddma_c2_g2_d2_spad1024kb_dram19
 HOST_INIT_CHECK_ONLY="${HOST_INIT_CHECK_ONLY:-0}"
 SKIP_BUILD="${SKIP_BUILD:-0}"
 ENABLE_PIPELINE_RUNTIME="${ENABLE_PIPELINE_RUNTIME:-auto}"
-PIPELINE_RUNTIME_PROGRESS="${PIPELINE_RUNTIME_PROGRESS:-1}"
+PIPELINE_RUNTIME_PROGRESS="${PIPELINE_RUNTIME_PROGRESS:-0}"
 PIPELINE_RUNTIME_PROGRESS_RAW="${PIPELINE_RUNTIME_PROGRESS_RAW:-0}"
+PIPELINE_RUNTIME_PROGRESS_HOT="${PIPELINE_RUNTIME_PROGRESS_HOT:-${PIPELINE_RUNTIME_PROGRESS_RAW}}"
 PIPELINE_RUNTIME_GEMMINI_PHASE="${PIPELINE_RUNTIME_GEMMINI_PHASE:-0}"
 PIPELINE_RUNTIME_ONLY_MARKER="${PIPELINE_RUNTIME_ONLY_MARKER:-1}"
+PIPELINE_RUNTIME_PROGRESS_PAD_BURST="${PIPELINE_RUNTIME_PROGRESS_PAD_BURST:-0}"
 BUILD_DIR="${GEMMINI_ROCC_TESTS_DIR}/build"
 REROCC_LINUX_BUILD_DIR="${BUILD_DIR}/rerocc-linux-tests"
 
@@ -114,15 +116,38 @@ generate_layer_mapping_cache() {
 verify_pipeline_runtime_binary() {
   local bin="$1"
   require_file "${bin}"
+  if ! LC_ALL=C grep -aFq "matmul-os-biascfg-ld-shape" "${bin}"; then
+    echo "pipeline runtime binary missing current split biascfg markers: ${bin}" >&2
+    exit 1
+  fi
+  if LC_ALL=C grep -aFq "matmul-os-biascfg-ld-params" "${bin}"; then
+    echo "pipeline runtime binary still contains stale merged biascfg markers: ${bin}" >&2
+    exit 1
+  fi
+  if LC_ALL=C grep -aFq "matmul-os-biascfg-state" "${bin}"; then
+    echo "pipeline runtime binary still contains stale merged runtime biascfg markers: ${bin}" >&2
+    exit 1
+  fi
   if [ "${PIPELINE_RUNTIME_PROGRESS}" != "0" ]; then
     if ! LC_ALL=C grep -aFq "[prt-early] enter main" "${bin}"; then
       echo "pipeline runtime binary missing expected early-init progress string: ${bin}" >&2
       exit 1
     fi
   fi
+  if [ "${PIPELINE_RUNTIME_ONLY_MARKER}" != "0" ]; then
+    if ! LC_ALL=C grep -aFq "[prt-marker]" "${bin}"; then
+      echo "pipeline runtime binary missing expected marker strings: ${bin}" >&2
+      exit 1
+    fi
+  fi
   if [ "${PIPELINE_RUNTIME_GEMMINI_PHASE}" = "0" ]; then
     if LC_ALL=C grep -aFq "[gemmini-phase]" "${bin}"; then
       echo "pipeline runtime binary unexpectedly contains gemmini-phase strings with PIPELINE_RUNTIME_GEMMINI_PHASE=0: ${bin}" >&2
+      exit 1
+    fi
+  else
+    if ! LC_ALL=C grep -aFq "[gemmini-phase]" "${bin}"; then
+      echo "pipeline runtime binary missing gemmini-phase strings with PIPELINE_RUNTIME_GEMMINI_PHASE=${PIPELINE_RUNTIME_GEMMINI_PHASE}: ${bin}" >&2
       exit 1
     fi
   fi
@@ -136,7 +161,7 @@ build_linux_binaries() {
     exit 1
   fi
 
-  echo "Building rerocc-linux-tests binaries for coupled DMA + pipeline runtime with ${linux_cc} (PIPELINE_RUNTIME_PROGRESS=${PIPELINE_RUNTIME_PROGRESS}, PIPELINE_RUNTIME_PROGRESS_RAW=${PIPELINE_RUNTIME_PROGRESS_RAW}, PIPELINE_RUNTIME_GEMMINI_PHASE=${PIPELINE_RUNTIME_GEMMINI_PHASE})"
+  echo "Building rerocc-linux-tests binaries for coupled DMA + pipeline runtime with ${linux_cc} (PIPELINE_RUNTIME_PROGRESS=${PIPELINE_RUNTIME_PROGRESS}, PIPELINE_RUNTIME_PROGRESS_RAW=${PIPELINE_RUNTIME_PROGRESS_RAW}, PIPELINE_RUNTIME_PROGRESS_HOT=${PIPELINE_RUNTIME_PROGRESS_HOT}, PIPELINE_RUNTIME_GEMMINI_PHASE=${PIPELINE_RUNTIME_GEMMINI_PHASE}, PIPELINE_RUNTIME_ONLY_MARKER=${PIPELINE_RUNTIME_ONLY_MARKER}, PIPELINE_RUNTIME_PROGRESS_PAD_BURST=${PIPELINE_RUNTIME_PROGRESS_PAD_BURST})"
   pushd "${GEMMINI_ROCC_TESTS_DIR}" >/dev/null
   autoconf
   mkdir -p "${BUILD_DIR}"
@@ -147,7 +172,10 @@ build_linux_binaries() {
     TARGET=riscv64-unknown-linux-gnu- \
     PIPELINE_RUNTIME_PROGRESS="${PIPELINE_RUNTIME_PROGRESS}" \
     PIPELINE_RUNTIME_PROGRESS_RAW="${PIPELINE_RUNTIME_PROGRESS_RAW}" \
+    PIPELINE_RUNTIME_PROGRESS_HOT="${PIPELINE_RUNTIME_PROGRESS_HOT}" \
     PIPELINE_RUNTIME_GEMMINI_PHASE="${PIPELINE_RUNTIME_GEMMINI_PHASE}" \
+    PIPELINE_RUNTIME_ONLY_MARKER="${PIPELINE_RUNTIME_ONLY_MARKER}" \
+    PIPELINE_RUNTIME_PROGRESS_PAD_BURST="${PIPELINE_RUNTIME_PROGRESS_PAD_BURST}" \
     -j rerocc-linux-tests
   popd >/dev/null
 
@@ -262,7 +290,10 @@ rebuild_pipeline_runtime_binary() {
     CC_LINUX="${linux_cc}" \
     PIPELINE_RUNTIME_PROGRESS="${PIPELINE_RUNTIME_PROGRESS}" \
     PIPELINE_RUNTIME_PROGRESS_RAW="${PIPELINE_RUNTIME_PROGRESS_RAW}" \
+    PIPELINE_RUNTIME_PROGRESS_HOT="${PIPELINE_RUNTIME_PROGRESS_HOT}" \
     PIPELINE_RUNTIME_GEMMINI_PHASE="${PIPELINE_RUNTIME_GEMMINI_PHASE}" \
+    PIPELINE_RUNTIME_ONLY_MARKER="${PIPELINE_RUNTIME_ONLY_MARKER}" \
+    PIPELINE_RUNTIME_PROGRESS_PAD_BURST="${PIPELINE_RUNTIME_PROGRESS_PAD_BURST}" \
     rerocc_pipeline_runtime-linux
 }
 

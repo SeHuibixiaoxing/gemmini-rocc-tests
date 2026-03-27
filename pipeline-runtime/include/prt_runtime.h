@@ -17,6 +17,7 @@ typedef struct {
   pthread_t thread;
   uint32_t stage_id;
   struct prt_runtime_s *rt;
+  prt_schedule_action_t *action;
   prt_stage_op_t op_kind;
   int has_task_desc;
   prt_gemmini_conv_desc_t conv_desc;
@@ -30,25 +31,7 @@ typedef struct {
   volatile int stop;
 } prt_progress_thread_ctx_t;
 
-typedef struct prt_runtime_s {
-  prt_runtime_cfg_t cfg;
-
-  prt_dma_backend_ops_t dma_ops;
-  prt_gemmini_ops_t gemm_ops;
-
-  pthread_mutex_t state_lock;
-  pthread_cond_t state_cv;
-  volatile int stop_requested;
-  volatile int fatal_error;
-
-  uint32_t next_dma_token_id;
-
-  prt_model_desc_t model;
-  prt_pipeline_desc_t pipeline;
-  void *model_blob;
-  size_t model_blob_size;
-  size_t model_blob_offset;
-
+typedef struct prt_action_exec_s {
   prt_stage_thread_ctx_t stage_threads[PRT_MAX_STAGES];
   uint32_t stage_thread_count;
   uint32_t stage_layer_ids[PRT_MAX_STAGES];
@@ -57,7 +40,7 @@ typedef struct prt_runtime_s {
   uint32_t stage_tile_counts[PRT_MAX_STAGES];
   uint32_t stage_split_kinds[PRT_MAX_STAGES];
   uint32_t stage_mgr_ids[PRT_MAX_STAGES][PRT_MAX_CORES];
-  prt_schedule_action_t *active_action;
+
   uint32_t stage_spm_rebase_vpage[PRT_MAX_STAGES];
   uint32_t stage_spm_window_pages[PRT_MAX_STAGES];
   uint8_t *stage_spm_shadow[PRT_MAX_STAGES];
@@ -65,35 +48,6 @@ typedef struct prt_runtime_s {
   uint8_t *stage_dma_bounce[PRT_MAX_STAGES];
   size_t stage_dma_bounce_bytes[PRT_MAX_STAGES];
   uint8_t stage_fixed_lazy_loaded[PRT_MAX_STAGES][PRT_MAX_LAYER_TENSORS];
-  prt_progress_thread_ctx_t progress_thread;
-  int progress_thread_enabled;
-  pthread_mutex_t dma_pending_lock;
-  pthread_cond_t dma_pending_cv;
-  void *dma_pending_head;
-  void *dma_pending_tail;
-  uint32_t dma_pending_count;
-
-  pthread_mutex_t page_lock;
-  uint8_t *page_used; // bitmap-like array [num_cores * pages_per_acc]
-
-  prt_tensor_alloc_t *tensor_allocs;
-  uint32_t tensor_alloc_count;
-  uint32_t tensor_alloc_cap;
-
-  uint64_t *spm_pte;
-  uint32_t spm_pte_cap;
-  uint32_t spm_next_vpage;
-  uint64_t spm_ptbr_pa;
-  void *spm_pte_alloc;
-  size_t spm_pte_alloc_bytes;
-  void *spm_alias_map;
-  size_t spm_alias_map_bytes;
-  uint64_t spm_fault_count;
-  uint64_t spm_last_fault_vaddr;
-  uint32_t spm_last_fault_cause;
-  prt_spm_tensor_map_t *spm_tensor_maps;
-  uint32_t spm_tensor_map_count;
-  uint32_t spm_tensor_map_cap;
 
   prt_pipebuf_t *pipebufs;
   uint32_t pipebuf_count;
@@ -113,6 +67,72 @@ typedef struct prt_runtime_s {
   uint32_t *topo_alloc_keys;
   uint32_t topo_alloc_count;
   uint32_t topo_alloc_cap;
+} prt_action_exec_t;
+
+typedef struct prt_runtime_s {
+  prt_runtime_cfg_t cfg;
+
+  prt_dma_backend_ops_t dma_ops;
+  prt_gemmini_ops_t gemm_ops;
+
+  pthread_mutex_t state_lock;
+  pthread_cond_t state_cv;
+  volatile int stop_requested;
+  volatile int fatal_error;
+
+  uint32_t next_dma_token_id;
+
+  prt_model_desc_t model;
+  prt_pipeline_desc_t pipeline;
+  void *model_blob;
+  size_t model_blob_size;
+  size_t model_blob_offset;
+  prt_schedule_action_t *active_action;
+
+  // Multi-action queue support
+  prt_schedule_action_t *action_queue[PRT_MAX_ACTIONS];
+  uint32_t action_count;
+  uint32_t action_to_hart[PRT_MAX_ACTIONS];
+  pthread_mutex_t action_queue_lock;
+  prt_progress_thread_ctx_t progress_thread;
+  int progress_thread_enabled;
+  pthread_mutex_t dma_pending_lock;
+  pthread_cond_t dma_pending_cv;
+  void *dma_pending_head;
+  void *dma_pending_tail;
+  uint32_t dma_pending_count;
+
+  pthread_mutex_t page_lock;
+  uint8_t *page_used; // bitmap-like array [num_cores * pages_per_acc]
+
+  prt_tensor_alloc_t *tensor_allocs;
+  uint32_t tensor_alloc_count;
+  uint32_t tensor_alloc_cap;
+
+  prt_spm_pt_chunk_t *spm_pt_chunks;
+  uint32_t spm_pt_chunk_count;
+  uint32_t spm_pt_chunk_cap;
+  size_t spm_pt_hugepage_bytes;
+
+  // Active-action mirror of the currently installed shared-spad xlate context.
+  // Storage is action-owned; runtime only reflects the active context here.
+  uint64_t *spm_pte;
+  uint32_t spm_pte_cap;
+  uint32_t spm_next_vpage;
+  prt_vmap_desc_t *spm_free_vpages;
+  uint32_t spm_free_vpage_count;
+  uint32_t spm_free_vpage_cap;
+  uint64_t spm_ptbr_pa;
+  void *spm_pte_alloc;
+  size_t spm_pte_alloc_bytes;
+  void *spm_alias_map;
+  size_t spm_alias_map_bytes;
+  uint64_t spm_fault_count;
+  uint64_t spm_last_fault_vaddr;
+  uint32_t spm_last_fault_cause;
+  prt_spm_tensor_map_t *spm_tensor_maps;
+  uint32_t spm_tensor_map_count;
+  uint32_t spm_tensor_map_cap;
 
   volatile uint64_t trace_run_start_ns;
   volatile uint64_t trace_run_end_ns;
@@ -147,6 +167,13 @@ int prt_runtime_prepare_resadd_cpu_fallback(prt_runtime_t *rt, uint32_t stage_id
                                             size_t *out_output_tensor_bytes,
                                             const prt_page_list_t **out_output_pages,
                                             uint32_t *out_output_tensor_id);
+prt_schedule_action_t *prt_runtime_current_action(const prt_runtime_t *rt);
+prt_action_exec_t *prt_runtime_current_exec(prt_runtime_t *rt);
+const prt_action_exec_t *prt_runtime_current_exec_const(const prt_runtime_t *rt);
+int prt_action_exec_ensure(prt_schedule_action_t *action);
+void prt_action_exec_destroy(prt_runtime_t *rt, prt_schedule_action_t *action);
+void prt_runtime_set_thread_action(prt_runtime_t *rt, prt_schedule_action_t *action);
+void prt_runtime_clear_thread_action(prt_runtime_t *rt);
 
 uint64_t prt_now_ns(void);
 uint64_t prt_now_cycle(void);

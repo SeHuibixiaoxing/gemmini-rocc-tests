@@ -25,6 +25,9 @@ int prt_process_c7(prt_runtime_t *rt, prt_pipebuf_t *buf);
 int prt_process_c8(prt_runtime_t *rt, prt_pipebuf_t *buf);
 int prt_progress_export_dma(prt_runtime_t *rt, prt_pipebuf_t *buf, uint64_t timeout_ns, int nonblocking);
 
+int prt_process_c1_async(prt_runtime_t *rt, prt_pipebuf_t *buf, uint32_t idx, uint64_t timeout_ns);
+int prt_process_c3_async(prt_runtime_t *rt, prt_isolate_pair_t *pair, uint64_t timeout_ns);
+
 #ifdef __cplusplus
 }
 #endif
