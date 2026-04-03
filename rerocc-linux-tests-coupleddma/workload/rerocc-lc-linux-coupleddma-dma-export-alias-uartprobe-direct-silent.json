@@ -1,0 +1,12 @@
+{
+  "name" : "rerocc-lc-linux-coupleddma-dma-export-alias-uartprobe-direct-silent",
+  "base" : "br-base.json",
+  "workdir" : ".",
+  "host-init" : "host-init.sh",
+  "overlay" : "overlay",
+  "outputs" : [
+    "/root/pipeline-runtime-debug/uartprobe.status",
+    "/root/pipeline-runtime-debug/uartprobe.binary.stage"
+  ],
+  "run" : "run_rerocc_dma_export_alias_uartprobe_direct_capture.sh"
+}

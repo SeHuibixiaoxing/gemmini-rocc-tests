@@ -392,7 +392,15 @@ typedef struct {
   prt_gemmini_mode_t gemmini_mode;
   prt_sync_mode_t sync_mode;
   uint32_t watchdog_timeout_ms;
+  uint32_t export_dma_timeout_ms;
   uint32_t hw_validate_only;
+  uint32_t deep_log_gate_enable;
+  uint32_t deep_log_segment;
+  uint32_t deep_log_global_stage;
+  uint32_t deep_log_local_stage;
+  uint32_t deep_log_subbatch;
+  uint32_t deep_log_stage_radius;
+  uint32_t deep_log_subbatch_radius;
   const char *trace_path;
 } prt_runtime_cfg_t;
 

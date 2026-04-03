@@ -50,9 +50,13 @@ static int prt_spm_xlate_acquire_scope(uint32_t manager_id, prt_rr_scope_t *scop
 
 static void prt_spm_xlate_release_scope(prt_rr_scope_t *scope, uint64_t prev_binding) {
   if (!scope || !scope->valid) return;
+  PRT_PROGRESS_RAW_LINE("[prt-raw] sxr-b");
   rr_fence(scope->cfg_id);
+  PRT_PROGRESS_RAW_LINE("[prt-raw] sxr-f");
   (void)prt_rr_release_scope(scope);
+  PRT_PROGRESS_RAW_LINE("[prt-raw] sxr-r");
   rr_restore_opcode_binding(3U, prev_binding);
+  PRT_PROGRESS_RAW_LINE("[prt-raw] sxr-e");
 }
 #endif
 
@@ -217,12 +221,17 @@ int prt_gemmini_spm_xlate_flush(uint32_t manager_id) {
 #if defined(__riscv) && PRT_ENABLE_GEMMINI_SPM_XLATE_INSN
   prt_rr_scope_t scope;
   uint64_t prev_binding = 0;
+  PRT_PROGRESS_RAW_LINE("[prt-raw] sxf-ab");
   int rc = prt_spm_xlate_acquire_scope(manager_id, &scope, &prev_binding);
+  PRT_PROGRESS_RAW_LINE("[prt-raw] sxf-ae");
   if (rc != PRT_OK) return rc;
   PRT_PROGRESS_LOG("spm-xlate-flush mgr=%u cfg=%u prev_opc3=0x%llx",
                    manager_id, scope.cfg_id, (unsigned long long)prev_binding);
+  PRT_PROGRESS_RAW_LINE("[prt-raw] sxf-fb");
   rerocc_gemmini_spm_xlate_flush();
+  PRT_PROGRESS_RAW_LINE("[prt-raw] sxf-fe");
   prt_spm_xlate_release_scope(&scope, prev_binding);
+  PRT_PROGRESS_RAW_LINE("[prt-raw] sxf-re");
   PRT_PROGRESS_LOG("spm-xlate-flush-restore mgr=%u opc3=0x%llx",
                    manager_id, (unsigned long long)prev_binding);
 #else

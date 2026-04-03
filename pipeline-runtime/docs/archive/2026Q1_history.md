@@ -5,7 +5,8 @@
 
 当前 live 状态请回到：
 
-- `conference/mudnac_hybridmapper_collab_docs/STATUS.md`
+- `generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/README.md`
+- `generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/docs/CURRENT_STATUS.md`
 - `generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/NEXT_SESSION_PROMPT.md`
 
 说明：
@@ -134,11 +135,12 @@ non-globalnoc quick-diag 修复后：
 历史归档迁移完成后，后续请使用：
 
 - 当前入口：`README.md`
+- 当前状态：`docs/CURRENT_STATUS.md`
 - 当前架构：`ARCHITECTURE.md`
 - 当前计划：`ROADMAP.md`
 - 当前验证：`TESTPLAN.md`
 - 锁定决策：`DECISIONS.md`
-- 当前状态：`conference/mudnac_hybridmapper_collab_docs/STATUS.md` 和 `NEXT_SESSION_PROMPT.md`
+- 当前交接：`NEXT_SESSION_PROMPT.md`
 
 不要再把新的 dated update 追加回主文档正文。
 

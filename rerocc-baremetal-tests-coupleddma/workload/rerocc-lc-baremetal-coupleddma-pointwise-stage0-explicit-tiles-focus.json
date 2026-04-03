@@ -1,0 +1,7 @@
+{
+  "name" : "rerocc-lc-baremetal-coupleddma-pointwise-stage0-explicit-tiles-focus",
+  "base" : "bare-base.json",
+  "workdir" : ".",
+  "host-init" : "host-init-pointwise-stage0-explicit-tiles-focus.sh",
+  "bin" : "rerocc_lc_pointwise_stage0_runtime_explicit_tiles_focus.riscv"
+}

@@ -1,0 +1,19 @@
+{
+  "name" : "rerocc-lc-linux-coupleddma-dma-export-alias-uartprobe-stdoutdirectfile-grandchild-postsubmit-procdiag-syncsnapshot",
+  "base" : "br-base.json",
+  "workdir" : ".",
+  "host-init" : "host-init.sh",
+  "overlay" : "overlay",
+  "outputs" : [
+    "/root/pipeline-runtime-debug/uartprobe.sparse.log",
+    "/root/pipeline-runtime-debug/uartprobe.deep.log",
+    "/root/pipeline-runtime-debug/uartprobe.status",
+    "/root/pipeline-runtime-debug/uartprobe.runner.stage",
+    "/root/pipeline-runtime-debug/uartprobe.runner.post.stage",
+    "/root/pipeline-runtime-debug/uartprobe.runner.early.stage",
+    "/root/pipeline-runtime-debug/uartprobe.binary.stage",
+    "/root/pipeline-runtime-debug/uartprobe.proc.stage",
+    "/root/pipeline-runtime-debug/uartprobe.runner.proc.stage"
+  ],
+  "command" : "UARTPROBE_FIFO_CONSUMER_MODE=direct_file UARTPROBE_LOG_MODE=stdout_write /root/rerocc-linux-tests-coupleddma/run_rerocc_dma_export_alias_uartprobe_fifo_probe.sh"
+}

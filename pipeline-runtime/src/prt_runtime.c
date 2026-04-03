@@ -23,6 +23,11 @@
 #define PRT_TRACE_EVENT_CAP_DEFAULT 262144U
 #define PRT_CONV_ACT_RELU 1
 
+#if defined(__riscv)
+static uint64_t export_dma_timeout_ns(const prt_runtime_t *rt);
+#endif
+static const prt_segment_desc_t *runtime_current_segment(const prt_runtime_t *rt);
+
 static int prt_default_conv_activation(const prt_model_layer_t *layer) {
   (void)layer;
   // Temporary project policy: until activation is exported in the runtime
@@ -56,8 +61,31 @@ static uint64_t monotonic_ms(void) {
 }
 
 #if PRT_ENABLE_ONLY_MARKER
-static int should_log_exec_view_pages(const prt_schedule_action_t *action, uint32_t stage_id) {
+static int should_log_exec_view_steps(const prt_schedule_action_t *action, uint32_t stage_id) {
   return action && action->segment_idx == 0U && stage_id == 0U;
+}
+
+static int should_log_exec_view_pages(const prt_schedule_action_t *action, uint32_t stage_id) {
+  return should_log_exec_view_steps(action, stage_id) && prt_log_gate_allow_deep_logs();
+}
+
+static uint64_t runtime_page_paddr(const prt_runtime_t *rt, const prt_page_t *page) {
+  const uint32_t page_bytes =
+    rt && rt->cfg.page_size_bytes ? rt->cfg.page_size_bytes : PRT_PAGE_SIZE_BYTES;
+  if (!page) return 0ULL;
+  return PRT_SHARED_SPAD_GLOBAL_ADDR_BASE + (uint64_t)page->ppn * (uint64_t)page_bytes;
+}
+#else
+static int should_log_exec_view_steps(const prt_schedule_action_t *action, uint32_t stage_id) {
+  (void)action;
+  (void)stage_id;
+  return 0;
+}
+
+static int should_log_exec_view_pages(const prt_schedule_action_t *action, uint32_t stage_id) {
+  (void)action;
+  (void)stage_id;
+  return 0;
 }
 
 static uint64_t runtime_page_paddr(const prt_runtime_t *rt, const prt_page_t *page) {
@@ -124,7 +152,6 @@ static void log_stage_exec_view(const prt_runtime_t *rt, const prt_schedule_acti
 #endif
 }
 
-#if PRT_ENABLE_PROGRESS_LOG
 static const char *progress_pipebuf_kind_name(prt_pipebuf_kind_t kind) {
   switch (kind) {
     case PRT_BUF_C1_ENTRY_DRAM_OR_DEPEN: return "c1-entry";
@@ -139,6 +166,7 @@ static const char *progress_pipebuf_kind_name(prt_pipebuf_kind_t kind) {
   }
 }
 
+#if PRT_ENABLE_PROGRESS_LOG
 static const char *progress_split_kind_name(prt_layer_split_t kind) {
   switch (kind) {
     case PRT_LAYER_SPLIT_UNSPEC: return "unspec";
@@ -557,6 +585,14 @@ static void stage_bind_current_thread(prt_runtime_t *rt, prt_stage_thread_ctx_t 
             ctx->stage_id, target_cpu, errno);
     return;
   }
+}
+
+static uint32_t runtime_stage_global_id(const prt_schedule_action_t *action, uint32_t local_stage_id) {
+  const prt_segment_desc_t *seg;
+  if (!action) return local_stage_id;
+  seg = action->pipeline_segment_ref;
+  if (!seg || local_stage_id >= seg->num_stages) return local_stage_id;
+  return seg->stages[local_stage_id].stage_id;
 }
 #endif
 
@@ -1239,12 +1275,330 @@ static int get_layer_tensor_source_slice(const prt_runtime_t *rt, const prt_mode
   return PRT_OK;
 }
 
+typedef struct {
+  size_t bytes;
+  uint64_t hash64;
+  uint64_t sum_u8;
+  uint8_t min_u8;
+  uint8_t max_u8;
+  uint8_t first16[16];
+  uint8_t last8[8];
+  uint8_t idx12;
+  uint8_t idx_mid;
+} prt_tensor_debug_digest_t;
+
+static void tensor_debug_digest_reset(prt_tensor_debug_digest_t *digest) {
+  if (!digest) return;
+  memset(digest, 0, sizeof(*digest));
+}
+
+static void tensor_debug_digest_bytes(prt_tensor_debug_digest_t *digest,
+                                      const uint8_t *buf, size_t nbytes) {
+  uint64_t hash = 1469598103934665603ULL;
+  if (!digest) return;
+  tensor_debug_digest_reset(digest);
+  digest->bytes = nbytes;
+  if (!buf || nbytes == 0U) return;
+  digest->min_u8 = 255U;
+  for (size_t i = 0; i < nbytes; ++i) {
+    const uint8_t v = buf[i];
+    digest->sum_u8 += (uint64_t)v;
+    if (v < digest->min_u8) digest->min_u8 = v;
+    if (v > digest->max_u8) digest->max_u8 = v;
+    if (i < sizeof(digest->first16)) digest->first16[i] = v;
+    if (i + sizeof(digest->last8) >= nbytes) {
+      size_t tail_idx = i + sizeof(digest->last8) - nbytes;
+      if (tail_idx < sizeof(digest->last8)) digest->last8[tail_idx] = v;
+    }
+    hash ^= (uint64_t)v;
+    hash *= 1099511628211ULL;
+  }
+  digest->hash64 = hash;
+  digest->idx12 = nbytes > 12U ? buf[12] : 0U;
+  digest->idx_mid = buf[nbytes / 2U];
+}
+
+static void tensor_debug_format_hex_bytes(const uint8_t *buf, size_t nbytes,
+                                          char *dst, size_t dst_size) {
+  size_t used = 0U;
+  if (!dst || dst_size == 0U) return;
+  dst[0] = '\0';
+  if (!buf || nbytes == 0U) return;
+  for (size_t i = 0; i < nbytes; ++i) {
+    int rc = snprintf(dst + used, dst_size - used, "%s%02x",
+                      i == 0U ? "" : " ", (unsigned int)buf[i]);
+    if (rc < 0) break;
+    if ((size_t)rc >= dst_size - used) {
+      used = dst_size - 1U;
+      break;
+    }
+    used += (size_t)rc;
+  }
+  dst[used] = '\0';
+}
+
+static void tensor_debug_log_digest(uint32_t stage_id, uint32_t tensor_id,
+                                    const char *view, const char *detail,
+                                    const prt_tensor_debug_digest_t *digest) {
+  char first_hex[16 * 3];
+  char last_hex[8 * 3];
+  if (!view || !digest) return;
+  tensor_debug_format_hex_bytes(digest->first16,
+                                digest->bytes < sizeof(digest->first16) ? digest->bytes : sizeof(digest->first16),
+                                first_hex, sizeof(first_hex));
+  tensor_debug_format_hex_bytes(digest->last8,
+                                digest->bytes < sizeof(digest->last8) ? digest->bytes : sizeof(digest->last8),
+                                last_hex, sizeof(last_hex));
+  PRT_MARKER_LOG("tensor-digest stage=%u tensor=%u view=%s detail=%s bytes=%llu hash=0x%016llx sum_u8=%llu min=%u max=%u idx12=%u idx_mid=%u first16=%s last8=%s",
+                 stage_id, tensor_id, view, detail ? detail : "na",
+                 (unsigned long long)digest->bytes,
+                 (unsigned long long)digest->hash64,
+                 (unsigned long long)digest->sum_u8,
+                 (unsigned int)digest->min_u8,
+                 (unsigned int)digest->max_u8,
+                 (unsigned int)digest->idx12,
+                 (unsigned int)digest->idx_mid,
+                 first_hex[0] ? first_hex : "-",
+                 last_hex[0] ? last_hex : "-");
+}
+
+static void tensor_audit_log_digest(uint32_t segment_idx, uint32_t stage_id,
+                                    uint32_t global_stage_id, uint32_t subbatch_id,
+                                    uint32_t tensor_id, const char *view,
+                                    const char *detail,
+                                    const prt_tensor_debug_digest_t *digest) {
+  char first_hex[sizeof(((prt_tensor_debug_digest_t *)0)->first16) * 3U];
+  char last_hex[sizeof(((prt_tensor_debug_digest_t *)0)->last8) * 3U];
+  if (!view || !digest) return;
+  tensor_debug_format_hex_bytes(digest->first16,
+                                digest->bytes < sizeof(digest->first16) ? digest->bytes : sizeof(digest->first16),
+                                first_hex, sizeof(first_hex));
+  tensor_debug_format_hex_bytes(digest->last8,
+                                digest->bytes < sizeof(digest->last8) ? digest->bytes : sizeof(digest->last8),
+                                last_hex, sizeof(last_hex));
+  PRT_AUDIT_LOG("segment=%u local_stage=%u global_stage=%u subbatch=%u tensor=%u view=%s detail=%s bytes=%llu hash=0x%016llx sum_u8=%llu min=%u max=%u idx12=%u idx_mid=%u first16=%s last8=%s",
+                segment_idx,
+                stage_id,
+                global_stage_id,
+                subbatch_id,
+                tensor_id,
+                view,
+                detail ? detail : "-",
+                (unsigned long long)digest->bytes,
+                (unsigned long long)digest->hash64,
+                (unsigned long long)digest->sum_u8,
+                (unsigned int)digest->min_u8,
+                (unsigned int)digest->max_u8,
+                (unsigned int)digest->idx12,
+                (unsigned int)digest->idx_mid,
+                first_hex[0] ? first_hex : "-",
+                last_hex[0] ? last_hex : "-");
+}
+
+static void tensor_debug_log_bytes(uint32_t stage_id, uint32_t tensor_id,
+                                   const char *view, const char *detail,
+                                   const uint8_t *buf, size_t nbytes) {
+  prt_tensor_debug_digest_t digest;
+  tensor_debug_digest_bytes(&digest, buf, nbytes);
+  tensor_debug_log_digest(stage_id, tensor_id, view, detail, &digest);
+}
+
+static void tensor_audit_log_bytes(uint32_t segment_idx, uint32_t stage_id,
+                                   uint32_t global_stage_id, uint32_t subbatch_id,
+                                   uint32_t tensor_id, const char *view,
+                                   const char *detail,
+                                   const uint8_t *buf, size_t nbytes) {
+  prt_tensor_debug_digest_t digest;
+  tensor_debug_digest_bytes(&digest, buf, nbytes);
+  tensor_audit_log_digest(segment_idx, stage_id, global_stage_id, subbatch_id,
+                          tensor_id, view, detail, &digest);
+}
+
+static void tensor_debug_log_alias_summaries(prt_runtime_t *rt,
+                                             const prt_model_layer_t *layer,
+                                             uint32_t stage_id,
+                                             uint32_t tensor_id,
+                                             const char *view_prefix) {
+  if (!rt || !layer || !view_prefix || !prt_log_gate_allow_deep_logs()) return;
+  for (uint32_t slot = 0; slot < layer->tensor_count; ++slot) {
+    uint64_t addrs[2];
+    const char *kinds[2] = {"address", "address2"};
+    uint32_t addr_count = 0U;
+    size_t want_size;
+    if (layer->tensor_ids[slot] != tensor_id) continue;
+    want_size = get_layer_tensor_slot_size_bytes(layer, slot, get_model_tensor_size_bytes(&rt->model, tensor_id));
+    if (slot < layer->address_count) addrs[addr_count++] = layer->address[slot];
+    if (slot < layer->address2_count) addrs[addr_count++] = layer->address2[slot];
+    for (uint32_t addr_idx = 0; addr_idx < addr_count; ++addr_idx) {
+      uint8_t *buf = NULL;
+      prt_tensor_debug_digest_t digest;
+      char detail[96];
+      int rc;
+      if (want_size == 0U) continue;
+      buf = (uint8_t *)malloc(want_size);
+      if (!buf) {
+        PRT_MARKER_LOG("tensor-digest stage=%u tensor=%u view=%s detail=%s slot=%u alloc-failed bytes=%llu",
+                       stage_id, tensor_id, view_prefix, kinds[addr_idx], slot,
+                       (unsigned long long)want_size);
+        continue;
+      }
+      rc = load_tensor_alias_normalized(rt, addrs[addr_idx], want_size, buf, want_size);
+      if (rc != PRT_OK) {
+        PRT_MARKER_LOG("tensor-digest stage=%u tensor=%u view=%s detail=%s slot=%u rc=%d addr=0x%llx bytes=%llu",
+                       stage_id, tensor_id, view_prefix, kinds[addr_idx], slot, rc,
+                       (unsigned long long)addrs[addr_idx],
+                       (unsigned long long)want_size);
+        free(buf);
+        continue;
+      }
+      tensor_debug_digest_bytes(&digest, buf, want_size);
+      snprintf(detail, sizeof(detail), "%s slot=%u addr=0x%llx",
+               kinds[addr_idx], slot, (unsigned long long)addrs[addr_idx]);
+      tensor_debug_log_digest(stage_id, tensor_id, view_prefix, detail, &digest);
+      free(buf);
+    }
+  }
+}
+
 #if defined(__riscv)
+static void tensor_debug_log_spm_export_source(prt_runtime_t *rt,
+                                               const prt_page_list_t *pages,
+                                               uint32_t manager_id,
+                                               uint32_t stage_id,
+                                               uint32_t tensor_id,
+                                               size_t src_size,
+                                               const char *view_prefix) {
+  uint8_t *buf = NULL;
+  uint64_t timeout_ns = export_dma_timeout_ns(rt);
+  prt_tensor_debug_digest_t digest;
+  int rc;
+  if (!rt || !pages || !pages->data || pages->size == 0U || src_size == 0U || !view_prefix) return;
+  if (!prt_log_gate_allow_deep_logs()) return;
+  if (timeout_ns == 0ULL && rt->cfg.watchdog_timeout_ms != 0U) {
+    timeout_ns = (uint64_t)rt->cfg.watchdog_timeout_ms * 1000000ULL;
+  }
+  buf = (uint8_t *)malloc(src_size);
+  if (!buf) {
+    PRT_MARKER_LOG("tensor-digest stage=%u tensor=%u view=%s detail=spm-src alloc-failed bytes=%llu",
+                   stage_id, tensor_id, view_prefix, (unsigned long long)src_size);
+    return;
+  }
+  rc = prt_dma_copy_spm_pages_to_dram(rt, (uint64_t)(uintptr_t)buf, pages, manager_id,
+                                      stage_id, tensor_id, timeout_ns);
+  if (rc != PRT_OK) {
+    PRT_MARKER_LOG("tensor-digest stage=%u tensor=%u view=%s detail=spm-src rc=%d bytes=%llu",
+                   stage_id, tensor_id, view_prefix, rc, (unsigned long long)src_size);
+    free(buf);
+    return;
+  }
+  tensor_debug_digest_bytes(&digest, buf, src_size);
+  tensor_debug_log_digest(stage_id, tensor_id, view_prefix, "spm-src", &digest);
+  free(buf);
+}
+#endif
+
+static void tensor_log_stage_entry_inputs(prt_runtime_t *rt, uint32_t segment_idx,
+                                          uint32_t stage_id, uint32_t global_stage_id,
+                                          uint32_t subbatch_id) {
+  const prt_segment_desc_t *seg;
+  const prt_stage_map_t *stage;
+  const prt_model_layer_t *layer;
+  const int emit_deep = prt_log_gate_allow_deep_logs();
+  const int emit_audit = prt_audit_log_enabled_impl();
+  if (!rt || (!emit_deep && !emit_audit)) return;
+  seg = runtime_current_segment(rt);
+  if (!seg || stage_id >= seg->num_stages) return;
+  stage = &seg->stages[stage_id];
+  layer = find_model_layer(&rt->model, stage->layer_id);
+  if (!layer) return;
+  for (uint32_t i = 0; i < stage->num_entry; ++i) {
+    const uint8_t *src = NULL;
+    size_t src_size = 0U;
+    prt_tensor_debug_digest_t digest;
+    int rc = get_layer_tensor_source_slice(rt, layer, stage->entry[i].tensor_id, &src, &src_size);
+    if (rc != PRT_OK) {
+      if (emit_deep) {
+        PRT_MARKER_LOG("tensor-digest stage=%u tensor=%u view=entry-alias detail=source rc=%d",
+                       stage_id, stage->entry[i].tensor_id, rc);
+      }
+      if (emit_audit) {
+        PRT_AUDIT_LOG("segment=%u local_stage=%u global_stage=%u subbatch=%u tensor=%u view=entry-alias detail=source rc=%d",
+                      segment_idx, stage_id, global_stage_id, subbatch_id,
+                      stage->entry[i].tensor_id, rc);
+      }
+      continue;
+    }
+    tensor_debug_digest_bytes(&digest, src, src_size);
+    if (emit_deep) {
+      tensor_debug_log_digest(stage_id, stage->entry[i].tensor_id, "entry-alias", "source", &digest);
+    }
+    if (emit_audit) {
+      tensor_audit_log_digest(segment_idx, stage_id, global_stage_id, subbatch_id,
+                              stage->entry[i].tensor_id, "entry-alias", "source", &digest);
+    }
+  }
+}
+
+#if defined(__riscv)
+static uint64_t export_dma_timeout_ns(const prt_runtime_t *rt) {
+  if (!rt || rt->cfg.export_dma_timeout_ms == 0U) return 0ULL;
+  return (uint64_t)rt->cfg.export_dma_timeout_ms * 1000000ULL;
+}
+
+static int export_target_seen_find(const uint64_t *seen_addrs, const size_t *seen_sizes,
+                                   uint32_t seen_count, uint64_t dst_addr, size_t src_size) {
+  if (!seen_addrs || !seen_sizes) return -1;
+  for (uint32_t i = 0; i < seen_count; ++i) {
+    if (seen_addrs[i] == dst_addr && seen_sizes[i] == src_size) return (int)i;
+  }
+  return -1;
+}
+
+static int copy_tensor_pages_to_model_alias_target(prt_runtime_t *rt, uint32_t tensor_id,
+                                                   const prt_page_list_t *pages, size_t src_size,
+                                                   uint32_t manager_id, uint32_t stage_id,
+                                                   uint32_t layer_index, uint32_t slot,
+                                                   const char *target_kind, uint32_t target_slot,
+                                                   uint64_t dst_addr) {
+  const uint64_t timeout_ns = export_dma_timeout_ns(rt);
+  int rc;
+  if (!rt || !pages || !target_kind || src_size == 0U) return PRT_ERR_INVAL;
+  PRT_MARKER_LOG("export-target stage=%u tensor=%u layer=%u slot=%u target=%s target_slot=%u dst=0x%llx bytes=%llu pages=%u dma=%u timeout_ms=%u begin",
+                 stage_id, tensor_id, layer_index, slot, target_kind, target_slot,
+                 (unsigned long long)dst_addr,
+                 (unsigned long long)src_size,
+                 pages->size,
+                 manager_id,
+                 rt->cfg.export_dma_timeout_ms);
+  rc = prt_dma_copy_spm_pages_to_dram(rt, dst_addr, pages, manager_id, stage_id, tensor_id, timeout_ns);
+  PRT_MARKER_LOG("export-target stage=%u tensor=%u layer=%u slot=%u target=%s target_slot=%u dst=0x%llx bytes=%llu pages=%u dma=%u rc=%d end",
+                 stage_id, tensor_id, layer_index, slot, target_kind, target_slot,
+                 (unsigned long long)dst_addr,
+                 (unsigned long long)src_size,
+                 pages->size,
+                 manager_id,
+                 rc);
+  return rc;
+}
+
 static int copy_tensor_pages_to_model_aliases(prt_runtime_t *rt, uint32_t tensor_id,
                                               const prt_page_list_t *pages, size_t src_size,
                                               uint32_t manager_id, uint32_t stage_id) {
   int copied_any = 0;
+  const uint32_t max_targets = rt ? rt->model.num_layers * 2U : 0U;
+  uint64_t *seen_addrs = NULL;
+  size_t *seen_sizes = NULL;
+  uint32_t seen_count = 0U;
   if (!rt || !pages || !pages->data || pages->size == 0 || src_size == 0) return PRT_ERR_INVAL;
+  if (max_targets > 0U) {
+    seen_addrs = (uint64_t *)calloc(max_targets, sizeof(*seen_addrs));
+    seen_sizes = (size_t *)calloc(max_targets, sizeof(*seen_sizes));
+    if (!seen_addrs || !seen_sizes) {
+      free(seen_addrs);
+      free(seen_sizes);
+      return PRT_ERR_NOMEM;
+    }
+  }
   for (uint32_t i = 0; i < rt->model.num_layers; ++i) {
     const prt_model_layer_t *layer = &rt->model.layers[i];
     for (uint32_t j = 0; j < layer->tensor_count; ++j) {
@@ -1254,21 +1608,52 @@ static int copy_tensor_pages_to_model_aliases(prt_runtime_t *rt, uint32_t tensor
       if (j < layer->address_count) {
         uint64_t dst_addr;
         if (resolve_model_addr_to_ptr(rt, layer->address[j], &dst_addr) == PRT_OK) {
-          int rc = prt_dma_copy_spm_pages_to_dram(rt, dst_addr, pages, manager_id, stage_id, tensor_id, 0);
-          if (rc != PRT_OK) return rc;
+          int seen_idx = export_target_seen_find(seen_addrs, seen_sizes, seen_count, dst_addr, expect_size);
+          if (seen_idx >= 0) {
+            PRT_MARKER_LOG("export-target-repeat stage=%u tensor=%u layer=%u slot=%u target=%s target_slot=%u dst=0x%llx bytes=%llu repeat_of=%d",
+                           stage_id, tensor_id, layer->index, j, "address", j,
+                           (unsigned long long)dst_addr,
+                           (unsigned long long)expect_size,
+                           seen_idx);
+          } else if (seen_count < max_targets) {
+            seen_addrs[seen_count] = dst_addr;
+            seen_sizes[seen_count] = expect_size;
+            seen_count += 1U;
+          }
+          int rc = copy_tensor_pages_to_model_alias_target(rt, tensor_id, pages, expect_size,
+                                                           manager_id, stage_id, layer->index, j,
+                                                           "address", j, dst_addr);
+          if (rc != PRT_OK) goto out;
           copied_any = 1;
         }
       }
       if (j < layer->address2_count) {
         uint64_t dst_addr;
         if (resolve_model_addr_to_ptr(rt, layer->address2[j], &dst_addr) == PRT_OK) {
-          int rc = prt_dma_copy_spm_pages_to_dram(rt, dst_addr, pages, manager_id, stage_id, tensor_id, 0);
-          if (rc != PRT_OK) return rc;
+          int seen_idx = export_target_seen_find(seen_addrs, seen_sizes, seen_count, dst_addr, expect_size);
+          if (seen_idx >= 0) {
+            PRT_MARKER_LOG("export-target-repeat stage=%u tensor=%u layer=%u slot=%u target=%s target_slot=%u dst=0x%llx bytes=%llu repeat_of=%d",
+                           stage_id, tensor_id, layer->index, j, "address2", j,
+                           (unsigned long long)dst_addr,
+                           (unsigned long long)expect_size,
+                           seen_idx);
+          } else if (seen_count < max_targets) {
+            seen_addrs[seen_count] = dst_addr;
+            seen_sizes[seen_count] = expect_size;
+            seen_count += 1U;
+          }
+          int rc = copy_tensor_pages_to_model_alias_target(rt, tensor_id, pages, expect_size,
+                                                           manager_id, stage_id, layer->index, j,
+                                                           "address2", j, dst_addr);
+          if (rc != PRT_OK) goto out;
           copied_any = 1;
         }
       }
     }
   }
+out:
+  free(seen_addrs);
+  free(seen_sizes);
   return copied_any ? PRT_OK : PRT_ERR_NOT_READY;
 }
 #endif
@@ -1379,16 +1764,41 @@ static int stage_prepare_exec_views(prt_runtime_t *rt, uint32_t stage_id, const 
       const uint8_t *src = NULL;
       size_t src_size = 0;
       const prt_page_list_t *pages = NULL;
-      uint64_t timeout_ns = (uint64_t)rt->cfg.watchdog_timeout_ms * 1000000ULL;
+      uint64_t timeout_ns = export_dma_timeout_ns(rt);
+      if (timeout_ns == 0ULL) {
+        timeout_ns = (uint64_t)rt->cfg.watchdog_timeout_ms * 1000000ULL;
+      }
       rc = stage_tensor_current_pages(rt, stage, stage_id, tensor_id, &pages);
       if (rc != PRT_OK) return rc;
       if (!reuse_loaded) {
         rc = get_layer_tensor_source_slice(rt, layer, tensor_id, &src, &src_size);
         if (rc != PRT_OK) return rc;
+        if (action && should_log_exec_view_steps(action, stage_id)) {
+          PRT_MARKER_LOG("stage-fixed-load action=%u segment=%u stage=%u slot=%u tensor=%u pages=%u bytes=%u lazy=%u reuse=%u dma=%u timeout_ms=%llu src=0x%llx begin",
+                         action->action_id, action->segment_idx, stage_id, slot, tensor_id,
+                         pages ? pages->size : 0U, local_bytes, lazy_fetch, (uint32_t)reuse_loaded,
+                         exec->stage_dma_ids[stage_id],
+                         (unsigned long long)(timeout_ns / 1000000ULL),
+                         (unsigned long long)(uintptr_t)src);
+        }
         rc = prt_dma_copy_dram_to_spm_pages(rt, pages, (uint64_t)(uintptr_t)src,
                                             exec->stage_dma_ids[stage_id], stage_id, tensor_id, timeout_ns);
+        if (action && should_log_exec_view_steps(action, stage_id)) {
+          PRT_MARKER_LOG("stage-fixed-load action=%u segment=%u stage=%u slot=%u tensor=%u pages=%u bytes=%u lazy=%u reuse=%u dma=%u timeout_ms=%llu rc=%d end",
+                         action->action_id, action->segment_idx, stage_id, slot, tensor_id,
+                         pages ? pages->size : 0U, local_bytes, lazy_fetch, (uint32_t)reuse_loaded,
+                         exec->stage_dma_ids[stage_id],
+                         (unsigned long long)(timeout_ns / 1000000ULL),
+                         rc);
+        }
         if (rc != PRT_OK) return rc;
         if (lazy_fetch != 0U) exec->stage_fixed_lazy_loaded[stage_id][slot] = 1U;
+      } else if (action && should_log_exec_view_steps(action, stage_id)) {
+        PRT_MARKER_LOG("stage-fixed-load action=%u segment=%u stage=%u slot=%u tensor=%u pages=%u bytes=%u lazy=%u reuse=%u dma=%u timeout_ms=%llu skip",
+                       action->action_id, action->segment_idx, stage_id, slot, tensor_id,
+                       pages ? pages->size : 0U, local_bytes, lazy_fetch, (uint32_t)reuse_loaded,
+                       exec->stage_dma_ids[stage_id],
+                       (unsigned long long)(timeout_ns / 1000000ULL));
       }
     }
 #endif
@@ -1411,9 +1821,18 @@ static int stage_prepare_exec_views(prt_runtime_t *rt, uint32_t stage_id, const 
       view.data = pages->data;
       view.size = stage->local_spm_page_count[slot];
       view.cap = stage->local_spm_page_count[slot];
+      if (should_log_exec_view_steps(action, stage_id)) {
+        PRT_MARKER_LOG("exec-bind-step action=%u segment=%u stage=%u slot=%u tensor=%u bind-begin vpage=%u pages=%u",
+                       action->action_id, action->segment_idx, stage_id, slot, tensor_id,
+                       exec_vpage, stage->local_spm_page_count[slot]);
+      }
       rc = prt_spm_bind_vpages_ctx(rt, &action->spm_xlate, exec_vpage,
                                    &view, stage->local_spm_page_count[slot]);
       if (rc != PRT_OK) return rc;
+      if (should_log_exec_view_steps(action, stage_id)) {
+        PRT_MARKER_LOG("exec-bind-step action=%u segment=%u stage=%u slot=%u tensor=%u bind-end rc=%d",
+                       action->action_id, action->segment_idx, stage_id, slot, tensor_id, rc);
+      }
       log_stage_exec_view(rt, action, stage_id, slot, tensor_id,
                           exec_vpage, stage->local_spm_first_vpage[slot],
                           stage->local_spm_tensor_addr[slot],
@@ -1423,7 +1842,17 @@ static int stage_prepare_exec_views(prt_runtime_t *rt, uint32_t stage_id, const 
   }
 
   if (need_flush) {
-    return runtime_flush_spm_xlate(rt);
+    int rc;
+    if (should_log_exec_view_steps(action, stage_id)) {
+      PRT_MARKER_LOG("exec-bind-flush action=%u segment=%u stage=%u begin",
+                     action->action_id, action->segment_idx, stage_id);
+    }
+    rc = runtime_flush_spm_xlate(rt);
+    if (should_log_exec_view_steps(action, stage_id)) {
+      PRT_MARKER_LOG("exec-bind-flush action=%u segment=%u stage=%u end rc=%d",
+                     action->action_id, action->segment_idx, stage_id, rc);
+    }
+    return rc;
   }
   return PRT_OK;
 }
@@ -1634,11 +2063,15 @@ int prt_runtime_prepare_resadd_cpu_fallback(prt_runtime_t *rt, uint32_t stage_id
   return PRT_OK;
 }
 
-static int sync_stage_export_aliases(prt_runtime_t *rt, uint32_t stage_id) {
+static int sync_stage_export_aliases(prt_runtime_t *rt, uint32_t segment_idx,
+                                     uint32_t stage_id, uint32_t global_stage_id,
+                                     uint32_t subbatch_id) {
   const prt_action_exec_t *exec;
   const prt_stage_map_t *stage;
   const prt_model_layer_t *layer;
   const prt_segment_desc_t *seg;
+  const int emit_deep = prt_log_gate_allow_deep_logs();
+  const int emit_audit = prt_audit_log_enabled_impl();
   if (!rt) return PRT_ERR_INVAL;
   exec = prt_runtime_current_exec_const(rt);
   seg = runtime_current_segment(rt);
@@ -1659,6 +2092,11 @@ static int sync_stage_export_aliases(prt_runtime_t *rt, uint32_t stage_id) {
       const uint8_t *src;
       if (!exec->stage_spm_shadow[stage_id]) return PRT_ERR_NOT_READY;
       src = exec->stage_spm_shadow[stage_id] + stage->local_spm_tensor_addr[slot];
+      if (emit_deep) {
+        tensor_debug_log_alias_summaries(rt, layer, stage_id, stage->exports[i].tensor_id, "export-pre-alias");
+        tensor_debug_log_bytes(stage_id, stage->exports[i].tensor_id, "export-pre-spm", "spm-shadow",
+                               src, src_size);
+      }
       PRT_MARKER_LOG("export-sync stage=%u tensor=%u slot=%u path=spm-shadow begin bytes=%llu local_addr=%u page_count=%u",
                      stage_id, stage->exports[i].tensor_id, slot,
                      (unsigned long long)src_size, stage->local_spm_tensor_addr[slot],
@@ -1667,21 +2105,68 @@ static int sync_stage_export_aliases(prt_runtime_t *rt, uint32_t stage_id) {
       PRT_MARKER_LOG("export-sync stage=%u tensor=%u slot=%u path=spm-shadow end rc=%d bytes=%llu",
                      stage_id, stage->exports[i].tensor_id, slot, rc,
                      (unsigned long long)src_size);
+      if (rc == PRT_OK && emit_deep) {
+        tensor_debug_log_alias_summaries(rt, layer, stage_id, stage->exports[i].tensor_id, "export-post-alias");
+      }
       if (rc != PRT_OK) return rc;
 #else
       const prt_page_list_t *pages = NULL;
+      prt_pipebuf_t *export_buf = NULL;
+      uint64_t model_addr0 = 0ULL;
+      uint64_t model_addr1 = 0ULL;
+      int have_model_addr0 = 0;
+      int have_model_addr1 = 0;
+      uint64_t pipebuf_dram = 0ULL;
+      uint32_t pipebuf_idx = 0U;
+      int pipebuf_has_dram = 0;
       rc = stage_tensor_current_pages(rt, stage, stage_id, stage->exports[i].tensor_id, &pages);
       if (rc != PRT_OK) return rc;
-      PRT_MARKER_LOG("export-sync stage=%u tensor=%u slot=%u path=spm-pages begin bytes=%llu pages=%u dma=%u local_addr=%u",
+      export_buf = find_stage_pipebuf(rt, stage_id, stage->exports[i].tensor_id, 0);
+      if (export_buf) {
+        pipebuf_idx = export_buf->in_use_idx;
+        pipebuf_dram = export_buf->dram_base_addr[pipebuf_idx];
+        pipebuf_has_dram = pipebuf_dram != 0ULL;
+      }
+      if (get_layer_tensor_addr(layer, stage->exports[i].tensor_id, 0, &model_addr0) == PRT_OK &&
+          resolve_model_addr_to_ptr(rt, model_addr0, &model_addr0) == PRT_OK) {
+        have_model_addr0 = 1;
+      }
+      if (get_layer_tensor_addr(layer, stage->exports[i].tensor_id, 1, &model_addr1) == PRT_OK &&
+          resolve_model_addr_to_ptr(rt, model_addr1, &model_addr1) == PRT_OK) {
+        have_model_addr1 = 1;
+      }
+      PRT_MARKER_LOG("export-sync-route stage=%u tensor=%u slot=%u pipebuf=%s kind=%s in_use=%u pipebuf_dram=0x%llx model_addr0=%s0x%llx model_addr1=%s0x%llx same_as_addr0=%u same_as_addr1=%u",
+                     stage_id, stage->exports[i].tensor_id, slot,
+                     export_buf ? "yes " : "no ",
+                     export_buf ? progress_pipebuf_kind_name(export_buf->kind) : "none",
+                     pipebuf_idx,
+                     (unsigned long long)pipebuf_dram,
+                     have_model_addr0 ? "" : "na:",
+                     (unsigned long long)model_addr0,
+                     have_model_addr1 ? "" : "na:",
+                     (unsigned long long)model_addr1,
+                     (unsigned int)(pipebuf_has_dram && have_model_addr0 && pipebuf_dram == model_addr0),
+                     (unsigned int)(pipebuf_has_dram && have_model_addr1 && pipebuf_dram == model_addr1));
+      if (emit_deep) {
+        tensor_debug_log_alias_summaries(rt, layer, stage_id, stage->exports[i].tensor_id, "export-pre-alias");
+        tensor_debug_log_spm_export_source(rt, pages, exec->stage_dma_ids[stage_id],
+                                           stage_id, stage->exports[i].tensor_id,
+                                           src_size, "export-pre-spm");
+      }
+      PRT_MARKER_LOG("export-sync stage=%u tensor=%u slot=%u path=spm-pages begin bytes=%llu pages=%u dma=%u local_addr=%u timeout_ms=%u",
                      stage_id, stage->exports[i].tensor_id, slot,
                      (unsigned long long)src_size, pages ? pages->size : 0U,
-                     exec->stage_dma_ids[stage_id], stage->local_spm_tensor_addr[slot]);
+                     exec->stage_dma_ids[stage_id], stage->local_spm_tensor_addr[slot],
+                     rt->cfg.export_dma_timeout_ms);
       rc = copy_tensor_pages_to_model_aliases(rt, stage->exports[i].tensor_id, pages,
                                               src_size, exec->stage_dma_ids[stage_id], stage_id);
       PRT_MARKER_LOG("export-sync stage=%u tensor=%u slot=%u path=spm-pages end rc=%d bytes=%llu pages=%u dma=%u",
                      stage_id, stage->exports[i].tensor_id, slot, rc,
                      (unsigned long long)src_size, pages ? pages->size : 0U,
                      exec->stage_dma_ids[stage_id]);
+      if (rc == PRT_OK && emit_deep) {
+        tensor_debug_log_alias_summaries(rt, layer, stage_id, stage->exports[i].tensor_id, "export-post-alias");
+      }
       if (rc != PRT_OK) return rc;
 #endif
     } else {
@@ -1689,6 +2174,11 @@ static int sync_stage_export_aliases(prt_runtime_t *rt, uint32_t stage_id) {
       size_t src_size = 0;
       rc = get_layer_tensor_source_slice(rt, layer, stage->exports[i].tensor_id, &src, &src_size);
       if (rc != PRT_OK) return rc;
+      if (emit_deep) {
+        tensor_debug_log_alias_summaries(rt, layer, stage_id, stage->exports[i].tensor_id, "export-pre-alias");
+        tensor_debug_log_bytes(stage_id, stage->exports[i].tensor_id, "export-pre-model", "model-slice",
+                               src, src_size);
+      }
       PRT_MARKER_LOG("export-sync stage=%u tensor=%u slot=%u path=model-slice begin bytes=%llu bypass=%u page_count=%u",
                      stage_id, stage->exports[i].tensor_id, slot,
                      (unsigned long long)src_size,
@@ -1698,7 +2188,24 @@ static int sync_stage_export_aliases(prt_runtime_t *rt, uint32_t stage_id) {
       PRT_MARKER_LOG("export-sync stage=%u tensor=%u slot=%u path=model-slice end rc=%d bytes=%llu",
                      stage_id, stage->exports[i].tensor_id, slot, rc,
                      (unsigned long long)src_size);
+      if (rc == PRT_OK && emit_deep) {
+        tensor_debug_log_alias_summaries(rt, layer, stage_id, stage->exports[i].tensor_id, "export-post-alias");
+      }
       if (rc != PRT_OK) return rc;
+    }
+    if (emit_audit) {
+      const uint8_t *post_src = NULL;
+      size_t post_size = 0U;
+      int post_rc = get_layer_tensor_source_slice(rt, layer, stage->exports[i].tensor_id, &post_src, &post_size);
+      if (post_rc == PRT_OK) {
+        tensor_audit_log_bytes(segment_idx, stage_id, global_stage_id, subbatch_id,
+                               stage->exports[i].tensor_id, "export-post-alias",
+                               "model-slice", post_src, post_size);
+      } else {
+        PRT_AUDIT_LOG("segment=%u local_stage=%u global_stage=%u subbatch=%u tensor=%u view=export-post-alias detail=model-slice rc=%d",
+                      segment_idx, stage_id, global_stage_id, subbatch_id,
+                      stage->exports[i].tensor_id, post_rc);
+      }
     }
   }
   return PRT_OK;
@@ -2709,16 +3216,9 @@ static int build_stage_conv_desc(prt_runtime_t *rt, uint32_t stage_id, prt_gemmi
     return PRT_ERR_INVAL;
   }
   PRT_MARKER_LOG(
-    "stage-conv-desc stage=%u layer=%u type=%s N=%u IC=%u OC=%u OH=%u OW=%u KH=%u KW=%u G=%u stride=%u pad=%u in_stride=%u weight_stride=%u out_stride=%u act=%d scale=%g tiled_type=%d addrs bias=0x%llx weights=0x%llx input=0x%llx output=0x%llx",
-    stage_id, layer->index, layer->type,
-    N, IC, OC, OH, OW, KH, KW, G, sH, inferred_pad,
-    in_stride, weight_stride, out_stride,
-    out->act, (double)out->output_scale, out->tiled_type,
-    (unsigned long long)addr_b,
-    (unsigned long long)addr_w,
-    (unsigned long long)addr_in,
-    (unsigned long long)addr_out);
-  PRT_MARKER_LOG("stage-conv-desc-runtime stage=%u global_stage=%u split=%u acc_util=%u tiles=%u acc=%u dma=%u mgr0=%u mgr1=%u mgr2=%u mgr3=%u tensor_bias=%u tensor_weights=%u tensor_input=%u tensor_output=%u",
+    "conv-desc s=%u l=%u N=%u IC=%u OC=%u OH=%u OW=%u K=%u G=%u S=%u P=%u",
+    stage_id, layer->index, N, IC, OC, OH, OW, KH, G, sH, inferred_pad);
+  PRT_MARKER_LOG("conv-rt s=%u g=%u sp=%u u=%u t=%u a=%u d=%u m0=%u m1=%u tb=%u tw=%u ti=%u to=%u",
                  stage_id,
                  stage ? stage->stage_id : stage_id,
                  stage ? (uint32_t)stage->split_kind : 0U,
@@ -2728,8 +3228,6 @@ static int build_stage_conv_desc(prt_runtime_t *rt, uint32_t stage_id, prt_gemmi
                  exec->stage_dma_ids[stage_id],
                  exec->stage_mgr_ids[stage_id][0],
                  exec->stage_mgr_ids[stage_id][1],
-                 exec->stage_mgr_ids[stage_id][2],
-                 exec->stage_mgr_ids[stage_id][3],
                  layer->tensor_ids[0], layer->tensor_ids[1], layer->tensor_ids[2], layer->tensor_ids[3]);
   return PRT_OK;
 }
@@ -2952,6 +3450,7 @@ static int run_segment_host_serial(prt_runtime_t *rt, const prt_segment_desc_t *
       prt_gemmini_resadd_desc_t resadd_desc;
       uint64_t gemm_begin_ns;
       uint64_t gemm_end_ns;
+      uint32_t global_stage_id;
       int rc;
 
       memset(&task, 0, sizeof(task));
@@ -2972,7 +3471,15 @@ static int run_segment_host_serial(prt_runtime_t *rt, const prt_segment_desc_t *
 
       rc = build_stage_task_desc(rt, stage_id, &task, &conv_desc, &resadd_desc);
       if (rc != PRT_OK) return rc;
+      global_stage_id = action ? runtime_stage_global_id(action, stage_id) : stage_id;
+      prt_log_gate_set_context(segment_idx, global_stage_id, stage_id, sb);
+      if (prt_log_gate_allow_deep_logs()) {
+        PRT_MARKER_LOG("deep-log-arm mode=host-serial segment=%u global_stage=%u local_stage=%u subbatch=%u op=%u split=%u",
+                       segment_idx, global_stage_id, stage_id, sb,
+                       (uint32_t)task.op_kind, (uint32_t)task.split_kind);
+      }
 
+      tensor_log_stage_entry_inputs(rt, segment_idx, stage_id, global_stage_id, sb);
       PRT_PROGRESS_LOG("segment=%u host-serial subbatch=%u stage=%u begin op=%u acc=%u dma=%u tiles=%u",
                        segment_idx, sb, stage_id, (uint32_t)task.op_kind,
                        exec->stage_acc_ids[stage_id], exec->stage_dma_ids[stage_id], task.tile_count);
@@ -2985,15 +3492,19 @@ static int run_segment_host_serial(prt_runtime_t *rt, const prt_segment_desc_t *
       if (gemm_end_ns > gemm_begin_ns) {
         prt_trace_on_gemm_busy(rt, gemm_end_ns - gemm_begin_ns);
       }
-      if (rc != PRT_OK) return rc;
+      if (rc != PRT_OK) {
+        prt_log_gate_clear_context();
+        return rc;
+      }
 
       prt_trace_on_gemm_fence(rt);
       prt_trace_log_event(rt, stage_id, PRT_TRACE_EVT_GEMM_FENCE_BEGIN, 0, 0);
       rc = prt_gemm_fence(rt, &task, timeout_ns);
+      prt_log_gate_clear_context();
       if (rc != PRT_OK) return rc;
       prt_trace_log_event(rt, stage_id, PRT_TRACE_EVT_GEMM_FENCE_END, 0, 0);
 
-      rc = sync_stage_export_aliases(rt, stage_id);
+      rc = sync_stage_export_aliases(rt, segment_idx, stage_id, global_stage_id, sb);
       if (rc != PRT_OK) return rc;
       PRT_PROGRESS_LOG("segment=%u host-serial subbatch=%u stage=%u done",
                        segment_idx, sb, stage_id);
@@ -3069,6 +3580,10 @@ static void *stage_worker_main(void *arg) {
     int rc;
     int retry = 0;
     uint32_t progress_sbatch = progress_stage_sbatch(entry_bufs, entry_count, export_bufs, export_count);
+    uint32_t segment_idx = ctx->action ? ctx->action->segment_idx : 0U;
+    uint32_t global_stage_id = runtime_stage_global_id(ctx->action, ctx->stage_id);
+
+    prt_log_gate_clear_context();
 
     for (uint32_t i = 0; i < entry_count; ++i) {
       prt_pipebuf_t *b = entry_bufs[i];
@@ -3179,47 +3694,58 @@ static void *stage_worker_main(void *arg) {
         rt->fatal_error = rc;
         break;
       }
-      PRT_MARKER_LOG("worker stage=%u subbatch=%u task-ready op=%u split=%u acc=%u dma=%u tiles=%u mgr0=%u mgr1=%u mgr2=%u mgr3=%u",
-                     ctx->stage_id, progress_sbatch, (uint32_t)task.op_kind,
-                     (uint32_t)task.split_kind,
-                     (ctx->stage_id < exec->stage_thread_count) ? exec->stage_acc_ids[ctx->stage_id] : 0U,
-                     (ctx->stage_id < exec->stage_thread_count) ? exec->stage_dma_ids[ctx->stage_id] : 0U,
-                     task.tile_count,
-                     task.num_managers > 0 ? task.manager_ids[0] : 0U,
-                     task.num_managers > 1 ? task.manager_ids[1] : 0U,
-                     task.num_managers > 2 ? task.manager_ids[2] : 0U,
-                     task.num_managers > 3 ? task.manager_ids[3] : 0U);
-      if (task.op_kind == PRT_STAGE_OP_CONV) {
-        PRT_MARKER_CRIT_LOG("worker stage=%u subbatch=%u conv-ready input=0x%llx weights=0x%llx bias=0x%llx output=0x%llx batch=%d in=%dx%dx%d out=%dx%dx%d kernel=%d stride=%d pad=%d groups=%d act=%d",
-                            ctx->stage_id, progress_sbatch,
-                            (unsigned long long)(uintptr_t)conv_desc.input,
-                            (unsigned long long)(uintptr_t)conv_desc.weights,
-                            (unsigned long long)(uintptr_t)conv_desc.bias,
-                            (unsigned long long)(uintptr_t)conv_desc.output,
-                            conv_desc.batch_size,
-                            conv_desc.in_row_dim, conv_desc.in_col_dim, conv_desc.in_channels,
-                            conv_desc.out_row_dim, conv_desc.out_col_dim, conv_desc.out_channels,
-                            conv_desc.kernel_dim, conv_desc.stride, conv_desc.padding,
-                            conv_desc.groups, conv_desc.act);
-      } else if (task.op_kind == PRT_STAGE_OP_RESADD) {
-        PRT_MARKER_CRIT_LOG("worker stage=%u subbatch=%u resadd-ready A=0x%llx B=0x%llx C=0x%llx I=%llu J=%llu stride=%llu relu=%u",
-                            ctx->stage_id, progress_sbatch,
-                            (unsigned long long)(uintptr_t)resadd_desc.A,
-                            (unsigned long long)(uintptr_t)resadd_desc.B,
-                            (unsigned long long)(uintptr_t)resadd_desc.C,
-                            (unsigned long long)resadd_desc.I,
-                            (unsigned long long)resadd_desc.J,
-                            (unsigned long long)resadd_desc.stride,
-                            (uint32_t)resadd_desc.relu);
+      prt_log_gate_set_context(segment_idx, global_stage_id, ctx->stage_id, progress_sbatch);
+      if (prt_log_gate_allow_deep_logs()) {
+        PRT_MARKER_LOG("deep-log-arm mode=worker segment=%u global_stage=%u local_stage=%u subbatch=%u op=%u split=%u tiles=%u mgr0=%u",
+                       segment_idx, global_stage_id, ctx->stage_id, progress_sbatch,
+                       (uint32_t)task.op_kind, (uint32_t)task.split_kind,
+                       task.tile_count, task.num_managers > 0 ? task.manager_ids[0] : 0U);
       }
+      // Keep the unconditional worker hot-window markers as short as possible:
+      // Linux/ONLY_MARKER runs can truncate long nonblocking writes and hide
+      // the real boundary.
+      PRT_MARKER_LOG("wrkrdy s=%u sb=%u op=%u",
+                     ctx->stage_id, progress_sbatch, (uint32_t)task.op_kind);
+      if (prt_log_gate_allow_deep_logs()) {
+        PRT_MARKER_LOG("wrkrdy-detail s=%u sb=%u sp=%u t=%u a=%u d=%u m0=%u m1=%u",
+                       ctx->stage_id, progress_sbatch, (uint32_t)task.split_kind, task.tile_count,
+                       (ctx->stage_id < exec->stage_thread_count) ? exec->stage_acc_ids[ctx->stage_id] : 0U,
+                       (ctx->stage_id < exec->stage_thread_count) ? exec->stage_dma_ids[ctx->stage_id] : 0U,
+                       task.num_managers > 0 ? task.manager_ids[0] : 0U,
+                       task.num_managers > 1 ? task.manager_ids[1] : 0U);
+      }
+      if (task.op_kind == PRT_STAGE_OP_CONV) {
+        if (prt_log_gate_allow_deep_logs()) {
+          PRT_MARKER_CRIT_LOG("wrk-conv s=%u sb=%u n=%d ih=%d iw=%d ic=%d oh=%d ow=%d oc=%d k=%d s=%d p=%d g=%d act=%d in=0x%llx w=0x%llx out=0x%llx",
+                              ctx->stage_id, progress_sbatch,
+                              conv_desc.batch_size,
+                              conv_desc.in_row_dim, conv_desc.in_col_dim, conv_desc.in_channels,
+                              conv_desc.out_row_dim, conv_desc.out_col_dim, conv_desc.out_channels,
+                              conv_desc.kernel_dim, conv_desc.stride, conv_desc.padding,
+                              conv_desc.groups, conv_desc.act,
+                              (unsigned long long)(uintptr_t)conv_desc.input,
+                              (unsigned long long)(uintptr_t)conv_desc.weights,
+                              (unsigned long long)(uintptr_t)conv_desc.output);
+        }
+      } else if (task.op_kind == PRT_STAGE_OP_RESADD) {
+        if (prt_log_gate_allow_deep_logs()) {
+          PRT_MARKER_CRIT_LOG("wrk-resadd s=%u sb=%u I=%llu J=%llu st=%llu relu=%u A=0x%llx B=0x%llx C=0x%llx",
+                              ctx->stage_id, progress_sbatch,
+                              (unsigned long long)resadd_desc.I,
+                              (unsigned long long)resadd_desc.J,
+                              (unsigned long long)resadd_desc.stride,
+                              (uint32_t)resadd_desc.relu,
+                              (unsigned long long)(uintptr_t)resadd_desc.A,
+                              (unsigned long long)(uintptr_t)resadd_desc.B,
+                              (unsigned long long)(uintptr_t)resadd_desc.C);
+        }
+      }
+      tensor_log_stage_entry_inputs(rt, segment_idx, ctx->stage_id, global_stage_id, progress_sbatch);
       PRT_PROGRESS_LOG("worker stage=%u subbatch=%u begin op=%u acc=%u dma=%u tiles=%u",
                        ctx->stage_id, progress_sbatch, (uint32_t)task.op_kind,
                        (ctx->stage_id < exec->stage_thread_count) ? exec->stage_acc_ids[ctx->stage_id] : 0U,
                        (ctx->stage_id < exec->stage_thread_count) ? exec->stage_dma_ids[ctx->stage_id] : 0U,
                        task.tile_count);
-      PRT_MARKER_LOG("worker stage=%u subbatch=%u gemm-enter op=%u split=%u tiles=%u mgr0=%u",
-                     ctx->stage_id, progress_sbatch, (uint32_t)task.op_kind,
-                     (uint32_t)task.split_kind, task.tile_count, task.manager_ids[0]);
       PRT_PROGRESS_HOT_ERR_LOG("worker stage=%u subbatch=%u dispatch-enter op=%u split=%u acc=%u dma=%u tiles=%u",
                                ctx->stage_id, progress_sbatch, (uint32_t)task.op_kind,
                                (uint32_t)task.split_kind,
@@ -3227,17 +3753,24 @@ static void *stage_worker_main(void *arg) {
                                (ctx->stage_id < exec->stage_thread_count) ? exec->stage_dma_ids[ctx->stage_id] : 0U,
                                task.tile_count);
       gemm_begin_ns = prt_now_ns();
+      PRT_MARKER_LOG("wrk-tr-b s=%u sb=%u", ctx->stage_id, progress_sbatch);
       prt_trace_on_gemm_issue(rt);
+      PRT_MARKER_LOG("wrk-tr-e s=%u sb=%u", ctx->stage_id, progress_sbatch);
       PRT_PROGRESS_HOT_ERR_LOG("worker stage=%u subbatch=%u trace-issue-done", ctx->stage_id, progress_sbatch);
+      PRT_MARKER_LOG("wrk-ev-b s=%u sb=%u", ctx->stage_id, progress_sbatch);
       prt_trace_log_event(rt, ctx->stage_id, PRT_TRACE_EVT_GEMM_ISSUE, (uint32_t)task.op_kind, 0);
+      PRT_MARKER_LOG("wrk-ev-e s=%u sb=%u", ctx->stage_id, progress_sbatch);
+      PRT_MARKER_LOG("wrk-issue s=%u sb=%u", ctx->stage_id, progress_sbatch);
       PRT_PROGRESS_HOT_ERR_LOG("worker stage=%u subbatch=%u gemm-run-enter", ctx->stage_id, progress_sbatch);
+      PRT_PROGRESS_RAW_LINE("[prt-raw] wrk-gb");
       rc = prt_gemm_conv_run(rt, &task, timeout_ns);
-      PRT_MARKER_LOG("worker stage=%u subbatch=%u gemm-exit rc=%d",
-                     ctx->stage_id, progress_sbatch, rc);
+      PRT_PROGRESS_RAW_LINE("[prt-raw] wrk-ge");
+      PRT_MARKER_LOG("wrk-exit s=%u sb=%u rc=%d", ctx->stage_id, progress_sbatch, rc);
       PRT_PROGRESS_HOT_ERR_LOG("worker stage=%u subbatch=%u gemm-run-exit rc=%d", ctx->stage_id, progress_sbatch, rc);
       if (rc != PRT_OK) {
         uint64_t gemm_end_ns = prt_now_ns();
         if (gemm_end_ns > gemm_begin_ns) prt_trace_on_gemm_busy(rt, gemm_end_ns - gemm_begin_ns);
+        prt_log_gate_clear_context();
         rt->fatal_error = rc;
         break;
       }
@@ -3250,6 +3783,7 @@ static void *stage_worker_main(void *arg) {
         if (rc != PRT_OK) {
           uint64_t gemm_end_ns = prt_now_ns();
           if (gemm_end_ns > gemm_begin_ns) prt_trace_on_gemm_busy(rt, gemm_end_ns - gemm_begin_ns);
+          prt_log_gate_clear_context();
           rt->fatal_error = rc;
           break;
         }
@@ -3264,6 +3798,7 @@ static void *stage_worker_main(void *arg) {
           if (gemm_end_ns > gemm_begin_ns) prt_trace_on_gemm_busy(rt, gemm_end_ns - gemm_begin_ns);
         }
         if (rc != PRT_OK) {
+          prt_log_gate_clear_context();
           rt->fatal_error = rc;
           break;
         }
@@ -3273,13 +3808,17 @@ static void *stage_worker_main(void *arg) {
         if (gemm_end_ns > gemm_begin_ns) prt_trace_on_gemm_busy(rt, gemm_end_ns - gemm_begin_ns);
       }
       PRT_MARKER_LOG("worker stage=%u subbatch=%u export-sync-enter", ctx->stage_id, progress_sbatch);
-      rc = sync_stage_export_aliases(rt, ctx->stage_id);
+      PRT_PROGRESS_RAW_LINE("[prt-raw] exs-b");
+      rc = sync_stage_export_aliases(rt, segment_idx, ctx->stage_id, global_stage_id, progress_sbatch);
+      PRT_PROGRESS_RAW_LINE("[prt-raw] exs-e");
       PRT_MARKER_LOG("worker stage=%u subbatch=%u export-sync-exit rc=%d",
                      ctx->stage_id, progress_sbatch, rc);
+      prt_log_gate_clear_context();
       if (rc != PRT_OK) {
         rt->fatal_error = rc;
         break;
       }
+      PRT_MARKER_LOG("wrk-postcmp s=%u sb=%u", ctx->stage_id, progress_sbatch);
       PRT_PROGRESS_LOG("worker stage=%u subbatch=%u compute-done", ctx->stage_id, progress_sbatch);
       last_wait_log_ms = 0;
     }
@@ -3288,6 +3827,8 @@ static void *stage_worker_main(void *arg) {
     for (uint32_t i = 0; i < entry_count; ++i) {
       prt_pipebuf_t *b = entry_bufs[i];
       uint32_t idx = b->in_use_idx;
+      PRT_MARKER_LOG("wrk-p1-b s=%u sb=%u i=%u k=%u idx=%u",
+                     ctx->stage_id, progress_sbatch, i, (uint32_t)b->kind, idx);
       pthread_mutex_lock(&b->lock);
       b->full[idx] = 0;
       b->state_epoch += 1;
@@ -3306,12 +3847,16 @@ static void *stage_worker_main(void *arg) {
           b->kind == PRT_BUF_C5_ENTRY_ISOLATE_WITH_RING) {
         rotate_buf_if_needed(b);
       }
+      PRT_MARKER_LOG("wrk-p1-e s=%u sb=%u i=%u rc=%d",
+                     ctx->stage_id, progress_sbatch, i, rc);
     }
     if (rt->fatal_error || rt->stop_requested) break;
 
     for (uint32_t i = 0; i < export_count; ++i) {
       prt_pipebuf_t *b = export_bufs[i];
       uint32_t idx = b->in_use_idx;
+      PRT_MARKER_LOG("wrk-p2-b s=%u sb=%u i=%u k=%u idx=%u",
+                     ctx->stage_id, progress_sbatch, i, (uint32_t)b->kind, idx);
       pthread_mutex_lock(&b->lock);
       b->full[idx] = 1;
       if (b->kind == PRT_BUF_C3_ISOLATE_NO_RING_PAIR && b->fanout_total > 0) {
@@ -3365,8 +3910,11 @@ static void *stage_worker_main(void *arg) {
         rt->fatal_error = rc;
         break;
       }
+      PRT_MARKER_LOG("wrk-p2-e s=%u sb=%u i=%u rc=%d retry=%u",
+                     ctx->stage_id, progress_sbatch, i, rc, retry);
     }
     if (!retry && !rt->fatal_error && !rt->stop_requested) {
+      PRT_MARKER_LOG("wrk-done s=%u sb=%u", ctx->stage_id, progress_sbatch);
       PRT_PROGRESS_LOG("worker stage=%u subbatch=%u done", ctx->stage_id, progress_sbatch);
       last_wait_log_ms = 0;
     }
@@ -3375,11 +3923,13 @@ static void *stage_worker_main(void *arg) {
 
   PRT_PROGRESS_LOG("worker stage=%u exit stop=%d fatal=%d requested=%d",
                    ctx->stage_id, ctx->stop, rt->fatal_error, rt->stop_requested);
+  prt_log_gate_clear_context();
   prt_runtime_clear_thread_action(rt);
   return NULL;
 }
 
 int prt_runtime_init(const prt_runtime_cfg_t *cfg, prt_runtime_t *rt) {
+  prt_log_gate_cfg_t deep_log_cfg;
   if (!cfg || !rt) return PRT_ERR_INVAL;
   memset(rt, 0, sizeof(*rt));
   rt->cfg = *cfg;
@@ -3424,6 +3974,15 @@ int prt_runtime_init(const prt_runtime_cfg_t *cfg, prt_runtime_t *rt) {
     rt->cfg.gemmini_mode = PRT_GEMMINI_MODE_BLOCKING_FENCE;
   }
 
+  deep_log_cfg.enabled = rt->cfg.deep_log_gate_enable ? 1U : 0U;
+  deep_log_cfg.segment_idx = rt->cfg.deep_log_segment;
+  deep_log_cfg.global_stage_id = rt->cfg.deep_log_global_stage;
+  deep_log_cfg.local_stage_id = rt->cfg.deep_log_local_stage;
+  deep_log_cfg.subbatch_id = rt->cfg.deep_log_subbatch;
+  deep_log_cfg.stage_radius = rt->cfg.deep_log_stage_radius;
+  deep_log_cfg.subbatch_radius = rt->cfg.deep_log_subbatch_radius;
+  prt_log_gate_init(&deep_log_cfg);
+
   PRT_PROGRESS_LOG("init begin backend=%u cores=%u gemmini=%u dma=%u pages_per_acc=%u page_bytes=%u spm_xlate=%u range_base=0x%llx range_size=%llu",
                    (uint32_t)rt->cfg.backend,
                    rt->cfg.num_cores,
@@ -3434,6 +3993,14 @@ int prt_runtime_init(const prt_runtime_cfg_t *cfg, prt_runtime_t *rt) {
                    rt->cfg.spm_xlate_enable,
                    (unsigned long long)rt->cfg.spm_xlate_range_base,
                    (unsigned long long)rt->cfg.spm_xlate_range_size);
+  PRT_PROGRESS_LOG("init deep-log-gate enabled=%u segment=%u global_stage=%u local_stage=%u subbatch=%u stage_radius=%u subbatch_radius=%u",
+                   deep_log_cfg.enabled,
+                   deep_log_cfg.segment_idx,
+                   deep_log_cfg.global_stage_id,
+                   deep_log_cfg.local_stage_id,
+                   deep_log_cfg.subbatch_id,
+                   deep_log_cfg.stage_radius,
+                   deep_log_cfg.subbatch_radius);
 
   pthread_mutex_init(&rt->state_lock, NULL);
   pthread_cond_init(&rt->state_cv, NULL);
@@ -3622,8 +4189,9 @@ int prt_runtime_run(prt_runtime_t *rt, const prt_run_args_t *args) {
   prt_trace_run_start(rt);
   rt->stop_requested = 0;
   rt->fatal_error = 0;
-  PRT_MARKER_LOG("runtime begin backend=%u batch=%u watchdog_ms=%u",
-                 (uint32_t)rt->cfg.backend, args->batch, rt->cfg.watchdog_timeout_ms);
+  PRT_MARKER_LOG("runtime begin backend=%u batch=%u watchdog_ms=%u export_dma_timeout_ms=%u",
+                 (uint32_t)rt->cfg.backend, args->batch, rt->cfg.watchdog_timeout_ms,
+                 rt->cfg.export_dma_timeout_ms);
   PRT_PROGRESS_LOG("runtime begin backend=%u batch=%u watchdog_ms=%u model_yaml=%s pipeline_yaml=%s layer_mapping_yaml=%s",
                    (uint32_t)rt->cfg.backend, args->batch, rt->cfg.watchdog_timeout_ms,
                    args->model_yaml ? args->model_yaml : "(null)",

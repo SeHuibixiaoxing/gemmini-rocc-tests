@@ -1,0 +1,6 @@
+{
+  "name" : "rerocc-lc-linux-coupleddma-bootquiet",
+  "base" : "br-base.json",
+  "workdir" : ".",
+  "linux-config" : "linux_init_firemarshal_quiet.kfrag"
+}

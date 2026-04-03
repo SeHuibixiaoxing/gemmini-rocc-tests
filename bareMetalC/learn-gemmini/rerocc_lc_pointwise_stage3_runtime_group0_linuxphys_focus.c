@@ -1,0 +1,43 @@
+#define REROCC_FOCUSED_POINTWISE_GROUPED_ALIAS 1
+#define REROCC_FOCUSED_POINTWISE_GROUPED_NAME "pointwise_stage3_group0_runtime_linuxphys_focus"
+#define REROCC_FOCUSED_POINTWISE_GROUPED_TARGET "linux-seg3-stage0-group0-chunked-pointwise"
+#define REROCC_XLATE_PROGRAM_SUBPHASE_LOG 1
+#define REROCC_SHARED_SPAD_XLATE_RANGE_BASE 0x3faf751000ULL
+#define REROCC_FOCUSED_POINTWISE_CONTIGUOUS_LAYOUT 1
+#define ALIAS_REGION_MAX_PAGES 640U
+
+#define PW_GROUP_COUNT 1U
+#define PW_I 256
+#define PW_J 256
+#define PW_K 32
+#define PW_CHUNK_TILE_J 256
+#define PW_CHUNK_OC 64
+#define PW_A_STRIDE 256
+#define PW_B_STRIDE 256
+#define PW_C_STRIDE 2048
+
+#define PW_VADDR_PAGE_OFFSET 0ULL
+#define PW_BIAS_VPAGE 0U
+#define PW_B_VPAGE 8U
+#define PW_A_VPAGE 72U
+#define PW_C_VPAGE 136U
+
+// Mirror the current Linux/F2 seg3/stage0 group0 runtime layout while keeping
+// the full output stride. This keeps the chunk0 -> drain -> chunk64 sequence on
+// the same fast path without paying for the later groups.
+#define PW_FOCUSED_STAGE0_A_LOCAL_PAGE 72U
+#define PW_FOCUSED_STAGE0_B_LOCAL_PAGE 8U
+#define PW_FOCUSED_STAGE0_BIAS_LOCAL_PAGE 0U
+#define PW_FOCUSED_STAGE0_C_LOCAL_PAGE 136U
+
+#define PW_FOCUSED_STAGE0_A_LOCAL_TILE REROCC_TEST_LOCAL_GEMMINI_ID
+#define PW_FOCUSED_STAGE0_B_LOCAL_TILE REROCC_TEST_LOCAL_GEMMINI_ID
+#define PW_FOCUSED_STAGE0_BIAS_LOCAL_TILE REROCC_TEST_LOCAL_GEMMINI_ID
+#define PW_FOCUSED_STAGE0_C_LOCAL_TILE REROCC_TEST_LOCAL_GEMMINI_ID
+
+#define PW_FOCUSED_STAGE0_A_SLOT_OFFSET 0U
+#define PW_FOCUSED_STAGE0_B_SLOT_OFFSET 0U
+#define PW_FOCUSED_STAGE0_BIAS_SLOT_OFFSET 0U
+#define PW_FOCUSED_STAGE0_C_SLOT_OFFSET 0U
+
+#include "rerocc_lc_resadd_explicit_interleaved.c"

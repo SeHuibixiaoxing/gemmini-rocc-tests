@@ -106,12 +106,36 @@ verify_pipeline_runtime_binary() {
     echo "pipeline runtime binary still contains stale merged runtime biascfg markers: ${bin}" >&2
     exit 1
   fi
+  if ! LC_ALL=C grep -aFq "main build-config crit_probe=" "${bin}"; then
+    echo "pipeline runtime binary missing runtime build-config fingerprint: ${bin}" >&2
+    exit 1
+  fi
+  if ! LC_ALL=C grep -aFq "conv-sync-strided acquire-snapshot" "${bin}"; then
+    echo "pipeline runtime binary missing runtime RR acquire snapshot tag: ${bin}" >&2
+    exit 1
+  fi
+  if ! LC_ALL=C grep -aFq "matmul-os-biascfg-post-ld-snapshot" "${bin}"; then
+    echo "pipeline runtime binary missing Gemmini biascfg snapshot tag: ${bin}" >&2
+    exit 1
+  fi
+  if ! LC_ALL=C grep -aFq "matmul-os-bias-mvin3-debug-pre-issue" "${bin}"; then
+    echo "pipeline runtime binary missing Gemmini bias mvin3 snapshot tag: ${bin}" >&2
+    exit 1
+  fi
   if ! LC_ALL=C grep -aFq "[prt-raw] pointwise-inner-pre-matmul-call" "${bin}"; then
     echo "pipeline runtime binary missing deep pointwise raw marker: ${bin}" >&2
     exit 1
   fi
   if ! LC_ALL=C grep -aFq "[prt-raw] conv-sync-pointwise-subcall-enter" "${bin}"; then
     echo "pipeline runtime binary missing conv-sync pointwise subcall marker: ${bin}" >&2
+    exit 1
+  fi
+  if ! LC_ALL=C grep -aFq "[prt-crit]" "${bin}"; then
+    echo "pipeline runtime binary missing runtime critical probe strings: ${bin}" >&2
+    exit 1
+  fi
+  if ! LC_ALL=C grep -aFq "[gcrit]" "${bin}"; then
+    echo "pipeline runtime binary missing Gemmini critical probe strings: ${bin}" >&2
     exit 1
   fi
   if [ "${PIPELINE_RUNTIME_PROGRESS}" != "0" ]; then

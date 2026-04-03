@@ -23,6 +23,8 @@ PIPELINE_RUNTIME_PROGRESS_RAW="${PIPELINE_RUNTIME_PROGRESS_RAW:-0}"
 PIPELINE_RUNTIME_PROGRESS_HOT="${PIPELINE_RUNTIME_PROGRESS_HOT:-${PIPELINE_RUNTIME_PROGRESS_RAW}}"
 PIPELINE_RUNTIME_GEMMINI_PHASE="${PIPELINE_RUNTIME_GEMMINI_PHASE:-0}"
 PIPELINE_RUNTIME_ONLY_MARKER="${PIPELINE_RUNTIME_ONLY_MARKER:-1}"
+PIPELINE_RUNTIME_CRITICAL_UART_PROBE="${PIPELINE_RUNTIME_CRITICAL_UART_PROBE:-1}"
+PIPELINE_RUNTIME_CRITICAL_UART_PAD_BURST="${PIPELINE_RUNTIME_CRITICAL_UART_PAD_BURST:-0}"
 PIPELINE_RUNTIME_PROGRESS_PAD_BURST="${PIPELINE_RUNTIME_PROGRESS_PAD_BURST:-0}"
 BUILD_DIR="${GEMMINI_ROCC_TESTS_DIR}/build"
 REROCC_LINUX_BUILD_DIR="${BUILD_DIR}/rerocc-linux-tests"
@@ -93,7 +95,10 @@ check_built_linux_binaries() {
   require_file "${OVERLAY_COUPLEDDMA_DIR}/rerocc_lc_matrix_linux_coupleddma_verify-linux"
   require_file "${OVERLAY_COUPLEDDMA_DIR}/rerocc_lc_coverage_linux_coupleddma-linux"
   require_file "${OVERLAY_COUPLEDDMA_DIR}/rerocc_lc_nonblocking_linux_coupleddma-linux"
+  require_file "${OVERLAY_COUPLEDDMA_DIR}/rerocc_dma_export_alias_uartprobe-linux"
+  require_file "${OVERLAY_COUPLEDDMA_DIR}/uartprobe_exec_stub-linux"
   require_file "${REROCC_TESTS_DIR}/workload/run_rerocc_lc_linux_regression.sh"
+  require_file "${OVERLAY_COUPLEDDMA_DIR}/run_rerocc_dma_export_alias_uartprobe.sh"
   if pipeline_runtime_enabled; then
     require_file "${GEMMINI_ROCC_TESTS_DIR}/build/rerocc-linux-tests/rerocc_pipeline_runtime-linux"
   fi
@@ -116,27 +121,48 @@ generate_layer_mapping_cache() {
 verify_pipeline_runtime_binary() {
   local bin="$1"
   require_file "${bin}"
-  if ! LC_ALL=C grep -aFq "matmul-os-biascfg-ld-shape" "${bin}"; then
-    echo "pipeline runtime binary missing current split biascfg markers: ${bin}" >&2
-    exit 1
-  fi
-  if LC_ALL=C grep -aFq "matmul-os-biascfg-ld-params" "${bin}"; then
-    echo "pipeline runtime binary still contains stale merged biascfg markers: ${bin}" >&2
-    exit 1
-  fi
-  if LC_ALL=C grep -aFq "matmul-os-biascfg-state" "${bin}"; then
-    echo "pipeline runtime binary still contains stale merged runtime biascfg markers: ${bin}" >&2
-    exit 1
-  fi
   if [ "${PIPELINE_RUNTIME_PROGRESS}" != "0" ]; then
     if ! LC_ALL=C grep -aFq "[prt-early] enter main" "${bin}"; then
       echo "pipeline runtime binary missing expected early-init progress string: ${bin}" >&2
       exit 1
     fi
   fi
+  if [ "${PIPELINE_RUNTIME_PROGRESS_RAW}" != "0" ]; then
+    if ! LC_ALL=C grep -aFq "[prt-raw] gg-sc-b" "${bin}"; then
+      echo "pipeline runtime binary missing grouped-conv raw boundary marker: ${bin}" >&2
+      exit 1
+    fi
+    if ! LC_ALL=C grep -aFq "[prt-raw] gis-b" "${bin}"; then
+      echo "pipeline runtime binary missing grouped single-dispatch raw marker: ${bin}" >&2
+      exit 1
+    fi
+    if ! LC_ALL=C grep -aFq "[prt-raw] cnb-b" "${bin}"; then
+      echo "pipeline runtime binary missing conv-nb acquire raw marker: ${bin}" >&2
+      exit 1
+    fi
+  fi
   if [ "${PIPELINE_RUNTIME_ONLY_MARKER}" != "0" ]; then
     if ! LC_ALL=C grep -aFq "[prt-marker]" "${bin}"; then
       echo "pipeline runtime binary missing expected marker strings: ${bin}" >&2
+      exit 1
+    fi
+  fi
+  if [ "${PIPELINE_RUNTIME_CRITICAL_UART_PROBE}" != "0" ]; then
+    if ! LC_ALL=C grep -aFq "main build-config crit_probe=" "${bin}"; then
+      echo "pipeline runtime binary missing runtime build-config fingerprint: ${bin}" >&2
+      exit 1
+    fi
+    if ! LC_ALL=C grep -aFq "[prt-crit]" "${bin}"; then
+      echo "pipeline runtime binary missing runtime critical probe strings: ${bin}" >&2
+      exit 1
+    fi
+    if ! LC_ALL=C grep -aFq "conv-sync-strided acquire-snapshot" "${bin}"; then
+      echo "pipeline runtime binary missing runtime RR acquire snapshot tag: ${bin}" >&2
+      exit 1
+    fi
+  else
+    if LC_ALL=C grep -aFq "[prt-crit]" "${bin}"; then
+      echo "pipeline runtime binary still contains critical probe strings with PIPELINE_RUNTIME_CRITICAL_UART_PROBE=0: ${bin}" >&2
       exit 1
     fi
   fi
@@ -151,6 +177,17 @@ verify_pipeline_runtime_binary() {
       exit 1
     fi
   fi
+  if [ "${PIPELINE_RUNTIME_CRITICAL_UART_PROBE}" != "0" ]; then
+    if ! LC_ALL=C grep -aFq "[gcrit]" "${bin}"; then
+      echo "pipeline runtime binary missing Gemmini critical probe strings: ${bin}" >&2
+      exit 1
+    fi
+  else
+    if LC_ALL=C grep -aFq "[gcrit]" "${bin}"; then
+      echo "pipeline runtime binary still contains Gemmini critical probe strings with PIPELINE_RUNTIME_CRITICAL_UART_PROBE=0: ${bin}" >&2
+      exit 1
+    fi
+  fi
 }
 
 build_linux_binaries() {
@@ -161,7 +198,7 @@ build_linux_binaries() {
     exit 1
   fi
 
-  echo "Building rerocc-linux-tests binaries for coupled DMA + pipeline runtime with ${linux_cc} (PIPELINE_RUNTIME_PROGRESS=${PIPELINE_RUNTIME_PROGRESS}, PIPELINE_RUNTIME_PROGRESS_RAW=${PIPELINE_RUNTIME_PROGRESS_RAW}, PIPELINE_RUNTIME_PROGRESS_HOT=${PIPELINE_RUNTIME_PROGRESS_HOT}, PIPELINE_RUNTIME_GEMMINI_PHASE=${PIPELINE_RUNTIME_GEMMINI_PHASE}, PIPELINE_RUNTIME_ONLY_MARKER=${PIPELINE_RUNTIME_ONLY_MARKER}, PIPELINE_RUNTIME_PROGRESS_PAD_BURST=${PIPELINE_RUNTIME_PROGRESS_PAD_BURST})"
+  echo "Building rerocc-linux-tests binaries for coupled DMA + pipeline runtime with ${linux_cc} (PIPELINE_RUNTIME_PROGRESS=${PIPELINE_RUNTIME_PROGRESS}, PIPELINE_RUNTIME_PROGRESS_RAW=${PIPELINE_RUNTIME_PROGRESS_RAW}, PIPELINE_RUNTIME_PROGRESS_HOT=${PIPELINE_RUNTIME_PROGRESS_HOT}, PIPELINE_RUNTIME_GEMMINI_PHASE=${PIPELINE_RUNTIME_GEMMINI_PHASE}, PIPELINE_RUNTIME_ONLY_MARKER=${PIPELINE_RUNTIME_ONLY_MARKER}, PIPELINE_RUNTIME_CRITICAL_UART_PROBE=${PIPELINE_RUNTIME_CRITICAL_UART_PROBE}, PIPELINE_RUNTIME_CRITICAL_UART_PAD_BURST=${PIPELINE_RUNTIME_CRITICAL_UART_PAD_BURST}, PIPELINE_RUNTIME_PROGRESS_PAD_BURST=${PIPELINE_RUNTIME_PROGRESS_PAD_BURST})"
   pushd "${GEMMINI_ROCC_TESTS_DIR}" >/dev/null
   autoconf
   mkdir -p "${BUILD_DIR}"
@@ -175,6 +212,8 @@ build_linux_binaries() {
     PIPELINE_RUNTIME_PROGRESS_HOT="${PIPELINE_RUNTIME_PROGRESS_HOT}" \
     PIPELINE_RUNTIME_GEMMINI_PHASE="${PIPELINE_RUNTIME_GEMMINI_PHASE}" \
     PIPELINE_RUNTIME_ONLY_MARKER="${PIPELINE_RUNTIME_ONLY_MARKER}" \
+    PIPELINE_RUNTIME_CRITICAL_UART_PROBE="${PIPELINE_RUNTIME_CRITICAL_UART_PROBE}" \
+    PIPELINE_RUNTIME_CRITICAL_UART_PAD_BURST="${PIPELINE_RUNTIME_CRITICAL_UART_PAD_BURST}" \
     PIPELINE_RUNTIME_PROGRESS_PAD_BURST="${PIPELINE_RUNTIME_PROGRESS_PAD_BURST}" \
     -j rerocc-linux-tests
   popd >/dev/null
@@ -267,11 +306,48 @@ build_linux_binaries() {
     "${REROCC_TESTS_DIR}/rerocc_lc_nonblocking_linux_coupleddma.c" \
     -o "${OVERLAY_COUPLEDDMA_DIR}/rerocc_lc_nonblocking_linux_coupleddma-linux"
 
+  "${linux_cc}" \
+    -mcmodel=medany \
+    -std=gnu99 \
+    -O2 \
+    -march=rv64gc -Wa,-march=rv64gc \
+    -ffast-math \
+    -fno-common \
+    -fno-tree-loop-distribute-patterns \
+    -I"${GEMMINI_ROCC_TESTS_DIR}" \
+    -I"${GEMMINI_ROCC_TESTS_DIR}/riscv-tests" \
+    -I"${GEMMINI_ROCC_TESTS_DIR}/riscv-tests/env" \
+    -I"${GEMMINI_ROCC_TESTS_DIR}/riscv-tests-benchmarks-common" \
+    -I"${GEMMINI_ROCC_TESTS_DIR}/rerocc-linux-tests" \
+    -I"${REROCC_TESTS_DIR}" \
+    "${REROCC_TESTS_DIR}/rerocc_dma_export_alias_uartprobe_linux.c" \
+    -o "${OVERLAY_COUPLEDDMA_DIR}/rerocc_dma_export_alias_uartprobe-linux"
+
+  "${linux_cc}" \
+    -mcmodel=medany \
+    -std=gnu99 \
+    -O2 \
+    -march=rv64gc -Wa,-march=rv64gc \
+    -ffast-math \
+    -fno-common \
+    -fno-tree-loop-distribute-patterns \
+    -I"${GEMMINI_ROCC_TESTS_DIR}" \
+    -I"${GEMMINI_ROCC_TESTS_DIR}/riscv-tests" \
+    -I"${GEMMINI_ROCC_TESTS_DIR}/riscv-tests/env" \
+    -I"${GEMMINI_ROCC_TESTS_DIR}/riscv-tests-benchmarks-common" \
+    -I"${GEMMINI_ROCC_TESTS_DIR}/rerocc-linux-tests" \
+    -I"${REROCC_TESTS_DIR}" \
+    "${REROCC_TESTS_DIR}/uartprobe_exec_stub_linux.c" \
+    -o "${OVERLAY_COUPLEDDMA_DIR}/uartprobe_exec_stub-linux"
+
   chmod +x "${OVERLAY_COUPLEDDMA_DIR}/rerocc_dma_matrix_coupleddma-linux"
   chmod +x "${OVERLAY_COUPLEDDMA_DIR}/rerocc_lc_gemmini_matrix_linux_coupleddma-linux"
   chmod +x "${OVERLAY_COUPLEDDMA_DIR}/rerocc_lc_matrix_linux_coupleddma_verify-linux"
   chmod +x "${OVERLAY_COUPLEDDMA_DIR}/rerocc_lc_coverage_linux_coupleddma-linux"
   chmod +x "${OVERLAY_COUPLEDDMA_DIR}/rerocc_lc_nonblocking_linux_coupleddma-linux"
+  chmod +x "${OVERLAY_COUPLEDDMA_DIR}/rerocc_dma_export_alias_uartprobe-linux"
+  chmod +x "${OVERLAY_COUPLEDDMA_DIR}/uartprobe_exec_stub-linux"
+  chmod +x "${OVERLAY_COUPLEDDMA_DIR}/run_rerocc_dma_export_alias_uartprobe.sh"
   popd >/dev/null
 }
 
@@ -293,6 +369,8 @@ rebuild_pipeline_runtime_binary() {
     PIPELINE_RUNTIME_PROGRESS_HOT="${PIPELINE_RUNTIME_PROGRESS_HOT}" \
     PIPELINE_RUNTIME_GEMMINI_PHASE="${PIPELINE_RUNTIME_GEMMINI_PHASE}" \
     PIPELINE_RUNTIME_ONLY_MARKER="${PIPELINE_RUNTIME_ONLY_MARKER}" \
+    PIPELINE_RUNTIME_CRITICAL_UART_PROBE="${PIPELINE_RUNTIME_CRITICAL_UART_PROBE}" \
+    PIPELINE_RUNTIME_CRITICAL_UART_PAD_BURST="${PIPELINE_RUNTIME_CRITICAL_UART_PAD_BURST}" \
     PIPELINE_RUNTIME_PROGRESS_PAD_BURST="${PIPELINE_RUNTIME_PROGRESS_PAD_BURST}" \
     rerocc_pipeline_runtime-linux
 }
@@ -316,6 +394,8 @@ stage_coupleddma_overlay() {
   chmod +x "${OVERLAY_COUPLEDDMA_DIR}/rerocc_lc_matrix_linux_coupleddma_verify-linux"
   chmod +x "${OVERLAY_COUPLEDDMA_DIR}/rerocc_lc_coverage_linux_coupleddma-linux"
   chmod +x "${OVERLAY_COUPLEDDMA_DIR}/rerocc_lc_nonblocking_linux_coupleddma-linux"
+  chmod +x "${OVERLAY_COUPLEDDMA_DIR}/rerocc_dma_export_alias_uartprobe-linux"
+  chmod +x "${OVERLAY_COUPLEDDMA_DIR}/run_rerocc_dma_export_alias_uartprobe.sh"
   chmod +x "${OVERLAY_COUPLEDDMA_DIR}/run_rerocc_lc_linux_regression.sh"
 }
 

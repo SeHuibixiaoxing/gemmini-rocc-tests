@@ -54,8 +54,20 @@
 #define REROCC_FOCUSED_POINTWISE_OS_INNER_ALIAS 0
 #endif
 
+#ifndef REROCC_FOCUSED_POINTWISE_EXPLICIT_TILES_ALIAS
+#define REROCC_FOCUSED_POINTWISE_EXPLICIT_TILES_ALIAS 0
+#endif
+
+#ifndef REROCC_FOCUSED_POINTWISE_GROUPED_ALIAS
+#define REROCC_FOCUSED_POINTWISE_GROUPED_ALIAS 0
+#endif
+
 #ifndef REROCC_ACQUIRE_MAX_RETRIES
 #define REROCC_ACQUIRE_MAX_RETRIES 1000000UL
+#endif
+
+#ifndef REROCC_XLATE_PROGRAM_SUBPHASE_LOG
+#define REROCC_XLATE_PROGRAM_SUBPHASE_LOG 0
 #endif
 
 #ifndef RR_MAX_CFGS
@@ -94,7 +106,9 @@ static inline uint32_t rr_cfg_id_for_stage_opcode(uint32_t stage_id, uint32_t op
 #define RESADD_STRIDE RESADD_J
 #define RESADD_ELEM_COUNT ((size_t)RESADD_I * (size_t)RESADD_STRIDE)
 #define RESADD_BYTES (RESADD_ELEM_COUNT * sizeof(elem_t))
+#ifndef ALIAS_REGION_MAX_PAGES
 #define ALIAS_REGION_MAX_PAGES 128U
+#endif
 #define RESADD_VADDR_PAGE_OFFSET 768ULL
 #define CLEAN_ACC_ROW_OFFSET 256U
 
@@ -112,22 +126,57 @@ static inline uint32_t rr_cfg_id_for_stage_opcode(uint32_t stage_id, uint32_t op
 #define INTERLEAVED_B_LOCAL_PAGE 104U
 #define INTERLEAVED_C_LOCAL_PAGE 112U
 
+#ifndef PW_I
 #define PW_I 256
+#endif
+#ifndef PW_J
 #define PW_J 64
+#endif
+#ifndef PW_K
 #define PW_K 256
+#endif
+#ifndef PW_CHUNK_TILE_J
 #define PW_CHUNK_TILE_J 128
+#endif
+#ifndef PW_CHUNK_OC
 #define PW_CHUNK_OC 64
+#endif
+#ifndef PW_FOCUS_OC_BEG
 #define PW_FOCUS_OC_BEG 0
+#endif
+#ifndef PW_FOCUS_OC_TILE
 #define PW_FOCUS_OC_TILE PW_CHUNK_OC
+#endif
+#ifndef PW_A_STRIDE
 #define PW_A_STRIDE 256
+#endif
+#ifndef PW_B_STRIDE
 #define PW_B_STRIDE 256
+#endif
+#ifndef PW_C_STRIDE
 #define PW_C_STRIDE 256
+#endif
+#ifndef PW_DIAG_I
 #define PW_DIAG_I 8
+#endif
+#ifndef PW_DIAG_J
 #define PW_DIAG_J PW_CHUNK_TILE_J
+#endif
+#ifndef PW_DIAG_K
 #define PW_DIAG_K 8
+#endif
+#ifndef PW_LINUX_TILE_I
 #define PW_LINUX_TILE_I 32
+#endif
+#ifndef PW_LINUX_TILE_J
 #define PW_LINUX_TILE_J 8
+#endif
+#ifndef PW_LINUX_TILE_K
 #define PW_LINUX_TILE_K 32
+#endif
+#ifndef PW_GROUP_COUNT
+#define PW_GROUP_COUNT 8U
+#endif
 #define PW_LINUX_TILE_BLOCKS 2U
 #define PW_LINUX_TILE_COLS (PW_LINUX_TILE_BLOCKS * DIM)
 #define PW_LINUX_TILE_ROWS DIM
@@ -135,6 +184,8 @@ static inline uint32_t rr_cfg_id_for_stage_opcode(uint32_t stage_id, uint32_t op
 #define PW_OS_SAFE_TILE_I 16U
 #define PW_OS_SAFE_TILE_J MAX_BLOCK_LEN
 #define PW_OS_SAFE_TILE_K (PW_K / DIM)
+#define PW_GROUP_TOTAL_K ((size_t)PW_GROUP_COUNT * (size_t)PW_K)
+#define PW_GROUP_TOTAL_OC ((size_t)PW_GROUP_COUNT * (size_t)PW_J)
 #define PW_ELEM_COUNT_A ((size_t)PW_I * (size_t)PW_A_STRIDE)
 #define PW_ELEM_COUNT_B ((size_t)PW_K * (size_t)PW_B_STRIDE)
 #define PW_ELEM_COUNT_C ((size_t)PW_I * (size_t)PW_C_STRIDE)
@@ -142,6 +193,8 @@ static inline uint32_t rr_cfg_id_for_stage_opcode(uint32_t stage_id, uint32_t op
 #define PW_BYTES_B (PW_ELEM_COUNT_B * sizeof(elem_t))
 #define PW_BYTES_C (PW_ELEM_COUNT_C * sizeof(elem_t))
 #define PW_BYTES_BIAS ((size_t)PW_J * sizeof(acc_t))
+#define PW_GROUP_BYTES_B (PW_GROUP_TOTAL_K * (size_t)PW_B_STRIDE * sizeof(elem_t))
+#define PW_GROUP_BYTES_BIAS (PW_GROUP_TOTAL_OC * sizeof(acc_t))
 #define PW_CHUNK_BYTES_BIAS ((size_t)PW_CHUNK_TILE_J * sizeof(acc_t))
 #define PW_DIAG_BYTES_A ((size_t)PW_DIAG_I * (size_t)PW_A_STRIDE * sizeof(elem_t))
 #define PW_DIAG_BYTES_B ((size_t)PW_DIAG_K * (size_t)PW_B_STRIDE * sizeof(elem_t))
@@ -229,6 +282,30 @@ static inline uint32_t rr_cfg_id_for_stage_opcode(uint32_t stage_id, uint32_t op
 #define PW_FOCUSED_STAGE0_C_SLOT_OFFSET 3U
 #endif
 
+#ifndef REROCC_FOCUSED_POINTWISE_CONTIGUOUS_LAYOUT
+#define REROCC_FOCUSED_POINTWISE_CONTIGUOUS_LAYOUT 0
+#endif
+
+#ifndef PW_FOCUSED_STAGE0_A_LOCAL_TILE
+#define PW_FOCUSED_STAGE0_A_LOCAL_TILE REROCC_TEST_LOCAL_GEMMINI_ID
+#endif
+#ifndef PW_FOCUSED_STAGE0_B_LOCAL_TILE
+#define PW_FOCUSED_STAGE0_B_LOCAL_TILE REROCC_TEST_LOCAL_GEMMINI_ID
+#endif
+#ifndef PW_FOCUSED_STAGE0_BIAS_LOCAL_TILE
+#define PW_FOCUSED_STAGE0_BIAS_LOCAL_TILE REROCC_TEST_LOCAL_GEMMINI_ID
+#endif
+#ifndef PW_FOCUSED_STAGE0_C_LOCAL_TILE
+#define PW_FOCUSED_STAGE0_C_LOCAL_TILE REROCC_TEST_LOCAL_GEMMINI_ID
+#endif
+
+#ifndef REROCC_FOCUSED_POINTWISE_TARGET
+#define REROCC_FOCUSED_POINTWISE_TARGET "linux-seg0-stage0-pointwise"
+#endif
+#ifndef REROCC_FOCUSED_POINTWISE_EXPLICIT_TARGET
+#define REROCC_FOCUSED_POINTWISE_EXPLICIT_TARGET "linux-seg0-stage0-pointwise-explicit-tiles"
+#endif
+
 #define PW_DIAG_A_VPAGE 0x180U
 #define PW_DIAG_B_VPAGE 0x188U
 #define PW_DIAG_BIAS_VPAGE 0x190U
@@ -263,12 +340,15 @@ static elem_t resadd_gold_dram[RESADD_I][RESADD_STRIDE] __attribute__((aligned(6
 static elem_t resadd_out_shadow_dram[RESADD_I][RESADD_STRIDE] __attribute__((aligned(64)));
 static elem_t pw_a_dram[PW_I][PW_A_STRIDE] __attribute__((aligned(64)));
 static elem_t pw_b_dram[PW_K][PW_B_STRIDE] __attribute__((aligned(64)));
+static elem_t pw_group_b_dram[PW_GROUP_COUNT * PW_K][PW_B_STRIDE] __attribute__((aligned(64)));
 static acc_t pw_bias_dram[PW_J] __attribute__((aligned(64)));
 static acc_t pw_chunk_bias_dram[PW_CHUNK_TILE_J] __attribute__((aligned(64)));
+static acc_t pw_group_bias_dram[PW_GROUP_COUNT * PW_J] __attribute__((aligned(64)));
 static elem_t pw_init_c_dram[PW_I][PW_C_STRIDE] __attribute__((aligned(64)));
 static elem_t pw_gold_dram[PW_I][PW_C_STRIDE] __attribute__((aligned(64)));
 static elem_t pw_j128_gold_dram[PW_I][PW_C_STRIDE] __attribute__((aligned(64)));
 static elem_t pw_chunk_gold_dram[PW_I][PW_C_STRIDE] __attribute__((aligned(64)));
+static elem_t pw_group_gold_dram[PW_I][PW_C_STRIDE] __attribute__((aligned(64)));
 static elem_t pw_diag_a_dram[PW_DIAG_I][PW_A_STRIDE] __attribute__((aligned(64)));
 static elem_t pw_diag_b_dram[PW_DIAG_K][PW_B_STRIDE] __attribute__((aligned(64)));
 static acc_t pw_diag_bias_dram[PW_DIAG_J] __attribute__((aligned(64)));
@@ -313,6 +393,18 @@ static inline bool init_should_log_progress(size_t idx, size_t total, size_t ste
 static void init_phase_log(const char *phase, uint32_t seed) {
   printf("INIT_PHASE phase=%s cycle=%lu seed=0x%x\n",
          phase, init_cycle(), seed);
+}
+
+static void case_phase_log(const char *name, const char *phase) {
+  printf("CASE_PROGRESS %s phase=%s cycle=%lu\n", name, phase, init_cycle());
+}
+
+static inline const char *focused_layout_name(void) {
+#if defined(REROCC_FOCUSED_POINTWISE_CONTIGUOUS_LAYOUT) && REROCC_FOCUSED_POINTWISE_CONTIGUOUS_LAYOUT
+  return "contiguous";
+#else
+  return "interleaved";
+#endif
 }
 
 static inline bool stall_diag_only(void) {
@@ -432,15 +524,47 @@ static inline void spm_xlate_publish_table(void) {
 
 static inline void spm_xlate_program(bool enable) {
   if (enable) {
+    if (REROCC_XLATE_PROGRAM_SUBPHASE_LOG) {
+      printf("XLATE_TRACE phase=publish_begin enable=%u cycle=%lu\n",
+             enable ? 1U : 0U, init_cycle());
+    }
     spm_xlate_publish_table();
+    if (REROCC_XLATE_PROGRAM_SUBPHASE_LOG) {
+      printf("XLATE_TRACE phase=publish_end enable=%u cycle=%lu\n",
+             enable ? 1U : 0U, init_cycle());
+    }
+  }
+  if (REROCC_XLATE_PROGRAM_SUBPHASE_LOG) {
+    printf("XLATE_TRACE phase=cfg_begin enable=%u cycle=%lu\n",
+           enable ? 1U : 0U, init_cycle());
   }
   rerocc_gemmini_spm_xlate_cfg((uint64_t)(uintptr_t)spm_xlate_pte,
                                (uint32_t)SHARED_SPAD_XLATE_PTE_CAP,
                                REROCC_SPM_PAGE_SHIFT,
                                enable ? 1U : 0U);
+  if (REROCC_XLATE_PROGRAM_SUBPHASE_LOG) {
+    printf("XLATE_TRACE phase=cfg_end enable=%u cycle=%lu\n",
+           enable ? 1U : 0U, init_cycle());
+  }
+  if (REROCC_XLATE_PROGRAM_SUBPHASE_LOG) {
+    printf("XLATE_TRACE phase=range_begin enable=%u cycle=%lu\n",
+           enable ? 1U : 0U, init_cycle());
+  }
   rerocc_gemmini_spm_xlate_range(enable ? SHARED_SPAD_XLATE_RANGE_BASE : 0ULL,
                                  enable ? SHARED_SPAD_XLATE_RANGE_SIZE : 0ULL);
+  if (REROCC_XLATE_PROGRAM_SUBPHASE_LOG) {
+    printf("XLATE_TRACE phase=range_end enable=%u cycle=%lu\n",
+           enable ? 1U : 0U, init_cycle());
+  }
+  if (REROCC_XLATE_PROGRAM_SUBPHASE_LOG) {
+    printf("XLATE_TRACE phase=flush_begin enable=%u cycle=%lu\n",
+           enable ? 1U : 0U, init_cycle());
+  }
   rerocc_gemmini_spm_xlate_flush();
+  if (REROCC_XLATE_PROGRAM_SUBPHASE_LOG) {
+    printf("XLATE_TRACE phase=flush_end enable=%u cycle=%lu\n",
+           enable ? 1U : 0U, init_cycle());
+  }
 }
 
 static inline void spm_xlate_reset(void) {
@@ -461,6 +585,25 @@ static inline void gemmini_wait_managed_runtime_style(uint32_t cfg_id) {
   gemmini_flush(0);
   rr_fence(cfg_id);
   gemmini_fence();
+}
+
+static inline void gemmini_wait_managed_runtime_style_logged(const char *name,
+                                                             uint32_t cfg_id) {
+  case_phase_log(name, "wait_rr_fence0_begin");
+  rr_fence(cfg_id);
+  case_phase_log(name, "wait_rr_fence0_end");
+  case_phase_log(name, "wait_cpu_fence0_begin");
+  gemmini_fence();
+  case_phase_log(name, "wait_cpu_fence0_end");
+  case_phase_log(name, "wait_flush_begin");
+  gemmini_flush(0);
+  case_phase_log(name, "wait_flush_end");
+  case_phase_log(name, "wait_rr_fence1_begin");
+  rr_fence(cfg_id);
+  case_phase_log(name, "wait_rr_fence1_end");
+  case_phase_log(name, "wait_cpu_fence1_begin");
+  gemmini_fence();
+  case_phase_log(name, "wait_cpu_fence1_end");
 }
 
 static inline void gemmini_chunk_drain_runtime_style(uint32_t cfg_id,
@@ -528,6 +671,18 @@ static bool alias_region_build_interleaved(spm_alias_region_t *region, uint32_t 
                              (uint64_t)local_page * REROCC_SPM_PAGE_BYTES;
   }
   return true;
+}
+
+static bool alias_region_build_focus_layout(spm_alias_region_t *region, uint32_t vpage_base,
+                                            uint64_t page_offset, size_t bytes,
+                                            uint32_t local_page_base, uint32_t local_tile,
+                                            uint32_t slot_base) {
+  if (REROCC_FOCUSED_POINTWISE_CONTIGUOUS_LAYOUT) {
+    return alias_region_build_contiguous(region, vpage_base, page_offset, bytes,
+                                         local_tile, local_page_base);
+  }
+  return alias_region_build_interleaved(region, vpage_base, page_offset, bytes,
+                                        local_page_base, slot_base);
 }
 
 static void alias_region_write(const spm_alias_region_t *region, const uint8_t *src, size_t bytes) {
@@ -1082,6 +1237,45 @@ static void pointwise_matmul_reference_shape(const elem_t *a, const elem_t *b,
   printf("INIT_FN_END fn=pointwise_matmul_reference_shape out=0x%lx last=%d cycle=%lu delta=%lu\n",
          (unsigned long)out, (int)out[(dim_i - 1) * c_stride + (dim_j - 1)],
          end_cycle, end_cycle - start_cycle);
+}
+
+static void pointwise_matmul_reference_grouped_runtime_style(const elem_t *a,
+                                                             const elem_t *b,
+                                                             const acc_t *bias,
+                                                             const elem_t *init_c,
+                                                             elem_t *out) {
+  const unsigned long start_cycle = init_cycle();
+  printf("INIT_FN_START fn=pointwise_matmul_reference_grouped_runtime_style a=0x%lx b=0x%lx bias=0x%lx init_c=0x%lx out=0x%lx I=%u J=%u K=%u groups=%u cycle=%lu\n",
+         (unsigned long)a, (unsigned long)b, (unsigned long)bias,
+         (unsigned long)init_c, (unsigned long)out,
+         PW_I, PW_J, PW_K, PW_GROUP_COUNT, start_cycle);
+  memcpy(out, init_c, PW_BYTES_C);
+
+  for (size_t group_idx = 0; group_idx < PW_GROUP_COUNT; ++group_idx) {
+    const elem_t *group_a = a + group_idx * (size_t)PW_K;
+    const elem_t *group_b = b + group_idx * (size_t)PW_K * (size_t)PW_B_STRIDE;
+    const acc_t *group_bias = bias ? (bias + group_idx * (size_t)PW_J) : NULL;
+    printf("INIT_FN_PROGRESS fn=pointwise_matmul_reference_grouped_runtime_style phase=group_start group=%lu/%u cycle=%lu\n",
+           (unsigned long)(group_idx + 1U), PW_GROUP_COUNT, init_cycle());
+    for (size_t i = 0; i < PW_I; ++i) {
+      for (size_t j = 0; j < PW_J; ++j) {
+        acc_t acc = group_bias ? group_bias[j] : 0;
+        for (size_t k = 0; k < PW_K; ++k) {
+          acc += (acc_t)group_a[i * PW_A_STRIDE + k] * (acc_t)group_b[k * PW_B_STRIDE + j];
+        }
+        out[i * PW_C_STRIDE + group_idx * (size_t)PW_J + j] = sat_i8_from_acc(acc);
+      }
+    }
+    printf("INIT_FN_PROGRESS fn=pointwise_matmul_reference_grouped_runtime_style phase=group_end group=%lu/%u cycle=%lu\n",
+           (unsigned long)(group_idx + 1U), PW_GROUP_COUNT, init_cycle());
+  }
+
+  {
+    const unsigned long end_cycle = init_cycle();
+    printf("INIT_FN_END fn=pointwise_matmul_reference_grouped_runtime_style out=0x%lx last=%d cycle=%lu delta=%lu\n",
+           (unsigned long)out, (int)out[(PW_I - 1U) * PW_C_STRIDE + (PW_C_STRIDE - 1U)],
+           end_cycle, end_cycle - start_cycle);
+  }
 }
 
 static void pointwise_matmul_chunked_reference(const elem_t *a, const elem_t *b,
@@ -1668,6 +1862,137 @@ static bool pointwise_matmul_issue_chunked_runtime_style(const char *name,
   return true;
 }
 
+static bool gemmini_runtime_style_group_fence_logged(const char *name,
+                                                     const char *phase,
+                                                     uint32_t cfg_id,
+                                                     int gemmini_manager_id,
+                                                     size_t group_idx,
+                                                     size_t groups) {
+  if (!name || !phase) return false;
+
+  printf("CASE_PROGRESS %s phase=%s_acquire_begin group=%lu/%lu cfg=%u manager=%d cycle=%lu\n",
+         name, phase,
+         (unsigned long)(group_idx + 1U), (unsigned long)groups,
+         cfg_id, gemmini_manager_id, init_cycle());
+  if (!rr_acquire_cfg_with_retry(cfg_id, (uint64_t)gemmini_manager_id)) {
+    printf("CASE_FAIL %s reason=%s_acquire group=%lu/%lu\n",
+           name, phase,
+           (unsigned long)(group_idx + 1U), (unsigned long)groups);
+    return false;
+  }
+  rr_set_opc(GEMMINI_OPCODE_ID, cfg_id);
+  printf("CASE_PROGRESS %s phase=%s_acquire_end group=%lu/%lu cfg=%u manager=%d cycle=%lu\n",
+         name, phase,
+         (unsigned long)(group_idx + 1U), (unsigned long)groups,
+         cfg_id, gemmini_manager_id, init_cycle());
+
+  printf("CASE_PROGRESS %s phase=%s_rr_fence0_begin group=%lu/%lu cycle=%lu\n",
+         name, phase, (unsigned long)(group_idx + 1U), (unsigned long)groups, init_cycle());
+  rr_fence(cfg_id);
+  printf("CASE_PROGRESS %s phase=%s_rr_fence0_end group=%lu/%lu cycle=%lu\n",
+         name, phase, (unsigned long)(group_idx + 1U), (unsigned long)groups, init_cycle());
+  printf("CASE_PROGRESS %s phase=%s_cpu_fence0_begin group=%lu/%lu cycle=%lu\n",
+         name, phase, (unsigned long)(group_idx + 1U), (unsigned long)groups, init_cycle());
+  gemmini_fence();
+  printf("CASE_PROGRESS %s phase=%s_cpu_fence0_end group=%lu/%lu cycle=%lu\n",
+         name, phase, (unsigned long)(group_idx + 1U), (unsigned long)groups, init_cycle());
+  printf("CASE_PROGRESS %s phase=%s_flush_begin group=%lu/%lu cycle=%lu\n",
+         name, phase, (unsigned long)(group_idx + 1U), (unsigned long)groups, init_cycle());
+  gemmini_flush(0);
+  printf("CASE_PROGRESS %s phase=%s_flush_end group=%lu/%lu cycle=%lu\n",
+         name, phase, (unsigned long)(group_idx + 1U), (unsigned long)groups, init_cycle());
+  printf("CASE_PROGRESS %s phase=%s_rr_fence1_begin group=%lu/%lu cycle=%lu\n",
+         name, phase, (unsigned long)(group_idx + 1U), (unsigned long)groups, init_cycle());
+  rr_fence(cfg_id);
+  printf("CASE_PROGRESS %s phase=%s_rr_fence1_end group=%lu/%lu cycle=%lu\n",
+         name, phase, (unsigned long)(group_idx + 1U), (unsigned long)groups, init_cycle());
+  printf("CASE_PROGRESS %s phase=%s_cpu_fence1_begin group=%lu/%lu cycle=%lu\n",
+         name, phase, (unsigned long)(group_idx + 1U), (unsigned long)groups, init_cycle());
+  gemmini_fence();
+  printf("CASE_PROGRESS %s phase=%s_cpu_fence1_end group=%lu/%lu cycle=%lu\n",
+         name, phase, (unsigned long)(group_idx + 1U), (unsigned long)groups, init_cycle());
+
+  printf("CASE_PROGRESS %s phase=%s_release_begin group=%lu/%lu cycle=%lu\n",
+         name, phase, (unsigned long)(group_idx + 1U), (unsigned long)groups, init_cycle());
+  rr_release(cfg_id);
+  printf("CASE_PROGRESS %s phase=%s_release_end group=%lu/%lu cycle=%lu\n",
+         name, phase, (unsigned long)(group_idx + 1U), (unsigned long)groups, init_cycle());
+  return true;
+}
+
+static bool pointwise_matmul_issue_grouped_runtime_style(const char *name,
+                                                         uint32_t cfg_id,
+                                                         int gemmini_manager_id,
+                                                         const elem_t *a,
+                                                         const elem_t *b,
+                                                         const acc_t *bias,
+                                                         elem_t *out,
+                                                         enum tiled_matmul_type_t tiled_type) {
+  if (!name || !a || !b || !out) return false;
+
+  for (size_t group_idx = 0; group_idx < PW_GROUP_COUNT; ++group_idx) {
+    const elem_t *group_a = a + group_idx * (size_t)PW_K;
+    const elem_t *group_b = b + group_idx * (size_t)PW_K * (size_t)PW_B_STRIDE;
+    const acc_t *group_bias = bias ? (bias + group_idx * (size_t)PW_J) : NULL;
+    elem_t *group_out = out + group_idx * (size_t)PW_J;
+    const size_t a_off = group_idx * (size_t)PW_K;
+    const size_t b_off = group_idx * (size_t)PW_K * (size_t)PW_B_STRIDE;
+    const size_t bias_off = group_idx * (size_t)PW_J;
+    const size_t c_off = group_idx * (size_t)PW_J;
+
+    printf("CASE_PROGRESS %s phase=group_begin group=%lu/%u cycle=%lu\n",
+           name, (unsigned long)(group_idx + 1U), PW_GROUP_COUNT, init_cycle());
+    printf("CASE_PROGRESS %s phase=group_issue_acquire_begin group=%lu/%u cfg=%u manager=%d cycle=%lu\n",
+           name, (unsigned long)(group_idx + 1U), PW_GROUP_COUNT,
+           cfg_id, gemmini_manager_id, init_cycle());
+    if (!rr_acquire_cfg_with_retry(cfg_id, (uint64_t)gemmini_manager_id)) {
+      printf("CASE_FAIL %s reason=group_issue_acquire group=%lu/%u\n",
+             name, (unsigned long)(group_idx + 1U), PW_GROUP_COUNT);
+      return false;
+    }
+    rr_set_opc(GEMMINI_OPCODE_ID, cfg_id);
+    printf("CASE_PROGRESS %s phase=group_issue_acquire_end group=%lu/%u cfg=%u manager=%d cycle=%lu\n",
+           name, (unsigned long)(group_idx + 1U), PW_GROUP_COUNT,
+           cfg_id, gemmini_manager_id, init_cycle());
+    printf("CASE_PROGRESS %s phase=subcall_begin group=%lu/%u a_off=%lu b_off=%lu bias_off=%lu c_off=%lu cycle=%lu\n",
+           name, (unsigned long)(group_idx + 1U), PW_GROUP_COUNT,
+           (unsigned long)a_off, (unsigned long)b_off,
+           (unsigned long)bias_off, (unsigned long)c_off,
+           init_cycle());
+    if (!pointwise_matmul_issue_chunked_runtime_style(name, cfg_id,
+                                                      group_a, group_b, group_bias, group_out,
+                                                      tiled_type)) {
+      printf("CASE_PROGRESS %s phase=group_issue_release_begin group=%lu/%u cycle=%lu\n",
+             name, (unsigned long)(group_idx + 1U), PW_GROUP_COUNT, init_cycle());
+      rr_release(cfg_id);
+      printf("CASE_PROGRESS %s phase=group_issue_release_end group=%lu/%u cycle=%lu\n",
+             name, (unsigned long)(group_idx + 1U), PW_GROUP_COUNT, init_cycle());
+      printf("CASE_FAIL %s reason=group_issue group=%lu/%u\n",
+             name, (unsigned long)(group_idx + 1U), PW_GROUP_COUNT);
+      return false;
+    }
+    printf("CASE_PROGRESS %s phase=subcall_end group=%lu/%u cycle=%lu\n",
+           name, (unsigned long)(group_idx + 1U), PW_GROUP_COUNT, init_cycle());
+    printf("CASE_PROGRESS %s phase=group_issue_release_begin group=%lu/%u cycle=%lu\n",
+           name, (unsigned long)(group_idx + 1U), PW_GROUP_COUNT, init_cycle());
+    rr_release(cfg_id);
+    printf("CASE_PROGRESS %s phase=group_issue_release_end group=%lu/%u cycle=%lu\n",
+           name, (unsigned long)(group_idx + 1U), PW_GROUP_COUNT, init_cycle());
+    printf("CASE_PROGRESS %s phase=group_end group=%lu/%u cycle=%lu\n",
+           name, (unsigned long)(group_idx + 1U), PW_GROUP_COUNT, init_cycle());
+
+    if (group_idx + 1U < PW_GROUP_COUNT) {
+      if (!gemmini_runtime_style_group_fence_logged(name, "inter_group_fence",
+                                                    cfg_id, gemmini_manager_id,
+                                                    group_idx, PW_GROUP_COUNT)) {
+        return false;
+      }
+    }
+  }
+
+  return true;
+}
+
 static bool run_pointwise_matmul_case_dim_j(const char *name, int gemmini_manager_id,
                                             const spm_alias_region_t *a_region,
                                             const spm_alias_region_t *b_region,
@@ -2097,7 +2422,7 @@ static bool run_pointwise_matmul_chunked_runtime_style_case(const char *name,
     return false;
   }
 
-  gemmini_wait_managed_runtime_style(GEMMINI_CFG_ID);
+  gemmini_wait_managed_runtime_style_logged(name, GEMMINI_CFG_ID);
   spm_xlate_reset();
   rr_fence(GEMMINI_CFG_ID);
   rr_release(GEMMINI_CFG_ID);
@@ -2124,8 +2449,9 @@ static bool run_pointwise_matmul_runtime_style_focus_case(const char *name,
   const char *region_names[] = {"A", "B", "BIAS", "C"};
   const spm_alias_region_t *regions[] = {a_region, b_region, bias_region, c_region};
 
-  printf("CASE_START %s target=linux-seg0-stage0-pointwise deepest=matmul-os-biascfg-state stage=%u opcode=%u cfg=%u manager=%d I=%u J=%u K=%u focus_oc_beg=%u focus_oc_tile=%u page_bytes=%lu page_offset=%lu xlate_base=0x%lx vpage_a=%u vpage_b=%u vpage_bias=%u vpage_c=%u fallback=OS act=%d bias=1 mode=runtime_style_single_chunk\n",
+  printf("CASE_START %s target=%s deepest=matmul-os-biascfg-state stage=%u opcode=%u cfg=%u manager=%d I=%u J=%u K=%u focus_oc_beg=%u focus_oc_tile=%u page_bytes=%lu page_offset=%lu xlate_base=0x%lx vpage_a=%u vpage_b=%u vpage_bias=%u vpage_c=%u fallback=OS act=%d bias=1 mode=runtime_style_single_chunk\n",
          name,
+         REROCC_FOCUSED_POINTWISE_TARGET,
          GEMMINI_STAGE_ID, GEMMINI_OPCODE_ID, GEMMINI_CFG_ID, gemmini_manager_id,
          PW_I, PW_CHUNK_TILE_J, PW_K,
          PW_FOCUS_OC_BEG, PW_FOCUS_OC_TILE,
@@ -2134,10 +2460,10 @@ static bool run_pointwise_matmul_runtime_style_focus_case(const char *name,
          (unsigned long)SHARED_SPAD_XLATE_RANGE_BASE,
          PW_A_VPAGE, PW_B_VPAGE, PW_CHUNK_BIAS_VPAGE, PW_C_VPAGE,
          RELU);
-  print_region_summary(name, "A", a_region, "interleaved");
-  print_region_summary(name, "B", b_region, "interleaved");
-  print_region_summary(name, "BIAS", bias_region, "interleaved");
-  print_region_summary(name, "C", c_region, "interleaved");
+  print_region_summary(name, "A", a_region, focused_layout_name());
+  print_region_summary(name, "B", b_region, focused_layout_name());
+  print_region_summary(name, "BIAS", bias_region, focused_layout_name());
+  print_region_summary(name, "C", c_region, focused_layout_name());
 
   if (!validate_case_xlate_layout(name, region_names, regions,
                                   sizeof(regions) / sizeof(regions[0]))) {
@@ -2165,13 +2491,18 @@ static bool run_pointwise_matmul_runtime_style_focus_case(const char *name,
     return false;
   }
 
+  case_phase_log(name, "acquire_end");
   rr_set_opc(GEMMINI_OPCODE_ID, GEMMINI_CFG_ID);
+  case_phase_log(name, "xlate_map_begin");
   spm_xlate_table_clear();
   spm_xlate_map_region(a_region);
   spm_xlate_map_region(b_region);
   spm_xlate_map_region(bias_region);
   spm_xlate_map_region(c_region);
+  case_phase_log(name, "xlate_map_end");
+  case_phase_log(name, "xlate_prog_begin");
   spm_xlate_program(true);
+  case_phase_log(name, "xlate_prog_end");
   printf("CASE_TRACE %s runtime_style_skip_preflush=1 stage=%u opcode=%u cfg=%u cycle=%lu\n",
          name, GEMMINI_STAGE_ID, GEMMINI_OPCODE_ID, GEMMINI_CFG_ID, init_cycle());
   printf("CASE_PROGRESS %s phase=focused_chunk_issue_begin oc_beg=%u oc_tile=%u cycle=%lu\n",
@@ -2186,14 +2517,254 @@ static bool run_pointwise_matmul_runtime_style_focus_case(const char *name,
   printf("CASE_PROGRESS %s phase=focused_chunk_issue_end oc_beg=%u oc_tile=%u cycle=%lu\n",
          name, PW_FOCUS_OC_BEG, PW_FOCUS_OC_TILE, init_cycle());
 
-  gemmini_wait_managed_runtime_style(GEMMINI_CFG_ID);
+  case_phase_log(name, "focused_wait_begin");
+  gemmini_wait_managed_runtime_style_logged(name, GEMMINI_CFG_ID);
+  case_phase_log(name, "focused_wait_end");
+  case_phase_log(name, "xlate_reset_begin");
   spm_xlate_reset();
+  case_phase_log(name, "xlate_reset_end");
+  case_phase_log(name, "rr_fence_begin");
   rr_fence(GEMMINI_CFG_ID);
+  case_phase_log(name, "rr_fence_end");
+  case_phase_log(name, "rr_release_begin");
   rr_release(GEMMINI_CFG_ID);
+  case_phase_log(name, "rr_release_end");
 
+  case_phase_log(name, "shadow_read_begin");
   alias_region_read(c_region, (uint8_t *)pw_out_shadow_dram, PW_BYTES_C);
+  case_phase_log(name, "shadow_read_end");
   ok = finish_elem_case_result(name,
                                (const elem_t *)pw_j128_gold_dram,
+                               (const elem_t *)pw_out_shadow_dram,
+                               PW_ELEM_COUNT_C);
+  return ok;
+}
+
+static bool run_pointwise_matmul_runtime_style_explicit_tiles_focus_case(
+    const char *name,
+    int gemmini_manager_id,
+    const spm_alias_region_t *a_region,
+    const spm_alias_region_t *b_region,
+    const spm_alias_region_t *bias_region,
+    const spm_alias_region_t *c_region) {
+  bool ok;
+  const elem_t *a_req = (const elem_t *)(uintptr_t)a_region->vaddr;
+  const elem_t *b_req = (const elem_t *)(uintptr_t)b_region->vaddr;
+  const acc_t *bias_req = (const acc_t *)(uintptr_t)bias_region->vaddr;
+  elem_t *c_req = (elem_t *)(uintptr_t)c_region->vaddr;
+  const char *region_names[] = {"A", "B", "BIAS", "C"};
+  const spm_alias_region_t *regions[] = {a_region, b_region, bias_region, c_region};
+
+  printf("CASE_START %s target=%s stage=%u opcode=%u cfg=%u manager=%d I=%u J=%u K=%u focus_oc_beg=%u focus_oc_tile=%u tile_i=%u tile_j=%u tile_k=%u page_bytes=%lu page_offset=%lu xlate_base=0x%lx vpage_a=%u vpage_b=%u vpage_bias=%u vpage_c=%u fallback=OS act=%d bias=1 mode=runtime_style_explicit_tiles\n",
+         name,
+         REROCC_FOCUSED_POINTWISE_EXPLICIT_TARGET,
+         GEMMINI_STAGE_ID, GEMMINI_OPCODE_ID, GEMMINI_CFG_ID, gemmini_manager_id,
+         PW_I, PW_CHUNK_TILE_J, PW_K,
+         PW_FOCUS_OC_BEG, PW_FOCUS_OC_TILE,
+         PW_LINUX_TILE_I, PW_LINUX_TILE_J, PW_LINUX_TILE_K,
+         (unsigned long)REROCC_SPM_PAGE_BYTES,
+         (unsigned long)PW_VADDR_PAGE_OFFSET,
+         (unsigned long)SHARED_SPAD_XLATE_RANGE_BASE,
+         PW_A_VPAGE, PW_B_VPAGE, PW_CHUNK_BIAS_VPAGE, PW_C_VPAGE,
+         RELU);
+  print_region_summary(name, "A", a_region, focused_layout_name());
+  print_region_summary(name, "B", b_region, focused_layout_name());
+  print_region_summary(name, "BIAS", bias_region, focused_layout_name());
+  print_region_summary(name, "C", c_region, focused_layout_name());
+
+  if (!validate_case_xlate_layout(name, region_names, regions,
+                                  sizeof(regions) / sizeof(regions[0]))) {
+    return false;
+  }
+
+  alias_region_write(a_region, (const uint8_t *)pw_a_dram, PW_BYTES_A);
+  alias_region_write(b_region, (const uint8_t *)pw_b_dram, PW_BYTES_B);
+  alias_region_write(bias_region, (const uint8_t *)pw_chunk_bias_dram, PW_CHUNK_BYTES_BIAS);
+  alias_region_write(c_region, (const uint8_t *)pw_init_c_dram, PW_BYTES_C);
+  memset(pw_out_shadow_dram, 0, sizeof(pw_out_shadow_dram));
+
+  if (!compare_disabled()) {
+    memcpy(pw_j128_gold_dram, pw_init_c_dram, sizeof(pw_j128_gold_dram));
+    pointwise_matmul_reference_dim_j((const elem_t *)pw_a_dram,
+                                     (const elem_t *)pw_b_dram,
+                                     (const acc_t *)pw_chunk_bias_dram,
+                                     (const elem_t *)pw_init_c_dram,
+                                     (elem_t *)pw_j128_gold_dram,
+                                     PW_FOCUS_OC_TILE);
+  }
+
+  if (!rr_acquire_cfg_with_retry(GEMMINI_CFG_ID, (uint64_t)gemmini_manager_id)) {
+    printf("CASE_FAIL %s reason=acquire\n", name);
+    return false;
+  }
+
+  case_phase_log(name, "acquire_end");
+  rr_set_opc(GEMMINI_OPCODE_ID, GEMMINI_CFG_ID);
+  case_phase_log(name, "xlate_map_begin");
+  spm_xlate_table_clear();
+  spm_xlate_map_region(a_region);
+  spm_xlate_map_region(b_region);
+  spm_xlate_map_region(bias_region);
+  spm_xlate_map_region(c_region);
+  case_phase_log(name, "xlate_map_end");
+  case_phase_log(name, "xlate_prog_begin");
+  spm_xlate_program(true);
+  case_phase_log(name, "xlate_prog_end");
+  printf("CASE_TRACE %s runtime_style_skip_preflush=1 stage=%u opcode=%u cfg=%u cycle=%lu\n",
+         name, GEMMINI_STAGE_ID, GEMMINI_OPCODE_ID, GEMMINI_CFG_ID, init_cycle());
+  printf("CASE_PROGRESS %s phase=focused_explicit_issue_begin oc_beg=%u oc_tile=%u tile_i=%u tile_j=%u tile_k=%u cycle=%lu\n",
+         name, PW_FOCUS_OC_BEG, PW_FOCUS_OC_TILE,
+         PW_LINUX_TILE_I, PW_LINUX_TILE_J, PW_LINUX_TILE_K,
+         init_cycle());
+  tiled_matmul(PW_I, PW_FOCUS_OC_TILE, PW_K,
+               a_req,
+               b_req + PW_FOCUS_OC_BEG,
+               bias_req ? (bias_req + PW_FOCUS_OC_BEG) : NULL,
+               c_req + PW_FOCUS_OC_BEG,
+               PW_A_STRIDE, PW_B_STRIDE, PW_C_STRIDE, PW_C_STRIDE,
+               MVIN_SCALE_IDENTITY, MVIN_SCALE_IDENTITY, MVIN_SCALE_IDENTITY,
+               RELU, ACC_SCALE_IDENTITY, 0, true,
+               PW_LINUX_TILE_I, PW_LINUX_TILE_J, PW_LINUX_TILE_K,
+               false, false,
+               false, false,
+               0,
+               OS);
+  printf("CASE_PROGRESS %s phase=focused_explicit_issue_end oc_beg=%u oc_tile=%u tile_i=%u tile_j=%u tile_k=%u cycle=%lu\n",
+         name, PW_FOCUS_OC_BEG, PW_FOCUS_OC_TILE,
+         PW_LINUX_TILE_I, PW_LINUX_TILE_J, PW_LINUX_TILE_K,
+         init_cycle());
+
+  case_phase_log(name, "focused_wait_begin");
+  gemmini_wait_managed_runtime_style_logged(name, GEMMINI_CFG_ID);
+  case_phase_log(name, "focused_wait_end");
+  case_phase_log(name, "xlate_reset_begin");
+  spm_xlate_reset();
+  case_phase_log(name, "xlate_reset_end");
+  case_phase_log(name, "rr_fence_begin");
+  rr_fence(GEMMINI_CFG_ID);
+  case_phase_log(name, "rr_fence_end");
+  case_phase_log(name, "rr_release_begin");
+  rr_release(GEMMINI_CFG_ID);
+  case_phase_log(name, "rr_release_end");
+
+  case_phase_log(name, "shadow_read_begin");
+  alias_region_read(c_region, (uint8_t *)pw_out_shadow_dram, PW_BYTES_C);
+  case_phase_log(name, "shadow_read_end");
+  ok = finish_elem_case_result(name,
+                               (const elem_t *)pw_j128_gold_dram,
+                               (const elem_t *)pw_out_shadow_dram,
+                               PW_ELEM_COUNT_C);
+  return ok;
+}
+
+static bool run_pointwise_matmul_runtime_style_grouped_focus_case(
+    const char *name,
+    int gemmini_manager_id,
+    const spm_alias_region_t *a_region,
+    const spm_alias_region_t *b_region,
+    const spm_alias_region_t *bias_region,
+    const spm_alias_region_t *c_region) {
+  bool ok;
+  const elem_t *a_req = (const elem_t *)(uintptr_t)a_region->vaddr;
+  const elem_t *b_req = (const elem_t *)(uintptr_t)b_region->vaddr;
+  const acc_t *bias_req = (const acc_t *)(uintptr_t)bias_region->vaddr;
+  elem_t *c_req = (elem_t *)(uintptr_t)c_region->vaddr;
+  const char *region_names[] = {"A", "B", "BIAS", "C"};
+  const spm_alias_region_t *regions[] = {a_region, b_region, bias_region, c_region};
+
+  printf("CASE_START %s target=%s stage=%u opcode=%u cfg=%u manager=%d I=%u J=%u K=%u groups=%u page_bytes=%lu page_offset=%lu xlate_base=0x%lx vpage_a=%u vpage_b=%u vpage_bias=%u vpage_c=%u fallback=OS act=%d bias=1 mode=runtime_style_grouped_full\n",
+         name,
+#ifndef REROCC_FOCUSED_POINTWISE_GROUPED_TARGET
+#define REROCC_FOCUSED_POINTWISE_GROUPED_TARGET "linux-seg3-stage0-full-grouped-pointwise"
+#endif
+         REROCC_FOCUSED_POINTWISE_GROUPED_TARGET,
+         GEMMINI_STAGE_ID, GEMMINI_OPCODE_ID, GEMMINI_CFG_ID, gemmini_manager_id,
+         PW_I, PW_J, PW_K, PW_GROUP_COUNT,
+         (unsigned long)REROCC_SPM_PAGE_BYTES,
+         (unsigned long)PW_VADDR_PAGE_OFFSET,
+         (unsigned long)SHARED_SPAD_XLATE_RANGE_BASE,
+         PW_A_VPAGE, PW_B_VPAGE, PW_BIAS_VPAGE, PW_C_VPAGE,
+         RELU);
+  print_region_summary(name, "A", a_region, focused_layout_name());
+  print_region_summary(name, "B", b_region, focused_layout_name());
+  print_region_summary(name, "BIAS", bias_region, focused_layout_name());
+  print_region_summary(name, "C", c_region, focused_layout_name());
+
+  if (!validate_case_xlate_layout(name, region_names, regions,
+                                  sizeof(regions) / sizeof(regions[0]))) {
+    return false;
+  }
+
+  alias_region_write(a_region, (const uint8_t *)pw_a_dram, PW_BYTES_A);
+  alias_region_write(b_region, (const uint8_t *)pw_group_b_dram, PW_GROUP_BYTES_B);
+  alias_region_write(bias_region, (const uint8_t *)pw_group_bias_dram, PW_GROUP_BYTES_BIAS);
+  alias_region_write(c_region, (const uint8_t *)pw_init_c_dram, PW_BYTES_C);
+  memset(pw_out_shadow_dram, 0, sizeof(pw_out_shadow_dram));
+
+  if (!compare_disabled()) {
+    pointwise_matmul_reference_grouped_runtime_style((const elem_t *)pw_a_dram,
+                                                     (const elem_t *)pw_group_b_dram,
+                                                     (const acc_t *)pw_group_bias_dram,
+                                                     (const elem_t *)pw_init_c_dram,
+                                                     (elem_t *)pw_group_gold_dram);
+  }
+
+  case_phase_log(name, "xlate_map_begin");
+  spm_xlate_table_clear();
+  spm_xlate_map_region(a_region);
+  spm_xlate_map_region(b_region);
+  spm_xlate_map_region(bias_region);
+  spm_xlate_map_region(c_region);
+  case_phase_log(name, "xlate_map_end");
+  case_phase_log(name, "xlate_prog_acquire_begin");
+  if (!rr_acquire_cfg_with_retry(GEMMINI_CFG_ID, (uint64_t)gemmini_manager_id)) {
+    printf("CASE_FAIL %s reason=xlate_prog_acquire\n", name);
+    return false;
+  }
+  rr_set_opc(GEMMINI_OPCODE_ID, GEMMINI_CFG_ID);
+  case_phase_log(name, "xlate_prog_acquire_end");
+  case_phase_log(name, "xlate_prog_begin");
+  spm_xlate_program(true);
+  case_phase_log(name, "xlate_prog_end");
+  case_phase_log(name, "xlate_prog_release_begin");
+  rr_release(GEMMINI_CFG_ID);
+  case_phase_log(name, "xlate_prog_release_end");
+  printf("CASE_TRACE %s runtime_style_skip_preflush=1 groups=%u stage=%u opcode=%u cfg=%u cycle=%lu\n",
+         name, PW_GROUP_COUNT, GEMMINI_STAGE_ID, GEMMINI_OPCODE_ID, GEMMINI_CFG_ID, init_cycle());
+
+  if (!pointwise_matmul_issue_grouped_runtime_style(name, GEMMINI_CFG_ID,
+                                                    gemmini_manager_id,
+                                                    a_req, b_req, bias_req, c_req,
+                                                    OS)) {
+    spm_xlate_reset();
+    rr_release_all(RR_MAX_CFGS);
+    return false;
+  }
+
+  if (!gemmini_runtime_style_group_fence_logged(name, "final_fence",
+                                                GEMMINI_CFG_ID, gemmini_manager_id,
+                                                PW_GROUP_COUNT - 1U, PW_GROUP_COUNT)) {
+    spm_xlate_reset();
+    rr_release_all(RR_MAX_CFGS);
+    return false;
+  }
+
+  case_phase_log(name, "xlate_reset_begin");
+  if (!rr_acquire_cfg_with_retry(GEMMINI_CFG_ID, (uint64_t)gemmini_manager_id)) {
+    printf("CASE_FAIL %s reason=xlate_reset_acquire\n", name);
+    rr_release_all(RR_MAX_CFGS);
+    return false;
+  }
+  rr_set_opc(GEMMINI_OPCODE_ID, GEMMINI_CFG_ID);
+  spm_xlate_reset();
+  rr_release(GEMMINI_CFG_ID);
+  case_phase_log(name, "xlate_reset_end");
+
+  case_phase_log(name, "shadow_read_begin");
+  alias_region_read(c_region, (uint8_t *)pw_out_shadow_dram, PW_BYTES_C);
+  case_phase_log(name, "shadow_read_end");
+  ok = finish_elem_case_result(name,
+                               (const elem_t *)pw_group_gold_dram,
                                (const elem_t *)pw_out_shadow_dram,
                                PW_ELEM_COUNT_C);
   return ok;
@@ -2550,6 +3121,151 @@ void thread_entry(int cid, int nc) {
     exit(1);
   }
 #endif
+#if REROCC_FOCUSED_POINTWISE_EXPLICIT_TILES_ALIAS
+  {
+    const char *name = "pointwise_stage0_runtime_explicit_tiles_focus";
+    spm_alias_region_t pw_interleaved_a;
+    spm_alias_region_t pw_interleaved_b;
+    spm_alias_region_t pw_chunk_interleaved_bias;
+    spm_alias_region_t pw_interleaved_c;
+    const char *region_names[] = {"pw_interleaved_a", "pw_interleaved_b",
+                                  "pw_chunk_interleaved_bias", "pw_interleaved_c"};
+    const spm_alias_region_t *regions[] = {
+      &pw_interleaved_a, &pw_interleaved_b, &pw_chunk_interleaved_bias, &pw_interleaved_c,
+    };
+    uint32_t seed = 0x12345678u;
+    bool ok = false;
+
+    printf("[pointwise-stage0-runtime-explicit-tiles-focus] gemmini_mgr=%d local_gemmini=%lu num_gemmini=%d cfg=%u\n",
+           gemmini_manager_id, (unsigned long)local_gemmini_id, REROCC_NUM_GEMMINI,
+           GEMMINI_CFG_ID);
+    init_phase_log("focused_before_init_pw_a", seed);
+    init_random_elem((elem_t *)pw_a_dram, PW_ELEM_COUNT_A, &seed);
+    init_phase_log("focused_after_init_pw_a", seed);
+    init_phase_log("focused_before_init_pw_b", seed);
+    init_random_elem((elem_t *)pw_b_dram, PW_ELEM_COUNT_B, &seed);
+    init_phase_log("focused_after_init_pw_b", seed);
+    init_phase_log("focused_before_init_pw_chunk_bias", seed);
+    init_random_acc((acc_t *)pw_chunk_bias_dram, PW_CHUNK_TILE_J, &seed);
+    init_phase_log("focused_after_init_pw_chunk_bias", seed);
+    memset(pw_init_c_dram, 0xa5, sizeof(pw_init_c_dram));
+
+    if (!alias_region_build_focus_layout(&pw_interleaved_a, PW_A_VPAGE,
+                                         PW_VADDR_PAGE_OFFSET, PW_BYTES_A,
+                                         PW_FOCUSED_STAGE0_A_LOCAL_PAGE,
+                                         PW_FOCUSED_STAGE0_A_LOCAL_TILE,
+                                         local_gemmini_id + PW_FOCUSED_STAGE0_A_SLOT_OFFSET) ||
+        !alias_region_build_focus_layout(&pw_interleaved_b, PW_B_VPAGE,
+                                         PW_VADDR_PAGE_OFFSET, PW_BYTES_B,
+                                         PW_FOCUSED_STAGE0_B_LOCAL_PAGE,
+                                         PW_FOCUSED_STAGE0_B_LOCAL_TILE,
+                                         local_gemmini_id + PW_FOCUSED_STAGE0_B_SLOT_OFFSET) ||
+        !alias_region_build_focus_layout(&pw_chunk_interleaved_bias, PW_CHUNK_BIAS_VPAGE,
+                                         PW_VADDR_PAGE_OFFSET, PW_CHUNK_BYTES_BIAS,
+                                         PW_FOCUSED_STAGE0_BIAS_LOCAL_PAGE,
+                                         PW_FOCUSED_STAGE0_BIAS_LOCAL_TILE,
+                                         local_gemmini_id + PW_FOCUSED_STAGE0_BIAS_SLOT_OFFSET) ||
+        !alias_region_build_focus_layout(&pw_interleaved_c, PW_C_VPAGE,
+                                         PW_VADDR_PAGE_OFFSET, PW_BYTES_C,
+                                         PW_FOCUSED_STAGE0_C_LOCAL_PAGE,
+                                         PW_FOCUSED_STAGE0_C_LOCAL_TILE,
+                                         local_gemmini_id + PW_FOCUSED_STAGE0_C_SLOT_OFFSET)) {
+      printf("ALL_TESTS_FAIL reason=region_build\n");
+      exit(1);
+    }
+
+    if (!validate_alias_layout(region_names, regions, sizeof(regions) / sizeof(regions[0]))) {
+      exit(1);
+    }
+
+    ok = run_pointwise_matmul_runtime_style_explicit_tiles_focus_case(
+        name, gemmini_manager_id,
+        &pw_interleaved_a, &pw_interleaved_b,
+        &pw_chunk_interleaved_bias,
+        &pw_interleaved_c);
+    rr_release_all(RR_MAX_CFGS);
+    if (ok) {
+      printf("ALL_TESTS_PASS\n");
+      exit(0);
+    }
+    printf("ALL_TESTS_FAIL\n");
+    exit(1);
+  }
+#endif
+#if REROCC_FOCUSED_POINTWISE_GROUPED_ALIAS
+  {
+#ifndef REROCC_FOCUSED_POINTWISE_GROUPED_NAME
+#define REROCC_FOCUSED_POINTWISE_GROUPED_NAME "pointwise_stage0_runtime_grouped_focus"
+#endif
+    const char *name = REROCC_FOCUSED_POINTWISE_GROUPED_NAME;
+    spm_alias_region_t pw_interleaved_a;
+    spm_alias_region_t pw_interleaved_b;
+    spm_alias_region_t pw_interleaved_bias;
+    spm_alias_region_t pw_interleaved_c;
+    const char *region_names[] = {"pw_interleaved_a", "pw_interleaved_b",
+                                  "pw_interleaved_bias", "pw_interleaved_c"};
+    const spm_alias_region_t *regions[] = {
+      &pw_interleaved_a, &pw_interleaved_b, &pw_interleaved_bias, &pw_interleaved_c,
+    };
+    uint32_t seed = 0x12345678u;
+    bool ok = false;
+
+    printf("[%s] gemmini_mgr=%d local_gemmini=%lu num_gemmini=%d cfg=%u groups=%u\n",
+           name, gemmini_manager_id, (unsigned long)local_gemmini_id, REROCC_NUM_GEMMINI,
+           GEMMINI_CFG_ID, PW_GROUP_COUNT);
+    init_phase_log("grouped_before_init_pw_a", seed);
+    init_random_elem((elem_t *)pw_a_dram, PW_ELEM_COUNT_A, &seed);
+    init_phase_log("grouped_after_init_pw_a", seed);
+    init_phase_log("grouped_before_init_pw_group_b", seed);
+    init_random_elem((elem_t *)pw_group_b_dram, PW_GROUP_TOTAL_K * (size_t)PW_B_STRIDE, &seed);
+    init_phase_log("grouped_after_init_pw_group_b", seed);
+    init_phase_log("grouped_before_init_pw_group_bias", seed);
+    init_random_acc((acc_t *)pw_group_bias_dram, PW_GROUP_TOTAL_OC, &seed);
+    init_phase_log("grouped_after_init_pw_group_bias", seed);
+    memset(pw_init_c_dram, 0xa5, sizeof(pw_init_c_dram));
+
+    if (!alias_region_build_focus_layout(&pw_interleaved_a, PW_A_VPAGE,
+                                         PW_VADDR_PAGE_OFFSET, PW_BYTES_A,
+                                         PW_FOCUSED_STAGE0_A_LOCAL_PAGE,
+                                         PW_FOCUSED_STAGE0_A_LOCAL_TILE,
+                                         local_gemmini_id + PW_FOCUSED_STAGE0_A_SLOT_OFFSET) ||
+        !alias_region_build_focus_layout(&pw_interleaved_b, PW_B_VPAGE,
+                                         PW_VADDR_PAGE_OFFSET, PW_GROUP_BYTES_B,
+                                         PW_FOCUSED_STAGE0_B_LOCAL_PAGE,
+                                         PW_FOCUSED_STAGE0_B_LOCAL_TILE,
+                                         local_gemmini_id + PW_FOCUSED_STAGE0_B_SLOT_OFFSET) ||
+        !alias_region_build_focus_layout(&pw_interleaved_bias, PW_BIAS_VPAGE,
+                                         PW_VADDR_PAGE_OFFSET, PW_GROUP_BYTES_BIAS,
+                                         PW_FOCUSED_STAGE0_BIAS_LOCAL_PAGE,
+                                         PW_FOCUSED_STAGE0_BIAS_LOCAL_TILE,
+                                         local_gemmini_id + PW_FOCUSED_STAGE0_BIAS_SLOT_OFFSET) ||
+        !alias_region_build_focus_layout(&pw_interleaved_c, PW_C_VPAGE,
+                                         PW_VADDR_PAGE_OFFSET, PW_BYTES_C,
+                                         PW_FOCUSED_STAGE0_C_LOCAL_PAGE,
+                                         PW_FOCUSED_STAGE0_C_LOCAL_TILE,
+                                         local_gemmini_id + PW_FOCUSED_STAGE0_C_SLOT_OFFSET)) {
+      printf("ALL_TESTS_FAIL reason=region_build\n");
+      exit(1);
+    }
+
+    if (!validate_alias_layout(region_names, regions, sizeof(regions) / sizeof(regions[0]))) {
+      exit(1);
+    }
+
+    ok = run_pointwise_matmul_runtime_style_grouped_focus_case(
+        name, gemmini_manager_id,
+        &pw_interleaved_a, &pw_interleaved_b,
+        &pw_interleaved_bias,
+        &pw_interleaved_c);
+    rr_release_all(RR_MAX_CFGS);
+    if (ok) {
+      printf("ALL_TESTS_PASS\n");
+      exit(0);
+    }
+    printf("ALL_TESTS_FAIL\n");
+    exit(1);
+  }
+#endif
 #if REROCC_FOCUSED_POINTWISE_INTERLEAVED
   {
 #ifndef REROCC_FOCUSED_POINTWISE_INTERLEAVED_NAME
@@ -2581,22 +3297,26 @@ void thread_entry(int cid, int nc) {
     init_phase_log("focused_after_init_pw_chunk_bias", seed);
     memset(pw_init_c_dram, 0xa5, sizeof(pw_init_c_dram));
 
-    if (!alias_region_build_interleaved(&pw_interleaved_a, PW_A_VPAGE,
-                                        PW_VADDR_PAGE_OFFSET, PW_BYTES_A,
-                                        PW_FOCUSED_STAGE0_A_LOCAL_PAGE,
-                                        local_gemmini_id + PW_FOCUSED_STAGE0_A_SLOT_OFFSET) ||
-        !alias_region_build_interleaved(&pw_interleaved_b, PW_B_VPAGE,
-                                        PW_VADDR_PAGE_OFFSET, PW_BYTES_B,
-                                        PW_FOCUSED_STAGE0_B_LOCAL_PAGE,
-                                        local_gemmini_id + PW_FOCUSED_STAGE0_B_SLOT_OFFSET) ||
-        !alias_region_build_interleaved(&pw_chunk_interleaved_bias, PW_CHUNK_BIAS_VPAGE,
-                                        PW_VADDR_PAGE_OFFSET, PW_CHUNK_BYTES_BIAS,
-                                        PW_FOCUSED_STAGE0_BIAS_LOCAL_PAGE,
-                                        local_gemmini_id + PW_FOCUSED_STAGE0_BIAS_SLOT_OFFSET) ||
-        !alias_region_build_interleaved(&pw_interleaved_c, PW_C_VPAGE,
-                                        PW_VADDR_PAGE_OFFSET, PW_BYTES_C,
-                                        PW_FOCUSED_STAGE0_C_LOCAL_PAGE,
-                                        local_gemmini_id + PW_FOCUSED_STAGE0_C_SLOT_OFFSET)) {
+    if (!alias_region_build_focus_layout(&pw_interleaved_a, PW_A_VPAGE,
+                                         PW_VADDR_PAGE_OFFSET, PW_BYTES_A,
+                                         PW_FOCUSED_STAGE0_A_LOCAL_PAGE,
+                                         PW_FOCUSED_STAGE0_A_LOCAL_TILE,
+                                         local_gemmini_id + PW_FOCUSED_STAGE0_A_SLOT_OFFSET) ||
+        !alias_region_build_focus_layout(&pw_interleaved_b, PW_B_VPAGE,
+                                         PW_VADDR_PAGE_OFFSET, PW_BYTES_B,
+                                         PW_FOCUSED_STAGE0_B_LOCAL_PAGE,
+                                         PW_FOCUSED_STAGE0_B_LOCAL_TILE,
+                                         local_gemmini_id + PW_FOCUSED_STAGE0_B_SLOT_OFFSET) ||
+        !alias_region_build_focus_layout(&pw_chunk_interleaved_bias, PW_CHUNK_BIAS_VPAGE,
+                                         PW_VADDR_PAGE_OFFSET, PW_CHUNK_BYTES_BIAS,
+                                         PW_FOCUSED_STAGE0_BIAS_LOCAL_PAGE,
+                                         PW_FOCUSED_STAGE0_BIAS_LOCAL_TILE,
+                                         local_gemmini_id + PW_FOCUSED_STAGE0_BIAS_SLOT_OFFSET) ||
+        !alias_region_build_focus_layout(&pw_interleaved_c, PW_C_VPAGE,
+                                         PW_VADDR_PAGE_OFFSET, PW_BYTES_C,
+                                         PW_FOCUSED_STAGE0_C_LOCAL_PAGE,
+                                         PW_FOCUSED_STAGE0_C_LOCAL_TILE,
+                                         local_gemmini_id + PW_FOCUSED_STAGE0_C_SLOT_OFFSET)) {
       printf("ALL_TESTS_FAIL reason=region_build\n");
       exit(1);
     }

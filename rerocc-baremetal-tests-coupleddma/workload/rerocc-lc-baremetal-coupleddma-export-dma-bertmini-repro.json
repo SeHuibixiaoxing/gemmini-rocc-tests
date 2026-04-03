@@ -1,0 +1,7 @@
+{
+  "name" : "rerocc-lc-baremetal-coupleddma-export-dma-bertmini-repro",
+  "base" : "bare-base.json",
+  "workdir" : ".",
+  "host-init" : "host-init-export-dma-bertmini-repro.sh",
+  "bin" : "rerocc_lc_export_dma_bertmini_repro.riscv"
+}

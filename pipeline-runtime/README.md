@@ -1,88 +1,51 @@
 # Pipeline Runtime
 
-`pipeline-runtime` 是 HybridMapper 编排结果在 Gemmini/ReRoCC/CoupledDMA 上的执行时实现。
+`pipeline-runtime` 负责把 HybridMapper 导出的 pre-orchestrated mapping 落到 Gemmini / ReRoCC / CoupledDMA 执行路径上。
 
-当前真实状态：
+## 当前一句话状态
 
-- 编排期已经决定 segment 需要多少加速器、多少 SPM 页、各 stage/tensor/buffer 的逻辑布局。
-- 运行时只负责兑现这些要求：
-  - 分配物理 Gemmini/DMA manager
-  - 为 action 申请一段连续 alias VA window
-  - 为该 action 建立私有 shared-spad 页表和 PTBR/PTE backing
-  - 把逻辑 tensor/buffer 视图绑定到真实物理页
-- `C1` 到 `C8` 八类 pipeline buffer 仍然由同一套 pipebuf/ringbuf 拓扑执行。
-- 本轮重构后，拓扑与执行态已经从 `prt_runtime_t` 全局单例迁到 `action->exec` 私有容器。
-- 但“多个 active action 同时执行”还没有完成；当前 `prt_runtime_run()` 仍一次只推进一个 active action。
+- 当前 `bertmini` 主线已经从“Linux/F2 上疑似 DMA 卡死”收敛到“Linux/F2 上可完整执行完成，但 final golden mismatch”。
+- 最新冻结结论是：`2026-04-02` 的 `bertmini batch=8 file-only` 主线 run 已跑到 `segment=31` 结束，并正常触发 guest poweroff；当前 failure 是 `tensor=48` 的 golden mismatch，不再是 mainline DMA hang。
+- 当前 golden mismatch 排查暂时搁置；除非新的 fresh run 明确从“可完成”回退成“再次卡死”，否则不要把主线叙事改回 DMA submit hang。
 
-## 文档地图
+## 当前推荐入口
 
-- `README.md`
-  入口和当前状态
-- `ARCHITECTURE.md`
-  运行时架构、action/exec ownership、buffer 拓扑
-- `DECISIONS.md`
-  已冻结约束、硬件接口边界、调试规则
-- `ROADMAP.md`
-  下一步实现顺序
-- `TESTPLAN.md`
-  本地验证、baremetal、Linux/F2 的验证阶梯
-- `docs/multi_action_runtime.md`
-  多 active action runtime 的当前实现边界与后续缺口
+- `docs/CURRENT_STATUS.md`
+  当前冻结状态、关键证据、稳定 workload
 - `docs/blockers_and_lessons.md`
-  历史 Linux/F2 卡点、日志经验、runfarm 纪律
-- `docs/linux_dma_guardrails.md`
-  Linux userspace DMA 特定 guardrails
+  当前仍有效的硬约束、教训和恢复顺序
+- `DECISIONS.md`
+  已冻结的 runtime / artifact / ReRoCC 边界
+- `TESTPLAN.md`
+  验证阶梯
+- `ROADMAP.md`
+  后续实现顺序
+- `NEXT_SESSION_PROMPT.md`
+  下次接手时的最小 prompt
 - `docs/archive/2026Q1_history.md`
-  旧时间线和历史记录
+  历史时间线归档
 
-历史协作文档已经归档到：
+## 当前稳定工作负载
 
-- `conference/mudnac_hybridmapper_collab_docs/archive/2026Q1/`
+- `rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync`
+  当前主线回归 workload。用途是验证 Linux/F2 启动、文件日志链路、全 segment 执行完成，以及是否仍停留在 `tensor=48` mismatch。
+- `rerocc-lc-linux-coupleddma-regression-small-pipelinefiles`
+  当前可采信的小 Linux smoke。`2026-03-20` 的结果里已经出现 `DMA_MATRIX_RESULT ... PASS`、`SCENARIO_RESULT name=conv_dma_parallel_nonblocking pass=1`、`NONBLOCKING_SUMMARY ...`、`ALL_TESTS_PASS`。
 
-## 当前代码入口
+## 当前执行纪律
 
-- Host/Linux 共用 runtime：
-  `generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/`
-- Artifact exporter：
-  `conference/HybridMapper/scripts/create-pipeline-runtime-artifacts.py`
-- Canonical artifacts：
-  `conference/HybridMapper/output/pipeline_runtime/bertmini/`
+- 只用 `f2.6xlarge`。
+- FireSim 只走 manager 正规流：`launchrunfarm -> infrasetup -> runworkload -> terminaterunfarm`。
+- FireSim manager 命令只通过 `/home/ubuntu/chipyard/scripts/firesim-tmux-run.sh`。
+- FireMarshal 只通过 `/home/ubuntu/chipyard/scripts/firemarshal-tmux-run.sh`。
+- 每次 `infrasetup` 或 `runworkload` 前，必须先核对 workload image/rootfs 是最新 build/install 产物；至少核对路径、mtime、size，最好补 `sha256sum`。
+- 任何 run 结束、失败或人工中断后，先收证据，再立刻 `terminaterunfarm --forceterminate`，并继续核对 EC2 状态直到实例不再 `running`。
+- Linux 启动期间允许长时间安静窗口；只要没有 panic/crash，且 heartbeat 或启动日志还在前进，就不要过早判定 boot hang。
+- guest/bin 日志默认走文件，不走 UART。UART 只保留 Linux 启动和 FireSim verdict。
 
-## 最短检查
+## 当前日志策略
 
-1. 导出 artifacts
-
-```bash
-cd /home/ubuntu/chipyard
-python3 conference/HybridMapper/scripts/create-pipeline-runtime-artifacts.py --model bertmini
-```
-
-2. 全量重编 runtime
-
-```bash
-make -C /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime clean
-make -C /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime -j4
-```
-
-3. CLI sanity
-
-```bash
-/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/pipeline_runtime --help
-```
-
-4. 最小 host closure
-
-```bash
-cd /home/ubuntu/chipyard
-METHODS=ours2 BATCH=1 SKIP_BUILD=1 SKIP_EXPORT=1 \
-bash generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/run_bertmini_host_closure.sh
-```
-
-## 本轮已验证
-
-- `make -C .../pipeline-runtime -j4`
-  PASS
-- `pipeline_runtime --help`
-  PASS
-- `METHODS=ours2 BATCH=1 SKIP_BUILD=1 SKIP_EXPORT=1 run_bertmini_host_closure.sh`
-  PASS
+- 粗粒度日志：`/root/pipeline-runtime-debug/bertmini-batch8.log`
+- 细粒度日志：`/root/pipeline-runtime-debug/bertmini-batch8.deep.log`
+- 当前主线已支持按 segment/stage/subbatch 开启细粒度日志，入口是 `--deep-log-segment`、`--deep-log-global-stage`、`--deep-log-local-stage`、`--deep-log-subbatch` 及对应 radius 参数。
+- 当前稳定策略是不把 bin/runtime 日志经 UART 打印；如果要追卡点，优先开文件细日志，而不是往 UART/stdout 加更多输出。

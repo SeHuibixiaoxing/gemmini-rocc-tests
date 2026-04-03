@@ -51,7 +51,8 @@ static void prt_try_lock_process_memory(void) {
 
 static void usage(const char *prog) {
   fprintf(stderr,
-    "Usage: %s --backend <cpu|fpga> --model-yaml <path> --layer-mapping-yaml <path> [--model-bin <path>] [--model-offset <bytes>] --pipeline-yaml <path> [--num-cores <n>] [--num-gemmini-mgrs <n>] [--num-dma-mgrs <n>] [--gemmini-base-id <n>] [--dma-base-id <n>] [--sync-mode <async|blocking_debug>] [--pages-per-acc <n>] [--spm-page-bytes <n>] [--spm-xlate-enable <0|1>] [--spm-xlate-range-base <hex>] [--spm-xlate-range-size <bytes>] [--spm-pt-pool-prealloc-hugepages <n>] [--spm-pt-pool-max-hugepages <n>] [--spm-pt-require-hugetlb <0|1>] [--watchdog-ms <n>] [--hw-validate-only] [--input <path>] [--golden <path>] [--golden-out <path>] [--batch <n>] [--trace <path>]\\n"
+    "Usage: %s --backend <cpu|fpga> --model-yaml <path> --layer-mapping-yaml <path> [--model-bin <path>] [--model-offset <bytes>] --pipeline-yaml <path> [--num-cores <n>] [--num-gemmini-mgrs <n>] [--num-dma-mgrs <n>] [--gemmini-base-id <n>] [--dma-base-id <n>] [--sync-mode <async|blocking_debug>] [--pages-per-acc <n>] [--spm-page-bytes <n>] [--spm-xlate-enable <0|1>] [--spm-xlate-range-base <hex>] [--spm-xlate-range-size <bytes>] [--spm-pt-pool-prealloc-hugepages <n>] [--spm-pt-pool-max-hugepages <n>] [--spm-pt-require-hugetlb <0|1>] [--watchdog-ms <n>] [--export-dma-timeout-ms <n>] [--hw-validate-only] [--input <path>] [--golden <path>] [--golden-out <path>] [--batch <n>] [--trace <path>]\\n"
+    "       [--deep-log-enable <0|1>] [--deep-log-segment <n>] [--deep-log-global-stage <n>] [--deep-log-local-stage <n>] [--deep-log-subbatch <n>] [--deep-log-stage-radius <n>] [--deep-log-subbatch-radius <n>]\\n"
     "       %s --hw-validate-only [runtime knobs above]\\n",
     prog, prog);
 }
@@ -81,6 +82,15 @@ int prt_main_entry(int argc, char **argv) {
   prt_early_progress("[prt-early] enter main");
   prt_enable_live_stdio();
   prt_early_progress("[prt-early] live stdio ready");
+  PRT_CRIT_LOG("main build-config crit_probe=%u marker=%u progress=%u raw=%u hot=%u phase=%u",
+               (unsigned)PRT_ENABLE_CRITICAL_UART_PROBE,
+               (unsigned)PRT_ENABLE_ONLY_MARKER,
+               (unsigned)PRT_ENABLE_PROGRESS_LOG,
+               (unsigned)PRT_ENABLE_PROGRESS_RAW_LOG,
+               (unsigned)PRT_ENABLE_PROGRESS_HOT_LOG,
+               (unsigned)PIPELINE_RUNTIME_GEMMINI_PHASE_LOG);
+  PRT_CRIT_LOG("main build-config deep_gate_cap=%u",
+               (unsigned)PIPELINE_RUNTIME_DEEP_LOG_GATE);
 
   memset(&cfg, 0, sizeof(cfg));
   memset(&args, 0, sizeof(args));
@@ -104,6 +114,14 @@ int prt_main_entry(int argc, char **argv) {
   cfg.gemmini_mode = PRT_GEMMINI_MODE_ASYNC_EXPERIMENTAL;
   cfg.sync_mode = PRT_SYNC_MODE_ASYNC;
   cfg.watchdog_timeout_ms = 5000;
+  cfg.export_dma_timeout_ms = 5000;
+  cfg.deep_log_gate_enable = 0;
+  cfg.deep_log_segment = PRT_LOG_GATE_ANY_U32;
+  cfg.deep_log_global_stage = PRT_LOG_GATE_ANY_U32;
+  cfg.deep_log_local_stage = PRT_LOG_GATE_ANY_U32;
+  cfg.deep_log_subbatch = PRT_LOG_GATE_ANY_U32;
+  cfg.deep_log_stage_radius = 0;
+  cfg.deep_log_subbatch_radius = 0;
   prt_early_progress("[prt-early] defaults ready");
 
   for (int i = 1; i < argc; ++i) {
@@ -180,6 +198,28 @@ int prt_main_entry(int argc, char **argv) {
     } else if (!strcmp(argv[i], "--watchdog-ms") && i + 1 < argc) {
       cfg.watchdog_timeout_ms = (uint32_t)strtoul(argv[++i], NULL, 10);
       watchdog_set = 1;
+    } else if (!strcmp(argv[i], "--export-dma-timeout-ms") && i + 1 < argc) {
+      cfg.export_dma_timeout_ms = (uint32_t)strtoul(argv[++i], NULL, 10);
+    } else if (!strcmp(argv[i], "--deep-log-enable") && i + 1 < argc) {
+      cfg.deep_log_gate_enable = (uint32_t)strtoul(argv[++i], NULL, 10) ? 1U : 0U;
+    } else if (!strcmp(argv[i], "--deep-log-segment") && i + 1 < argc) {
+      cfg.deep_log_segment = (uint32_t)strtoul(argv[++i], NULL, 0);
+      cfg.deep_log_gate_enable = 1U;
+    } else if (!strcmp(argv[i], "--deep-log-global-stage") && i + 1 < argc) {
+      cfg.deep_log_global_stage = (uint32_t)strtoul(argv[++i], NULL, 0);
+      cfg.deep_log_gate_enable = 1U;
+    } else if (!strcmp(argv[i], "--deep-log-local-stage") && i + 1 < argc) {
+      cfg.deep_log_local_stage = (uint32_t)strtoul(argv[++i], NULL, 0);
+      cfg.deep_log_gate_enable = 1U;
+    } else if (!strcmp(argv[i], "--deep-log-subbatch") && i + 1 < argc) {
+      cfg.deep_log_subbatch = (uint32_t)strtoul(argv[++i], NULL, 0);
+      cfg.deep_log_gate_enable = 1U;
+    } else if (!strcmp(argv[i], "--deep-log-stage-radius") && i + 1 < argc) {
+      cfg.deep_log_stage_radius = (uint32_t)strtoul(argv[++i], NULL, 0);
+      cfg.deep_log_gate_enable = 1U;
+    } else if (!strcmp(argv[i], "--deep-log-subbatch-radius") && i + 1 < argc) {
+      cfg.deep_log_subbatch_radius = (uint32_t)strtoul(argv[++i], NULL, 0);
+      cfg.deep_log_gate_enable = 1U;
     } else {
       usage(argv[0]);
       return 2;
@@ -207,9 +247,9 @@ int prt_main_entry(int argc, char **argv) {
     prt_try_lock_process_memory();
   }
 
-  PRT_MARKER_LOG("main runtime-init-begin backend=%u cores=%u gemmini=%u dma=%u spm_xlate=%u pages_per_acc=%u",
+  PRT_MARKER_LOG("main runtime-init-begin backend=%u cores=%u gemmini=%u dma=%u spm_xlate=%u pages_per_acc=%u export_dma_timeout_ms=%u",
                  (uint32_t)cfg.backend, cfg.num_cores, cfg.num_gemmini_mgrs, cfg.num_dma_mgrs,
-                 cfg.spm_xlate_enable, cfg.pages_per_acc);
+                 cfg.spm_xlate_enable, cfg.pages_per_acc, cfg.export_dma_timeout_ms);
   prt_early_progress("[prt-early] calling runtime_init");
   rc = prt_runtime_init(&cfg, &rt);
   if (rc != PRT_OK) {

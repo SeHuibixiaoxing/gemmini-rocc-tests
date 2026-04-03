@@ -5,6 +5,10 @@
 
 #include "prt_types.h"
 
+#if defined(__riscv)
+#include "rerocc-linux-tests/rerocc_control.h"
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
