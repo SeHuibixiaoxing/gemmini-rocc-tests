@@ -260,6 +260,100 @@ pair-wrapper 需要改成：
 - `/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/bareMetalC/learn-gemmini/rerocc_lc_matrix_baremetal_coupleddma.c`
 - `/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_rerocc.c`
 
+## 8.1 2026-04-05 实施 checkpoint
+
+截至 `2026-04-05` 当前 checkpoint，pair-wrapper 小配置方向已经完成下面这些落地项：
+
+- `generators/rerocc/src/main/scala/manager/Parameters.scala`
+  - `ReRoCCTileParams` 新增 `preserveIncomingOpcode: Boolean = false`
+- `generators/rerocc/src/main/scala/manager/Manager.scala`
+  - `ReRoCCManager` 不再要求单一 opcode
+  - 改为接收整个合法 opcode 集合
+  - `preserveIncomingOpcode = true` 时只检查 incoming opcode 合法，不再强制改写成固定 `roccOpcode`
+- `generators/gemmini/src/main/scala/gemmini/GemminiCoupledDMAPairWrapper.scala`
+  - 已新增真正的 pair-wrapper
+  - 内部固定实例化：
+    - `Gemmini(custom3, gemmini_id = pairId)`
+    - `GemminiCoupledDMA(custom2, gemmini_id = pairId)`
+  - 对外汇总 `resp/busy/mem/ptw/tlNode/atlNode/stlNode`
+  - `sbusSlaveTLNode` 直接沿用 Gemmini child，保持 shared scratchpad / shared xlate 语义
+- `generators/chipyard/src/main/scala/config/fragments/ReRoCCGemminiCoupledDMAPairFragments.scala`
+  - 已新增 `WithReRoCCGemminiCoupledDMAPairManagers`
+- `generators/chipyard/src/main/scala/config/GemminiLearningReRoCCCoupledDMAConfigHelpers.scala`
+  - 已新增 `buildPairLayout()`
+  - 没有覆盖旧的 separate-manager `buildLayout()` 路径
+- `generators/chipyard/src/main/scala/config/GemminiLearningReRoCCPairManagerConfigs.scala`
+  - 已新增 pair-manager 专用 parametric config
+  - 第一条小配置为：
+    - `GemminiLearningConfigSpadReRoCCGlobalNoC2C1x2P2x1x2CoupledDMAPairManager`
+- 现有 separate-manager 大 dummy 配置与 active FireSim YAML 没有在本轮被替换或回退
+
+baremetal 最小适配当前也已经落地：
+
+- `bareMetalC/learn-gemmini/rerocc_lc_matrix_baremetal_coupleddma.c`
+  - 已新增 `REROCC_PAIR_MANAGER_MODE=1`
+  - 同一 pair cfg 下同时绑定 `rr_set_opc(3, cfg)` 和 `rr_set_opc(2, cfg)`
+  - 在一次 acquire/release 作用域内先后发 Gemmini 和 DMA 指令
+- `bareMetalC/learn-gemmini/rerocc_lc_nonblocking_baremetal_coupleddma.c`
+  - 已新增 `REROCC_PAIR_MANAGER_MODE=1`
+  - 每个并发场景把 Gemmini/DMA 绑定到同一个 pair cfg
+- `bareMetalC/learn-gemmini/rerocc_lc_resadd_explicit_interleaved.c`
+  - 当前仍保持 Gemmini-only shared-spad 验证路径
+- `pipeline-runtime/src/prt_rerocc.c`
+  - 本轮未修改
+
+当前已确认的验证结果：
+
+- 阶段 0 compile/elaboration：
+  - `make -C sims/verilator ... firrtl CONFIG=GemminiLearningConfigSpadReRoCCGlobalNoC2C1x2P2x1x2CoupledDMAPairManager`
+    已通过
+  - chisel/elaboration 日志显示：
+    - `ReRoCC Manager id 0 is a gemmini.GemminiCoupledDMAPairWrapper`
+    - `ReRoCC Manager id 1 is a gemmini.GemminiCoupledDMAPairWrapper`
+  - 说明 manager 数已经按 `P=2` 展开，而不是旧的 `G + D = 4`
+- baremetal 编译 smoke：
+  - `mt_hello-baremetal`
+  - `rerocc_lc_matrix_baremetal_coupleddma-baremetal`
+  - `rerocc_lc_resadd_explicit_interleaved-baremetal`
+  - `rerocc_lc_nonblocking_baremetal_coupleddma-baremetal`
+  均已重编通过
+- 阶段 2 runtime：
+  - log: `/tmp/pair_stage2_matrix_trace.log`
+  - pair-manager `matrix + coupled-dma` quick case 已通过
+  - 关键结论：
+    - `GEMMINI_MATRIX_RESULT mode=single pass=1 fail=0 expected=1`
+    - `DMA_MATRIX_RESULT mode=single pass=1 fail=0 expected=1 bytes=512`
+    - `ALL_TESTS_PASS`
+- 阶段 3 runtime：
+  - log: `/tmp/pair_stage3_resadd_bias_focus_quiet_nodram.log`
+  - Gemmini-only shared-spad / xlate 验证已通过
+  - 关键结论：
+    - `CASE_RESULT bias_mvin3_runtime_alias_focus PASS`
+    - `ALL_TESTS_PASS`
+- 阶段 4 runtime：
+  - log: `/tmp/pair_stage4_nonblocking_final2.log`
+  - `rerocc_lc_nonblocking_baremetal_coupleddma-baremetal` 已通过 pair-manager smoke
+  - 关键结论：
+    - `NONBLOCKING_SUMMARY s1=1 s2=1 s3=1 s4=1`
+    - `ALL_TESTS_PASS`
+  - 同时确认了一个 smoke 级软件事实：
+    - 当 stage 4 按计划把 `long/short` 两侧迭代数都压到 `1` 时，原测试里的“`short` 必须先于 `long` 完成”不再是稳定判据
+    - 因此 `bareMetalC/learn-gemmini/rerocc_lc_nonblocking_baremetal_coupleddma.c` 现在只在 `long_iters > short_iters` 时保留原 latency-order check
+    - 在最小 smoke 配置下，场景 pass 仅要求 `ok0 && ok1`，`overlap` / `short_before_long` 继续保留为观测指标，不再作为 gate
+
+当前剩余未完成的部分：
+
+- 为了让本地 verilator smoke 可读，额外修了：
+  - `tools/DRAMSim2/AddressMapping.cpp`
+  - 把 DRAMSim 的 `address ... is not aligned to the request size of 64` warning 改为只报一次
+  - 实际运行时需要通过本地 `tools/DRAMSim2/libdramsim.so` 覆盖 toolchain 自带 `libdramsim.so`
+- 小配置 pair-wrapper 的阶段 0 到阶段 4 已经闭环
+- 下一步只剩计划中的阶段 5：
+  1. 在不影响当前 separate-manager `Sbus256/Sbus128` buildbitstream 基线的前提下
+  2. 新增 large dummy pair-wrapper 配置
+  3. 复用当前 active FPGA 目标的资源旋钮
+  4. 在 small-config pair-wrapper 稳定基线上再考虑 FireSim / buildbitstream
+
 ## 9. 给下一个 AI 的 Prompt
 
 ```text

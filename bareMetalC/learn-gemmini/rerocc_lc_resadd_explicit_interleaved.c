@@ -70,6 +70,10 @@
 #define REROCC_XLATE_PROGRAM_SUBPHASE_LOG 0
 #endif
 
+#ifndef REROCC_QUIET_PROGRESS
+#define REROCC_QUIET_PROGRESS 0
+#endif
+
 #ifndef RR_MAX_CFGS
 #define RR_MAX_CFGS 16U
 #endif
@@ -390,12 +394,22 @@ static inline bool init_should_log_progress(size_t idx, size_t total, size_t ste
   return idx == 0 || idx + 1 == total || ((idx + 1) % step) == 0;
 }
 
+static inline bool quiet_progress(void) {
+  return REROCC_QUIET_PROGRESS != 0;
+}
+
 static void init_phase_log(const char *phase, uint32_t seed) {
+  if (quiet_progress()) {
+    return;
+  }
   printf("INIT_PHASE phase=%s cycle=%lu seed=0x%x\n",
          phase, init_cycle(), seed);
 }
 
 static void case_phase_log(const char *name, const char *phase) {
+  if (quiet_progress()) {
+    return;
+  }
   printf("CASE_PROGRESS %s phase=%s cycle=%lu\n", name, phase, init_cycle());
 }
 
@@ -438,30 +452,38 @@ static bool finish_elem_case_result(const char *name,
 
 static void init_random_elem(elem_t *buf, size_t n, uint32_t *state) {
   const unsigned long start_cycle = init_cycle();
-  printf("INIT_FN_START fn=init_random_elem buf=0x%lx n=%lu seed_in=0x%x cycle=%lu\n",
-         (unsigned long)buf, (unsigned long)n, *state, start_cycle);
+  if (!quiet_progress()) {
+    printf("INIT_FN_START fn=init_random_elem buf=0x%lx n=%lu seed_in=0x%x cycle=%lu\n",
+           (unsigned long)buf, (unsigned long)n, *state, start_cycle);
+  }
   for (size_t i = 0; i < n; i++) {
     buf[i] = (elem_t)((int32_t)(lcg_next(state) % 31u) - 15);
   }
   const unsigned long end_cycle = init_cycle();
-  printf("INIT_FN_END fn=init_random_elem buf=0x%lx n=%lu seed_out=0x%x first=%d last=%d cycle=%lu delta=%lu\n",
-         (unsigned long)buf, (unsigned long)n, *state,
-         n == 0 ? 0 : (int)buf[0], n == 0 ? 0 : (int)buf[n - 1],
-         end_cycle, end_cycle - start_cycle);
+  if (!quiet_progress()) {
+    printf("INIT_FN_END fn=init_random_elem buf=0x%lx n=%lu seed_out=0x%x first=%d last=%d cycle=%lu delta=%lu\n",
+           (unsigned long)buf, (unsigned long)n, *state,
+           n == 0 ? 0 : (int)buf[0], n == 0 ? 0 : (int)buf[n - 1],
+           end_cycle, end_cycle - start_cycle);
+  }
 }
 
 static void init_random_acc(acc_t *buf, size_t n, uint32_t *state) {
   const unsigned long start_cycle = init_cycle();
-  printf("INIT_FN_START fn=init_random_acc buf=0x%lx n=%lu seed_in=0x%x cycle=%lu\n",
-         (unsigned long)buf, (unsigned long)n, *state, start_cycle);
+  if (!quiet_progress()) {
+    printf("INIT_FN_START fn=init_random_acc buf=0x%lx n=%lu seed_in=0x%x cycle=%lu\n",
+           (unsigned long)buf, (unsigned long)n, *state, start_cycle);
+  }
   for (size_t i = 0; i < n; i++) {
     buf[i] = (acc_t)((int32_t)(lcg_next(state) % 61u) - 30);
   }
   const unsigned long end_cycle = init_cycle();
-  printf("INIT_FN_END fn=init_random_acc buf=0x%lx n=%lu seed_out=0x%x first=%ld last=%ld cycle=%lu delta=%lu\n",
-         (unsigned long)buf, (unsigned long)n, *state,
-         n == 0 ? 0L : (long)buf[0], n == 0 ? 0L : (long)buf[n - 1],
-         end_cycle, end_cycle - start_cycle);
+  if (!quiet_progress()) {
+    printf("INIT_FN_END fn=init_random_acc buf=0x%lx n=%lu seed_out=0x%x first=%ld last=%ld cycle=%lu delta=%lu\n",
+           (unsigned long)buf, (unsigned long)n, *state,
+           n == 0 ? 0L : (long)buf[0], n == 0 ? 0L : (long)buf[n - 1],
+           end_cycle, end_cycle - start_cycle);
+  }
 }
 
 static void resadd_reference(const elem_t *a, const elem_t *b, elem_t *out, size_t n) {
@@ -1455,23 +1477,25 @@ static bool run_bias_mvin3_runtime_focus_case(const char *name, int gemmini_mana
   acc_t bias_alias_head[PW_LINUX_TILE_COLS];
   uint64_t xlate_fault_pre = 0;
 
-  printf("CASE_START %s target=focus-bias-mvin3-alias bytes_bias=%lu page_bytes=%lu page_offset=%lu cfg=%u opcode=%u manager=%d outer_I=%u outer_J=%u outer_K=%u inner_I=%u inner_J=%u inner_K=%u act=%d repeating_bias=1 D_stride=0 sp=0x%x cols=%u rows=%u rs1=0x%lx rs2=0x%lx\n",
-         name,
-         (unsigned long)bias_bytes,
-         (unsigned long)REROCC_SPM_PAGE_BYTES,
-         (unsigned long)PW_VADDR_PAGE_OFFSET,
-         GEMMINI_CFG_ID,
-         GEMMINI_OPCODE_ID,
-         gemmini_manager_id,
-         PW_I, PW_J, PW_K,
-         PW_LINUX_TILE_I, PW_LINUX_TILE_J, PW_LINUX_TILE_K,
-         RELU,
-         PW_LINUX_TILE_D_SP_ADDR,
-         PW_LINUX_TILE_COLS,
-         PW_LINUX_TILE_ROWS,
-         (unsigned long)rs1,
-         (unsigned long)rs2);
-  print_region_summary(name, "BIAS", bias_region, "interleaved");
+  if (!quiet_progress()) {
+    printf("CASE_START %s target=focus-bias-mvin3-alias bytes_bias=%lu page_bytes=%lu page_offset=%lu cfg=%u opcode=%u manager=%d outer_I=%u outer_J=%u outer_K=%u inner_I=%u inner_J=%u inner_K=%u act=%d repeating_bias=1 D_stride=0 sp=0x%x cols=%u rows=%u rs1=0x%lx rs2=0x%lx\n",
+           name,
+           (unsigned long)bias_bytes,
+           (unsigned long)REROCC_SPM_PAGE_BYTES,
+           (unsigned long)PW_VADDR_PAGE_OFFSET,
+           GEMMINI_CFG_ID,
+           GEMMINI_OPCODE_ID,
+           gemmini_manager_id,
+           PW_I, PW_J, PW_K,
+           PW_LINUX_TILE_I, PW_LINUX_TILE_J, PW_LINUX_TILE_K,
+           RELU,
+           PW_LINUX_TILE_D_SP_ADDR,
+           PW_LINUX_TILE_COLS,
+           PW_LINUX_TILE_ROWS,
+           (unsigned long)rs1,
+           (unsigned long)rs2);
+    print_region_summary(name, "BIAS", bias_region, "interleaved");
+  }
 
   {
     const char *region_names[] = {"BIAS"};
@@ -1486,8 +1510,10 @@ static bool run_bias_mvin3_runtime_focus_case(const char *name, int gemmini_mana
   alias_region_write(bias_region, (const uint8_t *)bias_src, bias_bytes);
   memset(bias_alias_head, 0, sizeof(bias_alias_head));
   alias_region_read(bias_region, (uint8_t *)bias_alias_head, sizeof(bias_alias_head));
-  print_acc_prefix(name, "bias-src-head", bias_src, PW_LINUX_TILE_COLS);
-  print_acc_prefix(name, "bias-alias-head", bias_alias_head, PW_LINUX_TILE_COLS);
+  if (!quiet_progress()) {
+    print_acc_prefix(name, "bias-src-head", bias_src, PW_LINUX_TILE_COLS);
+    print_acc_prefix(name, "bias-alias-head", bias_alias_head, PW_LINUX_TILE_COLS);
+  }
 
   if (!rr_acquire_cfg_with_retry(GEMMINI_CFG_ID, (uint64_t)gemmini_manager_id)) {
     printf("CASE_FAIL %s reason=acquire\n", name);
@@ -1498,39 +1524,56 @@ static bool run_bias_mvin3_runtime_focus_case(const char *name, int gemmini_mana
   spm_xlate_table_clear();
   spm_xlate_map_region(bias_region);
   spm_xlate_program(true);
-  print_region_xlate(name, "BIAS", bias_region);
+  if (!quiet_progress()) {
+    print_region_xlate(name, "BIAS", bias_region);
+  }
   xlate_fault_pre = rerocc_gemmini_spm_xlate_fault();
-  printf("CASE_TRACE %s xlate-fault-pre raw=0x%lx cycle=%lu\n",
-         name, (unsigned long)xlate_fault_pre, init_cycle());
-
-  printf("CASE_TRACE %s config-ex dataflow=%d act=%d A_stride=1 A_transpose=0 B_transpose=0\n",
-         name, OUTPUT_STATIONARY, RELU & 3);
+  if (!quiet_progress()) {
+    printf("CASE_TRACE %s xlate-fault-pre raw=0x%lx cycle=%lu\n",
+           name, (unsigned long)xlate_fault_pre, init_cycle());
+    printf("CASE_TRACE %s config-ex dataflow=%d act=%d A_stride=1 A_transpose=0 B_transpose=0\n",
+           name, OUTPUT_STATIONARY, RELU & 3);
+  }
   gemmini_extended_config_ex(OUTPUT_STATIONARY, RELU & 3, 0, 1, false, false);
-  printf("CASE_TRACE %s config-st stride_bytes=%lu act=%d scale=identity\n",
-         name, (unsigned long)(PW_C_STRIDE * sizeof(elem_t)), RELU & 3);
+  if (!quiet_progress()) {
+    printf("CASE_TRACE %s config-st stride_bytes=%lu act=%d scale=identity\n",
+           name, (unsigned long)(PW_C_STRIDE * sizeof(elem_t)), RELU & 3);
+  }
   gemmini_extended_config_st(PW_C_STRIDE * sizeof(elem_t), RELU & 3, ACC_SCALE_IDENTITY);
-  printf("CASE_TRACE %s config-ld-a stride_bytes=%lu id=0\n",
-         name, (unsigned long)(PW_A_STRIDE * sizeof(elem_t)));
+  if (!quiet_progress()) {
+    printf("CASE_TRACE %s config-ld-a stride_bytes=%lu id=0\n",
+           name, (unsigned long)(PW_A_STRIDE * sizeof(elem_t)));
+  }
   gemmini_extended3_config_ld(PW_A_STRIDE * sizeof(elem_t), MVIN_SCALE_IDENTITY, false, 0);
-  printf("CASE_TRACE %s config-ld-b stride_bytes=%lu id=1\n",
-         name, (unsigned long)(PW_B_STRIDE * sizeof(elem_t)));
+  if (!quiet_progress()) {
+    printf("CASE_TRACE %s config-ld-b stride_bytes=%lu id=1\n",
+           name, (unsigned long)(PW_B_STRIDE * sizeof(elem_t)));
+  }
   gemmini_extended3_config_ld(PW_B_STRIDE * sizeof(elem_t), MVIN_SCALE_IDENTITY, false, 1);
-  printf("CASE_TRACE %s config-ld-d stride_bytes=0 id=2 runtime_skip_preflush=1\n", name);
+  if (!quiet_progress()) {
+    printf("CASE_TRACE %s config-ld-d stride_bytes=0 id=2 runtime_skip_preflush=1\n", name);
+  }
   gemmini_extended3_config_ld(0, ACC_SCALE_IDENTITY, false, 2);
 
-  printf("CASE_TRACE %s pre-issue-mvin3 dram=0x%lx sp=0x%x cols=%u rows=%u cycle=%lu\n",
-         name,
-         (unsigned long)rs1,
-         PW_LINUX_TILE_D_SP_ADDR,
-         PW_LINUX_TILE_COLS,
-         PW_LINUX_TILE_ROWS,
-         init_cycle());
+  if (!quiet_progress()) {
+    printf("CASE_TRACE %s pre-issue-mvin3 dram=0x%lx sp=0x%x cols=%u rows=%u cycle=%lu\n",
+           name,
+           (unsigned long)rs1,
+           PW_LINUX_TILE_D_SP_ADDR,
+           PW_LINUX_TILE_COLS,
+           PW_LINUX_TILE_ROWS,
+           init_cycle());
+  }
   prt_gemmini_issue_bias_mvin3_debug(bias_req, PW_LINUX_TILE_D_SP_ADDR,
                                      PW_LINUX_TILE_COLS, PW_LINUX_TILE_ROWS);
-  printf("CASE_TRACE %s post-issue-mvin3 cycle=%lu\n", name, init_cycle());
+  if (!quiet_progress()) {
+    printf("CASE_TRACE %s post-issue-mvin3 cycle=%lu\n", name, init_cycle());
+  }
 
   gemmini_wait_managed_runtime_style(GEMMINI_CFG_ID);
-  printf("CASE_TRACE %s post-wait cycle=%lu\n", name, init_cycle());
+  if (!quiet_progress()) {
+    printf("CASE_TRACE %s post-wait cycle=%lu\n", name, init_cycle());
+  }
   spm_xlate_reset();
   rr_fence(GEMMINI_CFG_ID);
   rr_release(GEMMINI_CFG_ID);

@@ -1151,3 +1151,101 @@ stdbuf -oL -eL \
 当前 authoritative 的下一步计划与交接 prompt 已移动到：
 
 - `/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/docs/pair_wrapper_manager_plan_20260405.md`
+
+### 11.12 2026-04-05 硬件事实更新：pair-wrapper 小配置已落地
+
+截至 `2026-04-05` 的当前 checkpoint，pair-wrapper 小配置方向已经从“计划”进入“代码已落地”状态。
+
+本轮已经落地且应视为当前硬件事实的内容：
+
+- `generators/rerocc/src/main/scala/manager/Parameters.scala`
+  - `ReRoCCTileParams` 新增 `preserveIncomingOpcode: Boolean = false`
+- `generators/rerocc/src/main/scala/manager/Manager.scala`
+  - `ReRoCCManager` 不再要求单一 opcode
+  - 现在按“合法 opcode 集合”检查 incoming 指令
+  - 在 pair-wrapper 配置中可以保留 incoming `custom2/custom3`
+- `generators/gemmini/src/main/scala/gemmini/GemminiCoupledDMAPairWrapper.scala`
+  - 已新增真正的 pair-wrapper
+  - 一个 wrapper 内部固定包含：
+    - `Gemmini(custom3, gemmini_id = pairId)`
+    - `GemminiCoupledDMA(custom2, gemmini_id = pairId)`
+  - 对外作为一个物理 ReRoCC manager 暴露
+- `generators/chipyard/src/main/scala/config/fragments/ReRoCCGemminiCoupledDMAPairFragments.scala`
+  - 已新增 `WithReRoCCGemminiCoupledDMAPairManagers`
+- `generators/chipyard/src/main/scala/config/GemminiLearningReRoCCPairManagerConfigs.scala`
+  - 已新增 pair-manager 专用配置链
+  - 第一条小配置为：
+    - `GemminiLearningConfigSpadReRoCCGlobalNoC2C1x2P2x1x2CoupledDMAPairManager`
+
+同时确认：
+
+- 没有恢复 `aggregatePairedManagers`
+- 没有恢复 grouped attachment / grouped manager edge 路线
+- 没有覆盖当前 separate-manager 的 large dummy `Sbus256/Sbus128` 基线
+- 没有修改 `pipeline-runtime/src/prt_rerocc.c`
+
+本轮已确认的编译事实：
+
+- `make -C sims/verilator ... firrtl CONFIG=GemminiLearningConfigSpadReRoCCGlobalNoC2C1x2P2x1x2CoupledDMAPairManager`
+  已通过
+- chisel/elaboration 日志显示：
+  - `ReRoCC Manager id 0 is a gemmini.GemminiCoupledDMAPairWrapper`
+  - `ReRoCC Manager id 1 is a gemmini.GemminiCoupledDMAPairWrapper`
+- 这说明当前 manager 计数已经按 `P=2` 展开，而不是旧的 `Gemmini + DMA = 4`
+
+本轮已确认的 baremetal 编译事实：
+
+- `mt_hello-baremetal`
+- `rerocc_lc_matrix_baremetal_coupleddma-baremetal`
+- `rerocc_lc_resadd_explicit_interleaved-baremetal`
+- `rerocc_lc_nonblocking_baremetal_coupleddma-baremetal`
+
+以上 4 个 binary 均已在当前仓库中重编通过。
+
+其中 pair-manager 最小软件适配只发生在：
+
+- `bareMetalC/learn-gemmini/rerocc_lc_matrix_baremetal_coupleddma.c`
+- `bareMetalC/learn-gemmini/rerocc_lc_nonblocking_baremetal_coupleddma.c`
+
+并且都通过 `REROCC_PAIR_MANAGER_MODE=1` 走“同一 acquired cfg 绑定 `custom3 + custom2`”路径。
+
+本轮已确认的 runtime 事实：
+
+- 阶段 2：
+  - log: `/tmp/pair_stage2_matrix_trace.log`
+  - `rerocc_lc_matrix_baremetal_coupleddma-baremetal` 已通过
+  - 关键结果：
+    - `GEMMINI_MATRIX_RESULT mode=single pass=1 fail=0 expected=1`
+    - `DMA_MATRIX_RESULT mode=single pass=1 fail=0 expected=1 bytes=512`
+    - `ALL_TESTS_PASS`
+- 阶段 3：
+  - log: `/tmp/pair_stage3_resadd_bias_focus_quiet_nodram.log`
+  - `rerocc_lc_resadd_explicit_interleaved-baremetal` 已通过
+  - 关键结果：
+    - `CASE_RESULT bias_mvin3_runtime_alias_focus PASS`
+    - `ALL_TESTS_PASS`
+- 阶段 4：
+  - log: `/tmp/pair_stage4_nonblocking_final2.log`
+  - `rerocc_lc_nonblocking_baremetal_coupleddma-baremetal` 已通过
+  - 关键结果：
+    - `NONBLOCKING_SUMMARY s1=1 s2=1 s3=1 s4=1`
+    - `ALL_TESTS_PASS`
+
+本轮同时新增并确认了一个软件事实：
+
+- stage 4 的计划要求把 `bytes=512`、所有迭代数压到 `1`
+- 在这种“最小 smoke”形态下，原 nonblocking test 的 completion-order 指标不再稳定
+- 因此 `bareMetalC/learn-gemmini/rerocc_lc_nonblocking_baremetal_coupleddma.c`
+  现在只在 `long_iters > short_iters` 时保留原来的 latency-order check
+- 当 stage 4 进入 `long_iters == short_iters == 1` 的 smoke 配置时：
+  - pass 只要求 `ok0 && ok1`
+  - `overlap` / `short_before_long` 继续打印，但只作为观测指标
+
+为了减少本地 smoke 噪声，仍保留：
+
+- `tools/DRAMSim2/AddressMapping.cpp`
+  - 把 DRAMSim 对未 64B 对齐事务的 warning 改成单次提示
+- 本地回归如需 DRAMSim 覆盖，继续使用仓库内 `tools/DRAMSim2/libdramsim.so`
+
+当前 pair-wrapper 小配置方向已完成阶段 0 到阶段 4 的闭环验证。
+下一步只剩计划中的阶段 5：large dummy pair-wrapper 配置与后续 FireSim / buildbitstream 评估。

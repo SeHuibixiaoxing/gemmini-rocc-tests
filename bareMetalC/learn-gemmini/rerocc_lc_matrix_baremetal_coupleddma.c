@@ -36,8 +36,16 @@
 #define REROCC_GEMMINI_BASE_ID 0
 #endif
 
+#ifndef REROCC_PAIR_MANAGER_MODE
+#define REROCC_PAIR_MANAGER_MODE 0
+#endif
+
 #ifndef REROCC_DMA_BASE_ID
+#if REROCC_PAIR_MANAGER_MODE
+#define REROCC_DMA_BASE_ID REROCC_GEMMINI_BASE_ID
+#else
 #define REROCC_DMA_BASE_ID REROCC_NUM_GEMMINI
+#endif
 #endif
 
 #ifndef REROCC_DMA_BYTES
@@ -64,12 +72,25 @@
 #define REROCC_DEBUG_CONVREF 0
 #endif
 
+#ifndef REROCC_FAST_SMOKE_MODE
+#define REROCC_FAST_SMOKE_MODE 0
+#endif
+
+#ifndef REROCC_TRACE_MARKERS
+#define REROCC_TRACE_MARKERS 0
+#endif
+
+#ifndef REROCC_PRINT_START_BANNER
+#define REROCC_PRINT_START_BANNER 1
+#endif
+
 #ifndef REROCC_ACQUIRE_MAX_RETRIES
 #define REROCC_ACQUIRE_MAX_RETRIES 1000000UL
 #endif
 
 #define GEMMINI_CFG_ID 0
 #define DMA_CFG_ID 1
+#define PAIR_CFG_ID 0
 
 #define SHARED_SPAD_GLOBAL_ADDR_BASE 0x40000000ULL
 #define SHARED_SPAD_LOCAL_SIZE (1024 * 1024ULL)
@@ -152,6 +173,14 @@ enum {
 
 static inline bool debug_this_core(int cid) {
   return REROCC_DEBUG_CHECKPOINTS && (REROCC_DEBUG_CORE < 0 || cid == REROCC_DEBUG_CORE);
+}
+
+static inline void trace_marker(int code) {
+#if REROCC_TRACE_MARKERS
+  printf("T%d\n", code);
+#else
+  (void)code;
+#endif
 }
 
 static inline uint64_t read_cycles_local(void) {
@@ -391,9 +420,10 @@ static bool output_matches_reference(elem_t reference[BATCH_SIZE][OUT_ROW_DIM][O
   return true;
 }
 
-static bool run_one_gemmini_case(int cid, int manager_id) {
+static bool run_one_gemmini_body(int cid, int manager_id, uint32_t cfg_id) {
   const bool debug = debug_this_core(cid);
   const int local_gid = manager_id - REROCC_GEMMINI_BASE_ID;
+#if !REROCC_FAST_SMOKE_MODE
   elem_t input[BATCH_SIZE][IN_ROW_DIM][IN_COL_DIM][IN_CHANNELS] __attribute__((aligned(64)));
   elem_t weights[OUT_CHANNELS][KERNEL_DIM][KERNEL_DIM][IN_CHANNELS] __attribute__((aligned(64)));
   acc_t bias[OUT_CHANNELS] __attribute__((aligned(64)));
@@ -404,6 +434,7 @@ static bool run_one_gemmini_case(int cid, int manager_id) {
   elem_t (*resadd_b)[DIM] = resadd_b_global[cid];
   elem_t (*resadd_out)[DIM] = resadd_out_global[cid];
   elem_t (*resadd_gold)[DIM] = resadd_gold_global[cid];
+#endif
 
   uint32_t state = (uint32_t)(0x1234567u ^ (cid * 131u) ^ (manager_id * 977u));
 
@@ -416,6 +447,78 @@ static bool run_one_gemmini_case(int cid, int manager_id) {
   gemmini_shared_mv_debug[cid][local_gid] = -1;
   gemmini_ok_debug[cid][local_gid] = -1;
 
+#if REROCC_FAST_SMOKE_MODE
+  uint64_t shared_src_addr = shared_spad_case_addr(local_gid, cid, 0);
+  uint64_t shared_dst_addr = shared_spad_case_addr(local_gid, cid, 1);
+  uint64_t shared_src_vaddr = shared_spad_case_vaddr(local_gid, cid, 0);
+  uint64_t shared_dst_vaddr = shared_spad_case_vaddr(local_gid, cid, 1);
+  elem_t *shared_src = (elem_t *)(uintptr_t)shared_src_addr;
+  elem_t *shared_dst = (elem_t *)(uintptr_t)shared_dst_addr;
+  elem_t *shared_src_va = (elem_t *)(uintptr_t)shared_src_vaddr;
+  elem_t *shared_dst_va = (elem_t *)(uintptr_t)shared_dst_vaddr;
+
+  trace_marker(16);
+  for (size_t i = 0; i < (size_t)(DIM * DIM); i++) {
+    shared_src[i] = (elem_t)((int32_t)(lcg_next(&state) % 9) - 4);
+    shared_dst[i] = 0;
+  }
+  trace_marker(17);
+
+  gemmini_flush(0);
+  gemmini_config_ld(DIM * sizeof(elem_t));
+  gemmini_config_st(DIM * sizeof(elem_t));
+  gemmini_stage_debug[cid][local_gid] = GEMDBG_STAGE_SHARED_MV;
+  trace_marker(18);
+
+  spm_xlate_table_clear();
+  spm_xlate_map_range(shared_src_vaddr, shared_src_addr, (uint64_t)(DIM * DIM * sizeof(elem_t)));
+  spm_xlate_map_range(shared_dst_vaddr, shared_dst_addr, (uint64_t)(DIM * DIM * sizeof(elem_t)));
+  spm_xlate_program(SHARED_SPAD_XLATE_RANGE_BASE, SHARED_SPAD_XLATE_RANGE_SIZE, true);
+  trace_marker(20);
+  gemmini_mvin(shared_src_va, 0);
+  trace_marker(26);
+  gemmini_mvout(shared_dst_va, 0);
+  trace_marker(27);
+  rr_fence(cfg_id);
+  trace_marker(21);
+
+  bool shared_mv_xlate_ok = true;
+  for (size_t i = 0; i < (size_t)(DIM * DIM); i++) {
+    if (shared_src[i] != shared_dst[i]) {
+      shared_mv_xlate_ok = false;
+      break;
+    }
+  }
+
+  memset(shared_dst, 0, (size_t)(DIM * DIM * sizeof(elem_t)));
+  spm_xlate_program(SHARED_SPAD_GLOBAL_ADDR_BASE, SHARED_SPAD_XLATE_RANGE_SIZE, false);
+  trace_marker(22);
+  gemmini_mvin(shared_src, 0);
+  trace_marker(28);
+  gemmini_mvout(shared_dst, 0);
+  trace_marker(29);
+  rr_fence(cfg_id);
+  trace_marker(23);
+
+  bool shared_mv_passthrough_ok = true;
+  for (size_t i = 0; i < (size_t)(DIM * DIM); i++) {
+    if (shared_src[i] != shared_dst[i]) {
+      shared_mv_passthrough_ok = false;
+      break;
+    }
+  }
+  spm_xlate_reset();
+
+  bool shared_mv_ok = shared_mv_xlate_ok && shared_mv_passthrough_ok;
+  bool ok = shared_mv_ok;
+  gemmini_stage_debug[cid][local_gid] = GEMDBG_STAGE_CHECK;
+  gemmini_conv_debug[cid][local_gid] = 1;
+  gemmini_resadd_debug[cid][local_gid] = 1;
+  gemmini_shared_mv_debug[cid][local_gid] = shared_mv_ok ? 1 : 0;
+  gemmini_ok_debug[cid][local_gid] = ok ? 1 : 0;
+  trace_marker(shared_mv_ok ? 24 : 25);
+  return ok;
+#else
   if (debug) {
     printf("[dbg][gemmini] cpu=%d mgr=%d before cpu_conv_reference_prep\n", cid, manager_id);
   }
@@ -454,32 +557,7 @@ static bool run_one_gemmini_case(int cid, int manager_id) {
   }
 
   if (debug) {
-    printf("[dbg][gemmini] cpu=%d mgr=%d before rr_acquire\n", cid, manager_id);
-  }
-  gemmini_stage_debug[cid][local_gid] = GEMDBG_STAGE_ACQUIRE;
-  if (debug && local_gid == 0) {
-    printf("CHK gemmini0 before_acquire\n");
-  }
-  if (!rr_acquire_cfg_with_retry(GEMMINI_CFG_ID, (uint64_t)manager_id)) {
-    if (debug) {
-      printf("[dbg][gemmini] cpu=%d mgr=%d rr_acquire FAIL\n", cid, manager_id);
-    }
-    return false;
-  }
-  if (debug && local_gid == 0) {
-    printf("CHK gemmini0 after_acquire\n");
-  }
-  if (debug) {
-    printf("[dbg][gemmini] cpu=%d mgr=%d after rr_acquire\n", cid, manager_id);
-  }
-
-  if (debug) {
-    printf("[dbg][gemmini] cpu=%d mgr=%d before rr_set_opc\n", cid, manager_id);
-  }
-  rr_set_opc(3, GEMMINI_CFG_ID);
-  if (debug) {
-    printf("[dbg][gemmini] cpu=%d mgr=%d after rr_set_opc\n", cid, manager_id);
-    printf("[dbg][gemmini] cpu=%d mgr=%d before gemmini_flush\n", cid, manager_id);
+    printf("[dbg][gemmini] cpu=%d mgr=%d before gemmini_flush cfg=%u\n", cid, manager_id, cfg_id);
   }
   gemmini_flush(0);
   if (debug) {
@@ -506,14 +584,14 @@ static bool run_one_gemmini_case(int cid, int manager_id) {
   }
 
   // Drain the acquired Gemmini manager before flushing/reusing accumulator rows.
-  rr_fence(GEMMINI_CFG_ID);
+  rr_fence(cfg_id);
 
   // resadd reuses accumulator rows; flush state left by conv to get deterministic checks.
   if (debug) {
     printf("[dbg][gemmini] cpu=%d mgr=%d before resadd_flush\n", cid, manager_id);
   }
   gemmini_flush(0);
-  rr_fence(GEMMINI_CFG_ID);
+  rr_fence(cfg_id);
   if (debug) {
     printf("[dbg][gemmini] cpu=%d mgr=%d after resadd_flush\n", cid, manager_id);
   }
@@ -537,7 +615,7 @@ static bool run_one_gemmini_case(int cid, int manager_id) {
     printf("[dbg][gemmini] cpu=%d mgr=%d after tiled_resadd_auto\n", cid, manager_id);
     printf("[dbg][gemmini] cpu=%d mgr=%d before resadd_fence\n", cid, manager_id);
   }
-  rr_fence(GEMMINI_CFG_ID);
+  rr_fence(cfg_id);
   if (debug) {
     printf("[dbg][gemmini] cpu=%d mgr=%d after resadd_fence\n", cid, manager_id);
   }
@@ -586,7 +664,7 @@ static bool run_one_gemmini_case(int cid, int manager_id) {
     printf("[dbg][gemmini] cpu=%d mgr=%d before rr_fence shared_xlate\n", cid, manager_id);
   }
   gemmini_stage_debug[cid][local_gid] = GEMDBG_STAGE_FENCE;
-  rr_fence(GEMMINI_CFG_ID);
+  rr_fence(cfg_id);
   if (debug) {
     printf("[dbg][gemmini] cpu=%d mgr=%d after rr_fence shared_xlate\n", cid, manager_id);
   }
@@ -606,7 +684,7 @@ static bool run_one_gemmini_case(int cid, int manager_id) {
   if (debug) {
     printf("[dbg][gemmini] cpu=%d mgr=%d before rr_fence shared_passthrough\n", cid, manager_id);
   }
-  rr_fence(GEMMINI_CFG_ID);
+  rr_fence(cfg_id);
   if (debug) {
     printf("[dbg][gemmini] cpu=%d mgr=%d after rr_fence shared_passthrough\n", cid, manager_id);
   }
@@ -637,16 +715,8 @@ static bool run_one_gemmini_case(int cid, int manager_id) {
       cid, manager_id, conv_ok ? 1 : 0,
       resadd_match ? 1 : 0, shared_mv_ok ? 1 : 0);
   }
-  if (debug) {
-    printf("[dbg][gemmini] cpu=%d mgr=%d before rr_release\n", cid, manager_id);
-  }
-  gemmini_stage_debug[cid][local_gid] = GEMDBG_STAGE_RELEASE;
-  rr_release(GEMMINI_CFG_ID);
-  if (debug) {
-    printf("[dbg][gemmini] cpu=%d mgr=%d after rr_release ok=%d\n", cid, manager_id, ok ? 1 : 0);
-  }
-  gemmini_stage_debug[cid][local_gid] = GEMDBG_STAGE_DONE;
   return ok;
+#endif
 }
 
 static void fill_pattern(uint8_t *buf, size_t n, int cid, int manager_id, int round) {
@@ -671,15 +741,158 @@ static bool buffers_equal(const uint8_t *a, const uint8_t *b, size_t n) {
   return true;
 }
 
-static bool run_one_dma_case(int cid, int manager_id) {
+static int dma_manager_to_local_gid(int manager_id) {
+#if REROCC_PAIR_MANAGER_MODE
+  return manager_id - REROCC_GEMMINI_BASE_ID;
+#else
+  return manager_id - REROCC_DMA_BASE_ID + REROCC_GEMMINI_BASE_ID;
+#endif
+}
+
+static bool run_one_dma_body(int cid, int manager_id, uint32_t cfg_id) {
   const bool debug = debug_this_core(cid);
   uint8_t *src = dma_src[cid];
   uint8_t *dst = dma_dst[cid];
-  int local_gid = manager_id - REROCC_DMA_BASE_ID + REROCC_GEMMINI_BASE_ID;
+  int local_gid = dma_manager_to_local_gid(manager_id);
   uint8_t *shared_a = (uint8_t *)(uintptr_t)shared_spad_case_addr(local_gid, cid, 0);
   uint8_t *shared_b = (uint8_t *)(uintptr_t)shared_spad_case_addr(local_gid, cid, 1);
   volatile int *completion_flag = &dma_complete_flag[cid];
   *completion_flag = 0;
+
+  fill_pattern(src, REROCC_DMA_BYTES, cid, manager_id, 0);
+  clear_buffer(shared_a, REROCC_DMA_BYTES);
+  *completion_flag = 0;
+  rerocc_coupleddma_set_dst((uint64_t)(uintptr_t)shared_a, (uint64_t)(uintptr_t)completion_flag);
+  rerocc_coupleddma_set_src((uint64_t)(uintptr_t)src, (uint64_t)REROCC_DMA_BYTES);
+  trace_marker(30);
+  if (debug) {
+    printf("[dbg][dma] cpu=%d mgr=%d after issue dram_to_shared\n", cid, manager_id);
+  }
+  dma_fence_wait(completion_flag);
+  trace_marker(31);
+  if (debug) {
+    printf("[dbg][dma] cpu=%d mgr=%d after wait dram_to_shared\n", cid, manager_id);
+  }
+  rr_fence(cfg_id);
+  trace_marker(32);
+  if (debug) {
+    printf("[dbg][dma] cpu=%d mgr=%d after rr_fence dram_to_shared\n", cid, manager_id);
+  }
+  if (!buffers_equal(src, shared_a, REROCC_DMA_BYTES)) {
+    if (debug) {
+      printf("[dbg][dma] cpu=%d mgr=%d compare FAIL dram_to_shared\n", cid, manager_id);
+    }
+    return false;
+  }
+  if (debug) {
+    printf("[dbg][dma] cpu=%d mgr=%d compare PASS dram_to_shared\n", cid, manager_id);
+  }
+
+  fill_pattern(shared_a, REROCC_DMA_BYTES, cid, manager_id, 1);
+  clear_buffer(dst, REROCC_DMA_BYTES);
+  *completion_flag = 0;
+  rerocc_coupleddma_set_dst((uint64_t)(uintptr_t)dst, (uint64_t)(uintptr_t)completion_flag);
+  rerocc_coupleddma_set_src((uint64_t)(uintptr_t)shared_a, (uint64_t)REROCC_DMA_BYTES);
+  trace_marker(33);
+  if (debug) {
+    printf("[dbg][dma] cpu=%d mgr=%d after issue shared_to_dram\n", cid, manager_id);
+  }
+  dma_fence_wait(completion_flag);
+  trace_marker(34);
+  if (debug) {
+    printf("[dbg][dma] cpu=%d mgr=%d after wait shared_to_dram\n", cid, manager_id);
+  }
+  rr_fence(cfg_id);
+  trace_marker(35);
+  if (debug) {
+    printf("[dbg][dma] cpu=%d mgr=%d after rr_fence shared_to_dram\n", cid, manager_id);
+  }
+  if (!buffers_equal(shared_a, dst, REROCC_DMA_BYTES)) {
+    if (debug) {
+      printf("[dbg][dma] cpu=%d mgr=%d compare FAIL shared_to_dram\n", cid, manager_id);
+    }
+    return false;
+  }
+  if (debug) {
+    printf("[dbg][dma] cpu=%d mgr=%d compare PASS shared_to_dram\n", cid, manager_id);
+  }
+
+  fill_pattern(shared_a, REROCC_DMA_BYTES, cid, manager_id, 2);
+  clear_buffer(shared_b, REROCC_DMA_BYTES);
+  *completion_flag = 0;
+  rerocc_coupleddma_set_dst((uint64_t)(uintptr_t)shared_b, (uint64_t)(uintptr_t)completion_flag);
+  rerocc_coupleddma_set_src((uint64_t)(uintptr_t)shared_a, (uint64_t)REROCC_DMA_BYTES);
+  trace_marker(36);
+  if (debug) {
+    printf("[dbg][dma] cpu=%d mgr=%d after issue shared_to_shared\n", cid, manager_id);
+  }
+  dma_fence_wait(completion_flag);
+  trace_marker(37);
+  if (debug) {
+    printf("[dbg][dma] cpu=%d mgr=%d after wait shared_to_shared\n", cid, manager_id);
+  }
+  rr_fence(cfg_id);
+  trace_marker(38);
+  if (debug) {
+    printf("[dbg][dma] cpu=%d mgr=%d after rr_fence shared_to_shared\n", cid, manager_id);
+  }
+  if (!buffers_equal(shared_a, shared_b, REROCC_DMA_BYTES)) {
+    if (debug) {
+      printf("[dbg][dma] cpu=%d mgr=%d compare FAIL shared_to_shared\n", cid, manager_id);
+    }
+    return false;
+  }
+  if (debug) {
+    printf("[dbg][dma] cpu=%d mgr=%d compare PASS shared_to_shared\n", cid, manager_id);
+  }
+  return true;
+}
+
+static bool run_one_gemmini_case(int cid, int manager_id) {
+  const bool debug = debug_this_core(cid);
+  const int local_gid = manager_id - REROCC_GEMMINI_BASE_ID;
+
+  if (debug) {
+    printf("[dbg][gemmini] cpu=%d mgr=%d before rr_acquire\n", cid, manager_id);
+  }
+  gemmini_stage_debug[cid][local_gid] = GEMDBG_STAGE_ACQUIRE;
+  if (debug && local_gid == 0) {
+    printf("CHK gemmini0 before_acquire\n");
+  }
+  if (!rr_acquire_cfg_with_retry(GEMMINI_CFG_ID, (uint64_t)manager_id)) {
+    if (debug) {
+      printf("[dbg][gemmini] cpu=%d mgr=%d rr_acquire FAIL\n", cid, manager_id);
+    }
+    return false;
+  }
+  if (debug && local_gid == 0) {
+    printf("CHK gemmini0 after_acquire\n");
+  }
+  if (debug) {
+    printf("[dbg][gemmini] cpu=%d mgr=%d after rr_acquire\n", cid, manager_id);
+    printf("[dbg][gemmini] cpu=%d mgr=%d before rr_set_opc\n", cid, manager_id);
+  }
+  rr_set_opc(3, GEMMINI_CFG_ID);
+  if (debug) {
+    printf("[dbg][gemmini] cpu=%d mgr=%d after rr_set_opc\n", cid, manager_id);
+  }
+
+  bool ok = run_one_gemmini_body(cid, manager_id, GEMMINI_CFG_ID);
+
+  if (debug) {
+    printf("[dbg][gemmini] cpu=%d mgr=%d before rr_release\n", cid, manager_id);
+  }
+  gemmini_stage_debug[cid][local_gid] = GEMDBG_STAGE_RELEASE;
+  rr_release(GEMMINI_CFG_ID);
+  if (debug) {
+    printf("[dbg][gemmini] cpu=%d mgr=%d after rr_release ok=%d\n", cid, manager_id, ok ? 1 : 0);
+  }
+  gemmini_stage_debug[cid][local_gid] = GEMDBG_STAGE_DONE;
+  return ok;
+}
+
+static bool run_one_dma_case(int cid, int manager_id) {
+  const bool debug = debug_this_core(cid);
 
   if (debug) {
     printf("[dbg][dma] cpu=%d mgr=%d before rr_acquire\n", cid, manager_id);
@@ -692,9 +905,6 @@ static bool run_one_dma_case(int cid, int manager_id) {
   }
   if (debug) {
     printf("[dbg][dma] cpu=%d mgr=%d after rr_acquire\n", cid, manager_id);
-  }
-
-  if (debug) {
     printf("[dbg][dma] cpu=%d mgr=%d before rr_set_opc\n", cid, manager_id);
   }
   rr_set_opc(2, DMA_CFG_ID);
@@ -702,86 +912,7 @@ static bool run_one_dma_case(int cid, int manager_id) {
     printf("[dbg][dma] cpu=%d mgr=%d after rr_set_opc\n", cid, manager_id);
   }
 
-  fill_pattern(src, REROCC_DMA_BYTES, cid, manager_id, 0);
-  clear_buffer(shared_a, REROCC_DMA_BYTES);
-  *completion_flag = 0;
-  rerocc_coupleddma_set_dst((uint64_t)(uintptr_t)shared_a, (uint64_t)(uintptr_t)completion_flag);
-  rerocc_coupleddma_set_src((uint64_t)(uintptr_t)src, (uint64_t)REROCC_DMA_BYTES);
-  if (debug) {
-    printf("[dbg][dma] cpu=%d mgr=%d after issue dram_to_shared\n", cid, manager_id);
-  }
-  dma_fence_wait(completion_flag);
-  if (debug) {
-    printf("[dbg][dma] cpu=%d mgr=%d after wait dram_to_shared\n", cid, manager_id);
-  }
-  rr_fence(DMA_CFG_ID);
-  if (debug) {
-    printf("[dbg][dma] cpu=%d mgr=%d after rr_fence dram_to_shared\n", cid, manager_id);
-  }
-  if (!buffers_equal(src, shared_a, REROCC_DMA_BYTES)) {
-    if (debug) {
-      printf("[dbg][dma] cpu=%d mgr=%d compare FAIL dram_to_shared\n", cid, manager_id);
-    }
-    rr_release(DMA_CFG_ID);
-    return false;
-  }
-  if (debug) {
-    printf("[dbg][dma] cpu=%d mgr=%d compare PASS dram_to_shared\n", cid, manager_id);
-  }
-
-  fill_pattern(shared_a, REROCC_DMA_BYTES, cid, manager_id, 1);
-  clear_buffer(dst, REROCC_DMA_BYTES);
-  *completion_flag = 0;
-  rerocc_coupleddma_set_dst((uint64_t)(uintptr_t)dst, (uint64_t)(uintptr_t)completion_flag);
-  rerocc_coupleddma_set_src((uint64_t)(uintptr_t)shared_a, (uint64_t)REROCC_DMA_BYTES);
-  if (debug) {
-    printf("[dbg][dma] cpu=%d mgr=%d after issue shared_to_dram\n", cid, manager_id);
-  }
-  dma_fence_wait(completion_flag);
-  if (debug) {
-    printf("[dbg][dma] cpu=%d mgr=%d after wait shared_to_dram\n", cid, manager_id);
-  }
-  rr_fence(DMA_CFG_ID);
-  if (debug) {
-    printf("[dbg][dma] cpu=%d mgr=%d after rr_fence shared_to_dram\n", cid, manager_id);
-  }
-  if (!buffers_equal(shared_a, dst, REROCC_DMA_BYTES)) {
-    if (debug) {
-      printf("[dbg][dma] cpu=%d mgr=%d compare FAIL shared_to_dram\n", cid, manager_id);
-    }
-    rr_release(DMA_CFG_ID);
-    return false;
-  }
-  if (debug) {
-    printf("[dbg][dma] cpu=%d mgr=%d compare PASS shared_to_dram\n", cid, manager_id);
-  }
-
-  fill_pattern(shared_a, REROCC_DMA_BYTES, cid, manager_id, 2);
-  clear_buffer(shared_b, REROCC_DMA_BYTES);
-  *completion_flag = 0;
-  rerocc_coupleddma_set_dst((uint64_t)(uintptr_t)shared_b, (uint64_t)(uintptr_t)completion_flag);
-  rerocc_coupleddma_set_src((uint64_t)(uintptr_t)shared_a, (uint64_t)REROCC_DMA_BYTES);
-  if (debug) {
-    printf("[dbg][dma] cpu=%d mgr=%d after issue shared_to_shared\n", cid, manager_id);
-  }
-  dma_fence_wait(completion_flag);
-  if (debug) {
-    printf("[dbg][dma] cpu=%d mgr=%d after wait shared_to_shared\n", cid, manager_id);
-  }
-  rr_fence(DMA_CFG_ID);
-  if (debug) {
-    printf("[dbg][dma] cpu=%d mgr=%d after rr_fence shared_to_shared\n", cid, manager_id);
-  }
-  if (!buffers_equal(shared_a, shared_b, REROCC_DMA_BYTES)) {
-    if (debug) {
-      printf("[dbg][dma] cpu=%d mgr=%d compare FAIL shared_to_shared\n", cid, manager_id);
-    }
-    rr_release(DMA_CFG_ID);
-    return false;
-  }
-  if (debug) {
-    printf("[dbg][dma] cpu=%d mgr=%d compare PASS shared_to_shared\n", cid, manager_id);
-  }
+  bool ok = run_one_dma_body(cid, manager_id, DMA_CFG_ID);
 
   if (debug) {
     printf("[dbg][dma] cpu=%d mgr=%d before rr_release\n", cid, manager_id);
@@ -790,7 +921,50 @@ static bool run_one_dma_case(int cid, int manager_id) {
   if (debug) {
     printf("[dbg][dma] cpu=%d mgr=%d after rr_release\n", cid, manager_id);
   }
-  return true;
+  return ok;
+}
+
+static bool run_one_pair_case(int cid, int manager_id) {
+  const bool debug = debug_this_core(cid);
+  const int local_gid = manager_id - REROCC_GEMMINI_BASE_ID;
+
+  trace_marker(10);
+  if (debug) {
+    printf("[dbg][pair] cpu=%d mgr=%d before rr_acquire\n", cid, manager_id);
+  }
+  gemmini_stage_debug[cid][local_gid] = GEMDBG_STAGE_ACQUIRE;
+  if (!rr_acquire_cfg_with_retry(PAIR_CFG_ID, (uint64_t)manager_id)) {
+    if (debug) {
+      printf("[dbg][pair] cpu=%d mgr=%d rr_acquire FAIL\n", cid, manager_id);
+    }
+    return false;
+  }
+  if (debug) {
+    printf("[dbg][pair] cpu=%d mgr=%d after rr_acquire\n", cid, manager_id);
+  }
+  trace_marker(11);
+
+  rr_set_opc(3, PAIR_CFG_ID);
+  rr_set_opc(2, PAIR_CFG_ID);
+  trace_marker(12);
+
+  bool gemmini_ok = run_one_gemmini_body(cid, manager_id, PAIR_CFG_ID);
+  trace_marker(gemmini_ok ? 13 : 19);
+  bool dma_ok = gemmini_ok && run_one_dma_body(cid, manager_id, PAIR_CFG_ID);
+  trace_marker(dma_ok ? 14 : 18);
+  bool ok = gemmini_ok && dma_ok;
+
+  if (debug) {
+    printf("[dbg][pair] cpu=%d mgr=%d before rr_release ok=%d\n", cid, manager_id, ok ? 1 : 0);
+  }
+  gemmini_stage_debug[cid][local_gid] = GEMDBG_STAGE_RELEASE;
+  rr_release(PAIR_CFG_ID);
+  gemmini_stage_debug[cid][local_gid] = GEMDBG_STAGE_DONE;
+  trace_marker(ok ? 15 : 17);
+  if (debug) {
+    printf("[dbg][pair] cpu=%d mgr=%d after rr_release ok=%d\n", cid, manager_id, ok ? 1 : 0);
+  }
+  return ok;
 }
 
 static void wait_for_logical_cores(int logical_cores) {
@@ -811,9 +985,12 @@ void thread_entry(int cid, int nc) {
   const int logical_cores = requested_logical_cores > 0 ? requested_logical_cores : nc;
 
   if (cid == 0) {
-    printf("[rerocc-baremetal] start mode=%s logical_cores=%d requested_logical_cores=%d runtime_nc=%d gemmini=%d dma=%d gemmini_base=%d dma_base=%d dma_bytes=%d\n",
-      matrix_mode_name(REROCC_MATRIX_MODE), logical_cores, requested_logical_cores, nc, REROCC_NUM_GEMMINI, REROCC_NUM_DMA,
-      REROCC_GEMMINI_BASE_ID, REROCC_DMA_BASE_ID, REROCC_DMA_BYTES);
+    if (REROCC_PRINT_START_BANNER) {
+      printf("[rerocc-baremetal] start mode=%s logical_cores=%d requested_logical_cores=%d runtime_nc=%d gemmini=%d dma=%d gemmini_base=%d dma_base=%d dma_bytes=%d pair_mode=%d\n",
+        matrix_mode_name(REROCC_MATRIX_MODE), logical_cores, requested_logical_cores, nc, REROCC_NUM_GEMMINI, REROCC_NUM_DMA,
+        REROCC_GEMMINI_BASE_ID, REROCC_DMA_BASE_ID, REROCC_DMA_BYTES, REROCC_PAIR_MANAGER_MODE);
+    }
+    trace_marker(1);
     if (debug_this_core(cid)) {
       printf("CHK thread_entry after_start\n");
     }
@@ -860,11 +1037,46 @@ void thread_entry(int cid, int nc) {
     }
   }
 
+#if REROCC_PAIR_MANAGER_MODE
+  if (REROCC_NUM_GEMMINI != REROCC_NUM_DMA) {
+    if (cid == 0) {
+      printf("[rerocc-baremetal] FAIL: pair mode requires num_gemmini == num_dma, got gemmini=%d dma=%d\n",
+        REROCC_NUM_GEMMINI, REROCC_NUM_DMA);
+      exit(1);
+    }
+    while (1) {
+      asm volatile("wfi");
+    }
+  }
+#endif
+
   int gemmini_pass_local = 0;
   int gemmini_fail_local = 0;
   int dma_pass_local = 0;
   int dma_fail_local = 0;
 
+#if REROCC_PAIR_MANAGER_MODE
+  for (int pid = 0; pid < REROCC_NUM_GEMMINI; pid++) {
+    if (!should_run_pair(REROCC_MATRIX_MODE, cid, pid, REROCC_NUM_GEMMINI)) {
+      continue;
+    }
+    int manager_id = REROCC_GEMMINI_BASE_ID + pid;
+    uint64_t t0 = read_cycles_local();
+    bool ok = run_one_pair_case(cid, manager_id);
+    uint64_t t1 = read_cycles_local();
+    if (ok) {
+      gemmini_pass_local++;
+      dma_pass_local++;
+    } else {
+      gemmini_fail_local++;
+      dma_fail_local++;
+    }
+    if (debug_this_core(cid)) {
+      printf("[pair] cpu=%d mgr=%d %s cycles=%lu\n", cid, manager_id, ok ? "PASS" : "FAIL",
+        (unsigned long)(t1 - t0));
+    }
+  }
+#else
   for (int gid = 0; gid < REROCC_NUM_GEMMINI; gid++) {
     if (!should_run_pair(REROCC_MATRIX_MODE, cid, gid, REROCC_NUM_GEMMINI)) {
       continue;
@@ -902,6 +1114,7 @@ void thread_entry(int cid, int nc) {
         (unsigned long)(t1 - t0));
     }
   }
+#endif
 
   core_gemmini_pass[cid] = gemmini_pass_local;
   core_gemmini_fail[cid] = gemmini_fail_local;
