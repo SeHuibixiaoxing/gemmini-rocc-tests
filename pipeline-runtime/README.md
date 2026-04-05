@@ -20,10 +20,18 @@
   验证阶梯
 - `ROADMAP.md`
   后续实现顺序
+- `docs/pair_wrapper_manager_plan_20260405.md`
+  `pair-wrapper manager` 的当前 authoritative 计划、测试计划和交接 prompt
 - `NEXT_SESSION_PROMPT.md`
-  下次接手时的最小 prompt
+  下次接手 `pipeline-runtime Linux/F2 bertmini` 主线时的最小 prompt
 - `docs/archive/2026Q1_history.md`
   历史时间线归档
+
+如果当前接手目标是 `pair-wrapper manager` 硬件路线，而不是 Linux/F2 `bertmini` 主线，请优先读：
+
+- `PAPER_HARDWARE_ARCHITECTURE.md`
+- `docs/pair_wrapper_manager_plan_20260405.md`
+- `/home/ubuntu/chipyard/tmp/firesim-aws-f2/HANDOFF_dummy_gemmini_buildbitstream_20260403.md`
 
 ## 当前稳定工作负载
 

@@ -60,6 +60,10 @@
 #define REROCC_DEBUG_CORE 0
 #endif
 
+#ifndef REROCC_DEBUG_CONVREF
+#define REROCC_DEBUG_CONVREF 0
+#endif
+
 #ifndef REROCC_ACQUIRE_MAX_RETRIES
 #define REROCC_ACQUIRE_MAX_RETRIES 1000000UL
 #endif
@@ -77,14 +81,37 @@
 #define SHARED_SPAD_XLATE_RANGE_SIZE ((uint64_t)REROCC_NUM_GEMMINI * SHARED_SPAD_LOCAL_SIZE)
 #define SHARED_SPAD_XLATE_PTE_CAP ((REROCC_NUM_GEMMINI * (SHARED_SPAD_LOCAL_SIZE / REROCC_SPM_PAGE_BYTES)) + 128U)
 
+#ifndef BATCH_SIZE
 #define BATCH_SIZE 1
+#endif
+
+#ifndef IN_ROW_DIM
 #define IN_ROW_DIM 8
+#endif
+
+#ifndef IN_COL_DIM
 #define IN_COL_DIM 8
+#endif
+
+#ifndef IN_CHANNELS
 #define IN_CHANNELS 4
+#endif
+
+#ifndef OUT_CHANNELS
 #define OUT_CHANNELS 4
+#endif
+
+#ifndef KERNEL_DIM
 #define KERNEL_DIM 3
+#endif
+
+#ifndef PADDING
 #define PADDING 1
+#endif
+
+#ifndef STRIDE
 #define STRIDE 1
+#endif
 
 #define OUT_ROW_DIM ((IN_ROW_DIM + 2 * PADDING - KERNEL_DIM) / STRIDE + 1)
 #define OUT_COL_DIM ((IN_COL_DIM + 2 * PADDING - KERNEL_DIM) / STRIDE + 1)
@@ -103,7 +130,7 @@ static volatile int gemmini_conv_debug[REROCC_MAX_CORES][REROCC_NUM_GEMMINI];
 static volatile int gemmini_resadd_debug[REROCC_MAX_CORES][REROCC_NUM_GEMMINI];
 static volatile int gemmini_shared_mv_debug[REROCC_MAX_CORES][REROCC_NUM_GEMMINI];
 static volatile int gemmini_ok_debug[REROCC_MAX_CORES][REROCC_NUM_GEMMINI];
-static volatile int cpu_conv_ref_debug_once = 1;
+static volatile int cpu_conv_ref_debug_once = REROCC_DEBUG_CHECKPOINTS ? 1 : 0;
 static volatile int core_done[REROCC_MAX_CORES];
 static volatile int core_gemmini_pass[REROCC_MAX_CORES];
 static volatile int core_gemmini_fail[REROCC_MAX_CORES];
@@ -382,7 +409,7 @@ static bool run_one_gemmini_case(int cid, int manager_id) {
 
   gemmini_stage_debug[cid][local_gid] = GEMDBG_STAGE_PREP;
   gemmini_conv_debug[cid][local_gid] = -1;
-  if (cid == 0 && local_gid == 0) {
+  if (debug && local_gid == 0) {
     printf("CHK gemmini0 enter\n");
   }
   gemmini_resadd_debug[cid][local_gid] = -1;
@@ -393,20 +420,21 @@ static bool run_one_gemmini_case(int cid, int manager_id) {
     printf("[dbg][gemmini] cpu=%d mgr=%d before cpu_conv_reference_prep\n", cid, manager_id);
   }
   init_random_elem(&input[0][0][0][0], sizeof(input) / sizeof(elem_t), &state);
-  if (cid == 0 && local_gid == 0) {
+  if (debug && local_gid == 0) {
     printf("CHK gemmini0 input_init\n");
   }
   init_random_elem(&weights[0][0][0][0], sizeof(weights) / sizeof(elem_t), &state);
-  if (cid == 0 && local_gid == 0) {
+  if (debug && local_gid == 0) {
     printf("CHK gemmini0 weights_init\n");
   }
   init_random_acc(&bias[0], sizeof(bias) / sizeof(acc_t), &state);
-  if (cid == 0 && local_gid == 0) {
+  if (debug && local_gid == 0) {
     printf("CHK gemmini0 bias_init\n");
   }
   flatten_weights(weights, weights_mat);
-  const bool convref_debug = (cid == 0 && local_gid == 0 && cpu_conv_ref_debug_once != 0);
-  if (cid == 0 && local_gid == 0) {
+  const bool convref_debug =
+    debug && local_gid == 0 && (REROCC_DEBUG_CONVREF != 0) && cpu_conv_ref_debug_once != 0;
+  if (debug && local_gid == 0) {
     printf("CHK gemmini0 flatten_done\n");
     printf("CHK gemmini0 convref_call\n");
   }
@@ -414,7 +442,7 @@ static bool run_one_gemmini_case(int cid, int manager_id) {
   if (convref_debug) {
     cpu_conv_ref_debug_once = 0;
   }
-  if (cid == 0 && local_gid == 0) {
+  if (debug && local_gid == 0) {
     printf("CHK gemmini0 prepared\n");
   }
   if (debug) {
@@ -429,7 +457,7 @@ static bool run_one_gemmini_case(int cid, int manager_id) {
     printf("[dbg][gemmini] cpu=%d mgr=%d before rr_acquire\n", cid, manager_id);
   }
   gemmini_stage_debug[cid][local_gid] = GEMDBG_STAGE_ACQUIRE;
-  if (cid == 0 && local_gid == 0) {
+  if (debug && local_gid == 0) {
     printf("CHK gemmini0 before_acquire\n");
   }
   if (!rr_acquire_cfg_with_retry(GEMMINI_CFG_ID, (uint64_t)manager_id)) {
@@ -438,7 +466,7 @@ static bool run_one_gemmini_case(int cid, int manager_id) {
     }
     return false;
   }
-  if (cid == 0 && local_gid == 0) {
+  if (debug && local_gid == 0) {
     printf("CHK gemmini0 after_acquire\n");
   }
   if (debug) {
@@ -786,7 +814,9 @@ void thread_entry(int cid, int nc) {
     printf("[rerocc-baremetal] start mode=%s logical_cores=%d requested_logical_cores=%d runtime_nc=%d gemmini=%d dma=%d gemmini_base=%d dma_base=%d dma_bytes=%d\n",
       matrix_mode_name(REROCC_MATRIX_MODE), logical_cores, requested_logical_cores, nc, REROCC_NUM_GEMMINI, REROCC_NUM_DMA,
       REROCC_GEMMINI_BASE_ID, REROCC_DMA_BASE_ID, REROCC_DMA_BYTES);
-    printf("CHK thread_entry after_start\n");
+    if (debug_this_core(cid)) {
+      printf("CHK thread_entry after_start\n");
+    }
   }
 
   if (logical_cores <= 0 || logical_cores > REROCC_MAX_CORES) {
