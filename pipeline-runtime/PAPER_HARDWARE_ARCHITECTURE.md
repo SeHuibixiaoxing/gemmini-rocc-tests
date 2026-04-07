@@ -1249,3 +1249,397 @@ stdbuf -oL -eL \
 
 当前 pair-wrapper 小配置方向已完成阶段 0 到阶段 4 的闭环验证。
 下一步只剩计划中的阶段 5：large dummy pair-wrapper 配置与后续 FireSim / buildbitstream 评估。
+
+## 13. 2026-04-05 补充：large dummy pair-wrapper 的代码与 elaboration 事实
+
+在已有 pair-wrapper 小配置之外，当前源码还已经落地了 large dummy pair-wrapper 的 stage 5 入口。
+
+相关代码入口位于：
+
+- `generators/chipyard/src/main/scala/config/GemminiLearningReRoCCPairManagerConfigs.scala`
+
+该文件中的 pair-manager 参数化配置已经直接支持以下旋钮：
+
+- `numPairs`
+- `useDummyGemmini`
+- `sharedSpadBytes`
+- `useCompactPairManagerLayout`
+- `globalNoCVirtualChannelDepth`
+
+并新增了两条 large dummy pair-wrapper 具体配置：
+
+- `GemminiLearningConfigSpadReRoCCGlobalNoC4C2x2P12x4x3CoupledDMAPairManagerDummy16x16Sbus256`
+- `GemminiLearningConfigSpadReRoCCGlobalNoC4C2x2P12x4x3CoupledDMAPairManagerDummy16x16Sbus128`
+
+从源码可直接确认，这两条配置共享如下硬件参数：
+
+- `4` 个 Rocket core，布局为 `2x2`
+- `12` 个 pair-wrapper manager，布局为 `4x3`
+- `2` 个 memory channel
+- dummy Gemmini
+- `16x16` mesh
+- `useGlobalNoC = true`
+- `useDeterministicGlobalNoCRouting = true`
+- `sharedSpadBytes = 1 MiB`
+- `useCompactPairManagerLayout = true`
+- `globalNoCVirtualChannelDepth = 4`
+
+两条配置唯一关键差异是 `sbusWidthBits`：
+
+- `Sbus256` 变体：`32 * 8`
+- `Sbus128` 变体：`16 * 8`
+
+本轮本地 elaboration 已进一步确认这两条大配置都能展开为真实的 `12` 个 pair-wrapper manager，而不是旧的 “Gemmini + DMA 分离计数” 形态：
+
+- 日志显示 `ReRoCC Manager id 0` 到 `11` 全部为 `gemmini.GemminiCoupledDMAPairWrapper`
+- ReRoCC outwards mapping 为 `Managers: List(0)` 到 `List(11)`
+- 设备树与 TL 映射里出现了 `12` 个 `rerocc-mgr@...` CSR 窗口
+- shared scratchpad 的全局窗口按 `1 MiB` 粒度落在：
+  - `0x40000000`
+  - `0x40100000`
+  - ...
+  - `0x40b00000`
+
+因此，就当前仓库源码与本轮 elaboration 证据而言，large dummy pair-wrapper 的 stage 5 硬件前提已经从“计划”进入“代码已落地且可本地展开”的状态。
+
+## 14. 2026-04-06 补充：large dummy pair-wrapper 的 `post_synth` 面积归因事实
+
+本节记录当前 large dummy pair-wrapper `Sbus256` buildbitstream 路线在远端
+Vivado `post_synth` 阶段暴露出的资源事实。这里的重点不是“是否最终能过位流”，
+而是解释当前 NoC 面积的真实来源。
+
+本节对照使用的两份报告为：
+
+- 当前 pair-wrapper：
+  - `/home/ubuntu/chipyard/tmp/firesim-aws-f2/26_04_06-085945.post_synth_utilization.rpt`
+- 当前 active separate-manager baseline：
+  - `/home/ubuntu/chipyard/sims/firesim/deploy/results-build/2026-04-04--01-15-02-f2_gemmini_rerocc_globalnoc_coupleddma_dummy16x16_4c12g12d_sbus256_20mhz/cl_f2-firesim-FireSim-WithDefaultFireSimBridges_WithFireSimConfigTweaks_chipyard.GemminiLearningConfigSpadReRoCCGlobalNoC4C2x2G12x4x3D12x4x3CoupledDMADummy16x16Sbus256-FRFCFS16GBQuadRank_BaseF2Config/build/reports/26_04_04-044837.post_synth_utilization.rpt`
+
+### 14.1 先纠正一个直觉误差
+
+和当前 active separate-manager baseline 相比，pair-wrapper 的 NoC 面积并不是
+“完全没有缩小”，而是已经缩小了，但缩幅只有约 `20%`，显著小于从“mesh 变紧凑”
+得到的直觉预期。
+
+关键热点对比如下：
+
+| 行项目 | pair-wrapper LUT | baseline LUT | 变化 |
+| --- | ---: | ---: | ---: |
+| `cl_firesim` | 1,406,466 | 1,480,982 | -5.0% |
+| `sbus` | 533,460 | 669,845 | -20.4% |
+| `globalNoCDomain` | 521,561 | 653,783 | -20.2% |
+| `NoC` | 507,714 | 631,858 | -19.6% |
+| `rerocc_tile` total | 507,075 | 484,701 | +4.6% |
+
+### 14.2 当前 pair-wrapper 仍然不是“pre-NoC 完全折叠”
+
+从当前源码可直接确认：
+
+- pair-wrapper 使用的是独立参数化配置
+  - `GemminiLearningReRoCCPairManagerConfigs.scala`
+- pair-wrapper 仍然保留：
+  - `WithGlobalNoC`
+  - `GlobalTLNoCParams`
+  - 完整的 `sbusNodeMapping`
+- 当前 pair node 在映射上仍承载多类 TL 入口/出口：
+  - `ReRoCC i DCache`
+  - `port_named_rerocc_i[`
+  - `sport_named_rerocc_i[`
+  - `sport_named_rerocc_sbus_i[`
+  - `Gemmini i-`
+
+因此，当前路线虽然把 manager 计数从 `24` 变成了 `12`，但并没有把 pair 相关的
+TL 暴露在 NoC 之前完全折叠成“极少数超节点”。这也是 NoC 只缩约 `20%`、而不是
+线性随“逻辑 pair 数减半”缩小的根本原因之一。
+
+### 14.3 更细的重复结构统计
+
+为了避免层级统计重叠，本轮额外统计了重复出现的综合结构。
+
+| 结构 | baseline | pair-wrapper | 变化 |
+| --- | ---: | ---: | ---: |
+| `rerocc_tile` 数量 | 24 | 12 | -50.0% |
+| `rerocc_tile` 总 LUT | 484,701 | 507,075 | +4.6% |
+| `rerocc_tile` 平均 LUT | 20.2k | 42.3k | +109.5% |
+| baseline 中 12 个大 Gemmini tile 总 LUT | 401,310 | N/A | N/A |
+| baseline 中 12 个小 DMA tile 总 LUT | 83,391 | N/A | N/A |
+| pair 内部 `GemminiCoupledDMAPairWrapper` 总 LUT | N/A | 455,009 | N/A |
+| `coupler_from_port_named_rerocc_*` 数量 | 24 | 12 | -50.0% |
+| `coupler_from_port_named_rerocc_*` 总 LUT | 14,412 | 9,151 | -36.5% |
+| `router_sink_domain*` 数量 | 63 | 40 | -36.5% |
+| `router_sink_domain*` 总 LUT | 631,858 | 507,714 | -19.6% |
+| `router_sink_domain*` 平均 LUT | 10.0k | 12.7k | +26.6% |
+| `ingress_unit_*` 数量 | 130 | 82 | -36.9% |
+| `ingress_unit_*` 总 LUT | 53,329 | 41,598 | -22.0% |
+| `egress_unit_*` 数量 | 131 | 95 | -27.5% |
+| `egress_unit_*` 总 LUT | 25,041 | 19,747 | -21.1% |
+
+### 14.4 这些数字说明了什么
+
+可以直接得出的硬件事实是：
+
+- direct coupler 数量的减少是有效的：
+  - `coupler_from_port_named_rerocc_*` 总 LUT 已经明显下降
+  - 这说明 pair 化确实减少了最表层的 sbus ingress 数量
+- 但是 surviving router / ingress / egress 的平均代价上升了：
+  - `router_sink_domain*` 平均 LUT 从约 `10.0k` 增到约 `12.7k`
+  - `ingress/egress` 总面积也没有跟实例数同比下降
+- 同时，manager 侧逻辑没有缩小，反而略变大：
+  - 原 baseline 的 `12` 个大 Gemmini tile 加 `12` 个小 DMA tile，总计
+    `484,701 LUT`
+  - 现在 `12` 个 pair `rerocc_tile` 总计 `507,075 LUT`
+
+因此，当前 buildbitstream 路线里“mesh 缩了但 NoC 没有按预期缩小”的真正原因是：
+
+- 主导成本已经不再只是 router 个数
+- 而是每个 pair endpoint 上更重的 TL 接口集合、缓冲、source/in-flight 状态、
+  以及 `Sbus256` 下更宽的数据通路
+
+### 14.5 当前最重要的资源结论
+
+截至这轮 `post_synth` 分析，可以把当前 stage5 pair-wrapper 的资源结论概括为：
+
+- pair-wrapper 已经比 active separate-manager baseline 更省 NoC 面积
+- 但节省幅度只在 `20%` 左右
+- `Sbus256 + 12 pair + 1 MiB shared spad + VC depth 4` 下，面积主导项已转向：
+  - 宽总线协议代价
+  - pair endpoint 自身复杂度
+  - NoC router / ingress / egress 的平均复杂度
+
+换句话说，如果后续还需要继续压面积，单纯继续缩 mesh 布局不会是最有效的杠杆；
+更有效的杠杆将落在“减少每个 pair 对外暴露的协议重量”和“瘦身 NoC 路径语义”上。
+
+## 15. 2026-04-07 补充：`4c8p8 Sbus256` 已拿到 AGFI，但当前运行时不可用
+
+在前述 `12 pair Sbus256` 资源分析之外，本轮还新增了一条更小的 large dummy
+pair-wrapper 结果：
+
+- 配置方向：
+  - `4 CPU`
+  - `8 pair`
+  - `dummy Gemmini`
+  - `16x16`
+  - `shared spad = 1 MiB`
+  - `Sbus256`
+- build 结果目录：
+  - `/home/ubuntu/chipyard/sims/firesim/deploy/results-build/2026-04-06--18-16-00-f2_gemmini_rerocc_globalnoc_pairmanager_dummy16x16_4c8p8_sbus256_20mhz/`
+- AGFI：
+  - `agfi-01818b1718ae9b7a0`
+
+这说明：
+
+- pair-wrapper 大配置已经不只是“能 elaboration / 能综合”
+- 也已经至少有一版真正完成了 FireSim `buildbitstream -> tar2afi`
+
+但这并不等于它已经是一个可用的 FireSim runtime 硬件目标。
+
+### 15.1 当前运行时失败发生在 very-early bring-up
+
+针对上述 AGFI，本轮已实际搭建并执行了最小 smoke：
+
+- FireMarshal `linux-poweroff` build/install 成功
+- FireSim `launchrunfarm` 成功
+- FireSim `infrasetup` 失败
+
+失败点不是 workload 本身，而是 driver preflight：
+
+- `+check-fingerprint` 没有完成
+- 日志只到：
+  - `entered simulation flow execution`
+- 没有到：
+  - `finished waiting`
+  - `FireSim fingerprint: 0x46697265`
+
+相关日志为：
+
+- `/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-04-07--02-51-42-infrasetup-H1TACA6XDZ2321BU.log`
+
+并且这不是 FireSim manager 默认 `30s` timeout 过短造成的假象。本轮还在远端
+F2 host 上手动复验：
+
+- `timeout --kill-after=5s 180s sudo ./FireSim-f2 +slotid=0 +check-fingerprint`
+
+结果仍然超时。
+
+因此，当前这版 `4c8p8 Sbus256` AGFI 的更准确结论是：
+
+- 映像已成功生成并注册
+- 但 very-early host-FPGA 初始化没有完成
+- 当前不能当作可用 runtime 基线，也不能当作 stage5 已验证通过
+
+### 15.2 当前最坏时序并不指向 NoC router 组合深度
+
+本轮新增两份关键时序证据：
+
+- `post_route_timing`：
+  - `/home/ubuntu/chipyard/sims/firesim/deploy/results-build/2026-04-06--18-16-00-f2_gemmini_rerocc_globalnoc_pairmanager_dummy16x16_4c8p8_sbus256_20mhz/cl_f2-firesim-FireSim-WithDefaultFireSimBridges_WithFireSimConfigTweaks_chipyard.GemminiLearningConfigSpadReRoCCGlobalNoC4C2x2P8x4x2CoupledDMAPairManagerDummy16x16Sbus256-FRFCFS16GBQuadRank_BaseF2Config/build/reports/cl_f2-firesim-FireSim-WithDefaultFireSimBridges_WithFireSimConfigTweaks_chipyard.GemminiLearningConfigSpadReRoCCGlobalNoC4C2x2P8x4x2CoupledDMAPairManagerDummy16x16Sbus256-FRFCFS16GBQuadRank_BaseF2Config.2026_04_06-181805.post_route_timing.rpt`
+- 从 `post_route.VIOLATED.dcp` 额外拉出的 timing summary：
+  - `/home/ubuntu/chipyard/tmp/analysis_4c8p8_pair/timing_summary.rpt`
+
+当前最关键的数字为：
+
+- 设计总 WNS：
+  - `-5.015ns`
+- 设计总 TNS：
+  - `-1075.048ns`
+- failing endpoints：
+  - `1696`
+- `WRAPPER/CL/clk_main_a0` 域内自身也有明显违例：
+  - WNS `-0.932ns`
+  - TNS `-318.980ns`
+  - failing endpoints `1140`
+
+但最差路径本身不是 NoC router 的长逻辑链，而是：
+
+- source 位于：
+  - `WRAPPER/CL/PIPE_DDR_STAT_ACK0/pipe_reg[...]`
+- destination 位于 static shell 侧 `clk_main_a0` 域
+- data path delay：
+  - `11.419ns`
+- 其中 route 占比：
+  - `11.340ns`
+  - `99.3%`
+- logic levels：
+  - `0`
+- 物理上包含：
+  - `SLR Crossing[2->1]`
+
+这说明当前最坏时序的主导因素更接近：
+
+- CL 与 static shell 之间的跨 SLR 全局布线
+- DDR/status 相关 shell-boundary 必经路径
+- 宽总线 shell-facing infrastructure 带来的放置扩散与路由压力
+
+而不是“内部 NoC hop 数太多导致组合链太深”。
+
+### 15.3 为什么“mesh 已缩小但延迟还是很大”
+
+结合第 14 节的面积归因和本轮时序事实，可以把当前现象概括为：
+
+1. pair 数从 `12` 降到 `8` 后，面积确实继续下降
+   - `cl_firesim`：
+     - `1,406,466 -> 1,112,333 LUT`
+     - `-20.9%`
+   - `NoC`：
+     - `507,714 -> 399,295 LUT`
+     - `-21.4%`
+
+2. 但最坏路径仍然落在 shell 边界相关的 route-dominated crossing
+   - 说明“把 NoC 做得更紧凑”并没有自动把最坏路径带走
+
+3. 与 `4c12g12d separate sbus128` 对比时，当前 `4c8p8 pair sbus256` 的 NoC 仍然很大
+   - `4c12g12d separate sbus128` `NoC`：
+     - `447,588 LUT`
+   - `4c8p8 pair sbus256` `NoC`：
+     - `399,295 LUT`
+   - 仅约 `10.8%` 差异
+
+这组对比说明：
+
+- 纯粹减少 pair 数和压缩 mesh 布局当然有用
+- 但 `Sbus256`、shell-facing 宽路径、以及当前 manager 数据面挂在完整 system-bus
+  语义上的做法，仍然把设计推到了一个很高的布线/布局成本平台
+
+### 15.4 与较小历史设计的区别
+
+历史较小设计虽然也曾 timing violated，但至少还能走到：
+
+- `finished waiting`
+- `FireSim fingerprint: 0x46697265`
+- `Commencing simulation.`
+
+然后才在 target cycle 0 deadlock。
+
+对应记录见：
+
+- `/home/ubuntu/chipyard/tmp/firesim-aws-f2/test-logs/2026-03-15-runworkload-local-agfi-hangcheck.md`
+
+因此，当前 `4c8p8 Sbus256` 这版的问题等级更高：
+
+- 不是“勉强带病运行”
+- 而是已经在 very-early bring-up 阶段暴露出不可用信号
+
+### 15.5 与当前已跑通 runtime smoke 的 `4c12p12 pair Sbus128` 的直接对照
+
+当前已经存在一版真正通过 FireSim runtime smoke 的大 pair-wrapper 配置：
+
+- config：
+  - `GemminiLearningConfigSpadReRoCCGlobalNoC4C2x2P12x4x3CoupledDMAPairManagerDummy16x16Sbus128`
+- AGFI：
+  - `agfi-0dc8dcfa4c7735f40`
+- `infrasetup` 成功日志：
+  - `/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-04-07--05-47-11-infrasetup-IICY0DY3T4M3MH91.log`
+- `runworkload` 成功日志：
+  - `/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-04-07--05-51-26-runworkload-NZ7FEGNCORQ86JJF.log`
+
+它和当前失败的 `4c8p8 pair Sbus256` 对照后，有几个结论非常关键：
+
+1. 成功版总面积并不更小
+   - `4c8p8 pair Sbus256` `cl_firesim`：
+     - `1,112,333 LUT`
+     - `579,510 FF`
+     - `1,407 DSP`
+   - `4c12p12 pair Sbus128` `cl_firesim`：
+     - `1,164,888 LUT`
+     - `604,807 FF`
+     - `2,079 DSP`
+
+2. 两版最坏时序路径类型几乎相同
+   - `4c8p8 pair Sbus256`：
+     - WNS `-5.015ns`
+     - 最坏路径位于 `WRAPPER/CL/PIPE_DDR_STAT_ACK0/...`
+     - `11.419ns` data path 里 `11.340ns` 是 routing
+   - `4c12p12 pair Sbus128`：
+     - WNS `-4.943ns`
+     - 最坏路径同样位于 `WRAPPER/CL/PIPE_DDR_STAT_ACK0/...`
+     - `11.336ns` data path 里 `11.255ns` 是 routing
+
+3. 但 runtime bring-up 行为完全不同
+   - 失败版三次都只到：
+     - `entered simulation flow execution`
+   - 成功版则继续到：
+     - `finished waiting`
+     - `FireSim fingerprint: 0x46697265`
+     - 后续 `runworkload` 也完成
+
+4. 失败版已在新的 F2 host 上再次复现
+   - 独立重跑所用 runtime/hwdb：
+     - `/home/ubuntu/chipyard/sims/firesim/deploy/config_runtime_f2_gemmini_rerocc_pairmanager_dummy16x16_4c8p8_sbus256_linux_poweroff_rerun.yaml`
+     - `/home/ubuntu/chipyard/sims/firesim/deploy/config_hwdb_f2_gemmini_rerocc_pairmanager_dummy16x16_4c8p8_sbus256_smoke_rerun.yaml`
+   - runfarm tag：
+     - `pair-smoke-4c8p8-sbus256-rerun-20260407`
+   - 新 host：
+     - `i-0f006359e65a52669`
+     - `192.168.1.246`
+   - 新 `infrasetup` 结果：
+     - `/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-04-07--06-26-29-infrasetup-PV1ZJI9OCHQ8TP76.log`
+   - 结果仍是 3 次 `+check-fingerprint` timeout，最终 `infrasetup` 退出码 `1`
+
+这说明当前问题不能简单收敛成：
+
+- “总面积太大”
+- “WNS 太差”
+- “NoC hop 太多”
+
+更接近的解释是：
+
+- `Sbus256` 这一宽 system-bus 形态改变了 pair-wrapper 周边、shell-facing 通路、
+  以及布局/布线压力分布
+- 即使在 pair 数从 `12` 降到 `8` 后，这种实现形态仍可能把设计留在
+  “bitstream 可注册，但 very-early host-FPGA bring-up 失效”的状态
+- 而 `Sbus128` 虽然没有把 shell-boundary 最坏路径彻底修干净，却已经足以让
+  fingerprint preflight 和最小 Linux smoke 通过
+
+### 15.6 当前最稳妥的硬件结论
+
+到本轮为止，可以把“为什么延迟还是很大”收敛为下面这句：
+
+- NoC 拓扑和 pair-level compact layout 会影响拥塞与 spread，但当前已观察到的最坏
+  时序和最早运行时失败，更直接地由 shell-boundary 必经路径、跨 SLR 全局路由、
+  以及 `Sbus256` 下的宽链路/协议基础设施主导
+
+因此，如果后续还要继续修当前路线，最有价值的杠杆不会只是继续缩 mesh，而会是：
+
+- 继续减少 pair 对外暴露的宽 TL/system-bus 语义
+- 减少 shell-boundary 必经状态路径的往返
+- 只有在这些手段都证据充分失败后，再把 `Sbus128` 当作真正的资源 fallback
