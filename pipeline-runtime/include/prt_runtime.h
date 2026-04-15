@@ -87,6 +87,7 @@ typedef struct prt_runtime_s {
   void *model_blob;
   size_t model_blob_size;
   size_t model_blob_offset;
+  uint32_t model_blob_is_mmap;
   prt_schedule_action_t *active_action;
 
   // Multi-action queue support
@@ -101,6 +102,12 @@ typedef struct prt_runtime_s {
   void *dma_pending_head;
   void *dma_pending_tail;
   uint32_t dma_pending_count;
+  pthread_mutex_t dma_completion_lock;
+  volatile uint32_t *dma_completion_flags;
+  uint64_t *dma_completion_flag_pas;
+  uint8_t *dma_completion_flag_used;
+  uint32_t dma_completion_flag_count;
+  size_t dma_completion_flag_alloc_bytes;
 
   pthread_mutex_t page_lock;
   uint8_t *page_used; // bitmap-like array [num_cores * pages_per_acc]

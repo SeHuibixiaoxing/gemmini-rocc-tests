@@ -9,6 +9,7 @@
 
 #include "prt_dma.h"
 #include "prt_page_table.h"
+#include "prt_progress.h"
 #include "prt_runtime.h"
 
 static void build_abs_timeout(uint64_t timeout_ns, struct timespec *out) {
@@ -125,6 +126,43 @@ static int page_list_is_contiguous(const prt_page_list_t *pl) {
   return 1;
 }
 
+static const prt_segment_desc_t *scheduler_current_segment(const prt_runtime_t *rt) {
+  const prt_schedule_action_t *action;
+  if (!rt) return NULL;
+  action = prt_runtime_current_action(rt);
+  if (action && action->pipeline_segment_ref) return action->pipeline_segment_ref;
+  if (!rt->pipeline.segments || rt->pipeline.num_segments == 0U) return NULL;
+  return &rt->pipeline.segments[0];
+}
+
+static uint32_t scheduler_map_lookup_u32(const prt_u32_map_t *map, uint32_t key) {
+  if (!map || !map->data) return 0U;
+  for (uint32_t i = 0; i < map->size; ++i) {
+    if (map->data[i].key == key) return map->data[i].value;
+  }
+  return 0U;
+}
+
+static uint64_t pipebuf_transport_bytes_rt(const prt_runtime_t *rt, const prt_pipebuf_t *buf,
+                                           const prt_page_list_t *src_pages,
+                                           const prt_page_list_t *dst_pages) {
+  const prt_segment_desc_t *seg;
+  uint64_t fallback = 0U;
+  uint32_t explicit_bytes = 0U;
+  if (!rt || !buf) return 0U;
+  seg = scheduler_current_segment(rt);
+  if (src_pages && src_pages->data && src_pages->size > 0U) fallback = pages_bytes_rt(rt, src_pages);
+  if (dst_pages && dst_pages->data && dst_pages->size > 0U) {
+    uint64_t dst_bytes = pages_bytes_rt(rt, dst_pages);
+    if (fallback == 0U || dst_bytes < fallback) fallback = dst_bytes;
+  }
+  if (!seg) return fallback;
+  explicit_bytes = scheduler_map_lookup_u32(&seg->transport_effective_bytes, buf->tensor_id);
+  if (explicit_bytes == 0U) return fallback;
+  if (fallback == 0U) return explicit_bytes;
+  return explicit_bytes < fallback ? explicit_bytes : fallback;
+}
+
 static int can_submit_overlap_single_req(const prt_runtime_t *rt, const prt_pipebuf_t *buf,
                                          uint32_t idx, int to_ring) {
   const prt_page_list_t *src;
@@ -224,6 +262,7 @@ int prt_ring_wait_idle(prt_ringbuf_t *rb, uint64_t timeout_ns) {
 
 int prt_process_c1(prt_runtime_t *rt, prt_pipebuf_t *buf, uint32_t idx, uint64_t timeout_ns) {
   int rc;
+  uint64_t bytes;
   if (!rt || !buf || idx > 1) return PRT_ERR_INVAL;
 
   if (buf->ring && buf->kind == PRT_BUF_C1_ENTRY_DRAM_OR_DEPEN && buf->dram_base_addr[idx] == 0) {
@@ -240,13 +279,21 @@ int prt_process_c1(prt_runtime_t *rt, prt_pipebuf_t *buf, uint32_t idx, uint64_t
   buf->cmd_count[idx] = 1;
   pthread_mutex_unlock(&buf->lock);
 
+  bytes = buf->ring && buf->kind == PRT_BUF_C1_ENTRY_DRAM_OR_DEPEN && buf->dram_base_addr[idx] == 0
+            ? pipebuf_transport_bytes_rt(rt, buf,
+                                         &buf->ring->slot_pages[buf->subbatch_offset % buf->ring->size],
+                                         &buf->slot_pages[idx])
+            : pipebuf_transport_bytes_rt(rt, buf, NULL, &buf->slot_pages[idx]);
+
   if (buf->ring && buf->kind == PRT_BUF_C1_ENTRY_DRAM_OR_DEPEN && buf->dram_base_addr[idx] == 0) {
-    rc = prt_dma_copy_spm_pages(rt, &buf->slot_pages[idx],
-                                &buf->ring->slot_pages[buf->subbatch_offset % buf->ring->size],
-                                buf->cmd_acc[idx], buf->stage_idx, buf->tensor_id, timeout_ns);
+    rc = prt_dma_copy_spm_pages_prefix(rt, &buf->slot_pages[idx],
+                                       &buf->ring->slot_pages[buf->subbatch_offset % buf->ring->size],
+                                       bytes, buf->cmd_acc[idx], buf->stage_idx,
+                                       buf->tensor_id, timeout_ns);
   } else {
-    rc = prt_dma_copy_dram_to_spm_pages(rt, &buf->slot_pages[idx], buf->dram_base_addr[idx],
-                                        buf->cmd_acc[idx], buf->stage_idx, buf->tensor_id, timeout_ns);
+    rc = prt_dma_copy_dram_to_spm_pages_prefix(rt, &buf->slot_pages[idx], buf->dram_base_addr[idx],
+                                               bytes, buf->cmd_acc[idx], buf->stage_idx,
+                                               buf->tensor_id, timeout_ns);
   }
 
   pthread_mutex_lock(&buf->lock);
@@ -356,6 +403,8 @@ int prt_process_c2(prt_runtime_t *rt, prt_pipebuf_t *buf, uint32_t idx, uint64_t
   uint32_t submit_sbatch = 0;
   int to_ring = 0;
   int allow_overlap = 0;
+  const int sparse_export_probe = buf && buf->stage_idx == 0U && buf->tensor_id == 2U;
+  uint64_t transfer_bytes = 0U;
   if (!rt || !buf || idx > 1) return PRT_ERR_INVAL;
 
   pthread_mutex_lock(&buf->lock);
@@ -372,6 +421,10 @@ int prt_process_c2(prt_runtime_t *rt, prt_pipebuf_t *buf, uint32_t idx, uint64_t
 
   to_ring = (buf->ring && buf->kind == PRT_BUF_C2_EXPORT_DRAM_OR_DEPEN && buf->dram_base_addr[idx] == 0);
   allow_overlap = export_overlap_enabled(rt) && can_submit_overlap_single_req(rt, buf, idx, to_ring);
+  transfer_bytes = to_ring
+                     ? pipebuf_transport_bytes_rt(rt, buf, &buf->slot_pages[idx],
+                                                  &buf->ring->slot_pages[buf->subbatch_offset % buf->ring->size])
+                     : pipebuf_transport_bytes_rt(rt, buf, &buf->slot_pages[idx], NULL);
 
   if (allow_overlap) {
     int rc = prt_progress_export_dma(rt, buf, timeout_ns, 1);
@@ -396,20 +449,43 @@ int prt_process_c2(prt_runtime_t *rt, prt_pipebuf_t *buf, uint32_t idx, uint64_t
     req.dst_addr = pages_addr_base_rt(rt, &buf->ring->slot_pages[submit_sbatch % buf->ring->size]);
   }
   req.src_addr = pages_addr_base_rt(rt, &buf->slot_pages[idx]);
-  req.bytes = pages_bytes_rt(rt, &buf->slot_pages[idx]);
+  req.bytes = transfer_bytes;
   req.src_acc = buf->cmd_acc[idx];
   req.dst_acc = buf->cmd_acc[idx];
+  if (sparse_export_probe) {
+    PRT_PROGRESS_LOG("c2-export stage=%u tensor=%u phase=dispatch idx=%u subbatch=%u bytes=%llu to_ring=%u overlap=%u src=0x%llx dst=0x%llx pages=%u",
+                     buf->stage_idx, buf->tensor_id, idx, submit_sbatch,
+                     (unsigned long long)transfer_bytes,
+                     (uint32_t)to_ring,
+                     (uint32_t)allow_overlap,
+                     (unsigned long long)req.src_addr,
+                     (unsigned long long)req.dst_addr,
+                     buf->slot_pages[idx].size);
+  }
 
   if (!allow_overlap) {
     int rc;
+    if (sparse_export_probe) {
+      PRT_PROGRESS_LOG("c2-export stage=%u tensor=%u phase=copy-begin idx=%u subbatch=%u bytes=%llu to_ring=%u",
+                       buf->stage_idx, buf->tensor_id, idx, submit_sbatch,
+                       (unsigned long long)transfer_bytes,
+                       (uint32_t)to_ring);
+    }
     if (to_ring) {
-      rc = prt_dma_copy_spm_pages(rt,
-                                  &buf->ring->slot_pages[submit_sbatch % buf->ring->size],
-                                  &buf->slot_pages[idx],
-                                  buf->cmd_acc[idx], buf->stage_idx, buf->tensor_id, timeout_ns);
+      rc = prt_dma_copy_spm_pages_prefix(rt,
+                                         &buf->ring->slot_pages[submit_sbatch % buf->ring->size],
+                                         &buf->slot_pages[idx],
+                                         transfer_bytes, buf->cmd_acc[idx],
+                                         buf->stage_idx, buf->tensor_id, timeout_ns);
     } else {
-      rc = prt_dma_copy_spm_pages_to_dram(rt, buf->dram_base_addr[idx], &buf->slot_pages[idx],
-                                          buf->cmd_acc[idx], buf->stage_idx, buf->tensor_id, timeout_ns);
+      rc = prt_dma_copy_spm_pages_to_dram_prefix(rt, buf->dram_base_addr[idx], &buf->slot_pages[idx],
+                                                 transfer_bytes, buf->cmd_acc[idx], buf->stage_idx,
+                                                 buf->tensor_id, timeout_ns);
+    }
+    if (sparse_export_probe) {
+      PRT_PROGRESS_LOG("c2-export stage=%u tensor=%u phase=copy-end idx=%u subbatch=%u rc=%d bytes=%llu",
+                       buf->stage_idx, buf->tensor_id, idx, submit_sbatch, rc,
+                       (unsigned long long)transfer_bytes);
     }
 
     pthread_mutex_lock(&buf->lock);
@@ -425,6 +501,12 @@ int prt_process_c2(prt_runtime_t *rt, prt_pipebuf_t *buf, uint32_t idx, uint64_t
       buf->subbatch_offset += 1;
       buf->state_epoch += 1;
       pthread_cond_broadcast(&buf->cv);
+    }
+    if (sparse_export_probe) {
+      uint32_t next_sbatch = buf->subbatch_offset;
+      int full = buf->full[idx];
+      PRT_PROGRESS_LOG("c2-export stage=%u tensor=%u phase=retire idx=%u rc=%d next_sbatch=%u full=%d",
+                       buf->stage_idx, buf->tensor_id, idx, rc, next_sbatch, full);
     }
     pthread_mutex_unlock(&buf->lock);
     return rc;
@@ -447,6 +529,12 @@ int prt_process_c2(prt_runtime_t *rt, prt_pipebuf_t *buf, uint32_t idx, uint64_t
     buf->state_epoch += 1;
     pthread_cond_broadcast(&buf->cv);
   }
+  if (sparse_export_probe) {
+    PRT_PROGRESS_LOG("c2-export stage=%u tensor=%u phase=submit-end idx=%u subbatch=%u rc=%d live=%d overlap=%u",
+                     buf->stage_idx, buf->tensor_id, idx, submit_sbatch, rc,
+                     buf->dma_token_live[idx],
+                     (uint32_t)allow_overlap);
+  }
   pthread_mutex_unlock(&buf->lock);
   return rc;
 }
@@ -454,6 +542,7 @@ int prt_process_c2(prt_runtime_t *rt, prt_pipebuf_t *buf, uint32_t idx, uint64_t
 int prt_process_c3(prt_runtime_t *rt, prt_isolate_pair_t *pair, uint64_t timeout_ns) {
   uint32_t pre_idx;
   uint32_t nxt_idx;
+  uint64_t transfer_bytes;
   if (!rt || !pair || !pair->pre_export || !pair->nxt_entry || !pair->pre_idx || !pair->nxt_idx) return PRT_ERR_INVAL;
 
   pre_idx = *pair->pre_idx;
@@ -477,13 +566,17 @@ int prt_process_c3(prt_runtime_t *rt, prt_isolate_pair_t *pair, uint64_t timeout
   pthread_mutex_unlock(&pair->nxt_entry->lock);
   pthread_mutex_unlock(&pair->pre_export->lock);
 
-  int rc = prt_dma_copy_spm_pages(rt,
-                                  &pair->nxt_entry->slot_pages[nxt_idx],
-                                  &pair->pre_export->slot_pages[pre_idx],
-                                  pair->pre_export->cmd_acc[pre_idx],
-                                  pair->pre_export->stage_idx,
-                                  pair->pre_export->tensor_id,
-                                  timeout_ns);
+  transfer_bytes = pipebuf_transport_bytes_rt(rt, pair->pre_export,
+                                              &pair->pre_export->slot_pages[pre_idx],
+                                              &pair->nxt_entry->slot_pages[nxt_idx]);
+  int rc = prt_dma_copy_spm_pages_prefix(rt,
+                                         &pair->nxt_entry->slot_pages[nxt_idx],
+                                         &pair->pre_export->slot_pages[pre_idx],
+                                         transfer_bytes,
+                                         pair->pre_export->cmd_acc[pre_idx],
+                                         pair->pre_export->stage_idx,
+                                         pair->pre_export->tensor_id,
+                                         timeout_ns);
 
   pthread_mutex_lock(&pair->pre_export->lock);
   pthread_mutex_lock(&pair->nxt_entry->lock);
@@ -589,14 +682,19 @@ int prt_process_c4(prt_runtime_t *rt, prt_shared_pair_t *pair) {
 }
 
 int prt_process_c5(prt_runtime_t *rt, prt_pipebuf_t *buf, uint32_t idx, uint64_t timeout_ns) {
+  uint64_t transfer_bytes;
   if (!rt || !buf || !buf->ring || idx > 1) return PRT_ERR_INVAL;
   int rc = prt_ring_wait_ready(buf->ring, buf->subbatch_offset, timeout_ns);
   if (rc != PRT_OK) return rc;
 
-  rc = prt_dma_copy_spm_pages(rt,
-                              &buf->slot_pages[idx],
-                              &buf->ring->slot_pages[buf->subbatch_offset % buf->ring->size],
-                              buf->cmd_acc[idx], buf->stage_idx, buf->tensor_id, timeout_ns);
+  transfer_bytes = pipebuf_transport_bytes_rt(rt, buf,
+                                              &buf->ring->slot_pages[buf->subbatch_offset % buf->ring->size],
+                                              &buf->slot_pages[idx]);
+  rc = prt_dma_copy_spm_pages_prefix(rt,
+                                     &buf->slot_pages[idx],
+                                     &buf->ring->slot_pages[buf->subbatch_offset % buf->ring->size],
+                                     transfer_bytes, buf->cmd_acc[idx], buf->stage_idx,
+                                     buf->tensor_id, timeout_ns);
 
   pthread_mutex_lock(&buf->lock);
   if (rc == PRT_OK) {
@@ -616,6 +714,7 @@ int prt_process_c5(prt_runtime_t *rt, prt_pipebuf_t *buf, uint32_t idx, uint64_t
 int prt_process_c6(prt_runtime_t *rt, prt_pipebuf_t *buf, uint32_t idx, uint64_t timeout_ns) {
   uint32_t submit_sbatch = 0;
   int allow_overlap = 0;
+  uint64_t transfer_bytes = 0U;
   if (!rt || !buf || !buf->ring || idx > 1) return PRT_ERR_INVAL;
   int rc = prt_ring_wait_idle(buf->ring, timeout_ns);
   if (rc != PRT_OK) return rc;
@@ -628,6 +727,9 @@ int prt_process_c6(prt_runtime_t *rt, prt_pipebuf_t *buf, uint32_t idx, uint64_t
   pthread_mutex_unlock(&buf->lock);
 
   allow_overlap = export_overlap_enabled(rt) && can_submit_overlap_single_req(rt, buf, idx, 1);
+  transfer_bytes = pipebuf_transport_bytes_rt(rt, buf,
+                                              &buf->slot_pages[idx],
+                                              &buf->ring->slot_pages[buf->subbatch_offset % buf->ring->size]);
   if (allow_overlap) {
     rc = prt_progress_export_dma(rt, buf, timeout_ns, 1);
     if (rc != PRT_OK) return rc;
@@ -649,15 +751,16 @@ int prt_process_c6(prt_runtime_t *rt, prt_pipebuf_t *buf, uint32_t idx, uint64_t
   prt_dma_req_t req;
   req.src_addr = pages_addr_base_rt(rt, &buf->slot_pages[idx]);
   req.dst_addr = pages_addr_base_rt(rt, &buf->ring->slot_pages[submit_sbatch % buf->ring->size]);
-  req.bytes = pages_bytes_rt(rt, &buf->slot_pages[idx]);
+  req.bytes = transfer_bytes;
   req.src_acc = buf->cmd_acc[idx];
   req.dst_acc = buf->cmd_acc[idx];
 
   if (!allow_overlap) {
-    rc = prt_dma_copy_spm_pages(rt,
-                                &buf->ring->slot_pages[submit_sbatch % buf->ring->size],
-                                &buf->slot_pages[idx],
-                                buf->cmd_acc[idx], buf->stage_idx, buf->tensor_id, timeout_ns);
+    rc = prt_dma_copy_spm_pages_prefix(rt,
+                                       &buf->ring->slot_pages[submit_sbatch % buf->ring->size],
+                                       &buf->slot_pages[idx],
+                                       transfer_bytes, buf->cmd_acc[idx], buf->stage_idx,
+                                       buf->tensor_id, timeout_ns);
 
     pthread_mutex_lock(&buf->lock);
     if (rc == PRT_OK) {
@@ -704,6 +807,12 @@ int prt_process_c7(prt_runtime_t *rt, prt_pipebuf_t *buf) {
   pthread_mutex_lock(&buf->lock);
   pthread_mutex_lock(&buf->ring->lock);
 
+  PRT_PROGRESS_LOG("c7 state stage=%u tensor=%u enter tag=%u full=%d sb=%u ring=%u/%u/%u",
+                   buf->stage_idx, buf->tensor_id,
+                   buf->tag, buf->full[0],
+                   buf->subbatch_offset,
+                   buf->ring->head, buf->ring->tail, buf->ring->size);
+
   if (!buf->tag) {
     if ((buf->ring->head <= buf->subbatch_offset) && (buf->subbatch_offset < buf->ring->tail)) {
       uint32_t slot = buf->subbatch_offset % buf->ring->size;
@@ -712,14 +821,28 @@ int prt_process_c7(prt_runtime_t *rt, prt_pipebuf_t *buf) {
         buf->full[0] = 1;
         buf->subbatch_offset += 1;
         buf->tag = 1;
+        PRT_PROGRESS_LOG("c7 consume stage=%u tensor=%u slot=%u full=%d sb=%u ring=%u/%u/%u",
+                         buf->stage_idx, buf->tensor_id,
+                         slot, buf->full[0], buf->subbatch_offset,
+                         buf->ring->head, buf->ring->tail, buf->ring->size);
         pthread_cond_broadcast(&buf->cv);
       }
     }
   } else if (!buf->full[0]) {
     (void)ring_use_locked(buf->ring, buf->subbatch_offset - 1U);
     buf->tag = 0;
+    PRT_PROGRESS_LOG("c7 release stage=%u tensor=%u full=%d sb=%u ring=%u/%u/%u",
+                     buf->stage_idx, buf->tensor_id,
+                     buf->full[0], buf->subbatch_offset,
+                     buf->ring->head, buf->ring->tail, buf->ring->size);
     pthread_cond_broadcast(&buf->cv);
   }
+
+  PRT_PROGRESS_LOG("c7 state stage=%u tensor=%u exit tag=%u full=%d sb=%u ring=%u/%u/%u",
+                   buf->stage_idx, buf->tensor_id,
+                   buf->tag, buf->full[0],
+                   buf->subbatch_offset,
+                   buf->ring->head, buf->ring->tail, buf->ring->size);
 
   pthread_mutex_unlock(&buf->ring->lock);
   pthread_mutex_unlock(&buf->lock);
@@ -733,19 +856,35 @@ int prt_process_c8(prt_runtime_t *rt, prt_pipebuf_t *buf) {
   pthread_mutex_lock(&buf->lock);
   pthread_mutex_lock(&buf->ring->lock);
 
+  PRT_PROGRESS_LOG("c8 state stage=%u tensor=%u enter tag=%u full=%d sb=%u ring=%u/%u/%u",
+                   buf->stage_idx, buf->tensor_id,
+                   buf->tag, buf->full[0],
+                   buf->subbatch_offset,
+                   buf->ring->head, buf->ring->tail, buf->ring->size);
+
   if (!buf->tag && !buf->full[0]) {
     if ((buf->ring->tail - buf->ring->head) < buf->ring->size) {
       uint32_t slot = buf->subbatch_offset % buf->ring->size;
       if (page_list_copy(&buf->slot_pages[0], &buf->ring->slot_pages[slot]) == PRT_OK) {
         buf->tag = 1;
+        PRT_PROGRESS_LOG("c8 prime stage=%u tensor=%u slot=%u tag=%u full=%d sb=%u ring=%u/%u/%u",
+                         buf->stage_idx, buf->tensor_id,
+                         slot, buf->tag, buf->full[0], buf->subbatch_offset,
+                         buf->ring->head, buf->ring->tail, buf->ring->size);
       }
     }
   }
 
   if (buf->tag && buf->full[0]) {
+    uint32_t filled_sbatch = buf->subbatch_offset;
+    (void)filled_sbatch;
     (void)ring_fill_locked(buf->ring, buf->subbatch_offset);
     buf->subbatch_offset += 1;
     buf->tag = 0;
+    PRT_PROGRESS_LOG("c8 publish stage=%u tensor=%u filled_sbatch=%u tag=%u full=%d sb=%u ring=%u/%u/%u",
+                     buf->stage_idx, buf->tensor_id,
+                     filled_sbatch, buf->tag, buf->full[0], buf->subbatch_offset,
+                     buf->ring->head, buf->ring->tail, buf->ring->size);
   }
 
   if (!buf->tag && buf->full[0]) {
@@ -754,10 +893,20 @@ int prt_process_c8(prt_runtime_t *rt, prt_pipebuf_t *buf) {
       if (page_list_copy(&buf->slot_pages[0], &buf->ring->slot_pages[slot]) == PRT_OK) {
         buf->full[0] = 0;
         buf->tag = 1;
+        PRT_PROGRESS_LOG("c8 reprime stage=%u tensor=%u slot=%u tag=%u full=%d sb=%u ring=%u/%u/%u",
+                         buf->stage_idx, buf->tensor_id,
+                         slot, buf->tag, buf->full[0], buf->subbatch_offset,
+                         buf->ring->head, buf->ring->tail, buf->ring->size);
         pthread_cond_broadcast(&buf->cv);
       }
     }
   }
+
+  PRT_PROGRESS_LOG("c8 state stage=%u tensor=%u exit tag=%u full=%d sb=%u ring=%u/%u/%u",
+                   buf->stage_idx, buf->tensor_id,
+                   buf->tag, buf->full[0],
+                   buf->subbatch_offset,
+                   buf->ring->head, buf->ring->tail, buf->ring->size);
 
   pthread_mutex_unlock(&buf->ring->lock);
   pthread_mutex_unlock(&buf->lock);

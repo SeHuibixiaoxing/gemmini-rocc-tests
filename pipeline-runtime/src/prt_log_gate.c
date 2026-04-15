@@ -63,6 +63,10 @@ void prt_log_gate_set_context(uint32_t segment_idx, uint32_t global_stage_id,
 
 void prt_log_gate_clear_context(void) {
   t_prt_log_gate_ctx.valid = 0U;
+  t_prt_log_gate_ctx.segment_idx = PRT_LOG_GATE_ANY_U32;
+  t_prt_log_gate_ctx.global_stage_id = PRT_LOG_GATE_ANY_U32;
+  t_prt_log_gate_ctx.local_stage_id = PRT_LOG_GATE_ANY_U32;
+  t_prt_log_gate_ctx.subbatch_id = PRT_LOG_GATE_ANY_U32;
   t_prt_log_gate_budget_remaining = 0U;
 }
 
@@ -93,6 +97,15 @@ int prt_log_gate_allow_deep_logs_budgeted(void) {
   if (t_prt_log_gate_budget_remaining == 0U) return 0;
   t_prt_log_gate_budget_remaining -= 1U;
   return 1;
+}
+
+void prt_log_gate_get_context(prt_log_gate_ctx_snapshot_t *out) {
+  if (!out) return;
+  out->valid = t_prt_log_gate_ctx.valid;
+  out->segment_idx = t_prt_log_gate_ctx.segment_idx;
+  out->global_stage_id = t_prt_log_gate_ctx.global_stage_id;
+  out->local_stage_id = t_prt_log_gate_ctx.local_stage_id;
+  out->subbatch_id = t_prt_log_gate_ctx.subbatch_id;
 }
 
 #endif

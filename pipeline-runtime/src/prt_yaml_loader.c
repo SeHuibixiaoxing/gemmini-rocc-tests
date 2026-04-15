@@ -2,50 +2,97 @@
 #include "prt_progress.h"
 
 #include <ctype.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+
+static int read_full_pread(int fd, char *buf, size_t len) {
+  size_t off = 0U;
+
+  while (off < len) {
+    size_t chunk = len - off;
+    ssize_t n;
+
+    if (chunk > (1U << 20)) chunk = (1U << 20);
+    n = pread(fd, buf + off, chunk, (off_t)off);
+    if (n > 0) {
+      off += (size_t)n;
+      continue;
+    }
+    if (n == 0) return PRT_ERR_IO;
+    if (errno == EINTR) continue;
+    return PRT_ERR_IO;
+  }
+
+  return PRT_OK;
+}
 
 static int load_file(const char *path, char **out_buf, size_t *out_len) {
-  FILE *f;
-  long sz;
+  int fd = -1;
+  off_t sz_off;
+  size_t sz;
   char *buf;
+  int rc;
 
   if (!path || !out_buf || !out_len) return PRT_ERR_INVAL;
-  f = fopen(path, "rb");
-  if (!f) return PRT_ERR_IO;
+  PRT_PROGRESS_LOG("yaml file open begin path=%s", path);
+  fd = open(path, O_RDONLY | O_CLOEXEC);
+  if (fd < 0) {
+    PRT_PROGRESS_LOG("yaml file open fail path=%s errno=%d", path, errno);
+    return PRT_ERR_IO;
+  }
+  PRT_PROGRESS_LOG("yaml file open end path=%s", path);
 
-  if (fseek(f, 0, SEEK_END) != 0) {
-    fclose(f);
+  PRT_PROGRESS_LOG("yaml file seek-end begin path=%s", path);
+  sz_off = lseek(fd, 0, SEEK_END);
+  if (sz_off < 0) {
+    PRT_PROGRESS_LOG("yaml file seek-end fail path=%s errno=%d", path, errno);
+    close(fd);
     return PRT_ERR_IO;
   }
-  sz = ftell(f);
-  if (sz < 0) {
-    fclose(f);
-    return PRT_ERR_IO;
-  }
-  if (fseek(f, 0, SEEK_SET) != 0) {
-    fclose(f);
-    return PRT_ERR_IO;
-  }
+  PRT_PROGRESS_LOG("yaml file seek-end end path=%s", path);
 
-  buf = (char *)malloc((size_t)sz + 1);
+  PRT_PROGRESS_LOG("yaml file ftell begin path=%s", path);
+  if ((uint64_t)sz_off > (uint64_t)(SIZE_MAX - 1U)) {
+    PRT_PROGRESS_LOG("yaml file ftell fail path=%s bytes=%lld too_large=1",
+                     path, (long long)sz_off);
+    close(fd);
+    return PRT_ERR_IO;
+  }
+  sz = (size_t)sz_off;
+  PRT_PROGRESS_LOG("yaml file ftell end path=%s bytes=%lld", path, (long long)sz_off);
+
+  PRT_PROGRESS_LOG("yaml file read-mode path=%s mode=pread", path);
+
+  PRT_PROGRESS_LOG("yaml file alloc begin path=%s bytes=%zu", path, sz);
+  buf = (char *)malloc(sz + 1U);
   if (!buf) {
-    fclose(f);
+    PRT_PROGRESS_LOG("yaml file alloc fail path=%s bytes=%zu", path, sz);
+    close(fd);
     return PRT_ERR_NOMEM;
   }
+  PRT_PROGRESS_LOG("yaml file alloc end path=%s bytes=%zu", path, sz);
 
-  if (fread(buf, 1, (size_t)sz, f) != (size_t)sz) {
+  PRT_PROGRESS_LOG("yaml file read begin path=%s bytes=%zu", path, sz);
+  rc = read_full_pread(fd, buf, sz);
+  if (rc != PRT_OK) {
+    PRT_PROGRESS_LOG("yaml file read fail path=%s bytes=%zu rc=%d errno=%d",
+                     path, sz, rc, errno);
     free(buf);
-    fclose(f);
-    return PRT_ERR_IO;
+    close(fd);
+    return rc;
   }
+  PRT_PROGRESS_LOG("yaml file read end path=%s bytes=%zu", path, sz);
   buf[sz] = '\0';
-  fclose(f);
+  close(fd);
+  PRT_PROGRESS_LOG("yaml file close end path=%s", path);
 
   *out_buf = buf;
-  *out_len = (size_t)sz;
+  *out_len = sz;
   return PRT_OK;
 }
 
@@ -96,17 +143,32 @@ static char *value_after_colon(char *line) {
   return p;
 }
 
+static const char *key_name(char *line) {
+  char *p;
+  char *colon;
+
+  if (!line) return NULL;
+  p = strip_list_prefix(line);
+  colon = strchr(p, ':');
+  if (!colon) return p;
+  *colon = '\0';
+  return p;
+}
+
 static int parse_u32_scalar(char *line, uint32_t *out) {
   char *v = value_after_colon(line);
+  char *end = NULL;
   unsigned long x;
   if (!v || !out) return PRT_ERR_PARSE;
-  x = strtoul(v, NULL, 10);
+  x = strtoul(v, &end, 10);
+  if (end == v) return PRT_ERR_PARSE;
   *out = (uint32_t)x;
   return PRT_OK;
 }
 
 static int parse_accutil_anywhere(char *line, uint32_t *out) {
   char *p;
+  char *end = NULL;
   unsigned long x;
   if (!line || !out) return PRT_ERR_INVAL;
   p = strstr(line, "accUtil:");
@@ -114,7 +176,8 @@ static int parse_accutil_anywhere(char *line, uint32_t *out) {
   p += strlen("accUtil:");
   p = ltrim(p);
   if (!*p) return PRT_ERR_PARSE;
-  x = strtoul(p, NULL, 10);
+  x = strtoul(p, &end, 10);
+  if (end == p) return PRT_ERR_PARSE;
   *out = (uint32_t)x;
   return PRT_OK;
 }
@@ -143,7 +206,13 @@ static int parse_int_list_from_value(char *v, uint32_t **out, uint32_t *out_n) {
       continue;
     }
 
-    unsigned long val = strtoul(p, &p, 10);
+    char *next = NULL;
+    unsigned long val = strtoul(p, &next, 10);
+    if (next == p) {
+      free(arr);
+      return PRT_ERR_PARSE;
+    }
+    p = next;
     if (n == cap) {
       uint32_t new_cap = cap ? (cap << 1) : 8;
       uint32_t *tmp = (uint32_t *)realloc(arr, sizeof(uint32_t) * new_cap);
@@ -186,7 +255,13 @@ static int parse_u64_list_from_value(char *v, uint64_t **out, uint32_t *out_n) {
       continue;
     }
 
-    unsigned long long val = strtoull(p, &p, 10);
+    char *next = NULL;
+    unsigned long long val = strtoull(p, &next, 10);
+    if (next == p) {
+      free(arr);
+      return PRT_ERR_PARSE;
+    }
+    p = next;
     if (n == cap) {
       uint32_t new_cap = cap ? (cap << 1) : 8;
       uint64_t *tmp = (uint64_t *)realloc(arr, sizeof(uint64_t) * new_cap);
@@ -297,13 +372,24 @@ static int parse_u32_map_from_value(char *v, map_kv_t **out, uint32_t *out_n) {
       continue;
     }
 
-    k = strtoul(p, &p, 10);
+    char *next = NULL;
+    k = strtoul(p, &next, 10);
+    if (next == p) {
+      free(arr);
+      return PRT_ERR_PARSE;
+    }
+    p = next;
     while (*p && *p != ':') p++;
     if (*p != ':') break;
     p++;
     while (*p && isspace((unsigned char)*p)) p++;
     if (!isdigit((unsigned char)*p)) break;
-    val = strtoul(p, &p, 10);
+    val = strtoul(p, &next, 10);
+    if (next == p) {
+      free(arr);
+      return PRT_ERR_PARSE;
+    }
+    p = next;
 
     if (n == cap) {
       uint32_t new_cap = cap ? (cap << 1) : 8;
@@ -653,6 +739,7 @@ int prt_load_model_yaml(const char *path, prt_model_desc_t *out) {
   int rc;
   prt_model_layer_t *cur_layer = NULL;
   int cur_layer_has_index = 0;
+  uint32_t line_no = 0;
   if (!out) return PRT_ERR_INVAL;
   memset(out, 0, sizeof(*out));
   PRT_PROGRESS_LOG("yaml model load begin path=%s", path ? path : "(null)");
@@ -660,7 +747,7 @@ int prt_load_model_yaml(const char *path, prt_model_desc_t *out) {
   rc = load_file(path, &buf, &len);
   if (rc != PRT_OK) return rc;
   PRT_PROGRESS_LOG("yaml model file read path=%s bytes=%zu", path ? path : "(null)", len);
-  (void)len;
+  PRT_PROGRESS_LOG("yaml model parse begin path=%s bytes=%zu", path ? path : "(null)", len);
 
   char *p = buf;
   while (p && *p) {
@@ -673,16 +760,28 @@ int prt_load_model_yaml(const char *path, prt_model_desc_t *out) {
     } else {
       p = NULL;
     }
+    line_no++;
     rtrim(line);
     indent = count_indent(line);
     char *t = ltrim(line);
     int is_list_item = (t[0] == '-');
     if (*t == '\0' || *t == '#') continue;
+    if (line_no <= 12 || (line_no % 64U) == 0U) {
+      PRT_PROGRESS_LOG("yaml model parse line=%u indent=%d list=%d text=%s", line_no, indent,
+                       is_list_item, t);
+    }
 
     if (starts_key(t, "address")) {
       uint64_t *vals = NULL;
       uint32_t n = 0;
-      if (parse_u64_list_from_value(value_after_colon(t), &vals, &n) == PRT_OK && n > 0) {
+      rc = parse_u64_list_from_value(value_after_colon(t), &vals, &n);
+      if (rc != PRT_OK) {
+        PRT_PROGRESS_LOG("yaml model parse error line=%u key=address rc=%d text=%s", line_no, rc,
+                         t);
+        free(buf);
+        return rc;
+      }
+      if (n > 0) {
         if (is_list_item) {
           if (!cur_layer || cur_layer_has_index) {
             if (push_model_layer(out, &cur_layer) != PRT_OK) {
@@ -691,6 +790,10 @@ int prt_load_model_yaml(const char *path, prt_model_desc_t *out) {
               return PRT_ERR_NOMEM;
             }
             cur_layer_has_index = 0;
+            if (out->num_layers <= 8 || (out->num_layers % 8U) == 0U) {
+              PRT_PROGRESS_LOG("yaml model layer-push line=%u reason=address layers=%u",
+                               line_no, out->num_layers);
+            }
           }
         }
         if (!is_list_item && indent == 0) {
@@ -707,11 +810,21 @@ int prt_load_model_yaml(const char *path, prt_model_desc_t *out) {
 
     if (starts_key(t, "index")) {
       uint32_t idx = 0;
-      if (parse_u32_scalar(t, &idx) != PRT_OK) continue;
+      rc = parse_u32_scalar(t, &idx);
+      if (rc != PRT_OK) {
+        PRT_PROGRESS_LOG("yaml model parse error line=%u key=index rc=%d text=%s", line_no, rc,
+                         t);
+        free(buf);
+        return rc;
+      }
       if (!cur_layer || cur_layer_has_index) {
         if (push_model_layer(out, &cur_layer) != PRT_OK) {
           free(buf);
           return PRT_ERR_NOMEM;
+        }
+        if (out->num_layers <= 8 || (out->num_layers % 8U) == 0U) {
+          PRT_PROGRESS_LOG("yaml model layer-push line=%u reason=index layers=%u",
+                           line_no, out->num_layers);
         }
       }
       if (!cur_layer) {
@@ -720,6 +833,10 @@ int prt_load_model_yaml(const char *path, prt_model_desc_t *out) {
       }
       cur_layer->index = idx;
       cur_layer_has_index = 1;
+      if (out->num_layers <= 8 || (out->num_layers % 8U) == 0U) {
+        PRT_PROGRESS_LOG("yaml model layer-index line=%u layers=%u index=%u", line_no,
+                         out->num_layers, idx);
+      }
       continue;
     }
 
@@ -749,10 +866,15 @@ int prt_load_model_yaml(const char *path, prt_model_desc_t *out) {
     if (starts_key(t, "param")) {
       uint32_t *vals = NULL;
       uint32_t n = 0;
-      if (parse_int_list_from_value(value_after_colon(t), &vals, &n) == PRT_OK) {
-        cur_layer->param_len = n > 16 ? 16 : n;
-        for (uint32_t i = 0; i < cur_layer->param_len; ++i) cur_layer->param[i] = vals[i];
+      rc = parse_int_list_from_value(value_after_colon(t), &vals, &n);
+      if (rc != PRT_OK) {
+        PRT_PROGRESS_LOG("yaml model parse error line=%u key=param rc=%d text=%s", line_no, rc,
+                         t);
+        free(buf);
+        return rc;
       }
+      cur_layer->param_len = n > 16 ? 16 : n;
+      for (uint32_t i = 0; i < cur_layer->param_len; ++i) cur_layer->param[i] = vals[i];
       free(vals);
       continue;
     }
@@ -760,10 +882,15 @@ int prt_load_model_yaml(const char *path, prt_model_desc_t *out) {
     if (starts_key(t, "tensorIds")) {
       uint32_t *vals = NULL;
       uint32_t n = 0;
-      if (parse_int_list_from_value(value_after_colon(t), &vals, &n) == PRT_OK) {
-        cur_layer->tensor_count = n > 8 ? 8 : n;
-        for (uint32_t i = 0; i < cur_layer->tensor_count; ++i) cur_layer->tensor_ids[i] = vals[i];
+      rc = parse_int_list_from_value(value_after_colon(t), &vals, &n);
+      if (rc != PRT_OK) {
+        PRT_PROGRESS_LOG("yaml model parse error line=%u key=tensorIds rc=%d text=%s",
+                         line_no, rc, t);
+        free(buf);
+        return rc;
       }
+      cur_layer->tensor_count = n > 8 ? 8 : n;
+      for (uint32_t i = 0; i < cur_layer->tensor_count; ++i) cur_layer->tensor_ids[i] = vals[i];
       free(vals);
       continue;
     }
@@ -771,10 +898,15 @@ int prt_load_model_yaml(const char *path, prt_model_desc_t *out) {
     if (starts_key(t, "tensorStride")) {
       uint32_t *vals = NULL;
       uint32_t n = 0;
-      if (parse_int_list_from_value(value_after_colon(t), &vals, &n) == PRT_OK) {
-        cur_layer->tensor_stride_count = n > 8 ? 8 : n;
-        for (uint32_t i = 0; i < cur_layer->tensor_stride_count; ++i) cur_layer->tensor_stride[i] = vals[i];
+      rc = parse_int_list_from_value(value_after_colon(t), &vals, &n);
+      if (rc != PRT_OK) {
+        PRT_PROGRESS_LOG("yaml model parse error line=%u key=tensorStride rc=%d text=%s",
+                         line_no, rc, t);
+        free(buf);
+        return rc;
       }
+      cur_layer->tensor_stride_count = n > 8 ? 8 : n;
+      for (uint32_t i = 0; i < cur_layer->tensor_stride_count; ++i) cur_layer->tensor_stride[i] = vals[i];
       free(vals);
       continue;
     }
@@ -782,10 +914,15 @@ int prt_load_model_yaml(const char *path, prt_model_desc_t *out) {
     if (starts_key(t, "tensorSize")) {
       uint32_t *vals = NULL;
       uint32_t n = 0;
-      if (parse_int_list_from_value(value_after_colon(t), &vals, &n) == PRT_OK) {
-        cur_layer->tensor_size_count = n > 8 ? 8 : n;
-        for (uint32_t i = 0; i < cur_layer->tensor_size_count; ++i) cur_layer->tensor_size[i] = vals[i];
+      rc = parse_int_list_from_value(value_after_colon(t), &vals, &n);
+      if (rc != PRT_OK) {
+        PRT_PROGRESS_LOG("yaml model parse error line=%u key=tensorSize rc=%d text=%s",
+                         line_no, rc, t);
+        free(buf);
+        return rc;
       }
+      cur_layer->tensor_size_count = n > 8 ? 8 : n;
+      for (uint32_t i = 0; i < cur_layer->tensor_size_count; ++i) cur_layer->tensor_size[i] = vals[i];
       free(vals);
       continue;
     }
@@ -793,10 +930,15 @@ int prt_load_model_yaml(const char *path, prt_model_desc_t *out) {
     if (starts_key(t, "address2")) {
       uint64_t *vals = NULL;
       uint32_t n = 0;
-      if (parse_u64_list_from_value(value_after_colon(t), &vals, &n) == PRT_OK) {
-        cur_layer->address2_count = n > 8 ? 8 : n;
-        for (uint32_t i = 0; i < cur_layer->address2_count; ++i) cur_layer->address2[i] = vals[i];
+      rc = parse_u64_list_from_value(value_after_colon(t), &vals, &n);
+      if (rc != PRT_OK) {
+        PRT_PROGRESS_LOG("yaml model parse error line=%u key=address2 rc=%d text=%s", line_no,
+                         rc, t);
+        free(buf);
+        return rc;
       }
+      cur_layer->address2_count = n > 8 ? 8 : n;
+      for (uint32_t i = 0; i < cur_layer->address2_count; ++i) cur_layer->address2[i] = vals[i];
       free(vals);
       continue;
     }
@@ -806,6 +948,8 @@ int prt_load_model_yaml(const char *path, prt_model_desc_t *out) {
   out->stages = NULL;
   out->num_tensors = 0;
   out->tensors = NULL;
+  PRT_PROGRESS_LOG("yaml model parse end path=%s lines=%u layers=%u", path ? path : "(null)",
+                   line_no, out->num_layers);
   free(buf);
   PRT_PROGRESS_LOG("yaml model load end path=%s layers=%u tensors=%u stages=%u",
                    path ? path : "(null)", out->num_layers, out->num_tensors, out->num_stages);
@@ -836,6 +980,7 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
   int cur_stage_has_global_id = 0;
   int cur_seg_has_segment_idx = 0;
   uint32_t total_stages = 0;
+  uint32_t line_no = 0;
 
   if (!out) return PRT_ERR_INVAL;
   memset(out, 0, sizeof(*out));
@@ -844,7 +989,7 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
   rc = load_file(path, &buf, &len);
   if (rc != PRT_OK) return rc;
   PRT_PROGRESS_LOG("yaml pipeline file read path=%s bytes=%zu", path ? path : "(null)", len);
-  (void)len;
+  PRT_PROGRESS_LOG("yaml pipeline parse begin path=%s bytes=%zu", path ? path : "(null)", len);
 
   char *p = buf;
   while (p && *p) {
@@ -858,10 +1003,12 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
       p = NULL;
     }
 
+    line_no++;
     rtrim(line);
     indent = count_indent(line);
     char *t = ltrim(line);
     if (*t == '\0' || *t == '#') continue;
+    PRT_PROGRESS_LOG("yaml pipeline parse line=%u indent=%d text=%.160s", line_no, indent, t);
 
     if (in_stage_spm_util_list && cur_seg) {
       if (indent <= stage_spm_util_indent && *t != '-') {
@@ -1034,6 +1181,7 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
       stage_tensor_usage_rows = 0;
       in_stage_tensor_lazy_fetch_list = 0;
       stage_tensor_lazy_fetch_rows = 0;
+      PRT_PROGRESS_LOG("yaml pipeline segment-push line=%u segments=%u", line_no, out->num_segments);
       continue;
     }
 
@@ -1065,9 +1213,12 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
         stage_tensor_usage_rows = 0;
         in_stage_tensor_lazy_fetch_list = 0;
         stage_tensor_lazy_fetch_rows = 0;
+        PRT_PROGRESS_LOG("yaml pipeline segment-push line=%u reason=segment_idx segments=%u",
+                         line_no, out->num_segments);
       }
       cur_seg->segment_idx = seg_idx;
       cur_seg_has_segment_idx = 1;
+      PRT_PROGRESS_LOG("yaml pipeline segment-idx line=%u segment=%u", line_no, seg_idx);
       continue;
     }
 
@@ -1079,8 +1230,24 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
       continue;
     }
 
+    if (starts_key(t, "start_layer_idx") ||
+        starts_key(t, "end_layer_idx") ||
+        starts_key(t, "cost") ||
+        starts_key(t, "total_spm_util")) {
+      uint32_t scalar = 0;
+      const char *key;
+      (void)parse_u32_scalar(t, &scalar);
+      key = key_name(t);
+      (void)key;
+      PRT_PROGRESS_LOG("yaml pipeline ignore-scalar line=%u key=%s value=%u",
+                       line_no, key ? key : "(null)", scalar);
+      continue;
+    }
+
     if (starts_key(t, "segmentSpmPageSpan")) {
       (void)parse_u32_scalar(t, &cur_seg->segment_spm_page_span);
+      PRT_PROGRESS_LOG("yaml pipeline segment-span line=%u segment=%u pages=%u",
+                       line_no, cur_seg->segment_idx, cur_seg->segment_spm_page_span);
       continue;
     }
 
@@ -1118,15 +1285,59 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
       continue;
     }
 
-    if (starts_key(t, "shared_tensor_is_read_first")) {
+    if (starts_key(t, "transport_effective_bytes")) {
       map_kv_t *kv = NULL;
       uint32_t n = 0;
       if (parse_u32_map_from_value(t, &kv, &n) == PRT_OK) {
+        if (u32_map_set_from_kv(&cur_seg->transport_effective_bytes, kv, n) != PRT_OK) {
+          free(kv);
+          free(buf);
+          return PRT_ERR_NOMEM;
+        }
+      }
+      free(kv);
+      continue;
+    }
+
+    if (starts_key(t, "ring_slot_effective_bytes")) {
+      map_kv_t *kv = NULL;
+      uint32_t n = 0;
+      if (parse_u32_map_from_value(t, &kv, &n) == PRT_OK) {
+        if (u32_map_set_from_kv(&cur_seg->ring_slot_effective_bytes, kv, n) != PRT_OK) {
+          free(kv);
+          free(buf);
+          return PRT_ERR_NOMEM;
+        }
+      }
+      free(kv);
+      continue;
+    }
+
+    if (starts_key(t, "shared_tensor_is_read_first")) {
+      map_kv_t *kv = NULL;
+      uint32_t n = 0;
+      PRT_PROGRESS_LOG("yaml pipeline shared-read-first begin line=%u segment=%u",
+                       line_no, cur_seg->segment_idx);
+      PRT_CRIT_LOG("yaml-srf-begin line=%u segment=%u", line_no, cur_seg->segment_idx);
+      if (parse_u32_map_from_value(t, &kv, &n) == PRT_OK) {
+        PRT_PROGRESS_LOG("yaml pipeline shared-read-first parsed line=%u segment=%u count=%u",
+                         line_no, cur_seg->segment_idx, n);
+        PRT_CRIT_LOG("yaml-srf-parsed line=%u segment=%u count=%u",
+                     line_no, cur_seg->segment_idx, n);
         if (u32_map_set_from_kv(&cur_seg->shared_tensor_is_read_first, kv, n) != PRT_OK) {
           free(kv);
           free(buf);
           return PRT_ERR_NOMEM;
         }
+        PRT_PROGRESS_LOG("yaml pipeline shared-read-first stored line=%u segment=%u count=%u",
+                         line_no, cur_seg->segment_idx, n);
+        PRT_CRIT_LOG("yaml-srf-stored line=%u segment=%u count=%u",
+                     line_no, cur_seg->segment_idx, n);
+      } else {
+        PRT_PROGRESS_LOG("yaml pipeline shared-read-first parse-fail line=%u segment=%u",
+                         line_no, cur_seg->segment_idx);
+        PRT_CRIT_LOG("yaml-srf-parse-fail line=%u segment=%u",
+                     line_no, cur_seg->segment_idx);
       }
       free(kv);
       continue;
@@ -1172,6 +1383,8 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
       uint32_t n = 0;
       if (parse_int_list_from_value(value_after_colon(t), &vals, &n) == PRT_OK) {
         segment_set_buffer_binding_u32(cur_seg, vals, n, 0);
+        PRT_PROGRESS_LOG("yaml pipeline binding-ids line=%u segment=%u count=%u",
+                         line_no, cur_seg->segment_idx, n);
       }
       free(vals);
       continue;
@@ -1182,6 +1395,8 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
       uint32_t n = 0;
       if (parse_int_list_from_value(value_after_colon(t), &vals, &n) == PRT_OK) {
         segment_set_buffer_binding_u32(cur_seg, vals, n, 1);
+        PRT_PROGRESS_LOG("yaml pipeline binding-tensor-ids line=%u segment=%u count=%u",
+                         line_no, cur_seg->segment_idx, n);
       }
       free(vals);
       continue;
@@ -1192,6 +1407,8 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
       uint32_t n = 0;
       if (parse_int_list_from_value(value_after_colon(t), &vals, &n) == PRT_OK) {
         segment_set_buffer_binding_u32(cur_seg, vals, n, 2);
+        PRT_PROGRESS_LOG("yaml pipeline binding-stage-local-ids line=%u segment=%u count=%u",
+                         line_no, cur_seg->segment_idx, n);
       }
       free(vals);
       continue;
@@ -1202,6 +1419,8 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
       uint32_t n = 0;
       if (parse_int_list_from_value(value_after_colon(t), &vals, &n) == PRT_OK) {
         segment_set_buffer_binding_u32(cur_seg, vals, n, 3);
+        PRT_PROGRESS_LOG("yaml pipeline binding-is-entry line=%u segment=%u count=%u",
+                         line_no, cur_seg->segment_idx, n);
       }
       free(vals);
       continue;
@@ -1212,6 +1431,8 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
       uint32_t n = 0;
       if (parse_str_list_from_value(value_after_colon(t), &vals, &n) == PRT_OK) {
         segment_set_buffer_binding_kinds(cur_seg, vals, n);
+        PRT_PROGRESS_LOG("yaml pipeline binding-kinds line=%u segment=%u count=%u",
+                         line_no, cur_seg->segment_idx, n);
       }
       for (uint32_t i = 0; i < n; ++i) free(vals[i]);
       free(vals);
@@ -1223,6 +1444,8 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
       uint32_t n = 0;
       if (parse_int_list_from_value(value_after_colon(t), &vals, &n) == PRT_OK) {
         segment_set_buffer_binding_u32(cur_seg, vals, n, 4);
+        PRT_PROGRESS_LOG("yaml pipeline binding-slot-count line=%u segment=%u count=%u",
+                         line_no, cur_seg->segment_idx, n);
       }
       free(vals);
       continue;
@@ -1233,6 +1456,8 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
       uint32_t n = 0;
       if (parse_int_list_from_value(value_after_colon(t), &vals, &n) == PRT_OK) {
         segment_set_buffer_binding_u32(cur_seg, vals, n, 5);
+        PRT_PROGRESS_LOG("yaml pipeline binding-pages-per-slot line=%u segment=%u count=%u",
+                         line_no, cur_seg->segment_idx, n);
       }
       free(vals);
       continue;
@@ -1243,6 +1468,8 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
       uint32_t n = 0;
       if (parse_int_list_from_value(value_after_colon(t), &vals, &n) == PRT_OK) {
         segment_set_buffer_binding_u32(cur_seg, vals, n, 6);
+        PRT_PROGRESS_LOG("yaml pipeline binding-alias-group line=%u segment=%u count=%u",
+                         line_no, cur_seg->segment_idx, n);
       }
       free(vals);
       continue;
@@ -1272,6 +1499,8 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
       stage_virtual_acc_rows = 0;
       in_stage_physical_acc_list = 0;
       stage_physical_acc_rows = 0;
+      PRT_PROGRESS_LOG("yaml pipeline stage-push line=%u segment=%u local_stage=%u acc=%u",
+                       line_no, cur_seg->segment_idx, cur_seg->num_stages - 1, cur_stage->acc_util);
       continue;
     }
 
@@ -1293,6 +1522,8 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
       stage_virtual_acc_rows = 0;
       in_stage_physical_acc_list = 0;
       stage_physical_acc_rows = 0;
+      PRT_PROGRESS_LOG("yaml pipeline global-stage line=%u segment=%u local_stage=%u global_stage=%u",
+                       line_no, cur_seg->segment_idx, cur_seg->num_stages - 1, sid);
       continue;
     }
 
@@ -1567,10 +1798,16 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
 
   if (out->num_segments > 0) out->subbatch_size = out->segments[0].subbatch_size;
   else out->subbatch_size = 1;
+  PRT_PROGRESS_LOG("yaml pipeline parse end path=%s lines=%u segments=%u",
+                   path ? path : "(null)", line_no, out->num_segments);
 
+  PRT_PROGRESS_LOG("yaml pipeline validate begin path=%s segments=%u",
+                   path ? path : "(null)", out->num_segments);
   for (uint32_t s = 0; s < out->num_segments; ++s) {
     prt_segment_desc_t *seg = &out->segments[s];
     uint32_t seg_span_fallback = 0;
+    PRT_PROGRESS_LOG("yaml pipeline validate segment-begin seg=%u stages=%u bindings=%u stage_spm_util=%u",
+                     s, seg->num_stages, seg->buffer_binding_count, seg->num_stage_spm_util);
     total_stages += seg->num_stages;
     for (uint32_t i = 0; i < seg->num_stages; ++i) {
       uint32_t local_span = 0;
@@ -1592,11 +1829,31 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
         free(buf);
         return PRT_ERR_PARSE;
       }
-      for (uint32_t k = 0; k < seg->stages[i].num_virtual_acc_ids; ++k) {
-        if (seg->stages[i].virtual_acc_ids[k] >= seg->stages[i].acc_util) {
+      {
+        uint8_t seen_virtual[PRT_MAX_CORES] = {0};
+        for (uint32_t k = 0; k < seg->stages[i].num_virtual_acc_ids; ++k) {
+          const uint32_t v_acc = seg->stages[i].virtual_acc_ids[k];
+          if (v_acc >= seg->stages[i].acc_util) {
+            PRT_PROGRESS_LOG(
+              "yaml pipeline validate virtual-acc-error seg=%u local_stage=%u global_stage=%u idx=%u v_acc=%u acc=%u",
+              s, i, seg->stages[i].stage_id, k, v_acc, seg->stages[i].acc_util);
+            free(buf);
+            return PRT_ERR_PARSE;
+          }
+          if (seen_virtual[v_acc]) {
+            PRT_PROGRESS_LOG(
+              "yaml pipeline validate virtual-acc-duplicate seg=%u local_stage=%u global_stage=%u idx=%u v_acc=%u",
+              s, i, seg->stages[i].stage_id, k, v_acc);
+            free(buf);
+            return PRT_ERR_PARSE;
+          }
+          seen_virtual[v_acc] = 1U;
+        }
+        for (uint32_t k = 0; k < seg->stages[i].acc_util; ++k) {
+          if (seen_virtual[k]) continue;
           PRT_PROGRESS_LOG(
-            "yaml pipeline validate virtual-acc-error seg=%u local_stage=%u global_stage=%u idx=%u v_acc=%u acc=%u",
-            s, i, seg->stages[i].stage_id, k, seg->stages[i].virtual_acc_ids[k], seg->stages[i].acc_util);
+            "yaml pipeline validate virtual-acc-missing seg=%u local_stage=%u global_stage=%u v_acc=%u acc=%u",
+            s, i, seg->stages[i].stage_id, k, seg->stages[i].acc_util);
           free(buf);
           return PRT_ERR_PARSE;
         }
@@ -1649,9 +1906,13 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
         return PRT_ERR_PARSE;
       }
     }
+    PRT_PROGRESS_LOG("yaml pipeline validate segment-end seg=%u stages=%u span=%u bindings=%u",
+                     s, seg->num_stages, seg->segment_spm_page_span, seg->buffer_binding_count);
   }
 
   free(buf);
+  PRT_PROGRESS_LOG("yaml pipeline validate end path=%s segments=%u total_stages=%u",
+                   path ? path : "(null)", out->num_segments, total_stages);
   PRT_PROGRESS_LOG("yaml pipeline load end path=%s segments=%u total_stages=%u subbatch_size=%u",
                    path ? path : "(null)", out->num_segments, total_stages, out->subbatch_size);
   return PRT_OK;
@@ -1693,6 +1954,8 @@ void prt_free_pipeline_desc(prt_pipeline_desc_t *pipeline) {
       free(seg->tensor_spm_util_shared.data);
       free(seg->tensor_spm_util_in_ringbuffer.data);
       free(seg->tensor_spm_util_weight.data);
+      free(seg->transport_effective_bytes.data);
+      free(seg->ring_slot_effective_bytes.data);
       free(seg->ring_cfgs);
       free(seg->buffer_bindings);
     }

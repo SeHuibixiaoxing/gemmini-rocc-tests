@@ -4,9 +4,11 @@
 
 #include "prt_runtime.h"
 #include "prt_action_queue.h"
+#include "prt_breadcrumb.h"
 #include "prt_rerocc.h"
 #include "prt_gemmini_artifacts.h"
 #include "prt_progress.h"
+#include "prt_trigger_log.h"
 
 #include <errno.h>
 #include <pthread.h>
@@ -18,10 +20,12 @@
 #include <limits.h>
 #if defined(__linux__)
 #include <sched.h>
+#include <sys/mman.h>
 #endif
 
 #define PRT_TRACE_EVENT_CAP_DEFAULT 262144U
 #define PRT_CONV_ACT_RELU 1
+#define PRT_STAGE_THREAD_STACK_BYTES_DEFAULT (256U * 1024U)
 
 #if defined(__riscv)
 static uint64_t export_dma_timeout_ns(const prt_runtime_t *rt);
@@ -60,6 +64,37 @@ static uint64_t monotonic_ms(void) {
   return prt_now_ns() / 1000000ULL;
 }
 
+static void prt_runtime_trigger_note_worker(uint32_t segment_idx,
+                                            uint32_t global_stage_id,
+                                            uint32_t local_stage_id,
+                                            uint32_t subbatch_id,
+                                            const char *phase,
+                                            int rc) {
+  prt_trigger_log_note(&(const prt_trigger_log_event_t){
+    .family = PRT_TRIGGER_LOG_FAMILY_RUNTIME,
+    .phase = phase,
+    .segment_idx = segment_idx,
+    .global_stage_id = global_stage_id,
+    .local_stage_id = local_stage_id,
+    .subbatch_id = subbatch_id,
+    .manager_id = PRT_TRIGGER_LOG_ANY_U32,
+    .tensor_id = PRT_TRIGGER_LOG_ANY_U32,
+    .page_idx = PRT_TRIGGER_LOG_ANY_U32,
+    .token_id = PRT_TRIGGER_LOG_ANY_U32,
+    .rc = rc,
+  });
+}
+
+static size_t stage_thread_stack_bytes(void) {
+  size_t stack_bytes = PRT_STAGE_THREAD_STACK_BYTES_DEFAULT;
+#ifdef PTHREAD_STACK_MIN
+  if (stack_bytes < (size_t)PTHREAD_STACK_MIN) {
+    stack_bytes = (size_t)PTHREAD_STACK_MIN;
+  }
+#endif
+  return stack_bytes;
+}
+
 #if PRT_ENABLE_ONLY_MARKER
 static int should_log_exec_view_steps(const prt_schedule_action_t *action, uint32_t stage_id) {
   return action && action->segment_idx == 0U && stage_id == 0U;
@@ -80,19 +115,6 @@ static int should_log_exec_view_steps(const prt_schedule_action_t *action, uint3
   (void)action;
   (void)stage_id;
   return 0;
-}
-
-static int should_log_exec_view_pages(const prt_schedule_action_t *action, uint32_t stage_id) {
-  (void)action;
-  (void)stage_id;
-  return 0;
-}
-
-static uint64_t runtime_page_paddr(const prt_runtime_t *rt, const prt_page_t *page) {
-  const uint32_t page_bytes =
-    rt && rt->cfg.page_size_bytes ? rt->cfg.page_size_bytes : PRT_PAGE_SIZE_BYTES;
-  if (!page) return 0ULL;
-  return PRT_SHARED_SPAD_GLOBAL_ADDR_BASE + (uint64_t)page->ppn * (uint64_t)page_bytes;
 }
 #endif
 
@@ -151,6 +173,9 @@ static void log_stage_exec_view(const prt_runtime_t *rt, const prt_schedule_acti
   }
 #endif
 }
+
+static const char *progress_pipebuf_kind_name(prt_pipebuf_kind_t kind)
+  __attribute__((unused));
 
 static const char *progress_pipebuf_kind_name(prt_pipebuf_kind_t kind) {
   switch (kind) {
@@ -278,8 +303,10 @@ static int stage_has_fixed_tensor(const prt_stage_map_t *stage, uint32_t tensor_
 static uint32_t stage_tensor_lazy_fetch_flag(const prt_stage_map_t *stage, uint32_t tensor_id);
 static const prt_stage_map_t *runtime_stage_map(const prt_runtime_t *rt, uint32_t stage_id);
 static prt_pipebuf_t *find_stage_pipebuf(prt_runtime_t *rt, uint32_t stage_id, uint32_t tensor_id, int is_entry);
+static int has_entry_consumer_for_tensor(const prt_runtime_t *rt, uint32_t tensor_id);
 static const prt_page_list_t *runtime_find_weight_pages(const prt_runtime_t *rt, uint32_t stage_id,
                                                         uint32_t tensor_id);
+static uint32_t runtime_stage_gemmini_mgr(const prt_runtime_t *rt, uint32_t stage_idx);
 #if defined(__riscv)
 static int copy_tensor_pages_to_model_aliases(prt_runtime_t *rt, uint32_t tensor_id,
                                               const prt_page_list_t *pages, size_t src_size,
@@ -288,15 +315,65 @@ static int copy_tensor_pages_to_model_aliases(prt_runtime_t *rt, uint32_t tensor
 
 static int runtime_bootstrap_spm_xlate(prt_runtime_t *rt) {
   int rc;
+  const uint32_t gemmini_mgr_count = rt ? prt_cfg_gemmini_mgr_count(&rt->cfg) : 0U;
   if (!rt) return PRT_ERR_INVAL;
   if (!rt->cfg.spm_xlate_enable) return PRT_OK;
 
-  for (uint32_t i = 0; i < rt->cfg.num_gemmini_mgrs; ++i) {
-    uint32_t manager_id = rt->cfg.gemmini_mgr_base_id + i;
+  for (uint32_t i = 0; i < gemmini_mgr_count; ++i) {
+    uint32_t manager_id = prt_cfg_gemmini_manager_id(&rt->cfg, i);
     rc = prt_gemmini_spm_xlate_reset(manager_id, rt->cfg.spm_page_shift);
     if (rc != PRT_OK) return rc;
   }
   return PRT_OK;
+}
+
+static void runtime_append_unique_mgr_id(uint32_t *mgr_ids, uint32_t *mgr_count,
+                                         uint32_t mgr_cap, uint32_t manager_id) {
+  if (!mgr_ids || !mgr_count || *mgr_count >= mgr_cap) return;
+  for (uint32_t i = 0; i < *mgr_count; ++i) {
+    if (mgr_ids[i] == manager_id) return;
+  }
+  mgr_ids[(*mgr_count)++] = manager_id;
+}
+
+static uint32_t runtime_collect_stage_gemmini_mgrs(const prt_runtime_t *rt, uint32_t stage_id,
+                                                   uint32_t *mgr_ids, uint32_t mgr_cap) {
+  const prt_schedule_action_t *action;
+  const prt_action_exec_t *exec;
+  uint32_t mgr_count = 0;
+  if (!rt || !mgr_ids || mgr_cap == 0U) return 0U;
+
+  action = prt_runtime_current_action(rt);
+  if (action &&
+      stage_id < action->acc_source.stage_count &&
+      action->acc_source.stage_assign) {
+    const prt_stage_acc_assign_t *assign = &action->acc_source.stage_assign[stage_id];
+    if (assign->acc_util > 0U && assign->gemmini_mgr_ids) {
+      uint32_t n = assign->acc_util > PRT_MAX_CORES ? PRT_MAX_CORES : assign->acc_util;
+      for (uint32_t i = 0; i < n; ++i) {
+        runtime_append_unique_mgr_id(mgr_ids, &mgr_count, mgr_cap, assign->gemmini_mgr_ids[i]);
+      }
+      return mgr_count;
+    }
+  }
+
+  exec = prt_runtime_current_exec_const(rt);
+  if (exec && stage_id < exec->stage_thread_count) {
+    uint32_t n = exec->stage_tile_counts[stage_id];
+    if (n == 0U) n = 1U;
+    if (n > PRT_MAX_CORES) n = PRT_MAX_CORES;
+    for (uint32_t i = 0; i < n; ++i) {
+      runtime_append_unique_mgr_id(mgr_ids, &mgr_count, mgr_cap, exec->stage_mgr_ids[stage_id][i]);
+    }
+    if (mgr_count > 0U) return mgr_count;
+    runtime_append_unique_mgr_id(mgr_ids, &mgr_count, mgr_cap, exec->stage_acc_ids[stage_id]);
+    if (mgr_count > 0U) return mgr_count;
+  }
+
+  if (prt_cfg_gemmini_mgr_count(&rt->cfg) > 0U) {
+    runtime_append_unique_mgr_id(mgr_ids, &mgr_count, mgr_cap, runtime_stage_gemmini_mgr(rt, stage_id));
+  }
+  return mgr_count;
 }
 
 static int runtime_flush_spm_xlate(prt_runtime_t *rt) {
@@ -316,9 +393,26 @@ static int runtime_flush_spm_xlate(prt_runtime_t *rt) {
     return PRT_OK;
   }
 
-  for (uint32_t i = 0; i < rt->cfg.num_gemmini_mgrs; ++i) {
-    uint32_t manager_id = rt->cfg.gemmini_mgr_base_id + i;
+  for (uint32_t i = 0; i < prt_cfg_gemmini_mgr_count(&rt->cfg); ++i) {
+    uint32_t manager_id = prt_cfg_gemmini_manager_id(&rt->cfg, i);
     rc = prt_gemmini_spm_xlate_flush(manager_id);
+    if (rc != PRT_OK) return rc;
+  }
+  return PRT_OK;
+}
+
+static int runtime_flush_stage_spm_xlate(prt_runtime_t *rt, uint32_t stage_id) {
+  uint32_t mgr_ids[PRT_MAX_CORES];
+  uint32_t mgr_count;
+  int rc;
+  if (!rt) return PRT_ERR_INVAL;
+  if (!rt->cfg.spm_xlate_enable) return PRT_OK;
+
+  mgr_count = runtime_collect_stage_gemmini_mgrs(rt, stage_id, mgr_ids, PRT_MAX_CORES);
+  if (mgr_count == 0U) return PRT_OK;
+
+  for (uint32_t i = 0; i < mgr_count; ++i) {
+    rc = prt_gemmini_spm_xlate_flush(mgr_ids[i]);
     if (rc != PRT_OK) return rc;
   }
   return PRT_OK;
@@ -795,11 +889,83 @@ static int resolve_model_addr_to_ptr(const prt_runtime_t *rt, uint64_t addr, uin
   return PRT_ERR_INVAL;
 }
 
-static int load_model_blob_file(const char *path, void **out_buf, size_t *out_size) {
+#if defined(__linux__)
+static int prefault_and_lock_blob(const char *kind, const char *path, void *buf, size_t blob_size) {
+  const char *tag = kind ? kind : "blob";
+  const char *blob_path = path ? path : "(none)";
+  const int prior_errno = errno;
+  const size_t host_page_bytes = prt_host_page_size_bytes();
+  const size_t step = host_page_bytes > 0U ? host_page_bytes : 4096U;
+  const size_t progress_interval_bytes = 1U << 20;
+  const size_t total_pages = (blob_size + step - 1U) / step;
+  volatile uint8_t *touch = (volatile uint8_t *)buf;
+  volatile uint8_t sink = 0;
+  int mlock_rc;
+  int mlock_errno = 0;
+  size_t touched_pages = 0U;
+  size_t next_progress_bytes = progress_interval_bytes;
+
+  if (!buf || blob_size == 0U) return PRT_OK;
+
+  PRT_PROGRESS_LOG("%s before-prefault path=%s ptr=%p size=%zu page_bytes=%zu mode=write-preserve",
+                   tag, blob_path, buf, blob_size, step);
+  for (size_t off = 0; off < blob_size; off += step) {
+    size_t touched_bytes;
+    const uint8_t value = touch[off];
+    touch[off] = value;
+    sink ^= value;
+    touched_pages += 1U;
+    touched_bytes = off + step;
+    if (touched_bytes > blob_size) touched_bytes = blob_size;
+    if (blob_size >= progress_interval_bytes && touched_bytes >= next_progress_bytes) {
+      PRT_PROGRESS_LOG("%s prefault-progress path=%s touched_pages=%zu/%zu touched_bytes=%zu/%zu page_bytes=%zu",
+                       tag, blob_path, touched_pages, total_pages, touched_bytes, blob_size, step);
+      while (next_progress_bytes <= touched_bytes && next_progress_bytes < blob_size) {
+        next_progress_bytes += progress_interval_bytes;
+      }
+    }
+  }
+  {
+    const size_t tail = blob_size - 1U;
+    const uint8_t value = touch[tail];
+    touch[tail] = value;
+    sink ^= value;
+  }
+  asm volatile("fence rw, rw" ::: "memory");
+  (void)sink;
+  PRT_PROGRESS_LOG("%s after-prefault path=%s ptr=%p size=%zu page_bytes=%zu mode=write-preserve",
+                   tag, blob_path, buf, blob_size, step);
+
+  errno = prior_errno;
+  PRT_PROGRESS_LOG("%s before-mlock path=%s ptr=%p size=%zu",
+                   tag, blob_path, buf, blob_size);
+  mlock_rc = mlock(buf, blob_size);
+  if (mlock_rc != 0) mlock_errno = errno;
+  PRT_PROGRESS_LOG("%s after-mlock rc=%d errno=%d path=%s ptr=%p size=%zu",
+                   tag, mlock_rc, mlock_errno, blob_path, buf, blob_size);
+  if (mlock_rc != 0) {
+    fprintf(stderr, "warning: %s mlock failed: %s (path=%s size=%zu)\n",
+            tag, strerror(mlock_errno), blob_path, blob_size);
+  }
+  errno = prior_errno;
+  return PRT_OK;
+}
+#else
+static int prefault_and_lock_blob(const char *kind, const char *path, void *buf, size_t blob_size) {
+  (void)kind;
+  (void)path;
+  (void)buf;
+  (void)blob_size;
+  return PRT_OK;
+}
+#endif
+
+static int load_model_blob_file(const char *kind, const char *path, void **out_buf, size_t *out_size) {
   const size_t align_bytes = 64U;
   FILE *f;
   long sz;
   void *buf = NULL;
+  int rc;
   if (!path || !out_buf || !out_size) return PRT_ERR_INVAL;
   f = fopen(path, "rb");
   if (!f) return PRT_ERR_IO;
@@ -826,6 +992,12 @@ static int load_model_blob_file(const char *path, void **out_buf, size_t *out_si
     free(buf);
     fclose(f);
     return PRT_ERR_IO;
+  }
+  rc = prefault_and_lock_blob(kind, path, buf, (size_t)sz);
+  if (rc != PRT_OK) {
+    free(buf);
+    fclose(f);
+    return rc;
   }
   fclose(f);
   *out_buf = buf;
@@ -1008,6 +1180,92 @@ static size_t get_layer_tensor_slot_size_bytes(const prt_model_layer_t *layer, u
     return layer->tensor_size[slot];
   }
   return fallback;
+}
+
+static int compute_synthetic_model_blob_size(const prt_model_desc_t *model, size_t *out_size) {
+  uint64_t max_exclusive = 0;
+  uint64_t addr_base = 0;
+  if (!model || !out_size) return PRT_ERR_INVAL;
+  addr_base = model->addr_base;
+  PRT_PROGRESS_LOG("synthetic-model size begin addr_base=0x%llx addr_end=0x%llx layers=%u",
+                   (unsigned long long)model->addr_base,
+                   (unsigned long long)model->addr_end,
+                   model->num_layers);
+  if (model->addr_end > addr_base) {
+    max_exclusive = model->addr_end - addr_base;
+  }
+  for (uint32_t i = 0; i < model->num_layers; ++i) {
+    const prt_model_layer_t *layer = &model->layers[i];
+    for (uint32_t slot = 0; slot < layer->tensor_count; ++slot) {
+      const size_t tensor_size = get_layer_tensor_slot_size_bytes(
+        layer, slot, get_model_tensor_size_bytes(model, layer->tensor_ids[slot]));
+      const uint64_t addrs[2] = {
+        slot < layer->address_count ? layer->address[slot] : UINT64_MAX,
+        slot < layer->address2_count ? layer->address2[slot] : UINT64_MAX
+      };
+      for (uint32_t addr_idx = 0; addr_idx < 2U; ++addr_idx) {
+        uint64_t off;
+        uint64_t end_off;
+        if (addrs[addr_idx] == UINT64_MAX) continue;
+        off = (addr_base > 0 && addrs[addr_idx] >= addr_base) ? (addrs[addr_idx] - addr_base) : addrs[addr_idx];
+        if (UINT64_MAX - off < (uint64_t)tensor_size) return PRT_ERR_INVAL;
+        end_off = off + (uint64_t)tensor_size;
+        if (end_off > max_exclusive) max_exclusive = end_off;
+      }
+    }
+  }
+  if (max_exclusive == 0U) return PRT_ERR_NOT_READY;
+  if (max_exclusive > (uint64_t)SIZE_MAX) return PRT_ERR_NOMEM;
+  *out_size = (size_t)max_exclusive;
+  PRT_PROGRESS_LOG("synthetic-model size end blob_size=%zu max_exclusive=%llu",
+                   *out_size, (unsigned long long)max_exclusive);
+  return PRT_OK;
+}
+
+static int allocate_synthetic_model_blob(prt_runtime_t *rt) {
+  void *buf = NULL;
+  size_t blob_size = 0U;
+  int rc;
+  if (!rt) return PRT_ERR_INVAL;
+  if (rt->model_blob && rt->model_blob_size > 0U) return PRT_OK;
+  PRT_PROGRESS_LOG("synthetic-model alloc enter existing_ptr=%p existing_size=%zu",
+                   rt->model_blob, rt->model_blob_size);
+  PRT_PROGRESS_LOG("synthetic-model alloc before-compute");
+  rc = compute_synthetic_model_blob_size(&rt->model, &blob_size);
+  if (rc != PRT_OK) return rc;
+  PRT_PROGRESS_LOG("synthetic-model alloc after-compute size=%zu addr_base=0x%llx addr_end=0x%llx layers=%u",
+                   blob_size,
+                   (unsigned long long)rt->model.addr_base,
+                   (unsigned long long)rt->model.addr_end,
+                   rt->model.num_layers);
+#if defined(__linux__)
+  PRT_PROGRESS_LOG("synthetic-model alloc before-mmap size=%zu", blob_size);
+  buf = mmap(NULL, blob_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  if (buf == MAP_FAILED) return PRT_ERR_NOMEM;
+  PRT_PROGRESS_LOG("synthetic-model alloc after-mmap ptr=%p size=%zu", buf, blob_size);
+  if (blob_size > 0U) {
+    rc = prefault_and_lock_blob("synthetic-model alloc", NULL, buf, blob_size);
+    if (rc != PRT_OK) {
+      munmap(buf, blob_size);
+      return rc;
+    }
+  }
+  rt->model_blob_is_mmap = 1U;
+  PRT_PROGRESS_LOG("synthetic-model alloc kind=mmap-prefault-mlock size=%zu", blob_size);
+#else
+  const size_t align_bytes = 64U;
+  if (posix_memalign(&buf, align_bytes, blob_size) != 0) return PRT_ERR_NOMEM;
+  memset(buf, 0, blob_size);
+  rt->model_blob_is_mmap = 0U;
+  PRT_PROGRESS_LOG("synthetic-model alloc kind=memalign-zero size=%zu align=%zu", blob_size, align_bytes);
+#endif
+  rt->model_blob = buf;
+  rt->model_blob_size = blob_size;
+  rt->model_blob_offset = 0U;
+  PRT_PROGRESS_LOG("synthetic-model alloc commit ptr=%p size=%zu offset=%zu mmap=%u",
+                   rt->model_blob, rt->model_blob_size, rt->model_blob_offset,
+                   rt->model_blob_is_mmap);
+  return PRT_OK;
 }
 
 static uint32_t prt_mul_u32_or_one(uint32_t a, uint32_t b) {
@@ -1193,10 +1451,32 @@ static int resolve_model_addr_to_slice(const prt_runtime_t *rt, uint64_t addr,
   return PRT_OK;
 }
 
+static int alias_target_seen_find(const uint64_t *seen_addrs, const size_t *seen_sizes,
+                                  uint32_t seen_count, uint64_t dst_addr, size_t src_size) {
+  if (!seen_addrs || !seen_sizes) return -1;
+  for (uint32_t i = 0; i < seen_count; ++i) {
+    if (seen_addrs[i] == dst_addr && seen_sizes[i] == src_size) return (int)i;
+  }
+  return -1;
+}
+
 static int copy_tensor_data_to_model_aliases(prt_runtime_t *rt, uint32_t tensor_id,
                                              const uint8_t *src, size_t src_size) {
   int copied_any = 0;
+  const uint32_t max_targets = rt ? rt->model.num_layers * 2U : 0U;
+  uint64_t *seen_addrs = NULL;
+  size_t *seen_sizes = NULL;
+  uint32_t seen_count = 0U;
   if (!rt || !src || src_size == 0 || !rt->model.layers) return PRT_ERR_INVAL;
+  if (max_targets > 0U) {
+    seen_addrs = (uint64_t *)calloc(max_targets, sizeof(*seen_addrs));
+    seen_sizes = (size_t *)calloc(max_targets, sizeof(*seen_sizes));
+    if (!seen_addrs || !seen_sizes) {
+      free(seen_addrs);
+      free(seen_sizes);
+      return PRT_ERR_NOMEM;
+    }
+  }
   for (uint32_t i = 0; i < rt->model.num_layers; ++i) {
     const prt_model_layer_t *layer = &rt->model.layers[i];
     for (uint32_t j = 0; j < layer->tensor_count; ++j) {
@@ -1209,6 +1489,13 @@ static int copy_tensor_data_to_model_aliases(prt_runtime_t *rt, uint32_t tensor_
         size_t avail;
         int rc = resolve_model_addr_to_slice(rt, layer->address[j], &dst, &avail);
         if (rc == PRT_OK && avail >= expect_size) {
+          uint64_t dst_addr = (uint64_t)(uintptr_t)dst;
+          if (alias_target_seen_find(seen_addrs, seen_sizes, seen_count, dst_addr, expect_size) >= 0) continue;
+          if (seen_count < max_targets) {
+            seen_addrs[seen_count] = dst_addr;
+            seen_sizes[seen_count] = expect_size;
+            seen_count += 1U;
+          }
           normalize_copy_prefix_zero(dst, expect_size, src, src_size);
           copied_any = 1;
         }
@@ -1218,12 +1505,21 @@ static int copy_tensor_data_to_model_aliases(prt_runtime_t *rt, uint32_t tensor_
         size_t avail;
         int rc = resolve_model_addr_to_slice(rt, layer->address2[j], &dst, &avail);
         if (rc == PRT_OK && avail >= expect_size) {
+          uint64_t dst_addr = (uint64_t)(uintptr_t)dst;
+          if (alias_target_seen_find(seen_addrs, seen_sizes, seen_count, dst_addr, expect_size) >= 0) continue;
+          if (seen_count < max_targets) {
+            seen_addrs[seen_count] = dst_addr;
+            seen_sizes[seen_count] = expect_size;
+            seen_count += 1U;
+          }
           normalize_copy_prefix_zero(dst, expect_size, src, src_size);
           copied_any = 1;
         }
       }
     }
   }
+  free(seen_addrs);
+  free(seen_sizes);
   return copied_any ? PRT_OK : PRT_ERR_NOT_READY;
 }
 
@@ -1342,6 +1638,9 @@ static void tensor_debug_log_digest(uint32_t stage_id, uint32_t tensor_id,
                                     const prt_tensor_debug_digest_t *digest) {
   char first_hex[16 * 3];
   char last_hex[8 * 3];
+  (void)stage_id;
+  (void)tensor_id;
+  (void)detail;
   if (!view || !digest) return;
   tensor_debug_format_hex_bytes(digest->first16,
                                 digest->bytes < sizeof(digest->first16) ? digest->bytes : sizeof(digest->first16),
@@ -1545,24 +1844,25 @@ static uint64_t export_dma_timeout_ns(const prt_runtime_t *rt) {
   return (uint64_t)rt->cfg.export_dma_timeout_ms * 1000000ULL;
 }
 
-static int export_target_seen_find(const uint64_t *seen_addrs, const size_t *seen_sizes,
-                                   uint32_t seen_count, uint64_t dst_addr, size_t src_size) {
-  if (!seen_addrs || !seen_sizes) return -1;
-  for (uint32_t i = 0; i < seen_count; ++i) {
-    if (seen_addrs[i] == dst_addr && seen_sizes[i] == src_size) return (int)i;
-  }
-  return -1;
-}
-
 static int copy_tensor_pages_to_model_alias_target(prt_runtime_t *rt, uint32_t tensor_id,
                                                    const prt_page_list_t *pages, size_t src_size,
                                                    uint32_t manager_id, uint32_t stage_id,
+                                                   uint32_t target_seq,
                                                    uint32_t layer_index, uint32_t slot,
                                                    const char *target_kind, uint32_t target_slot,
                                                    uint64_t dst_addr) {
   const uint64_t timeout_ns = export_dma_timeout_ns(rt);
   int rc;
   if (!rt || !pages || !target_kind || src_size == 0U) return PRT_ERR_INVAL;
+  if (stage_id == 0U && tensor_id == 2U) {
+    PRT_PROGRESS_LOG("export-target-dispatch stage=%u tensor=%u target_seq=%u layer=%u slot=%u target=%s target_slot=%u dst=0x%llx bytes=%llu pages=%u dma=%u timeout_ms=%u phase=begin",
+                     stage_id, tensor_id, target_seq, layer_index, slot, target_kind, target_slot,
+                     (unsigned long long)dst_addr,
+                     (unsigned long long)src_size,
+                     pages->size,
+                     manager_id,
+                     rt->cfg.export_dma_timeout_ms);
+  }
   PRT_MARKER_LOG("export-target stage=%u tensor=%u layer=%u slot=%u target=%s target_slot=%u dst=0x%llx bytes=%llu pages=%u dma=%u timeout_ms=%u begin",
                  stage_id, tensor_id, layer_index, slot, target_kind, target_slot,
                  (unsigned long long)dst_addr,
@@ -1578,6 +1878,15 @@ static int copy_tensor_pages_to_model_alias_target(prt_runtime_t *rt, uint32_t t
                  pages->size,
                  manager_id,
                  rc);
+  if (stage_id == 0U && tensor_id == 2U) {
+    PRT_PROGRESS_LOG("export-target-dispatch stage=%u tensor=%u target_seq=%u layer=%u slot=%u target=%s target_slot=%u dst=0x%llx bytes=%llu pages=%u dma=%u rc=%d phase=end",
+                     stage_id, tensor_id, target_seq, layer_index, slot, target_kind, target_slot,
+                     (unsigned long long)dst_addr,
+                     (unsigned long long)src_size,
+                     pages->size,
+                     manager_id,
+                     rc);
+  }
   return rc;
 }
 
@@ -1608,20 +1917,22 @@ static int copy_tensor_pages_to_model_aliases(prt_runtime_t *rt, uint32_t tensor
       if (j < layer->address_count) {
         uint64_t dst_addr;
         if (resolve_model_addr_to_ptr(rt, layer->address[j], &dst_addr) == PRT_OK) {
-          int seen_idx = export_target_seen_find(seen_addrs, seen_sizes, seen_count, dst_addr, expect_size);
+          int seen_idx = alias_target_seen_find(seen_addrs, seen_sizes, seen_count, dst_addr, expect_size);
           if (seen_idx >= 0) {
             PRT_MARKER_LOG("export-target-repeat stage=%u tensor=%u layer=%u slot=%u target=%s target_slot=%u dst=0x%llx bytes=%llu repeat_of=%d",
                            stage_id, tensor_id, layer->index, j, "address", j,
                            (unsigned long long)dst_addr,
                            (unsigned long long)expect_size,
                            seen_idx);
+            continue;
           } else if (seen_count < max_targets) {
             seen_addrs[seen_count] = dst_addr;
             seen_sizes[seen_count] = expect_size;
             seen_count += 1U;
           }
           int rc = copy_tensor_pages_to_model_alias_target(rt, tensor_id, pages, expect_size,
-                                                           manager_id, stage_id, layer->index, j,
+                                                           manager_id, stage_id, seen_count - 1U,
+                                                           layer->index, j,
                                                            "address", j, dst_addr);
           if (rc != PRT_OK) goto out;
           copied_any = 1;
@@ -1630,20 +1941,22 @@ static int copy_tensor_pages_to_model_aliases(prt_runtime_t *rt, uint32_t tensor
       if (j < layer->address2_count) {
         uint64_t dst_addr;
         if (resolve_model_addr_to_ptr(rt, layer->address2[j], &dst_addr) == PRT_OK) {
-          int seen_idx = export_target_seen_find(seen_addrs, seen_sizes, seen_count, dst_addr, expect_size);
+          int seen_idx = alias_target_seen_find(seen_addrs, seen_sizes, seen_count, dst_addr, expect_size);
           if (seen_idx >= 0) {
             PRT_MARKER_LOG("export-target-repeat stage=%u tensor=%u layer=%u slot=%u target=%s target_slot=%u dst=0x%llx bytes=%llu repeat_of=%d",
                            stage_id, tensor_id, layer->index, j, "address2", j,
                            (unsigned long long)dst_addr,
                            (unsigned long long)expect_size,
                            seen_idx);
+            continue;
           } else if (seen_count < max_targets) {
             seen_addrs[seen_count] = dst_addr;
             seen_sizes[seen_count] = expect_size;
             seen_count += 1U;
           }
           int rc = copy_tensor_pages_to_model_alias_target(rt, tensor_id, pages, expect_size,
-                                                           manager_id, stage_id, layer->index, j,
+                                                           manager_id, stage_id, seen_count - 1U,
+                                                           layer->index, j,
                                                            "address2", j, dst_addr);
           if (rc != PRT_OK) goto out;
           copied_any = 1;
@@ -1715,6 +2028,11 @@ static int stage_prepare_exec_views(prt_runtime_t *rt, uint32_t stage_id, const 
   action = prt_runtime_current_action(rt);
   exec = prt_runtime_current_exec(rt);
   if (!exec) return PRT_ERR_STATE;
+  if (stage_id == 0U) {
+    PRT_PROGRESS_LOG("stage-exec-views phase=begin segment=%u stage=%u layer=%u tensors=%u",
+                     action ? action->segment_idx : UINT32_MAX,
+                     stage_id, layer->index, layer->tensor_count);
+  }
   if (stage->tensor_id_count != layer->tensor_count) return PRT_ERR_PARSE;
   page_bytes = rt->cfg.page_size_bytes ? rt->cfg.page_size_bytes : PRT_PAGE_SIZE_BYTES;
 
@@ -1773,6 +2091,13 @@ static int stage_prepare_exec_views(prt_runtime_t *rt, uint32_t stage_id, const 
       if (!reuse_loaded) {
         rc = get_layer_tensor_source_slice(rt, layer, tensor_id, &src, &src_size);
         if (rc != PRT_OK) return rc;
+        if (stage_id == 0U) {
+          PRT_PROGRESS_LOG("stage-fixed-load-sparse phase=begin segment=%u stage=%u slot=%u tensor=%u pages=%u bytes=%u lazy=%u reuse=%u dma=%u",
+                           action ? action->segment_idx : UINT32_MAX,
+                           stage_id, slot, tensor_id,
+                           pages ? pages->size : 0U, local_bytes, lazy_fetch,
+                           (uint32_t)reuse_loaded, exec->stage_dma_ids[stage_id]);
+        }
         if (action && should_log_exec_view_steps(action, stage_id)) {
           PRT_MARKER_LOG("stage-fixed-load action=%u segment=%u stage=%u slot=%u tensor=%u pages=%u bytes=%u lazy=%u reuse=%u dma=%u timeout_ms=%llu src=0x%llx begin",
                          action->action_id, action->segment_idx, stage_id, slot, tensor_id,
@@ -1791,6 +2116,13 @@ static int stage_prepare_exec_views(prt_runtime_t *rt, uint32_t stage_id, const 
                          (unsigned long long)(timeout_ns / 1000000ULL),
                          rc);
         }
+        if (stage_id == 0U) {
+          PRT_PROGRESS_LOG("stage-fixed-load-sparse phase=end segment=%u stage=%u slot=%u tensor=%u rc=%d pages=%u bytes=%u lazy=%u reuse=%u dma=%u",
+                           action ? action->segment_idx : UINT32_MAX,
+                           stage_id, slot, tensor_id, rc,
+                           pages ? pages->size : 0U, local_bytes, lazy_fetch,
+                           (uint32_t)reuse_loaded, exec->stage_dma_ids[stage_id]);
+        }
         if (rc != PRT_OK) return rc;
         if (lazy_fetch != 0U) exec->stage_fixed_lazy_loaded[stage_id][slot] = 1U;
       } else if (action && should_log_exec_view_steps(action, stage_id)) {
@@ -1799,6 +2131,12 @@ static int stage_prepare_exec_views(prt_runtime_t *rt, uint32_t stage_id, const 
                        pages ? pages->size : 0U, local_bytes, lazy_fetch, (uint32_t)reuse_loaded,
                        exec->stage_dma_ids[stage_id],
                        (unsigned long long)(timeout_ns / 1000000ULL));
+      } else if (stage_id == 0U) {
+        PRT_PROGRESS_LOG("stage-fixed-load-sparse phase=skip segment=%u stage=%u slot=%u tensor=%u pages=%u bytes=%u lazy=%u reuse=%u dma=%u",
+                         action ? action->segment_idx : UINT32_MAX,
+                         stage_id, slot, tensor_id,
+                         pages ? pages->size : 0U, local_bytes, lazy_fetch,
+                         (uint32_t)reuse_loaded, exec->stage_dma_ids[stage_id]);
       }
     }
 #endif
@@ -1842,17 +2180,39 @@ static int stage_prepare_exec_views(prt_runtime_t *rt, uint32_t stage_id, const 
   }
 
   if (need_flush) {
+    uint32_t flush_mgrs[PRT_MAX_CORES];
+    uint32_t flush_mgr_count = runtime_collect_stage_gemmini_mgrs(rt, stage_id, flush_mgrs, PRT_MAX_CORES);
     int rc;
     if (should_log_exec_view_steps(action, stage_id)) {
-      PRT_MARKER_LOG("exec-bind-flush action=%u segment=%u stage=%u begin",
-                     action->action_id, action->segment_idx, stage_id);
-    }
-    rc = runtime_flush_spm_xlate(rt);
+      PRT_MARKER_LOG("exec-bind-flush action=%u segment=%u stage=%u begin mgr_count=%u mgr0=%u mgr1=%u mgr2=%u mgr3=%u",
+                     action->action_id, action->segment_idx, stage_id,
+                     flush_mgr_count,
+                     flush_mgr_count > 0U ? flush_mgrs[0] : 0U,
+                     flush_mgr_count > 1U ? flush_mgrs[1] : 0U,
+                     flush_mgr_count > 2U ? flush_mgrs[2] : 0U,
+                     flush_mgr_count > 3U ? flush_mgrs[3] : 0U);
+      }
+    rc = runtime_flush_stage_spm_xlate(rt, stage_id);
     if (should_log_exec_view_steps(action, stage_id)) {
-      PRT_MARKER_LOG("exec-bind-flush action=%u segment=%u stage=%u end rc=%d",
-                     action->action_id, action->segment_idx, stage_id, rc);
+      PRT_MARKER_LOG("exec-bind-flush action=%u segment=%u stage=%u end rc=%d mgr_count=%u mgr0=%u mgr1=%u mgr2=%u mgr3=%u",
+                     action->action_id, action->segment_idx, stage_id, rc,
+                     flush_mgr_count,
+                     flush_mgr_count > 0U ? flush_mgrs[0] : 0U,
+                     flush_mgr_count > 1U ? flush_mgrs[1] : 0U,
+                     flush_mgr_count > 2U ? flush_mgrs[2] : 0U,
+                     flush_mgr_count > 3U ? flush_mgrs[3] : 0U);
+    }
+    if (stage_id == 0U) {
+      PRT_PROGRESS_LOG("stage-exec-views phase=end segment=%u stage=%u layer=%u rc=%d flush=1",
+                       action ? action->segment_idx : UINT32_MAX,
+                       stage_id, layer->index, rc);
     }
     return rc;
+  }
+  if (stage_id == 0U) {
+    PRT_PROGRESS_LOG("stage-exec-views phase=end segment=%u stage=%u layer=%u rc=%d flush=0",
+                     action ? action->segment_idx : UINT32_MAX,
+                     stage_id, layer->index, PRT_OK);
   }
   return PRT_OK;
 }
@@ -2080,7 +2440,15 @@ static int sync_stage_export_aliases(prt_runtime_t *rt, uint32_t segment_idx,
   layer = find_model_layer(&rt->model, stage->layer_id);
   if (!layer) return PRT_ERR_NOT_READY;
   for (uint32_t i = 0; i < stage->num_export; ++i) {
+    prt_pipebuf_t *export_buf = find_stage_pipebuf(rt, stage_id, stage->exports[i].tensor_id, 0);
     uint32_t slot = 0;
+    if (export_buf &&
+        export_buf->kind == PRT_BUF_C8_EXPORT_ALL_RING &&
+        has_entry_consumer_for_tensor(rt, stage->exports[i].tensor_id)) {
+      PRT_PROGRESS_LOG("export-sync skip stage=%u tensor=%u reason=internal-all-ring-consumer",
+                       stage_id, stage->exports[i].tensor_id);
+      continue;
+    }
     int rc = find_layer_tensor_slot(layer, stage->exports[i].tensor_id, &slot);
     if (rc != PRT_OK) return rc;
     if (slot < stage->spm_bypass_count &&
@@ -2111,7 +2479,6 @@ static int sync_stage_export_aliases(prt_runtime_t *rt, uint32_t segment_idx,
       if (rc != PRT_OK) return rc;
 #else
       const prt_page_list_t *pages = NULL;
-      prt_pipebuf_t *export_buf = NULL;
       uint64_t model_addr0 = 0ULL;
       uint64_t model_addr1 = 0ULL;
       int have_model_addr0 = 0;
@@ -2121,7 +2488,6 @@ static int sync_stage_export_aliases(prt_runtime_t *rt, uint32_t segment_idx,
       int pipebuf_has_dram = 0;
       rc = stage_tensor_current_pages(rt, stage, stage_id, stage->exports[i].tensor_id, &pages);
       if (rc != PRT_OK) return rc;
-      export_buf = find_stage_pipebuf(rt, stage_id, stage->exports[i].tensor_id, 0);
       if (export_buf) {
         pipebuf_idx = export_buf->in_use_idx;
         pipebuf_dram = export_buf->dram_base_addr[pipebuf_idx];
@@ -2619,6 +2985,7 @@ static prt_pipebuf_t *find_stage_pipebuf(prt_runtime_t *rt, uint32_t stage_id, u
 
 static uint32_t runtime_stage_gemmini_mgr(const prt_runtime_t *rt, uint32_t stage_idx) {
   const prt_schedule_action_t *action;
+  const uint32_t gemmini_mgr_count = rt ? prt_cfg_gemmini_mgr_count(&rt->cfg) : 0U;
   if (!rt) return 0;
   action = prt_runtime_current_action(rt);
   if (action &&
@@ -2628,12 +2995,13 @@ static uint32_t runtime_stage_gemmini_mgr(const prt_runtime_t *rt, uint32_t stag
       action->acc_source.stage_assign[stage_idx].gemmini_mgr_ids) {
     return action->acc_source.stage_assign[stage_idx].gemmini_mgr_ids[0];
   }
-  if (rt->cfg.num_cores == 0) return 0;
-  return stage_idx % rt->cfg.num_cores;
+  if (gemmini_mgr_count == 0U) return 0;
+  return prt_cfg_gemmini_manager_id(&rt->cfg, stage_idx % gemmini_mgr_count);
 }
 
 static uint32_t runtime_stage_dma_mgr(const prt_runtime_t *rt, uint32_t stage_idx) {
   const prt_schedule_action_t *action;
+  const uint32_t dma_mgr_count = rt ? prt_cfg_dma_mgr_count(&rt->cfg) : 0U;
   if (!rt) return 0;
   action = prt_runtime_current_action(rt);
   if (action &&
@@ -2643,8 +3011,8 @@ static uint32_t runtime_stage_dma_mgr(const prt_runtime_t *rt, uint32_t stage_id
       action->acc_source.stage_assign[stage_idx].dma_mgr_ids) {
     return action->acc_source.stage_assign[stage_idx].dma_mgr_ids[0];
   }
-  if (rt->cfg.num_cores == 0) return 0;
-  return stage_idx % rt->cfg.num_cores;
+  if (dma_mgr_count == 0U) return 0;
+  return prt_cfg_dma_manager_id(&rt->cfg, stage_idx % dma_mgr_count);
 }
 
 static void free_page_list_storage(prt_page_list_t *pl) {
@@ -2817,11 +3185,9 @@ static int build_topology_from_pipeline(prt_runtime_t *rt) {
           }
         }
 
-        if (!strcmp(tb->tensor_type, "DRAM_DEPEN") && has_ring) {
-          b->dram_base_addr[0] = 0;
-          b->dram_base_addr[1] = 0;
-        }
         if (has_ring) {
+          // DRAM_DEPEN keeps its DRAM dependency base even when transport also
+          // uses a ring; the ring expresses synchronization, not a new DRAM base.
           b->ring = find_ringbuf(rt, action->segment_idx, tb->tensor_id);
           if (!b->ring) return PRT_ERR_NOT_READY;
         }
@@ -2860,11 +3226,9 @@ static int build_topology_from_pipeline(prt_runtime_t *rt) {
             return PRT_ERR_INVAL;
           }
         }
-        if (!strcmp(tb->tensor_type, "DRAM_DEPEN") && has_ring) {
-          b->dram_base_addr[0] = 0;
-          b->dram_base_addr[1] = 0;
-        }
         if (has_ring) {
+          // Keep DRAM dependency aliases intact for DRAM_DEPEN exports; ring
+          // ownership does not replace the underlying DRAM dependency address.
           b->ring = find_ringbuf(rt, action->segment_idx, tb->tensor_id);
           if (!b->ring) return PRT_ERR_NOT_READY;
         }
@@ -3414,7 +3778,8 @@ static void host_stage_assign_runtime_state(prt_runtime_t *rt, const prt_stage_m
   } else if (stage->num_physical_acc_ids > 0) {
     uint32_t n = stage->num_physical_acc_ids > PRT_MAX_CORES ? PRT_MAX_CORES : stage->num_physical_acc_ids;
     for (uint32_t i = 0; i < n; ++i) {
-      exec->stage_mgr_ids[stage_id][i] = rt->cfg.gemmini_mgr_base_id + stage->physical_acc_ids[i];
+      exec->stage_mgr_ids[stage_id][i] =
+        prt_cfg_gemmini_manager_id(&rt->cfg, stage->physical_acc_ids[i]);
     }
   } else {
     exec->stage_mgr_ids[stage_id][0] = exec->stage_acc_ids[stage_id];
@@ -3518,10 +3883,10 @@ static int run_segment_host_serial(prt_runtime_t *rt, const prt_segment_desc_t *
 
 static void *stage_worker_main(void *arg) {
   prt_stage_thread_ctx_t *ctx = (prt_stage_thread_ctx_t *)arg;
-  prt_runtime_t *rt = ctx->rt;
+  prt_runtime_t *rt;
   prt_action_exec_t *exec;
-  uint64_t timeout_ns = (uint64_t)rt->cfg.watchdog_timeout_ms * 1000000ULL;
-  uint64_t wait_timeout_ns = timeout_ns;
+  uint64_t timeout_ns = 0;
+  uint64_t wait_timeout_ns = 0;
   prt_pipebuf_t *entry_bufs[PRT_MAX_TENSORS];
   prt_pipebuf_t *export_bufs[PRT_MAX_TENSORS];
   prt_isolate_pair_t *iso_pairs[PRT_MAX_TENSORS];
@@ -3531,6 +3896,24 @@ static void *stage_worker_main(void *arg) {
   uint32_t iso_pair_count = 0;
   uint32_t shared_pair_count = 0;
   uint64_t last_wait_log_ms = 0;
+
+  if (!ctx) {
+    PRT_PROGRESS_LOG("worker entry failed reason=null-ctx");
+    return NULL;
+  }
+  rt = ctx->rt;
+  PRT_PROGRESS_LOG("worker entry begin stage=%u ctx=%p rt=%p action=%p stop=%d",
+                   ctx->stage_id, (void *)ctx, (void *)rt, (void *)ctx->action, ctx->stop);
+  if (ctx->stage_id == 0U) {
+    PRT_CHECKPOINT_LOG("worker stage=%u checkpoint=thread-entry ctx=%p rt=%p action=%p stop=%d",
+                       ctx->stage_id, (void *)ctx, (void *)rt, (void *)ctx->action, ctx->stop);
+  }
+  if (!rt) {
+    PRT_PROGRESS_LOG("worker entry failed stage=%u reason=null-rt", ctx->stage_id);
+    return NULL;
+  }
+  timeout_ns = (uint64_t)rt->cfg.watchdog_timeout_ms * 1000000ULL;
+  wait_timeout_ns = timeout_ns;
 
 #if defined(__linux__)
   stage_bind_current_thread(rt, ctx);
@@ -3579,19 +3962,42 @@ static void *stage_worker_main(void *arg) {
   while (!ctx->stop && !rt->stop_requested && !rt->fatal_error) {
     int rc;
     int retry = 0;
+    if (ctx->stage_id == 0U) {
+      PRT_CHECKPOINT_LOG("worker stage=%u checkpoint=loop-top", ctx->stage_id);
+    }
     uint32_t progress_sbatch = progress_stage_sbatch(entry_bufs, entry_count, export_bufs, export_count);
     uint32_t segment_idx = ctx->action ? ctx->action->segment_idx : 0U;
     uint32_t global_stage_id = runtime_stage_global_id(ctx->action, ctx->stage_id);
+
+    if (ctx->stage_id == 0U) {
+      PRT_CHECKPOINT_LOG("worker stage=%u checkpoint=after-progress-sbatch subbatch=%u segment=%u global_stage=%u",
+                         ctx->stage_id, progress_sbatch, segment_idx, global_stage_id);
+    }
 
     prt_log_gate_clear_context();
 
     for (uint32_t i = 0; i < entry_count; ++i) {
       prt_pipebuf_t *b = entry_bufs[i];
       uint32_t idx = b->in_use_idx;
+      int entry_process_has_context = 0;
       uint64_t process_wait_begin_ms = monotonic_ms();
+      if (ctx->stage_id == 0U) {
+        PRT_CHECKPOINT_LOG("worker stage=%u checkpoint=entry-loop-begin subbatch=%u entry=%u kind=%u tensor=%u idx=%u",
+                           ctx->stage_id, progress_sbatch, i, (uint32_t)b->kind, b->tensor_id, idx);
+      }
       switch (b->kind) {
         case PRT_BUF_C1_ENTRY_DRAM_OR_DEPEN:
+          prt_log_gate_set_context(segment_idx, global_stage_id, ctx->stage_id, progress_sbatch);
+          entry_process_has_context = 1;
+          if (ctx->stage_id == 0U) {
+            PRT_CHECKPOINT_LOG("worker stage=%u checkpoint=before-c1 subbatch=%u entry=%u tensor=%u idx=%u",
+                               ctx->stage_id, progress_sbatch, i, b->tensor_id, idx);
+          }
           rc = prt_process_c1(rt, b, idx, wait_timeout_ns);
+          if (ctx->stage_id == 0U) {
+            PRT_CHECKPOINT_LOG("worker stage=%u checkpoint=after-c1 subbatch=%u entry=%u tensor=%u idx=%u rc=%d",
+                               ctx->stage_id, progress_sbatch, i, b->tensor_id, idx, rc);
+          }
           if (rc == PRT_ERR_TIMEOUT) {
             progress_log_worker_wait(ctx->stage_id, progress_sbatch, "entry-c1-process", b, idx,
                                      process_wait_begin_ms, &last_wait_log_ms, rc);
@@ -3605,6 +4011,8 @@ static void *stage_worker_main(void *arg) {
           }
           break;
         case PRT_BUF_C5_ENTRY_ISOLATE_WITH_RING:
+          prt_log_gate_set_context(segment_idx, global_stage_id, ctx->stage_id, progress_sbatch);
+          entry_process_has_context = 1;
           rc = prt_process_c5(rt, b, idx, wait_timeout_ns);
           if (rc == PRT_ERR_TIMEOUT) {
             progress_log_worker_wait(ctx->stage_id, progress_sbatch, "entry-c5-process", b, idx,
@@ -3616,6 +4024,8 @@ static void *stage_worker_main(void *arg) {
           if (rc != PRT_OK) rt->fatal_error = rc;
           break;
         case PRT_BUF_C7_ENTRY_ALL_RING:
+          prt_log_gate_set_context(segment_idx, global_stage_id, ctx->stage_id, progress_sbatch);
+          entry_process_has_context = 1;
           rc = prt_ring_wait_ready(b->ring, b->subbatch_offset, wait_timeout_ns);
           if (rc == PRT_ERR_TIMEOUT) {
             progress_log_worker_wait(ctx->stage_id, progress_sbatch, "entry-c7-ring-ready", b, idx,
@@ -3633,10 +4043,19 @@ static void *stage_worker_main(void *arg) {
         default:
           break;
       }
+      if (entry_process_has_context) prt_log_gate_clear_context();
       if (rt->fatal_error || rt->stop_requested) break;
 
       uint64_t full_wait_begin_ms = monotonic_ms();
+      if (ctx->stage_id == 0U) {
+        PRT_CHECKPOINT_LOG("worker stage=%u checkpoint=before-entry-full subbatch=%u entry=%u tensor=%u idx=%u",
+                           ctx->stage_id, progress_sbatch, i, b->tensor_id, idx);
+      }
       rc = prt_pipebuf_wait_full(b, idx, wait_timeout_ns);
+      if (ctx->stage_id == 0U) {
+        PRT_CHECKPOINT_LOG("worker stage=%u checkpoint=after-entry-full subbatch=%u entry=%u tensor=%u idx=%u rc=%d",
+                           ctx->stage_id, progress_sbatch, i, b->tensor_id, idx, rc);
+      }
       if (rc != PRT_OK) {
         if (rc == PRT_ERR_TIMEOUT) {
           progress_log_worker_wait(ctx->stage_id, progress_sbatch, "entry-full", b, idx,
@@ -3652,9 +4071,17 @@ static void *stage_worker_main(void *arg) {
     if (rt->fatal_error || rt->stop_requested) break;
     if (retry) continue;
 
+    if (ctx->stage_id == 0U) {
+      PRT_CHECKPOINT_LOG("worker stage=%u checkpoint=before-exports-ready subbatch=%u exports=%u shared_pairs=%u",
+                         ctx->stage_id, progress_sbatch, export_count, shared_pair_count);
+    }
     rc = stage_wait_exports_ready(rt, ctx->stage_id, progress_sbatch, export_bufs, export_count,
                                   shared_pairs, shared_pair_count, wait_timeout_ns,
                                   &last_wait_log_ms);
+    if (ctx->stage_id == 0U) {
+      PRT_CHECKPOINT_LOG("worker stage=%u checkpoint=after-exports-ready subbatch=%u rc=%d",
+                         ctx->stage_id, progress_sbatch, rc);
+    }
     if (rc != PRT_OK) {
       if (rc == PRT_ERR_TIMEOUT) {
         if (rt->stop_requested) break;
@@ -3689,7 +4116,17 @@ static void *stage_worker_main(void *arg) {
       } else {
         task.manager_ids[0] = task.acc_id;
       }
+      if (ctx->stage_id == 0U) {
+        PRT_CHECKPOINT_LOG("worker stage=%u checkpoint=before-build-stage-task subbatch=%u op_hint=%u tile_count=%u mgr0=%u",
+                           ctx->stage_id, progress_sbatch, (uint32_t)task.op_kind,
+                           task.tile_count, task.manager_ids[0]);
+      }
       rc = build_stage_task_desc(rt, ctx->stage_id, &task, &conv_desc, &resadd_desc);
+      if (ctx->stage_id == 0U) {
+        PRT_CHECKPOINT_LOG("worker stage=%u checkpoint=after-build-stage-task subbatch=%u rc=%d op=%u tile_count=%u mgr0=%u",
+                           ctx->stage_id, progress_sbatch, rc, (uint32_t)task.op_kind,
+                           task.tile_count, task.manager_ids[0]);
+      }
       if (rc != PRT_OK) {
         rt->fatal_error = rc;
         break;
@@ -3741,6 +4178,8 @@ static void *stage_worker_main(void *arg) {
         }
       }
       tensor_log_stage_entry_inputs(rt, segment_idx, ctx->stage_id, global_stage_id, progress_sbatch);
+      prt_runtime_trigger_note_worker(segment_idx, global_stage_id, ctx->stage_id,
+                                      progress_sbatch, "wrk-b", PRT_OK);
       PRT_PROGRESS_LOG("worker stage=%u subbatch=%u begin op=%u acc=%u dma=%u tiles=%u",
                        ctx->stage_id, progress_sbatch, (uint32_t)task.op_kind,
                        (ctx->stage_id < exec->stage_thread_count) ? exec->stage_acc_ids[ctx->stage_id] : 0U,
@@ -3819,6 +4258,8 @@ static void *stage_worker_main(void *arg) {
         break;
       }
       PRT_MARKER_LOG("wrk-postcmp s=%u sb=%u", ctx->stage_id, progress_sbatch);
+      prt_runtime_trigger_note_worker(segment_idx, global_stage_id, ctx->stage_id,
+                                      progress_sbatch, "cmp-d", PRT_OK);
       PRT_PROGRESS_LOG("worker stage=%u subbatch=%u compute-done", ctx->stage_id, progress_sbatch);
       last_wait_log_ms = 0;
     }
@@ -3915,6 +4356,8 @@ static void *stage_worker_main(void *arg) {
     }
     if (!retry && !rt->fatal_error && !rt->stop_requested) {
       PRT_MARKER_LOG("wrk-done s=%u sb=%u", ctx->stage_id, progress_sbatch);
+      prt_runtime_trigger_note_worker(segment_idx, global_stage_id, ctx->stage_id,
+                                      progress_sbatch, "wrk-d", PRT_OK);
       PRT_PROGRESS_LOG("worker stage=%u subbatch=%u done", ctx->stage_id, progress_sbatch);
       last_wait_log_ms = 0;
     }
@@ -3930,6 +4373,7 @@ static void *stage_worker_main(void *arg) {
 
 int prt_runtime_init(const prt_runtime_cfg_t *cfg, prt_runtime_t *rt) {
   prt_log_gate_cfg_t deep_log_cfg;
+  int rc;
   if (!cfg || !rt) return PRT_ERR_INVAL;
   memset(rt, 0, sizeof(*rt));
   rt->cfg = *cfg;
@@ -3941,6 +4385,21 @@ int prt_runtime_init(const prt_runtime_cfg_t *cfg, prt_runtime_t *rt) {
   if (rt->cfg.num_gemmini_mgrs > PRT_MAX_CORES) rt->cfg.num_gemmini_mgrs = PRT_MAX_CORES;
   if (rt->cfg.num_dma_mgrs == 0) rt->cfg.num_dma_mgrs = rt->cfg.num_gemmini_mgrs;
   if (rt->cfg.num_dma_mgrs > PRT_MAX_CORES) rt->cfg.num_dma_mgrs = PRT_MAX_CORES;
+  if (rt->cfg.pair_manager_mode > 1U) rt->cfg.pair_manager_mode = 1U;
+  if (prt_cfg_pair_manager_mode_enabled(&rt->cfg)) {
+    if (rt->cfg.num_dma_mgrs != rt->cfg.num_gemmini_mgrs) {
+      fprintf(stderr,
+              "runtime_init: pair_manager_mode requires num_dma_mgrs (%u) to match num_gemmini_mgrs (%u)\n",
+              rt->cfg.num_dma_mgrs, rt->cfg.num_gemmini_mgrs);
+      return PRT_ERR_INVAL;
+    }
+    if (rt->cfg.dma_mgr_base_id != rt->cfg.gemmini_mgr_base_id) {
+      fprintf(stderr,
+              "runtime_init: pair_manager_mode requires dma_mgr_base_id (%u) to match gemmini_mgr_base_id (%u)\n",
+              rt->cfg.dma_mgr_base_id, rt->cfg.gemmini_mgr_base_id);
+      return PRT_ERR_INVAL;
+    }
+  }
   if (rt->cfg.num_cores < rt->cfg.num_gemmini_mgrs) {
     rt->cfg.num_cores = rt->cfg.num_gemmini_mgrs;
   }
@@ -3983,11 +4442,27 @@ int prt_runtime_init(const prt_runtime_cfg_t *cfg, prt_runtime_t *rt) {
   deep_log_cfg.subbatch_radius = rt->cfg.deep_log_subbatch_radius;
   prt_log_gate_init(&deep_log_cfg);
 
-  PRT_PROGRESS_LOG("init begin backend=%u cores=%u gemmini=%u dma=%u pages_per_acc=%u page_bytes=%u spm_xlate=%u range_base=0x%llx range_size=%llu",
+  rc = prt_breadcrumb_init();
+  if (rc != PRT_OK) {
+    fprintf(stderr, "runtime_init: breadcrumb_init failed: %s (%d)\n", prt_err_str(rc), rc);
+    return rc;
+  }
+  if (prt_breadcrumb_enabled()) {
+    prt_breadcrumb_note(PRT_BREADCRUMB_KIND_RUNTIME,
+                        PRT_BREADCRUMB_PHASE_RUNTIME_INIT_BEGIN,
+                        PRT_BREADCRUMB_ANY_U32, 0U, PRT_BREADCRUMB_ANY_U32,
+                        PRT_BREADCRUMB_ANY_U32, PRT_OK, 0U,
+                        0ULL, 0ULL, 0ULL, 0ULL, __LINE__);
+  }
+
+  PRT_PROGRESS_LOG("init begin backend=%u cores=%u gemmini=%u dma=%u pair=%u gemmini_base=%u dma_base=%u pages_per_acc=%u page_bytes=%u spm_xlate=%u range_base=0x%llx range_size=%llu",
                    (uint32_t)rt->cfg.backend,
                    rt->cfg.num_cores,
                    rt->cfg.num_gemmini_mgrs,
                    rt->cfg.num_dma_mgrs,
+                   rt->cfg.pair_manager_mode,
+                   rt->cfg.gemmini_mgr_base_id,
+                   rt->cfg.dma_mgr_base_id,
                    rt->cfg.pages_per_acc,
                    rt->cfg.page_size_bytes,
                    rt->cfg.spm_xlate_enable,
@@ -4006,7 +4481,7 @@ int prt_runtime_init(const prt_runtime_cfg_t *cfg, prt_runtime_t *rt) {
   pthread_cond_init(&rt->state_cv, NULL);
 
   PRT_PROGRESS_LOG("init page-table begin");
-  int rc = prt_page_table_init(rt);
+  rc = prt_page_table_init(rt);
   if (rc != PRT_OK) {
     fprintf(stderr, "runtime_init: page_table_init failed: %s (%d)\n", prt_err_str(rc), rc);
     return rc;
@@ -4055,6 +4530,13 @@ int prt_runtime_init(const prt_runtime_cfg_t *cfg, prt_runtime_t *rt) {
   }
   PRT_PROGRESS_LOG("init trace-calibrate end");
   prt_trace_reset(rt);
+  if (prt_breadcrumb_enabled()) {
+    prt_breadcrumb_note(PRT_BREADCRUMB_KIND_RUNTIME,
+                        PRT_BREADCRUMB_PHASE_RUNTIME_INIT_DONE,
+                        PRT_BREADCRUMB_ANY_U32, 0U, PRT_BREADCRUMB_ANY_U32,
+                        PRT_BREADCRUMB_ANY_U32, PRT_OK, 0U,
+                        0ULL, 0ULL, 0ULL, 0ULL, __LINE__);
+  }
   PRT_PROGRESS_LOG("init done");
   return PRT_OK;
 }
@@ -4262,7 +4744,19 @@ int prt_runtime_run(prt_runtime_t *rt, const prt_run_args_t *args) {
   PRT_PROGRESS_LOG("init validate-artifacts end elapsed_ms=%llu",
                    (unsigned long long)(monotonic_ms() - init_step_start_ms));
 
-  if (args->model_bin) {
+  if (args->skip_model_bin_load) {
+    init_step_start_ms = monotonic_ms();
+    PRT_MARKER_LOG("runtime init-step=synthesize-model-bin begin reason=skip-model-bin-load");
+    PRT_PROGRESS_LOG("init synthesize-model-bin begin reason=skip-model-bin-load");
+    rc = allocate_synthetic_model_blob(rt);
+    PRT_GOTO_OUT_ON_ERR("synthesize_model_bin");
+    PRT_MARKER_LOG("runtime init-step=synthesize-model-bin end elapsed_ms=%llu size=%zu offset=%zu",
+                   (unsigned long long)(monotonic_ms() - init_step_start_ms),
+                   rt->model_blob_size, rt->model_blob_offset);
+    PRT_PROGRESS_LOG("init synthesize-model-bin end elapsed_ms=%llu size=%zu offset=%zu",
+                     (unsigned long long)(monotonic_ms() - init_step_start_ms),
+                     rt->model_blob_size, rt->model_blob_offset);
+  } else if (args->model_bin) {
     init_step_start_ms = monotonic_ms();
     PRT_MARKER_LOG("runtime init-step=load-model-bin begin path=%s offset=%llu",
                    args->model_bin,
@@ -4270,7 +4764,8 @@ int prt_runtime_run(prt_runtime_t *rt, const prt_run_args_t *args) {
     PRT_PROGRESS_LOG("init load-model-bin begin path=%s offset=%llu",
                      args->model_bin,
                      (unsigned long long)args->model_offset_bytes);
-    rc = load_model_blob_file(args->model_bin, &rt->model_blob, &rt->model_blob_size);
+    rc = load_model_blob_file("model-bin blob", args->model_bin,
+                              &rt->model_blob, &rt->model_blob_size);
     PRT_GOTO_OUT_ON_ERR("load_model_bin");
     if (args->model_offset_bytes >= rt->model_blob_size) {
       rc = PRT_ERR_INVAL;
@@ -4285,7 +4780,10 @@ int prt_runtime_run(prt_runtime_t *rt, const prt_run_args_t *args) {
                      rt->model_blob_size, rt->model_blob_offset);
   }
 
-  if (args->input_path) {
+  if (args->skip_input_load) {
+    PRT_MARKER_LOG("runtime init-step=skip-input-load reason=skip-input-load");
+    PRT_PROGRESS_LOG("init skip-input-load reason=skip-input-load inputs=%u", model_input_count);
+  } else if (args->input_path) {
     if (!rt->model_blob || rt->model_blob_size == 0) {
       rc = PRT_ERR_INVAL;
       goto out;
@@ -4293,7 +4791,8 @@ int prt_runtime_run(prt_runtime_t *rt, const prt_run_args_t *args) {
     init_step_start_ms = monotonic_ms();
     PRT_MARKER_LOG("runtime init-step=load-input-blob begin path=%s", args->input_path);
     PRT_PROGRESS_LOG("init load-input-blob begin path=%s", args->input_path);
-    rc = load_model_blob_file(args->input_path, (void **)&input_blob, &input_blob_size);
+    rc = load_model_blob_file("input blob", args->input_path,
+                              (void **)&input_blob, &input_blob_size);
     PRT_GOTO_OUT_ON_ERR("load_input_blob");
     PRT_MARKER_LOG("runtime init-step=load-input-blob end elapsed_ms=%llu size=%zu",
                    (unsigned long long)(monotonic_ms() - init_step_start_ms),
@@ -4328,6 +4827,9 @@ int prt_runtime_run(prt_runtime_t *rt, const prt_run_args_t *args) {
     prt_action_exec_t *exec = NULL;
     uint32_t missing_model_sinks = 0;
     int is_last_segment = (seg_idx + 1U == all_num_segments);
+    pthread_attr_t stage_thread_attr;
+    int stage_thread_attr_ready = 0;
+    size_t stage_stack_bytes = 0U;
     PRT_MARKER_LOG("segment=%u begin stages=%u seg_subbatch=%u last=%u",
                    seg_idx, seg->num_stages, seg->subbatch_size, (uint32_t)is_last_segment);
     PRT_PROGRESS_LOG("segment=%u init begin stages=%u seg_subbatch_size=%u is_last=%u",
@@ -4345,8 +4847,12 @@ int prt_runtime_run(prt_runtime_t *rt, const prt_run_args_t *args) {
     rc = prt_action_generate(rt, seg_idx, seg, &rt->model, &action);
     PRT_GOTO_OUT_ON_ERR("action_generate");
     PRT_PROGRESS_LOG("segment=%u action-generate end action=%u", seg_idx, action->action_id);
+    PRT_PROGRESS_LOG("segment=%u action-alloc-acc begin action=%u", seg_idx, action->action_id);
     rc = prt_action_alloc_acc(rt, action);
     PRT_GOTO_OUT_ON_ERR("action_alloc_acc");
+    PRT_PROGRESS_LOG("segment=%u action-alloc-acc end action=%u unique_g=%u unique_d=%u",
+                     seg_idx, action->action_id, action->acc_source.all_count,
+                     action->acc_source.num_acc);
     PRT_PROGRESS_LOG("segment=%u action-alloc-spm begin action=%u", seg_idx, action->action_id);
     rc = prt_action_alloc_spm(rt, action);
     PRT_GOTO_OUT_ON_ERR("action_alloc_spm");
@@ -4442,20 +4948,81 @@ int prt_runtime_run(prt_runtime_t *rt, const prt_run_args_t *args) {
     }
 #endif
 
+    {
+      int attr_init_rc;
+      int attr_stack_rc = -1;
+      stage_stack_bytes = stage_thread_stack_bytes();
+      PRT_PROGRESS_LOG("segment=%u worker-attr begin stack_bytes=%zu", seg_idx, stage_stack_bytes);
+      if (seg_idx == 0U) {
+        PRT_CHECKPOINT_LOG("segment=%u checkpoint=worker-attr-begin stack_bytes=%zu",
+                           seg_idx, stage_stack_bytes);
+      }
+      attr_init_rc = pthread_attr_init(&stage_thread_attr);
+      PRT_PROGRESS_LOG("segment=%u worker-attr after-init rc=%d", seg_idx, attr_init_rc);
+      if (attr_init_rc == 0) {
+        attr_stack_rc = pthread_attr_setstacksize(&stage_thread_attr, stage_stack_bytes);
+        PRT_PROGRESS_LOG("segment=%u worker-attr after-setstack rc=%d stack_bytes=%zu",
+                         seg_idx, attr_stack_rc, stage_stack_bytes);
+        if (attr_stack_rc == 0) {
+          stage_thread_attr_ready = 1;
+        } else {
+          pthread_attr_destroy(&stage_thread_attr);
+        }
+      }
+      if (seg_idx == 0U) {
+        PRT_CHECKPOINT_LOG("segment=%u checkpoint=worker-attr-end init_rc=%d stack_rc=%d ready=%u stack_bytes=%zu",
+                           seg_idx, attr_init_rc, attr_stack_rc,
+                           (unsigned)stage_thread_attr_ready, stage_stack_bytes);
+      }
+    }
+
     for (uint32_t i = 0; i < exec->stage_thread_count; ++i) {
       uint32_t stage_id = i;
+      int create_rc;
+      int create_errno = 0;
       exec->stage_threads[i].stage_id = stage_id;
       exec->stage_threads[i].rt = rt;
       exec->stage_threads[i].action = action;
       exec->stage_threads[i].op_kind = PRT_STAGE_OP_NONE;
       exec->stage_threads[i].has_task_desc = 0;
       exec->stage_threads[i].stop = 0;
-      if (pthread_create(&exec->stage_threads[i].thread, NULL, stage_worker_main, &exec->stage_threads[i]) != 0) {
+      if (seg_idx == 0U) {
+        PRT_CHECKPOINT_LOG("segment=%u checkpoint=worker-create-before stage=%u ctx=%p action=%p exec=%p created=%u attr=%u stack_bytes=%zu acc=%u dma=%u tiles=%u",
+                           seg_idx, stage_id, (void *)&exec->stage_threads[i], (void *)action, (void *)exec,
+                           created_threads, (unsigned)stage_thread_attr_ready, stage_stack_bytes,
+                           exec->stage_acc_ids[stage_id], exec->stage_dma_ids[stage_id],
+                           exec->stage_tile_counts[stage_id]);
+      }
+      PRT_PROGRESS_LOG("segment=%u worker-create begin stage=%u stack_bytes=%zu attr=%u ctx=%p action=%p exec=%p stage_count=%u acc=%u dma=%u tiles=%u fatal=%d stop=%d",
+                       seg_idx, stage_id, stage_stack_bytes, (unsigned)stage_thread_attr_ready,
+                       (void *)&exec->stage_threads[i], (void *)action, (void *)exec,
+                       exec->stage_thread_count,
+                       exec->stage_acc_ids[stage_id], exec->stage_dma_ids[stage_id],
+                       exec->stage_tile_counts[stage_id],
+                       rt->fatal_error, rt->stop_requested);
+      errno = 0;
+      create_rc = pthread_create(&exec->stage_threads[i].thread,
+                                 stage_thread_attr_ready ? &stage_thread_attr : NULL,
+                                 stage_worker_main,
+                                 &exec->stage_threads[i]);
+      create_errno = errno;
+      PRT_PROGRESS_LOG("segment=%u worker-create return stage=%u rc=%d errno=%d created=%u",
+                       seg_idx, stage_id, create_rc, create_errno, created_threads);
+      if (seg_idx == 0U) {
+        PRT_CHECKPOINT_LOG("segment=%u checkpoint=worker-create-after stage=%u rc=%d errno=%d created=%u",
+                           seg_idx, stage_id, create_rc, create_errno, created_threads);
+      }
+      if (create_rc != 0) {
         rt->fatal_error = PRT_ERR_STATE;
         rt->stop_requested = 1;
         break;
       }
       created_threads += 1;
+      PRT_PROGRESS_LOG("segment=%u worker-create end stage=%u created=%u",
+                       seg_idx, stage_id, created_threads);
+    }
+    if (stage_thread_attr_ready) {
+      pthread_attr_destroy(&stage_thread_attr);
     }
     PRT_MARKER_LOG("segment=%u workers-launched=%u sinks=%u target_subbatch=%u",
                    seg_idx, created_threads, sink_count, target_subbatch);
@@ -4520,8 +5087,12 @@ int prt_runtime_run(prt_runtime_t *rt, const prt_run_args_t *args) {
   rc = runtime_assert_page_allocator_idle(rt, "post_run_release");
   if (rc != PRT_OK && run_rc == PRT_OK) run_rc = rc;
 
-  if (run_rc == PRT_OK && args->golden_path) {
-    rc = load_model_blob_file(args->golden_path, (void **)&golden_blob, &golden_blob_size);
+  if (run_rc == PRT_OK && args->skip_golden_check) {
+    PRT_PROGRESS_LOG("golden compare skipped reason=skip-golden-check path=%s",
+                     args->golden_path ? args->golden_path : "(null)");
+  } else if (run_rc == PRT_OK && args->golden_path) {
+    rc = load_model_blob_file("golden blob", args->golden_path,
+                              (void **)&golden_blob, &golden_blob_size);
     if (rc != PRT_OK) {
       run_rc = rc;
     } else {
@@ -4581,10 +5152,21 @@ int prt_runtime_destroy(prt_runtime_t *rt) {
   prt_dma_backend_destroy(rt);
   prt_gemmini_backend_destroy(rt);
 
-  free(rt->model_blob);
+  if (rt->model_blob) {
+#if defined(__linux__)
+    if (rt->model_blob_is_mmap) {
+      (void)munmap(rt->model_blob, rt->model_blob_size);
+    } else {
+      free(rt->model_blob);
+    }
+#else
+    free(rt->model_blob);
+#endif
+  }
   rt->model_blob = NULL;
   rt->model_blob_size = 0;
   rt->model_blob_offset = 0;
+  rt->model_blob_is_mmap = 0U;
 
   prt_free_model_desc(&rt->model);
   prt_free_pipeline_desc(&rt->pipeline);
@@ -4596,6 +5178,8 @@ int prt_runtime_destroy(prt_runtime_t *rt) {
   rt->trace_event_cap = 0;
   rt->trace_event_count = 0;
   rt->trace_event_drop_count = 0;
+
+  prt_breadcrumb_destroy();
 
   pthread_cond_destroy(&rt->state_cv);
   pthread_mutex_destroy(&rt->state_lock);

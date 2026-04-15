@@ -32,12 +32,24 @@ int prt_dma_copy_spm_va(prt_runtime_t *rt, uint64_t dst_va, uint64_t src_va, uin
 int prt_dma_copy_spm_pages(prt_runtime_t *rt, const prt_page_list_t *dst_pages,
                            const prt_page_list_t *src_pages, uint32_t manager_id,
                            uint32_t stage_idx, uint32_t tensor_id, uint64_t timeout_ns);
+int prt_dma_copy_spm_pages_prefix(prt_runtime_t *rt, const prt_page_list_t *dst_pages,
+                                  const prt_page_list_t *src_pages, uint64_t bytes,
+                                  uint32_t manager_id, uint32_t stage_idx,
+                                  uint32_t tensor_id, uint64_t timeout_ns);
 int prt_dma_copy_dram_to_spm_pages(prt_runtime_t *rt, const prt_page_list_t *dst_pages,
                                    uint64_t src_dram_addr, uint32_t manager_id,
                                    uint32_t stage_idx, uint32_t tensor_id, uint64_t timeout_ns);
+int prt_dma_copy_dram_to_spm_pages_prefix(prt_runtime_t *rt, const prt_page_list_t *dst_pages,
+                                          uint64_t src_dram_addr, uint64_t bytes,
+                                          uint32_t manager_id, uint32_t stage_idx,
+                                          uint32_t tensor_id, uint64_t timeout_ns);
 int prt_dma_copy_spm_pages_to_dram(prt_runtime_t *rt, uint64_t dst_dram_addr,
                                    const prt_page_list_t *src_pages, uint32_t manager_id,
                                    uint32_t stage_idx, uint32_t tensor_id, uint64_t timeout_ns);
+int prt_dma_copy_spm_pages_to_dram_prefix(prt_runtime_t *rt, uint64_t dst_dram_addr,
+                                          const prt_page_list_t *src_pages, uint64_t bytes,
+                                          uint32_t manager_id, uint32_t stage_idx,
+                                          uint32_t tensor_id, uint64_t timeout_ns);
 
 #ifdef __cplusplus
 }

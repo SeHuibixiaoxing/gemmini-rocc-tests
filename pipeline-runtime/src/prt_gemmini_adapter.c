@@ -14,8 +14,10 @@
 #endif
 
 #include "prt_progress.h"
+#include "prt_breadcrumb.h"
 #include "prt_rerocc.h"
 #include "prt_runtime.h"
+#include "prt_trigger_log.h"
 
 #if defined(__riscv)
 #include "include/gemmini.h"
@@ -25,6 +27,13 @@
 #if defined(__riscv)
 #ifndef PRT_GEMMINI_WS_SAFE_POINTWISE_KCHS_CAP
 #define PRT_GEMMINI_WS_SAFE_POINTWISE_KCHS_CAP 16
+#endif
+
+#ifndef PRT_ENABLE_RR_DEBUG_CSR_SNAPSHOT
+// On the 12-pair sbus128 target, live runs can hang after a successful RR
+// acquire if we immediately read back RR debug CSRs for logging. Keep those
+// reads opt-in on real hardware and fall back to marker-only snapshots.
+#define PRT_ENABLE_RR_DEBUG_CSR_SNAPSHOT 0
 #endif
 
 #ifndef PRT_GEMMINI_SAFE_POINTWISE_OC_CHUNK
@@ -178,7 +187,7 @@ static void prt_log_rr_binding_snapshot(const char *tag, uint32_t stage_id, uint
 static void prt_log_rr_binding_snapshot_or_marker(const char *tag, uint32_t stage_id,
                                                   uint32_t manager_id,
                                                   const prt_rr_scope_t *scope) {
-#if PRT_ENABLE_ONLY_MARKER
+#if PRT_ENABLE_ONLY_MARKER || (defined(__riscv) && !PRT_ENABLE_RR_DEBUG_CSR_SNAPSHOT)
   if (!tag) return;
   PRT_MARKER_LOG("%s stage=%u mgr=%u scope_valid=%u cfg=%u opcode=%u",
                  tag, stage_id, manager_id,
@@ -555,9 +564,78 @@ static int prt_should_emit_hot_pointwise_probe_logs(int emit_logs) {
   return prt_log_gate_allow_deep_logs_budgeted();
 }
 
+static uint32_t prt_sat_size_to_u32(size_t value) {
+  return value > (size_t)UINT32_MAX ? UINT32_MAX : (uint32_t)value;
+}
+
+static const char *prt_pointwise_trigger_phase_name(uint32_t phase) {
+  switch (phase) {
+    case PRT_BREADCRUMB_PHASE_GEMMINI_POINTWISE_CALL_BEGIN: return "call-b";
+    case PRT_BREADCRUMB_PHASE_GEMMINI_POINTWISE_CALL_RETURN: return "call-e";
+    case PRT_BREADCRUMB_PHASE_GEMMINI_POINTWISE_MATMUL_BEGIN: return "mm-b";
+    case PRT_BREADCRUMB_PHASE_GEMMINI_POINTWISE_MATMUL_RETURN: return "mm-e";
+    case PRT_BREADCRUMB_PHASE_GEMMINI_POINTWISE_POSTCALL_FENCE_BEGIN: return "rrf-b";
+    case PRT_BREADCRUMB_PHASE_GEMMINI_POINTWISE_POSTCALL_RR_FENCE_RETURN: return "rrf-e";
+    case PRT_BREADCRUMB_PHASE_GEMMINI_POINTWISE_POSTCALL_GEMMINI_FENCE_RETURN: return "gf-e";
+    case PRT_BREADCRUMB_PHASE_GEMMINI_POINTWISE_POSTCALL_DRAIN_RETURN: return "dr-e";
+    case PRT_BREADCRUMB_PHASE_GEMMINI_POINTWISE_POSTCALL_RELEASE_RETURN: return "rel-e";
+    default: return NULL;
+  }
+}
+
+static void prt_pointwise_breadcrumb_note(uint32_t phase, uint32_t stage_id, uint32_t manager_id,
+                                          const prt_gemmini_conv_desc_t *conv,
+                                          size_t dim_j, size_t dim_k,
+                                          enum tiled_matmul_type_t fallback_type,
+                                          const prt_rr_scope_t *scope,
+                                          int rc, uint32_t line) {
+  uint32_t flags = 0U;
+  uint64_t input_addr = 0ULL;
+  uint64_t output_addr = 0ULL;
+  uint64_t weights_addr = 0ULL;
+  uint64_t dims_pack = 0ULL;
+  (void)stage_id;
+  if (!conv) return;
+  if (scope && scope->valid) flags |= PRT_BREADCRUMB_FLAG_SCOPE_VALID;
+  input_addr = (uint64_t)(uintptr_t)conv->input;
+  output_addr = (uint64_t)(uintptr_t)conv->output;
+  weights_addr = (uint64_t)(uintptr_t)conv->weights;
+  dims_pack = ((uint64_t)prt_sat_size_to_u32(dim_j) << 32) |
+              (uint64_t)prt_sat_size_to_u32(dim_k);
+  {
+    const char *trigger_phase = prt_pointwise_trigger_phase_name(phase);
+    if (trigger_phase) {
+      prt_trigger_log_note(&(const prt_trigger_log_event_t){
+        .family = PRT_TRIGGER_LOG_FAMILY_GEMMINI_POINTWISE,
+        .phase = trigger_phase,
+        .segment_idx = PRT_TRIGGER_LOG_ANY_U32,
+        .global_stage_id = stage_id,
+        .local_stage_id = stage_id,
+        .subbatch_id = PRT_TRIGGER_LOG_ANY_U32,
+        .manager_id = manager_id,
+        .tensor_id = PRT_TRIGGER_LOG_ANY_U32,
+        .page_idx = PRT_TRIGGER_LOG_ANY_U32,
+        .token_id = (uint32_t)fallback_type,
+        .rc = rc,
+      });
+    }
+  }
+  prt_breadcrumb_note(PRT_BREADCRUMB_KIND_GEMMINI, phase,
+                      PRT_BREADCRUMB_ANY_U32, (uint32_t)fallback_type, manager_id,
+                      PRT_BREADCRUMB_ANY_U32, rc, flags,
+                      input_addr, output_addr, weights_addr, dims_pack, line);
+}
+
 static int prt_should_emit_hot_runtime_markers(void) {
   if (!prt_log_gate_is_enabled()) return 1;
   return prt_log_gate_allow_deep_logs();
+}
+
+static int prt_should_emit_pointwise_sparse_progress(void) {
+  // Once sharded breadcrumb is enabled, prefer it over coarse guest-file logs
+  // inside the pointwise hot loop. Repeated O_APPEND writes in this window have
+  // been a recurring Linux/F2 perturbation source.
+  return !prt_breadcrumb_enabled();
 }
 
 static int prt_pick_safe_pointwise_oc_chunk(const prt_gemmini_conv_desc_t *conv,
@@ -823,12 +901,14 @@ static int prt_run_pointwise_matmul_fallback_strided_impl(uint32_t stage_id, uin
                      safe_oc_chunk,
                      prt_tiled_matmul_type_name(tiled_type),
                      prt_tiled_matmul_type_name(fallback_type));
-      PRT_PROGRESS_LOG("pointwise-matmul-fallback stage=%u mgr=%u chunked I=%llu J=%llu K=%llu oc_chunk=%d in_stride=%d weight_stride=%d out_stride=%d requested_type=%s fallback_type=%s",
-                       stage_id, manager_id,
-                       (unsigned long long)dim_i, (unsigned long long)dim_j, (unsigned long long)dim_k,
-                       safe_oc_chunk, in_stride, weight_stride, out_stride,
-                       prt_tiled_matmul_type_name(tiled_type),
-                       prt_tiled_matmul_type_name(fallback_type));
+      if (prt_should_emit_pointwise_sparse_progress()) {
+        PRT_PROGRESS_LOG("pointwise-matmul-fallback stage=%u mgr=%u chunked I=%llu J=%llu K=%llu oc_chunk=%d in_stride=%d weight_stride=%d out_stride=%d requested_type=%s fallback_type=%s",
+                         stage_id, manager_id,
+                         (unsigned long long)dim_i, (unsigned long long)dim_j, (unsigned long long)dim_k,
+                         safe_oc_chunk, in_stride, weight_stride, out_stride,
+                         prt_tiled_matmul_type_name(tiled_type),
+                         prt_tiled_matmul_type_name(fallback_type));
+      }
     }
     return prt_run_pointwise_matmul_fallback_chunked_oc(stage_id, manager_id, conv, tiled_type,
                                                         safe_oc_chunk, in_stride, weight_stride,
@@ -846,12 +926,14 @@ static int prt_run_pointwise_matmul_fallback_strided_impl(uint32_t stage_id, uin
                      prt_tiled_matmul_type_name(tiled_type),
                      prt_tiled_matmul_type_name(fallback_type));
     }
-    PRT_PROGRESS_LOG("pointwise-matmul-fallback stage=%u mgr=%u begin I=%llu J=%llu K=%llu in_stride=%d weight_stride=%d out_stride=%d requested_type=%s fallback_type=%s",
-                     stage_id, manager_id,
-                     (unsigned long long)dim_i, (unsigned long long)dim_j, (unsigned long long)dim_k,
-                     in_stride, weight_stride, out_stride,
-                     prt_tiled_matmul_type_name(tiled_type),
-                     prt_tiled_matmul_type_name(fallback_type));
+    if (prt_should_emit_pointwise_sparse_progress()) {
+      PRT_PROGRESS_LOG("pointwise-matmul-fallback stage=%u mgr=%u begin I=%llu J=%llu K=%llu in_stride=%d weight_stride=%d out_stride=%d requested_type=%s fallback_type=%s",
+                       stage_id, manager_id,
+                       (unsigned long long)dim_i, (unsigned long long)dim_j, (unsigned long long)dim_k,
+                       in_stride, weight_stride, out_stride,
+                       prt_tiled_matmul_type_name(tiled_type),
+                       prt_tiled_matmul_type_name(fallback_type));
+    }
     PRT_PROGRESS_HOT_LOG("pointwise-matmul-fallback stage=%u mgr=%u begin I=%lu J=%lu K=%lu in_stride=%d weight_stride=%d out_stride=%d requested_type=%s fallback_type=%s reason=avoid-loop-ws",
                          stage_id, manager_id,
                          (unsigned long)dim_i, (unsigned long)dim_j, (unsigned long)dim_k,
@@ -894,6 +976,9 @@ static int prt_run_pointwise_matmul_fallback_strided_impl(uint32_t stage_id, uin
                  in_stride, weight_stride, out_stride,
                  (uint32_t)(conv->bias != NULL));
   }
+  prt_pointwise_breadcrumb_note(PRT_BREADCRUMB_PHASE_GEMMINI_POINTWISE_MATMUL_BEGIN,
+                                stage_id, manager_id, conv, dim_j, dim_k,
+                                fallback_type, scope, PRT_OK, __LINE__);
   if (hot_logs) {
     PRT_PROGRESS_RAW_LINE("[prt-raw] pwm-b");
   }
@@ -904,6 +989,9 @@ static int prt_run_pointwise_matmul_fallback_strided_impl(uint32_t stage_id, uin
     conv->bias ? (const acc_t *)conv->bias : NULL, (const elem_t *)conv->output,
     conv->act, (acc_scale_t)(conv->output_scale != 0.0f ? conv->output_scale : 1.0f),
     conv->bias != NULL, fallback_type);
+  prt_pointwise_breadcrumb_note(PRT_BREADCRUMB_PHASE_GEMMINI_POINTWISE_MATMUL_RETURN,
+                                stage_id, manager_id, conv, dim_j, dim_k,
+                                fallback_type, scope, PRT_OK, __LINE__);
   if (hot_logs) {
     PRT_PROGRESS_RAW_LINE("[prt-raw] pwm-e");
   }
@@ -938,12 +1026,14 @@ static int prt_run_pointwise_matmul_fallback_strided_impl(uint32_t stage_id, uin
                      prt_tiled_matmul_type_name(tiled_type),
                      prt_tiled_matmul_type_name(fallback_type));
     }
-    PRT_PROGRESS_LOG("pointwise-matmul-fallback stage=%u mgr=%u end I=%llu J=%llu K=%llu in_stride=%d weight_stride=%d out_stride=%d requested_type=%s fallback_type=%s",
-                     stage_id, manager_id,
-                     (unsigned long long)dim_i, (unsigned long long)dim_j, (unsigned long long)dim_k,
-                     in_stride, weight_stride, out_stride,
-                     prt_tiled_matmul_type_name(tiled_type),
-                     prt_tiled_matmul_type_name(fallback_type));
+    if (prt_should_emit_pointwise_sparse_progress()) {
+      PRT_PROGRESS_LOG("pointwise-matmul-fallback stage=%u mgr=%u end I=%llu J=%llu K=%llu in_stride=%d weight_stride=%d out_stride=%d requested_type=%s fallback_type=%s",
+                       stage_id, manager_id,
+                       (unsigned long long)dim_i, (unsigned long long)dim_j, (unsigned long long)dim_k,
+                       in_stride, weight_stride, out_stride,
+                       prt_tiled_matmul_type_name(tiled_type),
+                       prt_tiled_matmul_type_name(fallback_type));
+    }
     PRT_PROGRESS_HOT_LOG("pointwise-matmul-fallback stage=%u mgr=%u end I=%lu J=%lu K=%lu in_stride=%d weight_stride=%d out_stride=%d requested_type=%s fallback_type=%s",
                          stage_id, manager_id,
                          (unsigned long)dim_i, (unsigned long)dim_j, (unsigned long)dim_k,
@@ -2166,6 +2256,7 @@ static int conv_call_for_manager_sync_strided(uint32_t stage_id, uint32_t manage
   int input_dilation;
   int kernel_dilation;
   int use_pointwise_matmul_fallback = 0;
+  int emit_pointwise_sparse_progress = 1;
   int safe_kchs_cap = 0;
   int chosen_args[7] = {0};
   float output_scale;
@@ -2195,8 +2286,15 @@ static int conv_call_for_manager_sync_strided(uint32_t stage_id, uint32_t manage
     PRT_PROGRESS_RAW_LINE("[prt-raw] css-aq-e");
   }
   prt_log_scope_marker("conv-sync acquire-end", stage_id, manager_id, &scope);
+  if (emit_hot_markers) {
+    PRT_PROGRESS_RAW_LINE("[prt-raw] css-as-b");
+  }
   prt_log_rr_binding_snapshot_or_marker("conv-sync-strided acquire-snapshot",
                                         stage_id, manager_id, &scope);
+  if (emit_hot_markers) {
+    PRT_PROGRESS_RAW_LINE("[prt-raw] css-as-e");
+    PRT_PROGRESS_RAW_LINE("[prt-raw] css-tt-b");
+  }
   PRT_PROGRESS_LOG("conv-sync-strided stage=%u mgr=%u acquired", stage_id, manager_id);
   PRT_PROGRESS_HOT_LOG("conv-sync stage=%u mgr=%u acquire-end", stage_id, manager_id);
 
@@ -2205,9 +2303,18 @@ static int conv_call_for_manager_sync_strided(uint32_t stage_id, uint32_t manage
   input_dilation = conv->input_dilation > 0 ? conv->input_dilation : 1;
   kernel_dilation = conv->kernel_dilation > 0 ? conv->kernel_dilation : 1;
   output_scale = conv->output_scale != 0.0f ? conv->output_scale : 1.0f;
+  if (emit_hot_markers) {
+    PRT_PROGRESS_RAW_LINE("[prt-raw] css-tt-e");
+    PRT_PROGRESS_RAW_LINE("[prt-raw] css-pd-b");
+  }
   use_pointwise_matmul_fallback =
     prt_is_canonical_pointwise_matmul_conv(conv, tiled_type) &&
     prt_pointwise_matmul_strides_supported(conv, in_stride, weight_stride, out_stride);
+  emit_pointwise_sparse_progress =
+    !use_pointwise_matmul_fallback || prt_should_emit_pointwise_sparse_progress();
+  if (emit_hot_markers) {
+    PRT_PROGRESS_RAW_LINE("[prt-raw] css-pd-e");
+  }
   PRT_MARKER_LOG("conv-sync stage=%u mgr=%u dispatch-select tiled=%s pointwise=%u safe_kchs_cap=%d",
                  stage_id, manager_id,
                  prt_tiled_matmul_type_name(tiled_type),
@@ -2244,7 +2351,14 @@ static int conv_call_for_manager_sync_strided(uint32_t stage_id, uint32_t manage
     }
     prt_log_rr_binding_snapshot_or_marker("conv-sync-strided pointwise-precall-snapshot",
                                           stage_id, manager_id, &scope);
-    PRT_PROGRESS_LOG("conv-sync-strided stage=%u mgr=%u dispatch=pointwise", stage_id, manager_id);
+    if (emit_pointwise_sparse_progress) {
+      PRT_PROGRESS_LOG("conv-sync-strided stage=%u mgr=%u dispatch=pointwise", stage_id, manager_id);
+    }
+    prt_pointwise_breadcrumb_note(PRT_BREADCRUMB_PHASE_GEMMINI_POINTWISE_CALL_BEGIN,
+                                  stage_id, manager_id, conv,
+                                  (size_t)conv->out_channels, (size_t)conv->in_channels,
+                                  prt_pick_pointwise_matmul_fallback_type(tiled_type, (size_t)conv->out_channels),
+                                  &scope, PRT_OK, __LINE__);
     if (emit_hot_markers) {
       PRT_PROGRESS_RAW_LINE("[prt-raw] css-pw-b");
     }
@@ -2253,12 +2367,19 @@ static int conv_call_for_manager_sync_strided(uint32_t stage_id, uint32_t manage
                                                           in_stride, weight_stride, out_stride,
                                                           &scope);
     PRT_PROGRESS_RAW_LINE("[prt-raw] conv-sync-pointwise-subcall-return");
+    prt_pointwise_breadcrumb_note(PRT_BREADCRUMB_PHASE_GEMMINI_POINTWISE_CALL_RETURN,
+                                  stage_id, manager_id, conv,
+                                  (size_t)conv->out_channels, (size_t)conv->in_channels,
+                                  prt_pick_pointwise_matmul_fallback_type(tiled_type, (size_t)conv->out_channels),
+                                  &scope, rc, __LINE__);
     if (emit_hot_markers) {
       PRT_PROGRESS_RAW_LINE("[prt-raw] css-pw-e");
     }
     PRT_CRIT_LOG("conv-sync stage=%u mgr=%u pointwise-return rc=%d", stage_id, manager_id, rc);
-    PRT_PROGRESS_LOG("conv-sync-strided stage=%u mgr=%u dispatch=pointwise-return rc=%d",
-                     stage_id, manager_id, rc);
+    if (emit_pointwise_sparse_progress) {
+      PRT_PROGRESS_LOG("conv-sync-strided stage=%u mgr=%u dispatch=pointwise-return rc=%d",
+                       stage_id, manager_id, rc);
+    }
   } else if ((safe_kchs_cap = prt_pick_safe_loop_conv_kchs_cap(conv, tiled_type)) > 0) {
     PRT_PROGRESS_LOG("conv-sync-strided stage=%u mgr=%u dispatch=conv-loop-capped cap=%d",
                      stage_id, manager_id, safe_kchs_cap);
@@ -2304,26 +2425,49 @@ static int conv_call_for_manager_sync_strided(uint32_t stage_id, uint32_t manage
     (void)prt_rr_release_scope(&scope);
     return rc;
   }
-  PRT_PROGRESS_LOG("conv-sync-strided stage=%u mgr=%u issue-done use_pointwise=%d", stage_id,
-                   manager_id, use_pointwise_matmul_fallback);
+  if (emit_pointwise_sparse_progress) {
+    PRT_PROGRESS_LOG("conv-sync-strided stage=%u mgr=%u issue-done use_pointwise=%d", stage_id,
+                     manager_id, use_pointwise_matmul_fallback);
+  }
   if (!use_pointwise_matmul_fallback) {
     PRT_PROGRESS_HOT_LOG("conv-sync stage=%u mgr=%u tiled-conv-end", stage_id, manager_id);
   }
 
-  PRT_PROGRESS_LOG("conv-sync-strided stage=%u mgr=%u fence-begin", stage_id, manager_id);
+  if (emit_pointwise_sparse_progress) {
+    PRT_PROGRESS_LOG("conv-sync-strided stage=%u mgr=%u fence-begin", stage_id, manager_id);
+  }
   PRT_PROGRESS_HOT_LOG("conv-sync stage=%u mgr=%u fence-begin", stage_id, manager_id);
   prt_log_scope_marker("conv-sync fence-begin", stage_id, manager_id, &scope);
   if (use_pointwise_matmul_fallback) {
+    prt_pointwise_breadcrumb_note(PRT_BREADCRUMB_PHASE_GEMMINI_POINTWISE_POSTCALL_FENCE_BEGIN,
+                                  stage_id, manager_id, conv,
+                                  (size_t)conv->out_channels, (size_t)conv->in_channels,
+                                  prt_pick_pointwise_matmul_fallback_type(tiled_type, (size_t)conv->out_channels),
+                                  &scope, rc, __LINE__);
     if (emit_hot_markers) {
       PRT_PROGRESS_RAW_LINE("[prt-raw] css-rf-b");
     }
     PRT_PROGRESS_RAW_LINE("[prt-raw] conv-sync-pointwise-fence-begin");
   }
   rc = prt_rr_fence_scope(&scope);
+  if (use_pointwise_matmul_fallback) {
+    prt_pointwise_breadcrumb_note(PRT_BREADCRUMB_PHASE_GEMMINI_POINTWISE_POSTCALL_RR_FENCE_RETURN,
+                                  stage_id, manager_id, conv,
+                                  (size_t)conv->out_channels, (size_t)conv->in_channels,
+                                  prt_pick_pointwise_matmul_fallback_type(tiled_type, (size_t)conv->out_channels),
+                                  &scope, rc, __LINE__);
+  }
   if (use_pointwise_matmul_fallback && emit_hot_markers) {
     PRT_PROGRESS_RAW_LINE("[prt-raw] css-rf-e");
   }
   gemmini_fence();
+  if (use_pointwise_matmul_fallback) {
+    prt_pointwise_breadcrumb_note(PRT_BREADCRUMB_PHASE_GEMMINI_POINTWISE_POSTCALL_GEMMINI_FENCE_RETURN,
+                                  stage_id, manager_id, conv,
+                                  (size_t)conv->out_channels, (size_t)conv->in_channels,
+                                  prt_pick_pointwise_matmul_fallback_type(tiled_type, (size_t)conv->out_channels),
+                                  &scope, rc, __LINE__);
+  }
   if (rc == PRT_OK) {
     if (use_pointwise_matmul_fallback && emit_hot_markers) {
       PRT_PROGRESS_RAW_LINE("[prt-raw] css-dr-b");
@@ -2333,8 +2477,17 @@ static int conv_call_for_manager_sync_strided(uint32_t stage_id, uint32_t manage
       PRT_PROGRESS_RAW_LINE("[prt-raw] css-dr-e");
     }
   }
+  if (use_pointwise_matmul_fallback) {
+    prt_pointwise_breadcrumb_note(PRT_BREADCRUMB_PHASE_GEMMINI_POINTWISE_POSTCALL_DRAIN_RETURN,
+                                  stage_id, manager_id, conv,
+                                  (size_t)conv->out_channels, (size_t)conv->in_channels,
+                                  prt_pick_pointwise_matmul_fallback_type(tiled_type, (size_t)conv->out_channels),
+                                  &scope, rc, __LINE__);
+  }
   prt_log_spm_xlate_snapshot("conv-sync post-fence", stage_id, manager_id, &scope);
-  PRT_PROGRESS_LOG("conv-sync-strided stage=%u mgr=%u fence-end rc=%d", stage_id, manager_id, rc);
+  if (emit_pointwise_sparse_progress) {
+    PRT_PROGRESS_LOG("conv-sync-strided stage=%u mgr=%u fence-end rc=%d", stage_id, manager_id, rc);
+  }
   PRT_PROGRESS_HOT_LOG("conv-sync stage=%u mgr=%u fence-end rc=%d", stage_id, manager_id, rc);
   prt_log_scope_marker("conv-sync release-begin", stage_id, manager_id, &scope);
   if (use_pointwise_matmul_fallback) {
@@ -2349,6 +2502,11 @@ static int conv_call_for_manager_sync_strided(uint32_t stage_id, uint32_t manage
   }
   if (use_pointwise_matmul_fallback) {
     PRT_PROGRESS_RAW_LINE("[prt-raw] conv-sync-pointwise-release-end");
+    prt_pointwise_breadcrumb_note(PRT_BREADCRUMB_PHASE_GEMMINI_POINTWISE_POSTCALL_RELEASE_RETURN,
+                                  stage_id, manager_id, conv,
+                                  (size_t)conv->out_channels, (size_t)conv->in_channels,
+                                  prt_pick_pointwise_matmul_fallback_type(tiled_type, (size_t)conv->out_channels),
+                                  &scope, rc, __LINE__);
   }
   return rc;
 }
@@ -2504,9 +2662,11 @@ static int run_conv_oc_split(const prt_conv_task_t *task, const prt_gemmini_conv
         sub.bias = bias ? (bias + oc_beg) : NULL;
         sub.output = output + oc_beg;
 
-        PRT_PROGRESS_LOG("oc-split-pointwise stage=%u tile=%u/%u mgr=%u oc_beg=%u oc_tile=%u in_stride=%d weight_stride=%d out_stride=%d begin",
-                         task->stage_id, t, tiles, mgr, oc_beg, oc_tile,
-                         prt_conv_input_stride(conv), full_weight_stride, full_out_stride);
+        if (prt_should_emit_pointwise_sparse_progress()) {
+          PRT_PROGRESS_LOG("oc-split-pointwise stage=%u tile=%u/%u mgr=%u oc_beg=%u oc_tile=%u in_stride=%d weight_stride=%d out_stride=%d begin",
+                           task->stage_id, t, tiles, mgr, oc_beg, oc_tile,
+                           prt_conv_input_stride(conv), full_weight_stride, full_out_stride);
+        }
         PRT_MARKER_LOG("oc-split-fastpath stage=%u tile=%u/%u mgr=%u oc_beg=%u oc_tile=%u in_stride=%d weight_stride=%d out_stride=%d mode=pointwise-direct-strided",
                        task->stage_id, t, tiles, mgr, oc_beg, oc_tile,
                        prt_conv_input_stride(conv), full_weight_stride, full_out_stride);
@@ -2517,8 +2677,10 @@ static int run_conv_oc_split(const prt_conv_task_t *task, const prt_gemmini_conv
                                                 full_weight_stride,
                                                 full_out_stride);
         if (rc != PRT_OK) return rc;
-        PRT_PROGRESS_LOG("oc-split-pointwise stage=%u tile=%u/%u mgr=%u oc_beg=%u oc_tile=%u end",
-                         task->stage_id, t, tiles, mgr, oc_beg, oc_tile);
+        if (prt_should_emit_pointwise_sparse_progress()) {
+          PRT_PROGRESS_LOG("oc-split-pointwise stage=%u tile=%u/%u mgr=%u oc_beg=%u oc_tile=%u end",
+                           task->stage_id, t, tiles, mgr, oc_beg, oc_tile);
+        }
         PRT_PROGRESS_HOT_LOG("oc-split stage=%u tile=%u/%u mgr=%u done mode=pointwise-direct-strided",
                              task->stage_id, t, tiles, mgr);
       }
@@ -3069,6 +3231,13 @@ static int gemm_issue_conv_task(prt_runtime_t *rt, const prt_conv_task_t *task,
 #endif
 }
 
+#if !defined(__riscv)
+static int prt_should_emit_hot_runtime_markers(void) {
+  if (!prt_log_gate_is_enabled()) return 1;
+  return prt_log_gate_allow_deep_logs();
+}
+#endif
+
 static int gemm_issue_grouped_conv_task(prt_runtime_t *rt, const prt_conv_task_t *task,
                                         const prt_gemmini_conv_desc_t *conv) {
   const int groups = prt_conv_groups(conv);
@@ -3090,6 +3259,9 @@ static int gemm_issue_grouped_conv_task(prt_runtime_t *rt, const prt_conv_task_t
   if (in_stride < groups * conv->in_channels || out_stride < groups * conv->out_channels) {
     return PRT_ERR_INVAL;
   }
+#if !defined(__riscv)
+  (void)compact_group_markers;
+#endif
 
   PRT_PROGRESS_HOT_ERR_LOG("gemm-issue-grouped-conv stage=%u split=%u groups=%d in_stride=%d out_stride=%d",
                            task->stage_id, (uint32_t)task->split_kind, groups, in_stride, out_stride);

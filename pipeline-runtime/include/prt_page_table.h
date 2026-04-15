@@ -108,6 +108,8 @@ uint64_t prt_spm_last_fault_vaddr(const prt_runtime_t *rt);
 uint32_t prt_spm_last_fault_cause(const prt_runtime_t *rt);
 size_t prt_host_page_size_bytes(void);
 int prt_host_virt_to_phys(const void *vaddr, uint64_t *paddr);
+void prt_host_virt_to_phys_debug_scope_push(const char *scope_tag);
+void prt_host_virt_to_phys_debug_scope_pop(void);
 
 #ifdef __cplusplus
 }

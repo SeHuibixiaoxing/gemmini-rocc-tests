@@ -1,206 +1,487 @@
 # Current Status
 
-更新时间：`2026-04-02`
+更新时间：`2026-04-14 16:52 UTC`
 
-## 冻结结论
+## 当前目标
 
-- 当前 `bertmini` 主线已经不再是 “Linux/F2 上 DMA 卡死”。最新可信结论是：**当前 mainline 已能完整执行完成，但 final golden mismatch**。
-- 当前 golden mismatch 调查暂时搁置。除非新的 fresh run 明确从“执行完成”退化回“卡死”，否则不要把当前状态重新写回旧的 DMA submit hang。
-- 当前交接默认应视为“没有需要继续挂着跑的实验”；恢复实验前，先重新核对 manager 状态和 EC2 实例，确保 run farm 已完全回收。
+- 主线：
+  `12-pair sbus128` dummy-model 上继续推进
+  `bertmini batch8 file-only`
+- 方法：
+  固定 workflow + freshness 闭环 + guest-file-first + breadcrumb
+- 调试策略：
+  先静态读代码与 artifact，
+  再读 capture，
+  最后才加新的窄 probe；
+  新一轮窄 probe 默认走
+  `trigger-gated short log`
+  而不是直接回到 deep log；
+  当前继续走 FPGA/FireSim 软件调试，
+  不做 bitstream 重建
 
-## 当前最可信主线结果
+## 当前 authoritative 结论
 
-冻结 workload / 配置：
+- 当前仍不改硬件；
+  本轮只做 FPGA/FireSim 软件调试、
+  静态审计和低扰动观测收敛。
+- fixed profile 已升级到
+  `pairdummy-sbus128-fixed-v20`，
+  且
+  [`src/prt_trigger_log.c`](../src/prt_trigger_log.c)
+  的 strict-trigger 语义已经生效：
+  命中前若事件不在目标维度内，
+  直接返回，
+  不再做
+  `seq/format_line/ring_push`。
+- `v20` control rerun
+  已完成 manager 侧收尾；
+  这轮的 manager 失败是基础设施侧
+  `Error reading SSH protocol banner`，
+  不是 guest panic / kernel crash。
+  对应 EC2
+  `i-0cfb64404d409fed9`
+  已确认
+  `terminated`。
+- 本轮最重要的有效结论不是
+  `page28`
+  新前沿，
+  而是：
+  旧的
+  `sb3/page24`
+  frontier
+  已经被穿过，
+  先前把它当成当前 blocker 的结论已失效。
+- 直接证据有三条：
+  1. trigger log
+     恰好只有
+     `33`
+     行，
+     等于
+     `match line + post_budget(32)`；
+     因而最后一行
+     `sb=3 page=28 ph=pset`
+     是 capture cutoff，
+     不是 authoritative frontier。
+  2. sparse log 明确出现：
+     - `c2-export stage=0 tensor=2 phase=copy-end idx=0 subbatch=3 rc=0`
+     - `worker stage=0 subbatch=3 done`
+     - `worker stage=0 subbatch=4 begin`
+     - `c2-export stage=0 tensor=2 phase=copy-begin idx=0 subbatch=4`
+  3. breadcrumb `--all`
+     中已有
+     `sb=4 tensor=2 page=63 dma_submitwait_after_cleanup`
+     /
+     `dma_page_end`
+     以及
+     `sb=4 rr_release_end`
+     记录，
+     说明 capture 时 guest 至少已经推进到
+     `subbatch=4`
+     的 export 后段 / cleanup 窗口。
+- 因此：
+  - 之前“新前沿在
+    `page28 pset -> v2p-b`
+    之间”的说法无效
+  - 当前更可信的表述是：
+    这轮 strict-trigger control rerun
+    证明旧的
+    `sb3/page24`
+    卡点已被穿过，
+    但新的 blocker 还未被重新精确定义
+- 对旧窗口
+  `sb3/page24..28`
+  的静态审计结论：
+  - 在
+    [`src/prt_dma.c`](../src/prt_dma.c)
+    的 export host 直通路径里，
+    `pset -> v2p-b`
+    之间没有新的硬件指令，
+    只剩：
+    `dma_chunk_needs_bounce()`
+    和紧邻其后的
+    `prt_host_virt_to_phys()`
+  - 结合本轮实际地址：
+    `src mod64 == dst mod64 == 0`
+    （page24..28 及 page63 均如此），
+    `dma_chunk_needs_bounce()`
+    为
+    `false`；
+    旧窗口不会走 bounce path，
+    也没有暴露新的硬件语义错位
+  - `req.src_acc == req.dst_acc == manager_id`
+    与外层
+    RR scope
+    的 acquire/release 语义保持一致，
+    当前看不出与
+    `HybridMapper`
+    / pair-manager
+    设计约束冲突的静态证据
+- 本轮新增一个纯软件工具修正：
+  [`scripts/triage_prt_capture.py`](../scripts/triage_prt_capture.py)
+  现在会解析
+  `guest-trigger-log.txt`，
+  并在
+  `trigger_line_count == post_budget + 1`
+  时明确提示：
+  当前 trigger log 已打满预算，
+  最后一行只能算 capture 截断点，
+  不能直接当 frontier。
+- 当前 blocker 排查 SOP 继续固定为：
+  1. artifact audit
+  2. 静态读代码
+  3. `triage_prt_capture.py`
+  4. 只有静态窗口仍不够细时，才用
+     `triage_prt_capture.py --emit-trigger-env`
+     生成 trigger overlay
+  5. 单变量 rerun
+- 下一轮不应再把 trigger 钉在
+  `sb3/page24`；
+  优先重定向到更靠后的窗口：
+  - 首选：
+    `dma-export sb=4 tensor=2 page=63`
+    并适当增大
+    `POST_BUDGET`
+    （如
+    `64`
+    或
+    `96`）
+  - 备选：
+    runtime family 仅钉
+    `subbatch=4`
+    的 worker 边界
+  - 仍然先静态读代码，
+    再做单变量 rerun
 
-- runtime config:
-  `/home/ubuntu/chipyard/sims/firesim/deploy/config_runtime_f2_rerocc_lc_linux_bertmini_pipeline_runtime_batch8_fileonly_sync_reloadlogs.yaml`
-- hwdb:
-  `/home/ubuntu/chipyard/sims/firesim/deploy/config_hwdb.yaml`
-- build recipe:
-  `/home/ubuntu/chipyard/sims/firesim/deploy/config_build_recipes_f2_gemmini_rerocc_globalnoc_coupleddma_10mhz.yaml`
-- workload json:
-  `/home/ubuntu/chipyard/sims/firesim/deploy/workloads/rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync.json`
+- `v15`
+  live run
+  `192.168.1.206`
+  已把 export 路径缩到：
+  `tensor=2 page=63 dma_page_end`
+  之后的极窄窗口：
+  - `dma_batch_scope_release(&scope)`
+  - `prt_rr_release_scope(scope)`
+  - `rr_release(cfg)`
+  - 以及上层
+    `c2-export copy-end/retire`
+- 这已经把旧的三类 export 候选清掉：
+  1. `dma_batch_scope_acquire()` /
+     `prt_rr_acquire_scope()` 返回边界
+  2. export page0 的
+     `prt_host_virt_to_phys((const void *)dst_ptr, &dst_pa)`
+  3. page0 首个
+     `dma_submit_wait_annotated_scoped()` /
+     `prt_dma_submit()` /
+     `prt_dma_wait()`
 
-冻结结果目录：
+- `v16`
+  通过新增
+  `RR_RELEASE_BEGIN/END`
+  breadcrumb
+  继续推进了同一条 live 主线：
+  - profile：
+    `pairdummy-sbus128-fixed-v16`
+  - host：
+    `192.168.1.68`
+  - sparse log 已明确出现：
+    - `c2-export stage=0 tensor=2 phase=copy-end idx=0 subbatch=3`
+    - `c2-export stage=0 tensor=2 phase=retire idx=0 next_sbatch=4`
+    - `worker stage=0 subbatch=3 done`
+    - `worker stage=0 subbatch=4 begin`
+    - `pointwise-matmul-fallback ... mgr=0..3 ... begin/end`
+    - `conv-sync-strided ... mgr=0..3 ... fence-end rc=0`
+- 因而新的 authoritative 结论是：
+  export 侧的
+  `rr_release`
+  不是 blocker；
+  当前前沿已经后移到
+  `stage0/subbatch4`
+  pointwise fallback
+  更晚的路径
 
-- result dir:
-  `/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-04-02--11-14-34-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-f2-rerocc-linux-bertmini-pipeline-runtime-batch8-fileonly-sync-reloadlogs/`
-- coarse log:
-  `/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-04-02--11-14-34-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-f2-rerocc-linux-bertmini-pipeline-runtime-batch8-fileonly-sync-reloadlogs/rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync0/bertmini-batch8.log`
-- deep log:
-  `/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-04-02--11-14-34-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-f2-rerocc-linux-bertmini-pipeline-runtime-batch8-fileonly-sync-reloadlogs/rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync0/bertmini-batch8.deep.log`
-- status:
-  `/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-04-02--11-14-34-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-f2-rerocc-linux-bertmini-pipeline-runtime-batch8-fileonly-sync-reloadlogs/rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync0/bertmini-batch8.status`
-- uartlog:
-  `/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-04-02--11-14-34-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-f2-rerocc-linux-bertmini-pipeline-runtime-batch8-fileonly-sync-reloadlogs/rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync0/uartlog`
+- 对 pointwise split-OC 路径做了静态审计：
+  - `split_1d_range()`
+    与 host 参考实现一致
+  - 子 conv 只对
+    `out_channels / weights / bias / output`
+    做
+    `oc_beg`
+    偏移，
+    仍保留 full
+    `in_stride=256`
+    `weight_stride=256`
+    `out_stride=256`
+  - 这与
+    `HybridMapper`
+    的按
+    `OC`
+    切分语义、
+    以及
+    [`runtime_mechanisms.md`](runtime_mechanisms.md)
+    /
+    [`alignment_constraints.md`](alignment_constraints.md)
+    中当前 runtime 兑现方式对齐；
+    静态上没看到
+    `tile4`
+    指针计算本身的错误
 
-这轮结果的关键证据：
+- 若把 `v16` sparse frontier 当真，
+  当前静态窗口已经非常窄：
+  从
+  `conv-sync-strided stage=0 mgr=3 fence-end rc=0`
+  到下一条可见的
+  `oc-split-pointwise ... end`
+  /
+  `mgr4 begin`
+  之间，
+  实际有语义动作的只剩：
+  - `prt_rr_release_scope(&scope)`
+  - 返回到
+    `conv_call_for_manager_sync_strided()`
+  - 回到外层
+    `oc-split-pointwise ... end`
+    和下一轮
+    `mgr4`
+    入口
 
-- `bertmini-batch8.log` 已明确到达：
-  - `segment=31 threaded backend complete target_subbatch=8`
-  - `golden mismatch: tensor=48 bytes=65536 mismatch=1823 first_idx=12 actual=8 golden=119 max_abs=135`
-  - `golden mismatch summary: tensors=1 total_mismatch=1823 first_tensor=48 ...`
-  - `runtime_run failed: mismatch (-13)`
-- `bertmini-batch8.status` 已明确记录：
-  - `state=finished`
-  - `exit_code=1`
-  - `uart_log_enable=0`
-  - `guest_log_enable=1`
-  - `guest_deep_log_enable=1`
-- `uartlog` 已明确记录：
-  - `Simulation complete.`
-  - `*** PASSED *** after 44898716942 cycles`
-  - `Script done on 2026-04-02 12:31:53+00:00 [COMMAND_EXIT_CODE="0"]`
+- 但这轮又发现了新的 observability 问题：
+  `v16`
+  同一份 capture 内，
+  sparse log 与 breadcrumb 前沿不一致
+  - sparse log 文件尾部只到：
+    `subbatch=4 mgr=3 fence-end`
+  - breadcrumb 却显示：
+    `subbatch=4 mgr=6 gemmini_pointwise_call_begin`
+- 静态阅读
+  [`src/prt_breadcrumb.c`](../src/prt_breadcrumb.c)
+  后确认根因：
+  旧实现的 breadcrumb slot 只按
+  `stage`
+  选槽，
+  所有
+  `stage 0`
+  的 Gemmini / RR / DMA 事件都在争抢同一个 slot；
+  在当前 live 并发下，
+  `last_phase`
+  不再可靠
 
-当前正确解释：
+- 本轮已做纯软件、低扰动修正：
+  - [`src/prt_breadcrumb.c`](../src/prt_breadcrumb.c)
+    - breadcrumb slot 现在按
+      `stage/subbatch/kind/manager/tensor/page/token`
+      做稳定 hash，
+      不再把整个
+      `stage 0`
+      压到单槽上
+  - [`scripts/decode_prt_breadcrumb.py`](../scripts/decode_prt_breadcrumb.py)
+    - `--all`
+      输出改为按
+      `seq`
+      排序，
+      便于直接看最新局部前沿
+  - [`scripts/pairdummy_sbus128_fixed_env.sh`](../scripts/pairdummy_sbus128_fixed_env.sh)
+    - profile 升级到
+      `pairdummy-sbus128-fixed-v17`
+    - 当前固定 profile 关闭了
+      fixed-load / export
+      高频 probe，
+      回到
+      breadcrumb-only
+      的低扰动观察面
 
-- FireSim/guest/关机回收链路都已经跑通。
-- 当前主线 failure 发生在 runtime final compare，而不是 Linux 启动、DMA submit、export wait、或 guest poweroff 阶段。
-- 因而当前最准确的状态表述是：
-  **“bertmini mainline completes, but current CPU-derived golden disagrees at tensor 48.”**
+- 继续观察 `v17`
+  live run 后，
+  又获得了比上一轮更窄的新前沿：
+  - `heartbeat.csv`
+    在
+    `724s -> 941s`
+    期间继续推进
+  - `bertmini-batch8.log`
+    大小固定在
+    `368377`
+    bytes
+  - sparse 文件尾始终停在：
+    `conv-sync-strided stage=0 mgr=7 flushed use_pointwise=1`
+  - 新的 static-first 结论因此变成：
+    当前可疑窗口已经前移到
+    `mgr7 flushed`
+    之后、
+    `dispatch=pointwise`
+    之前
 
-## 当前稳定工作负载
+- 对这段新窗口做静态阅读后确认：
+  在当前 fixed profile 下，
+  这段路径里已经没有新的硬件语义动作；
+  主要只剩：
+  - 若干不会真正落盘的 marker / crit 调用
+  - coarse guest log append
+    `dispatch=pointwise`
+  - 以及随后的
+    pointwise call-begin breadcrumb
+- 这意味着当前第一嫌疑从“硬件 release 语义”
+  转成了
+  “pointwise 热路径里剩余 coarse guest log 自干扰”
 
-### 1. 主线回归 workload
+- 本轮又补跑了静态 artifact 审计：
+  - `segments=13`
+  - `split_kind_coverage={'oc': 32, 'resadd_spatial': 6, 'single': 2}`
+  - `op_type_coverage={'conv': 32, 'resadd': 8}`
+  - 结果：
+    PASS
 
-- 名称：
-  `rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync`
-- 用途：
-  - 回归 Linux/F2 启动是否正常
-  - 回归文件日志链路是否正常
-  - 回归 `segment=31` 能否完整结束
-  - 回归当前 failure 是否仍停留在 `tensor=48` mismatch
-- 当前预期：
-  - 应完成运行并触发 FireSim copy-back
-  - 允许仍然返回 `tensor=48` mismatch
+- 因而本轮做了新的纯软件、低扰动修正：
+  - [`src/prt_gemmini_adapter.c`](../src/prt_gemmini_adapter.c)
+    - 当 breadcrumb 已启用时，
+      关闭 pointwise 热路径内已被 breadcrumb 覆盖的 coarse guest log
+  - [`scripts/pairdummy_sbus128_fixed_env.sh`](../scripts/pairdummy_sbus128_fixed_env.sh)
+    - profile 升到
+      `pairdummy-sbus128-fixed-v18`
+    - 关闭
+      `PIPELINE_RUNTIME_CRITICAL_UART_PROBE`
+      以去掉当前 profile 下本来就不会输出的
+      `CRIT`
+      探针格式化开销
 
-### 2. 小 Linux smoke
+- `v18`
+  已完成部署闭环：
+  - `image-closure`：
+    通过
+  - local freshness：
+    通过
+  - remote freshness：
+    `192.168.1.14`
+    通过
+  - runtime binary sha256：
+    `36e85f2a3e357f6d2b0fc79a741120f6566effebc3c140b36e56b8be325d0a97`
+  - firemarshal env sha256：
+    `04aa1fe0bb9e00d992924adb8c751f4fe16ed7138cd2d816c600e218edbd285e`
+  - remote image sha256：
+    `eb8ada339a11d77f2c61268e95f3cb26c91c61fd1d976dc768e3de1efe1dc9a3`
 
-- 结果目录：
-  `/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-03-20--06-16-29-rerocc-lc-linux-coupleddma-regression-small-pipelinefiles-f2-rerocc-linux-regression-small-pipelinefiles/`
-- 当前仍可采信的 marker：
-  - `DMA_MATRIX_RESULT mode=full pass=4 fail=0 expected=4 bytes=1024`
-  - `CASE_RESULT dma_dram_to_shared_misaligned_fullpage PASS`
-  - `SCENARIO_RESULT name=conv_dma_parallel_nonblocking pass=1`
-  - `NONBLOCKING_SUMMARY s1=1 s2=1 s3=1 s4=1`
-  - `ALL_TESTS_PASS`
-  - `COMMAND_EXIT_CODE="0"`
-- 用途：
-  如果未来又怀疑 FireSim infra、Linux bring-up、CoupledDMA 基本路径或 nonblocking 小回归坏掉，先回到这条 workload 对照，不要直接跳进 `bertmini` 主线。
+- `v18`
+  重新拉起 run farm 时，
+  `launchrunfarm`
+  曾因 AWS `f2.6xlarge`
+  容量不足在多个 subnet 间重试；
+  这不是新的 runtime blocker
 
-## 当前稳定技术事实
+- 当前 run 状态：
+  - 最近一次 control rerun：
+    - host：
+      `192.168.1.14`
+    - session：
+      `pairdummy-sbus128-runworkload-20260414-150549`
+    - results dir：
+      `sims/firesim/deploy/results-workload/2026-04-14--15-05-50-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-f2-gemmini-rerocc-pairmanager-dummy16x16-4c12p12-sbus128-linux-bertmini-batch8-fileonly-sync/`
+    - manager log：
+      `sims/firesim/deploy/logs/2026-04-14--15-05-50-runworkload-UIKVAB93PDHR9S5I.log`
+    - pane：
+      `tmp/firesim-aws-f2/tmux/pairdummy-sbus128-runworkload-20260414-150549.pane.log`
+    - official capture prefix：
+      `tmp/firesim-aws-f2/captures/pairdummy-sbus128-runworkload-20260414-150549-192.168.1.14-host-watchdog-20260414T152611Z`
+    - tmux exitcode：
+      `1`
+  - 这次退出是 manager 侧 SSH banner 中断，
+    发生在官方 capture 已落盘之后；
+    当前不要把它记成新的 guest root cause。
+  - 下一轮 rerun 前，
+    按固定 FireSim 约束重新做：
+    `launchrunfarm -> infrasetup -> runworkload`
+    不直接复用这次中断 run 的 manager 状态。
 
-### 硬件 / 运行时配置
+## 当前固定配置
 
-- 当前主线 `default_hw_config` 是：
-  `firesim_gemmini_rerocc_globalnoc_coupleddma_small_10mhz`
-- 当前主线 AGFI 是：
-  `agfi-06eb561d00d5c5dc1`
-- 当前主线 TARGET_CONFIG 是：
-  `GemminiLearningConfigSpadReRoCCGlobalNoC2C1x2G2x1x2D2x1x2CoupledDMA`
+- profile：
+  `pairdummy-sbus128-fixed-v19`
+- target：
+  `rerocc_globalnoc_pairmanager_dummy16x16_c4_g12_d12_spad1024kb_dram19_noc64_mac256_sbus128`
+- batch：
+  `8`
+- `NUM_CORES=4`
+- `NUM_GEMMINI=12`
+- `NUM_DMA=12`
+- `PAIR_MANAGER_MODE=1`
+- `DUMMY_GEMMINI_MODE=1`
+- `PIPELINE_RUNTIME_SKIP_MODEL_BIN_LOAD=1`
+- `PIPELINE_RUNTIME_SKIP_INPUT_LOAD=1`
+- `PIPELINE_RUNTIME_SKIP_GOLDEN_CHECK=1`
+- `PIPELINE_RUNTIME_MLOCKALL_MODE=2`
+- `PIPELINE_RUNTIME_UART_LOG_ENABLE=0`
+- `PIPELINE_RUNTIME_GUEST_LOG_ENABLE=1`
+- `PIPELINE_RUNTIME_GUEST_DEEP_LOG_ENABLE=0`
+- `PIPELINE_RUNTIME_CRITICAL_UART_PROBE=0`
+- `PIPELINE_RUNTIME_BREADCRUMB_ENABLE=1`
+- `PIPELINE_RUNTIME_DEBUG_TRIGGER_ENABLE=0`
+- `PIPELINE_RUNTIME_DMA_EXPORT_PROBE_ENABLE=0`
+- `PIPELINE_RUNTIME_DMA_FIXED_LOAD_PROBE_ENABLE=0`
+- `PIPELINE_RUNTIME_DISABLE_MAPPING_CACHE=1`
+- 当前 profile 的目的：
+  在不回到高频文本 probe 的前提下，
+  让 pointwise 热路径回到
+  breadcrumb-first
+  观察面，
+  避免 coarse guest log
+  在同一窗口里继续自扰；
+  trigger-gated 短日志默认保持关闭，
+  只在 triage 明确建议后做单变量 overlay
 
-### 当前数据类型与 padding 语义
+## 当前关键文档
 
-- 当前 Gemmini 基本配置不是“8-bit input / 16-bit output”。
-- 当前静态代码显示：
-  - `inputType = SInt(8.W)`
-  - `accType = SInt(32.W)`
-  - `spatialArrayOutputType = SInt(20.W)`
-- 当前卷积越界语义是 **zero padding**，不是 edge clamp。
+- 总纲：
+  [`project_guide.md`](project_guide.md)
+- 硬约束：
+  [`constraints/hard_constraints.md`](constraints/hard_constraints.md)
+- 固定流程：
+  [`workflows/pairdummy_sbus128.md`](workflows/pairdummy_sbus128.md)
+- 观测机制：
+  [`testing/observability.md`](testing/observability.md)
 
-### 当前同步语义
+## 当前最新记录
 
-- 当前 runtime 在 `spm_xlate_enable=1` 的 scene 下，会把 `sync_mode` 强制收敛到 `blocking_debug`。
-- 结果是当前主线 scene 会进一步强制：
-  - `dma_backend = PRT_DMA_BACKEND_BLOCKING_FENCE`
-  - `gemmini_mode = PRT_GEMMINI_MODE_BLOCKING_FENCE`
-- 因而当前 `bertmini` 主线不要再按“异步 overlap 已完全打开”的前提去推理。
+- debug：
+  [`../debug_records/20260414T103114Z.md`](../debug_records/20260414T103114Z.md)
+- change：
+  [`../change_records/20260414T103114Z.md`](../change_records/20260414T103114Z.md)
+- debug：
+  [`../debug_records/20260414T125526Z.md`](../debug_records/20260414T125526Z.md)
+- change：
+  [`../change_records/20260414T125526Z.md`](../change_records/20260414T125526Z.md)
+- debug：
+  [`../debug_records/20260414T132728Z.md`](../debug_records/20260414T132728Z.md)
+- change：
+  [`../change_records/20260414T132728Z.md`](../change_records/20260414T132728Z.md)
+- debug：
+  [`../debug_records/20260414T144739Z.md`](../debug_records/20260414T144739Z.md)
+- change：
+  [`../change_records/20260414T144739Z.md`](../change_records/20260414T144739Z.md)
+- debug：
+  [`../debug_records/20260414T153308Z.md`](../debug_records/20260414T153308Z.md)
+- change：
+  [`../change_records/20260414T153308Z.md`](../change_records/20260414T153308Z.md)
 
-### 当前 `num_cores` 语义债
+## 下一步
 
-- 当前 runtime 里的 `num_cores` 不是“纯 CPU/hart 数”的干净语义。
-- 现状是它被同时拿去表示：
-  - CPU/hart 相关上界
-  - accelerator slot / local acc domain 数
-  - page allocator / `pages_per_acc` 的分配域数
-- 这也是当前代码里会强制
-  `num_cores >= num_gemmini_mgrs`
-  的直接原因；这条绑定来自实现残留，不是冻结的架构要求。
-- 当前静态证据包括：
-  - runtime init 会直接把 `num_cores` 拉高到不少于 `num_gemmini_mgrs`
-  - fallback manager 选择在未显式绑定时会走 `stage_idx % num_cores`
-  - page allocator、SPM PT pool、page leak 检查都按 `num_cores * pages_per_acc` 建模
-- 因而后续不要把这条绑定解释成：
-  “CPU 数必须和 Gemmini 数绑定”。
-- 更准确的解释是：
-  当前实现还没有把
-  `num_cpu_harts`
-  、
-  `num_acc_slots/page_domains`
-  、
-  `num_gemmini_mgrs/num_dma_mgrs`
-  彻底拆开。
-- 这和更高层目标并不矛盾：
-  当前代码本身已经独立保留了
-  `PRT_MAX_CORES=64`
-  、
-  `PRT_MAX_ACTIONS=6`
-  、
-  `PRT_MAX_STAGES=128`
-  这些上限；后续如果恢复架构性重构，正确方向应是拆语义，而不是继续拿 `num_cores` 代表一切。
-
-### 当前日志策略
-
-- 当前主线结论建立在“bin/runtime 日志走 guest 文件，而不是 UART”这个前提上。
-- 当前冻结结果的 status 已明确是：
-  - `uart_log_enable=0`
-  - `guest_log_enable=1`
-  - `guest_deep_log_enable=1`
-- 当前粗粒度日志文件：
-  `/root/pipeline-runtime-debug/bertmini-batch8.log`
-- 当前细粒度日志文件：
-  `/root/pipeline-runtime-debug/bertmini-batch8.deep.log`
-- 当前细日志支持按 `segment/global_stage/local_stage/subbatch` gating；后续如果只想看某个卡点附近，优先用 gating 缩范围，而不是重新把 bin 日志打回 UART。
-
-## 当前 golden mismatch 为什么先搁置
-
-当前 mismatch 是真实现象，但它不是“已经证明 RTL/硬件错误”的充分证据，原因至少有三层：
-
-- 当前 runtime artifact manifest 仍是 `mode: fresh`，而 fresh 导出链只明确重新生成了 `runtime_model.bin` 和 `runtime_input.bin` 的 dummy 数据路径。
-- 当前 `golden.*.bin` 仍是 host closure 里的 CPU backend 生成物，而不是来自独立硬件真值源。
-- 当前 runtime 里仍有调试期硬编码语义：
-  - conv activation 临时统一按 `RELU`
-  - conv output scale 临时固定为 `1.0`
-  - resadd 的 `A/B/C_scale` 固定为 `1.0`
-  - resadd `relu=0`
-
-所以当前更准确的说法是：
-
-- 已经证明 FPGA backend 与当前 CPU reference 在这批 synthetic bertmini-shape artifacts 上存在分歧。
-- 但还没有证明分歧一定来自 Gemmini RTL、CoupledDMA RTL、或当前硬件配置。
-
-当前冻结策略：
-
-- **golden mismatch 暂不继续深挖。**
-- 只有当主线执行完成能力再次稳定复现后，才按“重新生成 golden -> 重新 build/install image -> fresh rerun”的顺序恢复这条调查。
-
-## 保留下来的旧 blocker 证据
-
-- `2026-04-01` 的旧 mainline hang 证据依然保留为“历史 regression 签名”，但不再是当前状态本身。
-- 最有代表性的旧 capture 仍是：
-  `/home/ubuntu/chipyard/tmp/firesim-aws-f2/captures/bertmini-b8-fileonly-sync6-run-manualmon3-20260401-192.168.1.44-host-watchdog-20260401T152744Z.guest-deep-log.txt`
-- 它冻结的旧边界是：
-  `segment=3 stage=0 tensor=6 page=124 ... submit-begin -> [prt-marker] dma`
-- 这条旧证据现在只用于：
-  如果未来 fresh run 再次回退成 hang，可用来判断是否退回了旧 submit-window regression。
-
-## 如果未来恢复 mismatch 调查
-
-按下面顺序恢复，不要跳步：
-
-1. 先修掉 host `pipeline_runtime` 全量构建里的现存告警/`-Werror` 阻塞。
-2. 重新跑 host closure，刷新 `golden.*.bin`。
-3. 重新 `marshal build` / `marshal install`。
-4. 在跑 `infrasetup` 或 `runworkload` 前，重新核对 image/rootfs freshness。
-5. 再做新的 FireSim run。
-6. 每轮 run 结束后，立刻回收 run farm。
+1. terminate 这次中断 run 对应的 run farm，
+   然后重新：
+   `launchrunfarm -> infrasetup`
+2. 在单独 subshell 中叠加下面这组单变量 trigger：
+   - `PIPELINE_RUNTIME_DEBUG_TRIGGER_ENABLE=1`
+   - `PIPELINE_RUNTIME_DEBUG_TRIGGER_KIND=dma-export`
+   - `PIPELINE_RUNTIME_DEBUG_TRIGGER_SEGMENT=0`
+   - `PIPELINE_RUNTIME_DEBUG_TRIGGER_GLOBAL_STAGE=0`
+   - `PIPELINE_RUNTIME_DEBUG_TRIGGER_LOCAL_STAGE=0`
+   - `PIPELINE_RUNTIME_DEBUG_TRIGGER_SUBBATCH=3`
+   - `PIPELINE_RUNTIME_DEBUG_TRIGGER_MANAGER=0`
+   - `PIPELINE_RUNTIME_DEBUG_TRIGGER_TENSOR_ID=2`
+   - `PIPELINE_RUNTIME_DEBUG_TRIGGER_PAGE=24`
+3. 先跑：
+   `pairdummy_sbus128_workflow.sh debug-preflight`
+4. 通过后再做单变量 rerun，
+   只看：
+   - `heartbeat.csv`
+   - `bertmini-batch8.status`
+   - `bertmini-batch8.breadcrumb.bin`
+   - `bertmini-batch8.trigger.log`
+5. rerun 后继续按
+   “静态读代码 -> capture -> 更窄软件 probe”
+   顺序推进；
+   继续禁止硬件修改

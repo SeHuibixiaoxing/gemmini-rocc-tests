@@ -11,6 +11,8 @@
 extern "C" {
 #endif
 
+struct prt_runtime_s;
+
 #define PRT_MAX_CORES 64
 #define PRT_MAX_ACTIONS 6
 #define PRT_MAX_TILE_SPLITS 32
@@ -99,6 +101,9 @@ typedef struct {
   uint32_t id;
   uint32_t stage_idx;
   uint32_t tensor_id;
+  struct prt_runtime_s *owner_rt;
+  volatile uint32_t *completion_flag;
+  uint32_t completion_slot;
   volatile int done;
   volatile int hw_done_flag;
   int hw_done_flag_pa_rc;
@@ -113,9 +118,11 @@ typedef struct {
   uint32_t debug_src_acc;
   uint32_t debug_dst_acc;
   uint32_t debug_progress_polls;
+  int debug_force_export_probe;
   int traced_complete;
   int status;
   int rr_scope_valid;
+  int rr_scope_external;
   uint32_t rr_cfg_id;
   uint32_t rr_manager_id;
   uint32_t rr_opcode_id;
@@ -317,6 +324,8 @@ typedef struct {
   prt_stage_map_t *stages;
   uint32_t num_ring_cfg;
   prt_ring_cfg_t *ring_cfgs;
+  prt_u32_map_t transport_effective_bytes;
+  prt_u32_map_t ring_slot_effective_bytes;
   uint32_t segment_spm_page_span;
   uint32_t buffer_binding_count;
   prt_buffer_binding_t *buffer_bindings;
@@ -378,6 +387,7 @@ typedef struct {
   uint32_t num_dma_mgrs;
   uint32_t gemmini_mgr_base_id;
   uint32_t dma_mgr_base_id;
+  uint32_t pair_manager_mode;
   prt_backend_t backend;
   uint32_t page_size_bytes;
   uint32_t spm_xlate_enable;
@@ -409,9 +419,12 @@ typedef struct {
   const char *layer_mapping_yaml;
   const char *model_bin;
   uint64_t model_offset_bytes;
+  uint32_t skip_model_bin_load;
   const char *pipeline_yaml;
   const char *input_path;
+  uint32_t skip_input_load;
   const char *golden_path;
+  uint32_t skip_golden_check;
   const char *golden_out_path;
   uint32_t batch;
 } prt_run_args_t;
@@ -426,6 +439,33 @@ typedef struct {
   prt_stage_op_t op_kind;
   void *opaque_task;
 } prt_conv_task_t;
+
+static inline int prt_cfg_pair_manager_mode_enabled(const prt_runtime_cfg_t *cfg) {
+  return cfg && cfg->pair_manager_mode != 0U;
+}
+
+static inline uint32_t prt_cfg_gemmini_mgr_count(const prt_runtime_cfg_t *cfg) {
+  return cfg ? cfg->num_gemmini_mgrs : 0U;
+}
+
+static inline uint32_t prt_cfg_dma_mgr_count(const prt_runtime_cfg_t *cfg) {
+  if (!cfg) return 0U;
+  if (prt_cfg_pair_manager_mode_enabled(cfg)) return cfg->num_gemmini_mgrs;
+  return cfg->num_dma_mgrs;
+}
+
+static inline uint32_t prt_cfg_gemmini_manager_id(const prt_runtime_cfg_t *cfg,
+                                                  uint32_t local_idx) {
+  if (!cfg) return 0U;
+  return cfg->gemmini_mgr_base_id + local_idx;
+}
+
+static inline uint32_t prt_cfg_dma_manager_id(const prt_runtime_cfg_t *cfg,
+                                              uint32_t local_idx) {
+  if (!cfg) return 0U;
+  if (prt_cfg_pair_manager_mode_enabled(cfg)) return cfg->gemmini_mgr_base_id + local_idx;
+  return cfg->dma_mgr_base_id + local_idx;
+}
 
 #ifdef __cplusplus
 }

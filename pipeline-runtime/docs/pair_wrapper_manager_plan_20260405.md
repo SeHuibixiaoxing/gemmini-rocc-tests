@@ -354,6 +354,33 @@ baremetal 最小适配当前也已经落地：
   3. 复用当前 active FPGA 目标的资源旋钮
   4. 在 small-config pair-wrapper 稳定基线上再考虑 FireSim / buildbitstream
 
+### 8.2 2026-04-07 runtime 软件适配补充
+
+当前仓库中的 `pipeline-runtime` 已补上一层显式 pair-manager 适配，软件契约收敛为：
+
+- 新增 runtime CLI / cfg 开关：
+  - `--pair-manager-mode <0|1>`
+- `pair_manager_mode = 0`：
+  - 保持旧的 separate-manager 语义
+  - 默认 `dma_base_id = gemmini_base_id + num_gemmini_mgrs`
+- `pair_manager_mode = 1`：
+  - `num_gemmini_mgrs` / `num_dma_mgrs` 必须相等
+  - `gemmini_base_id` / `dma_base_id` 必须相等
+  - stage 级别的 Gemmini / DMA manager-id 使用同一个 pair manager 空间
+  - `custom3` 仍走 Gemmini，`custom2` 仍走 DMA
+  - 本轮没有改写 `pipeline-runtime/src/prt_rerocc.c` 的 acquire/fence/release 协议，只改正 manager-id 映射
+
+当前脚本入口也同步收紧为：
+
+- `run_rerocc_pipeline_runtime_bertmini.sh`
+  - 通过环境变量 `PAIR_MANAGER_MODE=1` 进入 pair-manager 运行方式
+  - pair 模式下如果 `NUM_DMA != NUM_GEMMINI` 或 `DMA_BASE_ID != GEMMINI_BASE_ID`，脚本会直接报错
+
+当前必须继续遵守的运行约束：
+
+- 任何 binary / rootfs / workload / AGFI 变化之后，FireSim 都必须重新执行一次 `infrasetup`
+- 每次 FireSim 验证结束后都必须立即 `terminaterunfarm`，并额外确认实例真的进入 `shutting-down` 或 `terminated`
+
 ## 9. 给下一个 AI 的 Prompt
 
 ```text

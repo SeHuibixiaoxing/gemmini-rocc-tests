@@ -38,12 +38,22 @@ struct prt_spm_pt_chunk_s {
   uint32_t free_cap;
 };
 
+static __thread const char *t_prt_host_v2p_debug_scope = NULL;
+
 size_t prt_host_page_size_bytes(void) {
 #if defined(__linux__)
   long page_sz = sysconf(_SC_PAGESIZE);
   if (page_sz > 0) return (size_t)page_sz;
 #endif
   return 4096U;
+}
+
+void prt_host_virt_to_phys_debug_scope_push(const char *scope_tag) {
+  t_prt_host_v2p_debug_scope = scope_tag;
+}
+
+void prt_host_virt_to_phys_debug_scope_pop(void) {
+  t_prt_host_v2p_debug_scope = NULL;
 }
 
 static size_t align_up_size(size_t value, size_t align) {
@@ -65,11 +75,15 @@ static size_t linux_huge_page_size_bytes(void) {
   FILE *fp;
   char line[128];
 
+  PRT_CHECKPOINT_LOG("spm-pt checkpoint=huge-page-size-enter cached=%llu",
+                     (unsigned long long)cached);
   if (cached != 0) return cached;
 
   fp = fopen("/proc/meminfo", "r");
   if (!fp) {
     cached = 2U * 1024U * 1024U;
+    PRT_CHECKPOINT_LOG("spm-pt checkpoint=huge-page-size-open-fail fallback=%llu",
+                       (unsigned long long)cached);
     return cached;
   }
 
@@ -83,7 +97,85 @@ static size_t linux_huge_page_size_bytes(void) {
 
   fclose(fp);
   if (cached == 0) cached = 2U * 1024U * 1024U;
+  PRT_CHECKPOINT_LOG("spm-pt checkpoint=huge-page-size-exit size=%llu",
+                     (unsigned long long)cached);
   return cached;
+}
+
+static int linux_hugetlb_meminfo(size_t *out_total_pages, size_t *out_free_pages) {
+  FILE *fp;
+  char line[128];
+  size_t total_pages = 0;
+  size_t free_pages = 0;
+  int saw_total = 0;
+  int saw_free = 0;
+
+  PRT_CHECKPOINT_LOG("spm-pt checkpoint=hugetlb-meminfo-enter");
+  fp = fopen("/proc/meminfo", "r");
+  if (!fp) {
+    PRT_CHECKPOINT_LOG("spm-pt checkpoint=hugetlb-meminfo-open-fail");
+    return 0;
+  }
+
+  while (fgets(line, sizeof(line), fp) != NULL) {
+    if (sscanf(line, "HugePages_Total: %zu", &total_pages) == 1) {
+      saw_total = 1;
+      continue;
+    }
+    if (sscanf(line, "HugePages_Free: %zu", &free_pages) == 1) {
+      saw_free = 1;
+      continue;
+    }
+  }
+
+  fclose(fp);
+  if (!saw_total || !saw_free) {
+    PRT_CHECKPOINT_LOG("spm-pt checkpoint=hugetlb-meminfo-missing total_seen=%d free_seen=%d",
+                       saw_total, saw_free);
+    return 0;
+  }
+
+  if (out_total_pages) *out_total_pages = total_pages;
+  if (out_free_pages) *out_free_pages = free_pages;
+  PRT_CHECKPOINT_LOG("spm-pt checkpoint=hugetlb-meminfo-exit total=%llu free=%llu",
+                     (unsigned long long)total_pages,
+                     (unsigned long long)free_pages);
+  return 1;
+}
+
+static int linux_hugetlb_can_cover_bytes(size_t req_bytes, size_t *out_need_pages,
+                                         size_t *out_total_pages, size_t *out_free_pages) {
+  const size_t huge_page_bytes = linux_huge_page_size_bytes();
+  size_t total_pages = 0;
+  size_t free_pages = 0;
+  size_t need_pages = 0;
+  int parsed = 0;
+
+  PRT_CHECKPOINT_LOG("spm-pt checkpoint=hugetlb-can-cover-enter req_bytes=%llu",
+                     (unsigned long long)req_bytes);
+  if (huge_page_bytes == 0U) return 0;
+
+  need_pages = align_up_size(req_bytes, huge_page_bytes) / huge_page_bytes;
+  parsed = linux_hugetlb_meminfo(&total_pages, &free_pages);
+
+  if (out_need_pages) *out_need_pages = need_pages;
+  if (out_total_pages) *out_total_pages = total_pages;
+  if (out_free_pages) *out_free_pages = free_pages;
+  if (!parsed) {
+    PRT_CHECKPOINT_LOG("spm-pt checkpoint=hugetlb-can-cover-parse-fail req_bytes=%llu need_pages=%llu",
+                       (unsigned long long)req_bytes,
+                       (unsigned long long)need_pages);
+    return 0;
+  }
+
+  PRT_CHECKPOINT_LOG("spm-pt checkpoint=hugetlb-can-cover-exit req_bytes=%llu huge_page=%llu need_pages=%llu total_pages=%llu free_pages=%llu can_cover=%d",
+                     (unsigned long long)req_bytes,
+                     (unsigned long long)huge_page_bytes,
+                     (unsigned long long)need_pages,
+                     (unsigned long long)total_pages,
+                     (unsigned long long)free_pages,
+                     free_pages >= need_pages);
+  return free_pages >= need_pages;
 }
 #endif
 
@@ -106,49 +198,149 @@ int prt_host_virt_to_phys(const void *vaddr, uint64_t *paddr) {
   const uint64_t pfn_mask = (1ULL << 55) - 1ULL;
   uint64_t pfn;
   int fd;
+  const char *scope_tag = t_prt_host_v2p_debug_scope;
+  const int trace_v2p = scope_tag != NULL && prt_log_gate_allow_deep_logs();
 
   if (!paddr) return PRT_ERR_INVAL;
+  if (trace_v2p) {
+    PRT_PROGRESS_LOG("host-v2p begin scope=%s va=0x%llx page_sz=%zu vpn=%llu offset=%lld",
+                     scope_tag,
+                     (unsigned long long)va,
+                     page_sz,
+                     (unsigned long long)vpn,
+                     (long long)offset);
+  }
   fd = linux_pagemap_fd();
-  if (fd < 0) return PRT_ERR_IO;
+  if (fd < 0) {
+    if (trace_v2p) {
+      PRT_PROGRESS_LOG("host-v2p fd-fail scope=%s va=0x%llx rc=%d",
+                       scope_tag,
+                       (unsigned long long)va,
+                       PRT_ERR_IO);
+    }
+    return PRT_ERR_IO;
+  }
 
+  if (trace_v2p) {
+    PRT_PROGRESS_LOG("host-v2p pread-begin scope=%s va=0x%llx offset=%lld",
+                     scope_tag,
+                     (unsigned long long)va,
+                     (long long)offset);
+  }
   n = pread(fd, &entry, sizeof(entry), offset);
-  if (n != (ssize_t)sizeof(entry)) return PRT_ERR_IO;
-  if ((entry & present) == 0) return PRT_ERR_NOT_READY;
+  if (trace_v2p) {
+    PRT_PROGRESS_LOG("host-v2p pread-end scope=%s va=0x%llx n=%lld entry=0x%llx",
+                     scope_tag,
+                     (unsigned long long)va,
+                     (long long)n,
+                     (unsigned long long)entry);
+  }
+  if (n != (ssize_t)sizeof(entry)) {
+    if (trace_v2p) {
+      PRT_PROGRESS_LOG("host-v2p read-fail scope=%s va=0x%llx rc=%d errno=%d",
+                       scope_tag,
+                       (unsigned long long)va,
+                       PRT_ERR_IO,
+                       errno);
+    }
+    return PRT_ERR_IO;
+  }
+  if ((entry & present) == 0) {
+    if (trace_v2p) {
+      PRT_PROGRESS_LOG("host-v2p not-present scope=%s va=0x%llx entry=0x%llx",
+                       scope_tag,
+                       (unsigned long long)va,
+                       (unsigned long long)entry);
+    }
+    return PRT_ERR_NOT_READY;
+  }
 
   pfn = entry & pfn_mask;
-  if (pfn == 0) return PRT_ERR_NOT_READY;
+  if (pfn == 0) {
+    if (trace_v2p) {
+      PRT_PROGRESS_LOG("host-v2p pfn-zero scope=%s va=0x%llx entry=0x%llx",
+                       scope_tag,
+                       (unsigned long long)va,
+                       (unsigned long long)entry);
+    }
+    return PRT_ERR_NOT_READY;
+  }
 
   *paddr = pfn * (uint64_t)page_sz + (va % (uint64_t)page_sz);
+  if (trace_v2p) {
+    PRT_PROGRESS_LOG("host-v2p end scope=%s va=0x%llx pfn=0x%llx pa=0x%llx",
+                     scope_tag,
+                     (unsigned long long)va,
+                     (unsigned long long)pfn,
+                     (unsigned long long)*paddr);
+  }
   return PRT_OK;
 }
 
 static int probe_phys_contig_range(void *base, size_t bytes, size_t probe_page_bytes,
                                    uint64_t *base_pa, int *last_rc) {
   uint64_t first_pa = 0;
+  const size_t progress_bytes = 1U * 1024U * 1024U;
+  size_t next_progress = progress_bytes;
   int rc = PRT_OK;
 
   if (!base || probe_page_bytes == 0 || !base_pa) return PRT_ERR_INVAL;
 
-  memset(base, 0, bytes);
+  PRT_PROGRESS_LOG("spm-pt probe begin base=%p bytes=%llu probe_page=%llu pages=%llu",
+                   base,
+                   (unsigned long long)bytes,
+                   (unsigned long long)probe_page_bytes,
+                   (unsigned long long)(bytes / probe_page_bytes));
   for (size_t off = 0; off < bytes; off += probe_page_bytes) {
     uint64_t pa = 0;
     volatile uint8_t *ptr = (volatile uint8_t *)base + off;
+    if (off == 0U) {
+      PRT_PROGRESS_LOG("spm-pt probe first-page begin base=%p off=%llu",
+                       base, (unsigned long long)off);
+    }
     *ptr = 0;
     rc = prt_host_virt_to_phys((const void *)ptr, &pa);
     if (rc != PRT_OK) {
       if (last_rc) *last_rc = rc;
+      PRT_PROGRESS_LOG("spm-pt probe fail base=%p off=%llu rc=%d",
+                       base, (unsigned long long)off, rc);
       return rc;
+    }
+    if (off == 0U) {
+      PRT_PROGRESS_LOG("spm-pt probe first-page end base=%p off=%llu pa=0x%llx",
+                       base,
+                       (unsigned long long)off,
+                       (unsigned long long)pa);
     }
     if (off == 0) {
       first_pa = pa;
     } else if (pa != first_pa + (uint64_t)off) {
       if (last_rc) *last_rc = PRT_ERR_NOT_READY;
+      PRT_PROGRESS_LOG("spm-pt probe noncontig base=%p off=%llu first_pa=0x%llx pa=0x%llx",
+                       base,
+                       (unsigned long long)off,
+                       (unsigned long long)first_pa,
+                       (unsigned long long)pa);
       return PRT_ERR_NOT_READY;
+    }
+    if (bytes > progress_bytes) {
+      const size_t touched_bytes = off + probe_page_bytes;
+      if (touched_bytes >= next_progress || touched_bytes == bytes) {
+        PRT_PROGRESS_LOG("spm-pt probe progress base=%p touched_bytes=%llu/%llu",
+                         base,
+                         (unsigned long long)touched_bytes,
+                         (unsigned long long)bytes);
+        while (next_progress <= touched_bytes && next_progress < bytes) {
+          next_progress += progress_bytes;
+        }
+      }
     }
   }
 
   *base_pa = first_pa;
   if (last_rc) *last_rc = PRT_OK;
+  PRT_PROGRESS_LOG("spm-pt probe end base=%p base_pa=0x%llx",
+                   base, (unsigned long long)first_pa);
   return PRT_OK;
 }
 
@@ -163,12 +355,20 @@ static int try_alloc_contig_hugetlb_anon(size_t req_bytes, size_t probe_page_byt
 
   if (!out_base || !out_alloc_bytes || !out_base_pa) return PRT_ERR_INVAL;
 
+  PRT_PROGRESS_LOG("spm-pt hugetlb anon begin req_bytes=%llu alloc_bytes=%llu probe_page=%llu",
+                   (unsigned long long)req_bytes,
+                   (unsigned long long)alloc_bytes,
+                   (unsigned long long)probe_page_bytes);
+
+  /*
+   * Do not use MAP_POPULATE here. On the FireSim RISC-V guest it hides the
+   * actual page-fault work inside mmap(), which both obscures progress and can
+   * stall for a long time without any intermediate observability. The explicit
+   * page-touch/probe path below establishes the mapping and validates physical
+   * contiguity with visible progress logs.
+   */
   base = mmap(NULL, alloc_bytes, PROT_READ | PROT_WRITE,
-              MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB
-#ifdef MAP_POPULATE
-                  | MAP_POPULATE
-#endif
-              ,
+              MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB,
               -1, 0);
   if (base == MAP_FAILED) {
     int err = errno;
@@ -176,6 +376,8 @@ static int try_alloc_contig_hugetlb_anon(size_t req_bytes, size_t probe_page_byt
                      (unsigned long long)alloc_bytes, err);
     return err == ENOMEM ? PRT_ERR_NOMEM : PRT_ERR_NOT_READY;
   }
+  PRT_PROGRESS_LOG("spm-pt hugetlb anon mmap ok base=%p alloc_bytes=%llu",
+                   base, (unsigned long long)alloc_bytes);
 
   rc = probe_phys_contig_range(base, req_bytes, probe_page_bytes, &base_pa, NULL);
   if (rc != PRT_OK) {
@@ -212,31 +414,63 @@ static int try_alloc_contig_hugetlbfs(size_t req_bytes, size_t probe_page_bytes,
 
   if (!out_base || !out_alloc_bytes || !out_base_pa) return PRT_ERR_INVAL;
 
+  PRT_PROGRESS_LOG("spm-pt hugetlbfs begin req_bytes=%llu alloc_bytes=%llu probe_page=%llu path_dir=%s",
+                   (unsigned long long)req_bytes,
+                   (unsigned long long)alloc_bytes,
+                   (unsigned long long)probe_page_bytes,
+                   dir);
+  PRT_CHECKPOINT_LOG("spm-pt checkpoint=hugetlbfs-begin req_bytes=%llu alloc_bytes=%llu probe_page=%llu path_dir=%s",
+                     (unsigned long long)req_bytes,
+                     (unsigned long long)alloc_bytes,
+                     (unsigned long long)probe_page_bytes,
+                     dir);
+
   snprintf(path, sizeof(path), "%s/prt-spm-pt-%ld-%u", dir, (long)getpid(), seq++);
+  PRT_PROGRESS_LOG("spm-pt hugetlbfs open begin path=%s", path);
+  PRT_CHECKPOINT_LOG("spm-pt checkpoint=hugetlbfs-open-begin path=%s", path);
   fd = open(path, O_CREAT | O_EXCL | O_RDWR, 0600);
   if (fd < 0) {
-    int err = errno;
-    PRT_PROGRESS_LOG("spm-pt hugetlbfs open failed path=%s errno=%d", path, err);
+    PRT_PROGRESS_LOG("spm-pt hugetlbfs open failed path=%s errno=%d", path, errno);
+    PRT_CHECKPOINT_LOG("spm-pt checkpoint=hugetlbfs-open-fail path=%s errno=%d", path, errno);
     return PRT_ERR_NOT_READY;
   }
+  PRT_PROGRESS_LOG("spm-pt hugetlbfs open end path=%s fd=%d", path, fd);
+  PRT_CHECKPOINT_LOG("spm-pt checkpoint=hugetlbfs-open-end path=%s fd=%d", path, fd);
 
+  PRT_PROGRESS_LOG("spm-pt hugetlbfs ftruncate begin path=%s bytes=%llu",
+                   path, (unsigned long long)alloc_bytes);
+  PRT_CHECKPOINT_LOG("spm-pt checkpoint=hugetlbfs-ftruncate-begin path=%s bytes=%llu",
+                     path, (unsigned long long)alloc_bytes);
   if (ftruncate(fd, (off_t)alloc_bytes) != 0) {
     int err = errno;
     PRT_PROGRESS_LOG("spm-pt hugetlbfs ftruncate failed path=%s bytes=%llu errno=%d",
                      path,
                      (unsigned long long)alloc_bytes,
                      err);
+    PRT_CHECKPOINT_LOG("spm-pt checkpoint=hugetlbfs-ftruncate-fail path=%s bytes=%llu errno=%d",
+                       path,
+                       (unsigned long long)alloc_bytes,
+                       err);
     close(fd);
     unlink(path);
     return err == ENOMEM ? PRT_ERR_NOMEM : PRT_ERR_NOT_READY;
   }
+  PRT_PROGRESS_LOG("spm-pt hugetlbfs ftruncate end path=%s bytes=%llu",
+                   path, (unsigned long long)alloc_bytes);
+  PRT_CHECKPOINT_LOG("spm-pt checkpoint=hugetlbfs-ftruncate-end path=%s bytes=%llu",
+                     path, (unsigned long long)alloc_bytes);
 
+  /*
+   * Keep the hugepage population explicit in probe_phys_contig_range() rather
+   * than implicit in mmap(MAP_POPULATE), so stalls are visible in logs and the
+   * first-touch path stays under our control.
+   */
+  PRT_PROGRESS_LOG("spm-pt hugetlbfs mmap begin path=%s bytes=%llu populate=0",
+                   path, (unsigned long long)alloc_bytes);
+  PRT_CHECKPOINT_LOG("spm-pt checkpoint=hugetlbfs-mmap-begin path=%s bytes=%llu",
+                     path, (unsigned long long)alloc_bytes);
   base = mmap(NULL, alloc_bytes, PROT_READ | PROT_WRITE,
-              MAP_SHARED
-#ifdef MAP_POPULATE
-                  | MAP_POPULATE
-#endif
-              ,
+              MAP_SHARED,
               fd, 0);
   close(fd);
   unlink(path);
@@ -245,8 +479,15 @@ static int try_alloc_contig_hugetlbfs(size_t req_bytes, size_t probe_page_bytes,
     PRT_PROGRESS_LOG("spm-pt hugetlbfs mmap failed bytes=%llu errno=%d",
                      (unsigned long long)alloc_bytes,
                      err);
+    PRT_CHECKPOINT_LOG("spm-pt checkpoint=hugetlbfs-mmap-fail bytes=%llu errno=%d",
+                       (unsigned long long)alloc_bytes,
+                       err);
     return err == ENOMEM ? PRT_ERR_NOMEM : PRT_ERR_NOT_READY;
   }
+  PRT_PROGRESS_LOG("spm-pt hugetlbfs mmap ok path=%s base=%p alloc_bytes=%llu",
+                   path, base, (unsigned long long)alloc_bytes);
+  PRT_CHECKPOINT_LOG("spm-pt checkpoint=hugetlbfs-mmap-ok path=%s base=%p alloc_bytes=%llu",
+                     path, base, (unsigned long long)alloc_bytes);
 
   rc = probe_phys_contig_range(base, req_bytes, probe_page_bytes, &base_pa, NULL);
   if (rc != PRT_OK) {
@@ -254,6 +495,10 @@ static int try_alloc_contig_hugetlbfs(size_t req_bytes, size_t probe_page_bytes,
                      (unsigned long long)req_bytes,
                      (unsigned long long)alloc_bytes,
                      rc);
+    PRT_CHECKPOINT_LOG("spm-pt checkpoint=hugetlbfs-probe-fail req_bytes=%llu alloc_bytes=%llu rc=%d",
+                       (unsigned long long)req_bytes,
+                       (unsigned long long)alloc_bytes,
+                       rc);
     munmap(base, alloc_bytes);
     return rc;
   }
@@ -265,6 +510,10 @@ static int try_alloc_contig_hugetlbfs(size_t req_bytes, size_t probe_page_bytes,
                    (unsigned long long)req_bytes,
                    (unsigned long long)alloc_bytes,
                    (unsigned long long)base_pa);
+  PRT_CHECKPOINT_LOG("spm-pt checkpoint=hugetlbfs-ok req_bytes=%llu alloc_bytes=%llu pa=0x%llx",
+                     (unsigned long long)req_bytes,
+                     (unsigned long long)alloc_bytes,
+                     (unsigned long long)base_pa);
   return PRT_OK;
 }
 
@@ -276,6 +525,11 @@ static int try_alloc_contig_anon(size_t req_bytes, size_t probe_page_bytes,
 
   if (!out_base || !out_alloc_bytes || !out_base_pa) return PRT_ERR_INVAL;
 
+  PRT_PROGRESS_LOG("spm-pt anon begin req_bytes=%llu alloc_bytes=%llu probe_page=%llu",
+                   (unsigned long long)req_bytes,
+                   (unsigned long long)alloc_bytes,
+                   (unsigned long long)probe_page_bytes);
+
   for (int attempt = 0; attempt < 32; ++attempt) {
     void *base = mmap(NULL, alloc_bytes, PROT_READ | PROT_WRITE,
                       MAP_PRIVATE | MAP_ANONYMOUS
@@ -286,6 +540,8 @@ static int try_alloc_contig_anon(size_t req_bytes, size_t probe_page_bytes,
                       -1, 0);
     uint64_t base_pa = 0;
     if (base == MAP_FAILED) continue;
+    PRT_PROGRESS_LOG("spm-pt anon mmap ok attempt=%d base=%p alloc_bytes=%llu",
+                     attempt + 1, base, (unsigned long long)alloc_bytes);
     last_rc = probe_phys_contig_range(base, alloc_bytes, probe_page_bytes, &base_pa, &last_rc);
     if (last_rc == PRT_OK) {
       *out_base = base;
@@ -331,7 +587,24 @@ static size_t runtime_pt_chunk_bytes(const prt_runtime_t *rt) {
 
   if (base_bytes == 0U) {
 #if defined(__linux__) && defined(__riscv)
-    base_bytes = linux_huge_page_size_bytes();
+    /*
+     * The hardware SPM translation table is bounded by UINT16_MAX PTEs, so the
+     * full table always fits inside a single 2 MiB hugepage. Keep the pool
+     * chunk size pinned to one hugepage when translation is enabled, and let
+     * allocation fail fast later if the guest cannot provision that hugepage.
+     */
+    if (rt && rt->cfg.spm_xlate_enable != 0U) {
+      base_bytes = linux_huge_page_size_bytes();
+    } else {
+      size_t need_pages = 0;
+      size_t total_pages = 0;
+      size_t free_pages = 0;
+      if (linux_hugetlb_can_cover_bytes(min_bytes, &need_pages, &total_pages, &free_pages)) {
+        base_bytes = linux_huge_page_size_bytes();
+      } else {
+        base_bytes = min_bytes;
+      }
+    }
 #else
     base_bytes = host_page_bytes;
 #endif
@@ -349,15 +622,69 @@ static int alloc_contig_pt_storage(prt_runtime_t *rt, size_t req_bytes,
 #if defined(__linux__) && defined(__riscv)
   {
     const size_t probe_page_bytes = prt_host_page_size_bytes();
-    const int require_hugetlb = rt->cfg.spm_pt_require_hugetlb != 0U;
-    int rc = try_alloc_contig_hugetlb_anon(req_bytes, probe_page_bytes,
-                                           out_base, out_alloc_bytes, out_base_pa);
-    if (rc == PRT_OK) return PRT_OK;
+    const int need_multi_page_phys_contig = req_bytes > probe_page_bytes;
+    const int require_hugetlb =
+      need_multi_page_phys_contig || (rt->cfg.spm_pt_require_hugetlb != 0U);
+    size_t need_huge_pages = 0;
+    size_t total_huge_pages = 0;
+    size_t free_huge_pages = 0;
+    const int can_try_hugetlb =
+      linux_hugetlb_can_cover_bytes(req_bytes, &need_huge_pages, &total_huge_pages, &free_huge_pages);
+    PRT_PROGRESS_LOG("spm-pt alloc-contig begin req_bytes=%llu probe_page=%llu require_hugetlb=%d",
+                     (unsigned long long)req_bytes,
+                     (unsigned long long)probe_page_bytes,
+                     require_hugetlb);
+    PRT_CHECKPOINT_LOG("spm-pt checkpoint=alloc-contig-after-cover req_bytes=%llu probe_page=%llu require_hugetlb=%d multi_page_phys_contig=%d need_pages=%llu total_pages=%llu free_pages=%llu can_try=%d",
+                       (unsigned long long)req_bytes,
+                       (unsigned long long)probe_page_bytes,
+                       require_hugetlb,
+                       need_multi_page_phys_contig,
+                       (unsigned long long)need_huge_pages,
+                       (unsigned long long)total_huge_pages,
+                       (unsigned long long)free_huge_pages,
+                       can_try_hugetlb);
+    if (can_try_hugetlb) {
+      /*
+       * Prefer hugetlbfs-backed mappings. Anonymous MAP_HUGETLB has proven
+       * fragile on the current sbus128 pair hardware, while hugetlbfs still
+       * preserves the single-hugepage physical-contiguity guarantee we need.
+       */
+      PRT_CHECKPOINT_LOG("spm-pt checkpoint=alloc-contig-before-hugetlbfs req_bytes=%llu",
+                         (unsigned long long)req_bytes);
+      int rc = try_alloc_contig_hugetlbfs(req_bytes, probe_page_bytes,
+                                          out_base, out_alloc_bytes, out_base_pa);
+      if (rc == PRT_OK) return PRT_OK;
+      PRT_CHECKPOINT_LOG("spm-pt checkpoint=alloc-contig-after-hugetlbfs rc=%d", rc);
 
-    rc = try_alloc_contig_hugetlbfs(req_bytes, probe_page_bytes,
-                                    out_base, out_alloc_bytes, out_base_pa);
-    if (rc == PRT_OK) return PRT_OK;
-    if (require_hugetlb) return rc;
+      if (!need_multi_page_phys_contig) {
+        PRT_CHECKPOINT_LOG("spm-pt checkpoint=alloc-contig-before-hugetlb-anon req_bytes=%llu",
+                           (unsigned long long)req_bytes);
+        rc = try_alloc_contig_hugetlb_anon(req_bytes, probe_page_bytes,
+                                           out_base, out_alloc_bytes, out_base_pa);
+        if (rc == PRT_OK) return PRT_OK;
+        PRT_CHECKPOINT_LOG("spm-pt checkpoint=alloc-contig-after-hugetlb-anon rc=%d", rc);
+      }
+      if (require_hugetlb) return rc;
+    } else if (require_hugetlb) {
+      PRT_CHECKPOINT_LOG("spm-pt checkpoint=alloc-contig-hugetlb-unavailable req_bytes=%llu need_pages=%llu total_pages=%llu free_pages=%llu",
+                         (unsigned long long)req_bytes,
+                         (unsigned long long)need_huge_pages,
+                         (unsigned long long)total_huge_pages,
+                         (unsigned long long)free_huge_pages);
+      PRT_PROGRESS_LOG("spm-pt alloc-contig hugetlb-unavailable req_bytes=%llu need_pages=%llu total_pages=%llu free_pages=%llu",
+                       (unsigned long long)req_bytes,
+                       (unsigned long long)need_huge_pages,
+                       (unsigned long long)total_huge_pages,
+                       (unsigned long long)free_huge_pages);
+      return PRT_ERR_NOMEM;
+    }
+
+    if (need_multi_page_phys_contig) {
+      PRT_PROGRESS_LOG("spm-pt alloc-contig reject-anon req_bytes=%llu probe_page=%llu",
+                       (unsigned long long)req_bytes,
+                       (unsigned long long)probe_page_bytes);
+      return PRT_ERR_NOT_READY;
+    }
 
     return try_alloc_contig_anon(req_bytes, probe_page_bytes,
                                  out_base, out_alloc_bytes, out_base_pa);
@@ -416,8 +743,14 @@ static int pt_pool_add_chunk(prt_runtime_t *rt) {
   }
 
   chunk_bytes = runtime_pt_chunk_bytes(rt);
+  PRT_PROGRESS_LOG("spm-pt pool chunk-add begin next_idx=%u chunk_bytes=%llu",
+                   rt->spm_pt_chunk_count, (unsigned long long)chunk_bytes);
   rc = alloc_contig_pt_storage(rt, chunk_bytes, &base, &alloc_bytes, &base_pa);
   if (rc != PRT_OK) return rc;
+  PRT_PROGRESS_LOG("spm-pt pool chunk-add alloc-contig end next_idx=%u alloc_bytes=%llu pa=0x%llx",
+                   rt->spm_pt_chunk_count,
+                   (unsigned long long)alloc_bytes,
+                   (unsigned long long)base_pa);
 
   rc = ensure_pt_chunk_capacity(rt, rt->spm_pt_chunk_count + 1U);
   if (rc != PRT_OK) {
@@ -930,13 +1263,27 @@ int prt_spm_xlate_ctx_alloc(prt_runtime_t *rt, prt_spm_xlate_ctx_t *ctx, uint32_
   size_t pt_bytes;
   int rc;
   if (!rt || !ctx || page_count == 0U) return PRT_ERR_INVAL;
-  if (page_count > PRT_SPM_XLATE_HW_MAX_PTES) return PRT_ERR_NOT_IMPL;
+  if (page_count > PRT_SPM_XLATE_HW_MAX_PTES) {
+    fprintf(stderr,
+            "spm_xlate_ctx_alloc: page_count=%u exceeds hw max ptes=%u\n",
+            page_count, (uint32_t)PRT_SPM_XLATE_HW_MAX_PTES);
+    return PRT_ERR_NOT_IMPL;
+  }
   if (ctx->pte || ctx->pt_chunk) return PRT_ERR_STATE;
 
   host_page_bytes = prt_host_page_size_bytes();
   pt_bytes = align_up_size((size_t)page_count * sizeof(uint64_t), host_page_bytes);
+  PRT_PROGRESS_LOG("spm-xlate-ctx alloc begin page_count=%u pt_bytes=%llu host_page=%llu",
+                   page_count,
+                   (unsigned long long)pt_bytes,
+                   (unsigned long long)host_page_bytes);
   rc = pt_pool_alloc_slice(rt, pt_bytes, &ctx->pt_chunk, &ctx->pt_slice_offset);
   if (rc != PRT_OK) return rc;
+  PRT_PROGRESS_LOG("spm-xlate-ctx alloc slice end page_count=%u pt_bytes=%llu chunk_pa=0x%llx slice_off=%llu",
+                   page_count,
+                   (unsigned long long)pt_bytes,
+                   ctx->pt_chunk ? (unsigned long long)ctx->pt_chunk->base_pa : 0ULL,
+                   (unsigned long long)ctx->pt_slice_offset);
 
   memset((uint8_t *)ctx->pt_chunk->base + ctx->pt_slice_offset, 0, pt_bytes);
   ctx->pte = (uint64_t *)((uint8_t *)ctx->pt_chunk->base + ctx->pt_slice_offset);
@@ -960,6 +1307,8 @@ int prt_spm_xlate_ctx_alloc(prt_runtime_t *rt, prt_spm_xlate_ctx_t *ctx, uint32_
   ctx->free_vpage_count = 1U;
   ctx->free_vpages[0].start = 0U;
   ctx->free_vpages[0].count = page_count;
+  PRT_PROGRESS_LOG("spm-xlate-ctx alloc end page_count=%u ptbr=0x%llx",
+                   page_count, (unsigned long long)ctx->ptbr_pa);
   return PRT_OK;
 }
 

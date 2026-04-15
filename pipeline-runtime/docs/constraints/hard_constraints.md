@@ -1,0 +1,100 @@
+# Pipeline Runtime Hard Constraints
+
+## 1. 执行入口
+
+- `pairdummy/sbus128` 主线默认只允许使用：
+  - `scripts/pairdummy_sbus128_fixed_env.sh`
+  - `scripts/pairdummy_sbus128_workflow.sh`
+  - `docs/workflows/pairdummy_sbus128.md`
+- 除非明确在做新的 debug profile bring-up，不要在 shell 里临时叠一组 env 直接跑。
+
+## 2. 编译与环境
+
+- 任何编译、FireMarshal、FireSim 前都必须先：
+  `cd /home/ubuntu/chipyard/sims/firesim`
+- 然后执行：
+  `set +u; source sourceme-manager.sh --skip-ssh-setup; set -u`
+- 如需回到 repo 根目录再跑命令，再补：
+  `source /home/ubuntu/chipyard/env.sh`
+
+## 3. FireMarshal / FireSim
+
+- FireMarshal 只允许通过：
+  `/home/ubuntu/chipyard/scripts/firemarshal-tmux-run.sh`
+- FireSim manager 只允许通过：
+  `/home/ubuntu/chipyard/scripts/firesim-tmux-run.sh`
+- FireSim 正规流固定为：
+  `launchrunfarm -> infrasetup -> runworkload -> terminaterunfarm`
+
+## 4. Freshness
+
+- 每次 `infrasetup` 或 `runworkload` 前，必须完成 freshness 闭环。
+- local freshness 至少覆盖：
+  - guest image
+  - runner script
+  - runtime binary
+  - `firemarshal.env`
+- remote freshness 必须在 run host 的 guest image 上验证，而不是看 host 文件系统或旧 `*-bin` 包装物。
+- 任何 freshness 不通过，先归类为 stale image / wrong source layer，不要继续解释成新 blocker。
+
+## 5. SSH 与 live 检查
+
+- SSH / live 检查一律使用私网 IP，不允许使用公网 IP。
+- guest 文件必须通过 run host 上的 guest image + `debugfs` 读取。
+- 不要把 run host 的 `/dev/root` 当成 guest image。
+- Linux boot 阶段只要没有明确 boot error / panic / crash，
+  且仍停留在早期启动过程，
+  就不要把静默窗口记成新的异常或 blocker。
+- 这类阶段若 `heartbeat.csv` 仍在推进，
+  先继续等，
+  不要过早 terminate / 改 probe / 改叙事。
+- 只有出现明确 boot 错误、
+  reboot loop、
+  或已经进入用户态 workload 后再次停住，
+  才把它升级为新的卡点。
+
+## 6. 内存与页表语义
+
+- 只要 page-table backing 需要物理连续，就不能退回普通匿名页。
+- 当前 `spm_xlate` 路径必须保留 hugetlb / contiguous page 语义。
+- 当前主线必须保留 `PIPELINE_RUNTIME_MLOCKALL_MODE=2` 的 prefault + targeted lock 路线。
+- 不要把 `MCL_CURRENT`、`MCL_FUTURE` 或普通匿名页 fallback 当成可随意替换的等价语义。
+
+## 7. DMA / Gemmini 同步语义
+
+- 不要重新引入 DMA doneflag 轮询作为完成逻辑。
+- 当前主线以 fence / blocking retire 为准。
+- Linux host buffer 与 SPM DMA 继续遵守 page-chunk / bounce / `virt_to_phys` / completion flag PA 的 guardrail。
+
+## 8. 日志与观测
+
+- 主观测面是 guest 文件系统日志与 breadcrumb，不是 `uartlog`。
+- `uartlog` 只用于 boot 活性、panic、manager verdict 辅助。
+- 仅凭 `uartlog` 在 Linux boot 早期变慢或静默，
+  不能直接判为异常；
+  必须结合 `heartbeat.csv` 和是否已经进入用户态一起判断。
+- 遇到卡点/报错时，先做静态 artifact 审计和代码阅读，再读 capture；不要一上来就扩大日志面。
+- 优先使用：
+  - `scripts/audit_pipeline_runtime_artifact.py`
+  - `scripts/triage_prt_capture.py`
+- rerun 前先跑：
+  - `scripts/pairdummy_sbus128_workflow.sh debug-preflight`
+- 不要在 runtime 内做前台阻塞 `sync`。
+- 不要在热路径上继续堆高频文本 `write(O_APPEND)` 日志。
+- 若需要细日志，只允许按 segment/stage/subbatch/page 等条件极窄开启。
+- 当前唯一允许临时 overlay 的 fixed-profile 参数族是：
+  - `PIPELINE_RUNTIME_DEBUG_TRIGGER_*`
+- 即使使用 trigger-gated 短日志，也只允许单变量 rerun；
+  同时打开多类高风险 probe 属于违规。
+- 若 frontier 变化仅伴随 observability 变化，
+  不能直接记成“卡点被穿过”；
+  必须补 control rerun。
+
+## 9. 记录
+
+- 每一轮调试必须新建：
+  `debug_records/<UTC timestamp>.md`
+- 每一轮实际修改必须新建：
+  `change_records/<UTC timestamp>.md`
+- 不复用旧文件追加多轮内容。
+- 主入口文档不允许再写回大时间线；历史必须进 `debug_records/` 或 `docs/archive/`。

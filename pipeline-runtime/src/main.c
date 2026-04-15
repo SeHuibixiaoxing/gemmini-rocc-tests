@@ -11,6 +11,14 @@
 #include <sys/mman.h>
 #endif
 
+#ifndef PRT_MLOCKALL_MODE
+#define PRT_MLOCKALL_MODE 0
+#endif
+
+#if (PRT_MLOCKALL_MODE < 0) || (PRT_MLOCKALL_MODE > 3)
+#error "PRT_MLOCKALL_MODE must be one of: 0=current|future, 1=current-only, 2=disabled, 3=future-only"
+#endif
+
 #if PRT_ENABLE_PROGRESS_LOG
 static void prt_early_progress(const char *msg) {
   size_t remaining;
@@ -38,20 +46,68 @@ static void prt_enable_live_stdio(void) {
   (void)setvbuf(stderr, NULL, _IONBF, 0);
 }
 
+#if defined(__linux__) && defined(__riscv)
+static int prt_mlockall_flags(void) {
+  switch (PRT_MLOCKALL_MODE) {
+    case 0: return MCL_CURRENT | MCL_FUTURE;
+    case 1: return MCL_CURRENT;
+    case 2: return 0;
+    case 3: return MCL_FUTURE;
+    default: return MCL_CURRENT | MCL_FUTURE;
+  }
+}
+
+static const char *prt_mlockall_mode_name(void) {
+  switch (PRT_MLOCKALL_MODE) {
+    case 0: return "current+future";
+    case 1: return "current-only";
+    case 2: return "disabled";
+    case 3: return "future-only";
+    default: return "unknown";
+  }
+}
+#endif
+
 static void prt_try_lock_process_memory(void) {
 #if defined(__linux__) && defined(__riscv)
   static int attempted = 0;
+  const int flags = prt_mlockall_flags();
+  const char *mode_name = prt_mlockall_mode_name();
+  int rc;
+  int saved_errno = 0;
+  char msg[128];
   if (attempted) return;
   attempted = 1;
-  if (mlockall(MCL_CURRENT | MCL_FUTURE) != 0) {
-    fprintf(stderr, "warning: mlockall failed: %s\n", strerror(errno));
+  snprintf(msg, sizeof(msg),
+           "[prt-early] process memory lock mode=%s flags=0x%x",
+           mode_name, flags);
+  prt_early_progress(msg);
+  if (flags == 0) {
+    prt_early_progress("[prt-early] skip mlockall by build config");
+    return;
   }
+  prt_early_progress("[prt-early] before mlockall");
+  rc = mlockall(flags);
+  if (rc != 0) {
+    saved_errno = errno;
+    snprintf(msg, sizeof(msg),
+             "[prt-early] after mlockall rc=%d errno=%d flags=0x%x",
+             rc, saved_errno, flags);
+    prt_early_progress(msg);
+    fprintf(stderr, "warning: mlockall failed: %s\n", strerror(saved_errno));
+    return;
+  }
+  prt_early_progress("[prt-early] after mlockall rc=0");
+  snprintf(msg, sizeof(msg),
+           "[prt-early] after mlockall mode=%s flags=0x%x",
+           mode_name, flags);
+  prt_early_progress(msg);
 #endif
 }
 
 static void usage(const char *prog) {
   fprintf(stderr,
-    "Usage: %s --backend <cpu|fpga> --model-yaml <path> --layer-mapping-yaml <path> [--model-bin <path>] [--model-offset <bytes>] --pipeline-yaml <path> [--num-cores <n>] [--num-gemmini-mgrs <n>] [--num-dma-mgrs <n>] [--gemmini-base-id <n>] [--dma-base-id <n>] [--sync-mode <async|blocking_debug>] [--pages-per-acc <n>] [--spm-page-bytes <n>] [--spm-xlate-enable <0|1>] [--spm-xlate-range-base <hex>] [--spm-xlate-range-size <bytes>] [--spm-pt-pool-prealloc-hugepages <n>] [--spm-pt-pool-max-hugepages <n>] [--spm-pt-require-hugetlb <0|1>] [--watchdog-ms <n>] [--export-dma-timeout-ms <n>] [--hw-validate-only] [--input <path>] [--golden <path>] [--golden-out <path>] [--batch <n>] [--trace <path>]\\n"
+    "Usage: %s --backend <cpu|fpga> --model-yaml <path> --layer-mapping-yaml <path> [--model-bin <path>] [--model-offset <bytes>] [--skip-model-bin-load] --pipeline-yaml <path> [--num-cores <n>] [--num-gemmini-mgrs <n>] [--num-dma-mgrs <n>] [--gemmini-base-id <n>] [--dma-base-id <n>] [--pair-manager-mode <0|1>] [--sync-mode <async|blocking_debug>] [--pages-per-acc <n>] [--spm-page-bytes <n>] [--spm-xlate-enable <0|1>] [--spm-xlate-range-base <hex>] [--spm-xlate-range-size <bytes>] [--spm-pt-pool-prealloc-hugepages <n>] [--spm-pt-pool-max-hugepages <n>] [--spm-pt-require-hugetlb <0|1>] [--watchdog-ms <n>] [--export-dma-timeout-ms <n>] [--hw-validate-only] [--input <path>] [--skip-input-load] [--golden <path>] [--skip-golden-check] [--golden-out <path>] [--batch <n>] [--trace <path>]\\n"
     "       [--deep-log-enable <0|1>] [--deep-log-segment <n>] [--deep-log-global-stage <n>] [--deep-log-local-stage <n>] [--deep-log-subbatch <n>] [--deep-log-stage-radius <n>] [--deep-log-subbatch-radius <n>]\\n"
     "       %s --hw-validate-only [runtime knobs above]\\n",
     prog, prog);
@@ -100,6 +156,7 @@ int prt_main_entry(int argc, char **argv) {
   cfg.num_dma_mgrs = 4;
   cfg.gemmini_mgr_base_id = 0;
   cfg.dma_mgr_base_id = 0;
+  cfg.pair_manager_mode = 0;
   cfg.backend = PRT_BACKEND_FPGA;
   cfg.page_size_bytes = PRT_PAGE_SIZE_BYTES;
   cfg.spm_xlate_enable = 1;
@@ -142,6 +199,8 @@ int prt_main_entry(int argc, char **argv) {
       args.model_bin = argv[++i];
     } else if (!strcmp(argv[i], "--model-offset") && i + 1 < argc) {
       args.model_offset_bytes = (uint64_t)strtoull(argv[++i], NULL, 0);
+    } else if (!strcmp(argv[i], "--skip-model-bin-load")) {
+      args.skip_model_bin_load = 1U;
     } else if (!strcmp(argv[i], "--pipeline-yaml") && i + 1 < argc) {
       args.pipeline_yaml = argv[++i];
     } else if (!strcmp(argv[i], "--num-cores") && i + 1 < argc) {
@@ -155,6 +214,8 @@ int prt_main_entry(int argc, char **argv) {
     } else if (!strcmp(argv[i], "--dma-base-id") && i + 1 < argc) {
       cfg.dma_mgr_base_id = (uint32_t)strtoul(argv[++i], NULL, 10);
       user_set_dma_base = 1;
+    } else if (!strcmp(argv[i], "--pair-manager-mode") && i + 1 < argc) {
+      cfg.pair_manager_mode = (uint32_t)strtoul(argv[++i], NULL, 10) ? 1U : 0U;
     } else if (!strcmp(argv[i], "--sync-mode") && i + 1 < argc) {
       const char *v = argv[++i];
       if (!strcmp(v, "async")) cfg.sync_mode = PRT_SYNC_MODE_ASYNC;
@@ -179,8 +240,12 @@ int prt_main_entry(int argc, char **argv) {
       cfg.hw_validate_only = 1U;
     } else if (!strcmp(argv[i], "--input") && i + 1 < argc) {
       args.input_path = argv[++i];
+    } else if (!strcmp(argv[i], "--skip-input-load")) {
+      args.skip_input_load = 1U;
     } else if (!strcmp(argv[i], "--golden") && i + 1 < argc) {
       args.golden_path = argv[++i];
+    } else if (!strcmp(argv[i], "--skip-golden-check")) {
+      args.skip_golden_check = 1U;
     } else if (!strcmp(argv[i], "--golden-out") && i + 1 < argc) {
       args.golden_out_path = argv[++i];
     } else if (!strcmp(argv[i], "--batch") && i + 1 < argc) {
@@ -236,19 +301,29 @@ int prt_main_entry(int argc, char **argv) {
     usage(argv[0]);
     return 2;
   }
+  prt_early_progress("[prt-early] required args ready");
   if (!user_set_dma_base) {
-    cfg.dma_mgr_base_id = cfg.gemmini_mgr_base_id + cfg.num_gemmini_mgrs;
+    if (cfg.pair_manager_mode) {
+      cfg.dma_mgr_base_id = cfg.gemmini_mgr_base_id;
+    } else {
+      cfg.dma_mgr_base_id = cfg.gemmini_mgr_base_id + cfg.num_gemmini_mgrs;
+    }
   }
+  prt_early_progress("[prt-early] dma base ready");
   if (!watchdog_set && cfg.backend == PRT_BACKEND_CPU) {
     cfg.watchdog_timeout_ms = 300000;
   }
+  prt_early_progress("[prt-early] watchdog ready");
 
   if (cfg.backend == PRT_BACKEND_FPGA) {
+    prt_early_progress("[prt-early] before process memory lock");
     prt_try_lock_process_memory();
+    prt_early_progress("[prt-early] after process memory lock");
   }
 
-  PRT_MARKER_LOG("main runtime-init-begin backend=%u cores=%u gemmini=%u dma=%u spm_xlate=%u pages_per_acc=%u export_dma_timeout_ms=%u",
+  PRT_MARKER_LOG("main runtime-init-begin backend=%u cores=%u gemmini=%u dma=%u pair=%u gemmini_base=%u dma_base=%u spm_xlate=%u pages_per_acc=%u export_dma_timeout_ms=%u",
                  (uint32_t)cfg.backend, cfg.num_cores, cfg.num_gemmini_mgrs, cfg.num_dma_mgrs,
+                 cfg.pair_manager_mode, cfg.gemmini_mgr_base_id, cfg.dma_mgr_base_id,
                  cfg.spm_xlate_enable, cfg.pages_per_acc, cfg.export_dma_timeout_ms);
   prt_early_progress("[prt-early] calling runtime_init");
   rc = prt_runtime_init(&cfg, &rt);

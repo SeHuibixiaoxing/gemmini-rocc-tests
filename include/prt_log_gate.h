@@ -25,6 +25,14 @@ typedef struct {
   uint32_t subbatch_radius;
 } prt_log_gate_cfg_t;
 
+typedef struct {
+  uint32_t valid;
+  uint32_t segment_idx;
+  uint32_t global_stage_id;
+  uint32_t local_stage_id;
+  uint32_t subbatch_id;
+} prt_log_gate_ctx_snapshot_t;
+
 #if PIPELINE_RUNTIME_DEEP_LOG_GATE
 void prt_log_gate_init(const prt_log_gate_cfg_t *cfg);
 void prt_log_gate_set_context(uint32_t segment_idx, uint32_t global_stage_id,
@@ -33,6 +41,7 @@ void prt_log_gate_clear_context(void);
 int prt_log_gate_is_enabled(void);
 int prt_log_gate_allow_deep_logs(void);
 int prt_log_gate_allow_deep_logs_budgeted(void);
+void prt_log_gate_get_context(prt_log_gate_ctx_snapshot_t *out);
 #else
 static inline void prt_log_gate_init(const prt_log_gate_cfg_t *cfg) {
   (void)cfg;
@@ -54,6 +63,14 @@ static inline int prt_log_gate_allow_deep_logs(void) {
 }
 static inline int prt_log_gate_allow_deep_logs_budgeted(void) {
   return 0;
+}
+static inline void prt_log_gate_get_context(prt_log_gate_ctx_snapshot_t *out) {
+  if (!out) return;
+  out->valid = 0U;
+  out->segment_idx = PRT_LOG_GATE_ANY_U32;
+  out->global_stage_id = PRT_LOG_GATE_ANY_U32;
+  out->local_stage_id = PRT_LOG_GATE_ANY_U32;
+  out->subbatch_id = PRT_LOG_GATE_ANY_U32;
 }
 #endif
 

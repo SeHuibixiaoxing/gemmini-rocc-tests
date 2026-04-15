@@ -142,16 +142,18 @@ static int append_unique_mgr(uint32_t **arr, uint32_t *n, uint32_t *cap, uint32_
 static int assign_stage_manager_slot(prt_runtime_t *rt, prt_schedule_action_t *action,
                                      prt_stage_acc_assign_t *assign, uint32_t slot_idx,
                                      uint32_t gm_local, uint32_t *all_g_cap, uint32_t *all_d_cap) {
+  const uint32_t gemmini_mgr_count = rt ? prt_cfg_gemmini_mgr_count(&rt->cfg) : 0U;
+  const uint32_t dma_mgr_count = rt ? prt_cfg_dma_mgr_count(&rt->cfg) : 0U;
   uint32_t dm_local;
   uint32_t gm_id;
   uint32_t dm_id;
   int rc;
   if (!rt || !action || !assign || !all_g_cap || !all_d_cap) return PRT_ERR_INVAL;
-  if (gm_local >= rt->cfg.num_gemmini_mgrs) return PRT_ERR_PARSE;
+  if (gm_local >= gemmini_mgr_count) return PRT_ERR_PARSE;
   dm_local = gm_local;
-  if (dm_local >= rt->cfg.num_dma_mgrs) return PRT_ERR_PARSE;
-  gm_id = rt->cfg.gemmini_mgr_base_id + gm_local;
-  dm_id = rt->cfg.dma_mgr_base_id + dm_local;
+  if (dm_local >= dma_mgr_count) return PRT_ERR_PARSE;
+  gm_id = prt_cfg_gemmini_manager_id(&rt->cfg, gm_local);
+  dm_id = prt_cfg_dma_manager_id(&rt->cfg, dm_local);
   assign->gemmini_mgr_ids[slot_idx] = gm_id;
   assign->dma_mgr_ids[slot_idx] = dm_id;
   rc = append_unique_mgr(&action->acc_source.all_gemmini_mgr_ids,
@@ -160,6 +162,17 @@ static int assign_stage_manager_slot(prt_runtime_t *rt, prt_schedule_action_t *a
   rc = append_unique_mgr(&action->acc_source.all_dma_mgr_ids,
                          &action->acc_source.num_acc, all_d_cap, dm_id);
   if (rc != PRT_OK) return rc;
+  return PRT_OK;
+}
+
+static int stage_virtual_slot_id(const prt_stage_map_t *stage, uint32_t assign_idx,
+                                 uint32_t *out_slot_idx) {
+  uint32_t slot_idx;
+  if (!stage || !out_slot_idx) return PRT_ERR_INVAL;
+  if (!stage->virtual_acc_ids_present || assign_idx >= stage->num_virtual_acc_ids) return PRT_ERR_PARSE;
+  slot_idx = stage->virtual_acc_ids[assign_idx];
+  if (slot_idx >= stage->acc_util) return PRT_ERR_PARSE;
+  *out_slot_idx = slot_idx;
   return PRT_OK;
 }
 
@@ -518,24 +531,33 @@ int prt_action_alloc_acc(prt_runtime_t *rt, prt_schedule_action_t *action) {
   uint32_t all_d_cap = 0;
   uint32_t rr_cursor = 0;
   uint32_t total_needed = 0;
+  const uint32_t gemmini_mgr_count = rt ? prt_cfg_gemmini_mgr_count(&rt->cfg) : 0U;
+  const uint32_t dma_mgr_count = rt ? prt_cfg_dma_mgr_count(&rt->cfg) : 0U;
   uint8_t used_local[PRT_MAX_CORES];
   const prt_segment_desc_t *seg;
+  uint32_t seg_stage_count = 0U;
   if (!rt || !action || !action->pipeline_segment_ref) return PRT_ERR_INVAL;
   if (action->state != PRT_ACTION_CREATED) return PRT_ERR_STATE;
 
   seg = action->pipeline_segment_ref;
-  if (rt->cfg.num_gemmini_mgrs > PRT_MAX_CORES || rt->cfg.num_dma_mgrs > PRT_MAX_CORES) {
+  seg_stage_count = seg->num_stages;
+  if (gemmini_mgr_count > PRT_MAX_CORES || dma_mgr_count > PRT_MAX_CORES) {
     fprintf(stderr, "action_alloc_acc: manager count exceeds compile-time max cores\n");
     return PRT_ERR_NOT_IMPL;
   }
+  PRT_PROGRESS_LOG("action=%u segment=%u alloc-acc enter seg_stages=%u gemmini=%u dma=%u pair=%u",
+                   action->action_id, action->segment_idx, seg_stage_count,
+                   gemmini_mgr_count, dma_mgr_count, rt->cfg.pair_manager_mode);
   action->acc_source.stage_count = seg->num_stages;
   action->acc_source.stage_assign =
     (prt_stage_acc_assign_t *)calloc(seg->num_stages, sizeof(prt_stage_acc_assign_t));
   if (!action->acc_source.stage_assign) return PRT_ERR_NOMEM;
+  PRT_PROGRESS_LOG("action=%u segment=%u alloc-acc stage-assign-ready stages=%u",
+                   action->action_id, action->segment_idx, action->acc_source.stage_count);
   memset(used_local, 0, sizeof(used_local));
-  PRT_PROGRESS_LOG("action=%u segment=%u alloc-acc begin stages=%u gemmini=%u dma=%u",
+  PRT_PROGRESS_LOG("action=%u segment=%u alloc-acc begin stages=%u gemmini=%u dma=%u pair=%u",
                    action->action_id, action->segment_idx, seg->num_stages,
-                   rt->cfg.num_gemmini_mgrs, rt->cfg.num_dma_mgrs);
+                   gemmini_mgr_count, dma_mgr_count, rt->cfg.pair_manager_mode);
 
   for (i = 0; i < seg->num_stages; ++i) {
     prt_stage_acc_assign_t *assign = &action->acc_source.stage_assign[i];
@@ -553,9 +575,9 @@ int prt_action_alloc_acc(prt_runtime_t *rt, prt_schedule_action_t *action) {
       fprintf(stderr, "action_alloc_acc: stage=%u zero acc_util\n", i);
       return PRT_ERR_PARSE;
     }
-    if (stage->acc_util > rt->cfg.num_gemmini_mgrs) {
+    if (stage->acc_util > gemmini_mgr_count) {
       fprintf(stderr, "action_alloc_acc: stage=%u acc_util=%u exceeds num_gemmini=%u\n",
-              i, stage->acc_util, rt->cfg.num_gemmini_mgrs);
+              i, stage->acc_util, gemmini_mgr_count);
       return PRT_ERR_NOT_READY;
     }
     if (!stage->virtual_acc_ids_present || stage->num_virtual_acc_ids != stage->acc_util) {
@@ -570,16 +592,16 @@ int prt_action_alloc_acc(prt_runtime_t *rt, prt_schedule_action_t *action) {
               i, stage->acc_util, stage->num_physical_acc_ids);
       return PRT_ERR_PARSE;
     }
-    if (rt->cfg.num_dma_mgrs < rt->cfg.num_gemmini_mgrs) {
+    if (!prt_cfg_pair_manager_mode_enabled(&rt->cfg) && dma_mgr_count < gemmini_mgr_count) {
       fprintf(stderr, "action_alloc_acc: num_dma=%u less than num_gemmini=%u\n",
-              rt->cfg.num_dma_mgrs, rt->cfg.num_gemmini_mgrs);
+              dma_mgr_count, gemmini_mgr_count);
       return PRT_ERR_NOT_READY;
     }
     total_needed += stage->acc_util;
-    if (total_needed > rt->cfg.num_gemmini_mgrs) {
+    if (total_needed > gemmini_mgr_count) {
       fprintf(stderr,
               "action_alloc_acc: segment over-subscribes accelerators total=%u num_gemmini=%u\n",
-              total_needed, rt->cfg.num_gemmini_mgrs);
+              total_needed, gemmini_mgr_count);
       return PRT_ERR_NOT_READY;
     }
 
@@ -591,11 +613,17 @@ int prt_action_alloc_acc(prt_runtime_t *rt, prt_schedule_action_t *action) {
 
     if (stage->physical_acc_ids_present) {
       for (k = 0; k < assign->acc_util; ++k) {
+        uint32_t slot_idx;
         uint32_t gm_local = stage->physical_acc_ids[k];
         int rc;
-        if (gm_local >= rt->cfg.num_gemmini_mgrs) {
+        rc = stage_virtual_slot_id(stage, k, &slot_idx);
+        if (rc != PRT_OK) {
+          fprintf(stderr, "action_alloc_acc: stage=%u invalid vAccIdxList index=%u\n", i, k);
+          return rc;
+        }
+        if (gm_local >= gemmini_mgr_count) {
           fprintf(stderr, "action_alloc_acc: stage=%u invalid physical gemmini id=%u num_gemmini=%u\n",
-                  i, gm_local, rt->cfg.num_gemmini_mgrs);
+                  i, gm_local, gemmini_mgr_count);
           return PRT_ERR_PARSE;
         }
         if (used_local[gm_local]) {
@@ -603,20 +631,26 @@ int prt_action_alloc_acc(prt_runtime_t *rt, prt_schedule_action_t *action) {
                   i, gm_local);
           return PRT_ERR_NOT_READY;
         }
-        rc = assign_stage_manager_slot(rt, action, assign, k, gm_local, &all_g_cap, &all_d_cap);
+        rc = assign_stage_manager_slot(rt, action, assign, slot_idx, gm_local, &all_g_cap, &all_d_cap);
         if (rc != PRT_OK) return rc;
         used_local[gm_local] = 1U;
       }
     } else {
       uint32_t assigned = 0;
       uint32_t searched = 0;
-      while (assigned < assign->acc_util && searched < rt->cfg.num_gemmini_mgrs) {
-        uint32_t gm_local = rr_cursor % rt->cfg.num_gemmini_mgrs;
+      while (assigned < assign->acc_util && searched < gemmini_mgr_count) {
+        uint32_t slot_idx;
+        uint32_t gm_local = rr_cursor % gemmini_mgr_count;
         int rc;
-        rr_cursor = (rr_cursor + 1U) % rt->cfg.num_gemmini_mgrs;
+        rr_cursor = (rr_cursor + 1U) % gemmini_mgr_count;
         searched += 1U;
         if (used_local[gm_local]) continue;
-        rc = assign_stage_manager_slot(rt, action, assign, assigned, gm_local, &all_g_cap, &all_d_cap);
+        rc = stage_virtual_slot_id(stage, assigned, &slot_idx);
+        if (rc != PRT_OK) {
+          fprintf(stderr, "action_alloc_acc: stage=%u invalid vAccIdxList index=%u\n", i, assigned);
+          return rc;
+        }
+        rc = assign_stage_manager_slot(rt, action, assign, slot_idx, gm_local, &all_g_cap, &all_d_cap);
         if (rc != PRT_OK) return rc;
         used_local[gm_local] = 1U;
         assigned += 1U;
@@ -629,11 +663,14 @@ int prt_action_alloc_acc(prt_runtime_t *rt, prt_schedule_action_t *action) {
     }
 #if PRT_ENABLE_PROGRESS_LOG
     {
+      char virt_buf[96];
       uint32_t gm0 = assign->acc_util > 0 ? assign->gemmini_mgr_ids[0] : 0U;
       uint32_t dm0 = assign->acc_util > 0 ? assign->dma_mgr_ids[0] : 0U;
-      PRT_PROGRESS_LOG("action=%u stage=%u layer=%u acc_util=%u split=%u gm0=%u dm0=%u explicit=%u",
+      format_u32_list(stage->virtual_acc_ids, stage->num_virtual_acc_ids, virt_buf, sizeof(virt_buf));
+      PRT_PROGRESS_LOG("action=%u stage=%u layer=%u acc_util=%u split=%u gm0=%u dm0=%u explicit=%u virt=%s",
                        action->action_id, i, stage->layer_id, assign->acc_util,
-                       (uint32_t)stage->split_kind, gm0, dm0, stage->physical_acc_ids_present);
+                       (uint32_t)stage->split_kind, gm0, dm0,
+                       stage->physical_acc_ids_present, virt_buf);
     }
 #endif
   }
@@ -658,10 +695,21 @@ int prt_action_alloc_spm(prt_runtime_t *rt, prt_schedule_action_t *action) {
   uint32_t alloc_key_cursor = 0x71000000U;
   uint32_t page_count = 0;
   int rc = PRT_OK;
+  const char *fail_phase = "none";
+  uint32_t fail_buffer_id = UINT32_MAX;
+  uint32_t fail_tensor_id = UINT32_MAX;
+  uint32_t fail_stage_id = UINT32_MAX;
+  uint32_t fail_slot_count = 0U;
+  uint32_t fail_alias_group_id = 0U;
   if (!rt || !action) return PRT_ERR_INVAL;
   if (action->state != PRT_ACTION_CREATED) return PRT_ERR_STATE;
   seg = action->pipeline_segment_ref;
   if (!seg) return PRT_ERR_INVAL;
+
+  PRT_PROGRESS_LOG("action=%u segment=%u alloc-spm enter bindings=%u seg_pages=%u spm_xlate=%u",
+                   action->action_id, action->segment_idx,
+                   seg->buffer_binding_count, seg->segment_spm_page_span,
+                   rt->cfg.spm_xlate_enable);
 
   free_spm_binding_array(action->spm_source.weight_pages, action->spm_source.weight_count);
   free_spm_binding_array(action->spm_source.in_stage_pages, action->spm_source.in_stage_count);
@@ -682,12 +730,28 @@ int prt_action_alloc_spm(prt_runtime_t *rt, prt_schedule_action_t *action) {
     for (uint32_t i = 0; i < seg->num_stages; ++i) page_count += seg->stages[i].local_spm_page_span;
   }
   action->alias_page_count = page_count;
+  PRT_PROGRESS_LOG("action=%u segment=%u alloc-spm page-count=%u",
+                   action->action_id, action->segment_idx, page_count);
 
   if (rt->cfg.spm_xlate_enable && page_count > 0U) {
+    fail_phase = "alloc_action_alias_window";
+    PRT_PROGRESS_LOG("action=%u segment=%u alloc-spm alias-window begin page_count=%u",
+                     action->action_id, action->segment_idx, page_count);
     rc = alloc_action_alias_window(rt, action, page_count);
     if (rc != PRT_OK) goto out;
+    PRT_PROGRESS_LOG("action=%u segment=%u alloc-spm alias-window end base=0x%llx bytes=%llu",
+                     action->action_id, action->segment_idx,
+                     (unsigned long long)action->alias_base_va,
+                     (unsigned long long)action->alias_bytes);
+    fail_phase = "prt_spm_xlate_ctx_alloc";
+    PRT_PROGRESS_LOG("action=%u segment=%u alloc-spm xlate-ctx begin page_count=%u",
+                     action->action_id, action->segment_idx, page_count);
     rc = prt_spm_xlate_ctx_alloc(rt, &action->spm_xlate, page_count);
     if (rc != PRT_OK) goto out;
+    PRT_PROGRESS_LOG("action=%u segment=%u alloc-spm xlate-ctx end ptes=%u ptbr=0x%llx",
+                     action->action_id, action->segment_idx,
+                     action->spm_xlate.pte_count,
+                     (unsigned long long)action->spm_xlate.ptbr_pa);
     // Hardware computes the PTE index from (vaddr - range_base), so each
     // action-local alias window must occupy vpage [0, page_count) inside the
     // active window. The old reserve_vpages path produced a software-only
@@ -707,11 +771,18 @@ int prt_action_alloc_spm(prt_runtime_t *rt, prt_schedule_action_t *action) {
     const prt_buffer_binding_t *binding = &seg->buffer_bindings[i];
     uint32_t preferred_mgrs[PRT_MAX_CORES];
     uint32_t preferred_cnt = 0U;
+    fail_buffer_id = binding->buffer_id;
+    fail_tensor_id = binding->tensor_id;
+    fail_stage_id = binding->stage_local_id;
+    fail_slot_count = binding->slot_count;
+    fail_alias_group_id = binding->alias_group_id;
     if (binding->kind == PRT_BUFFER_BINDING_UNKNOWN) {
+      fail_phase = "binding_unknown_kind";
       rc = PRT_ERR_PARSE;
       goto out;
     }
     if (binding->kind != PRT_BUFFER_BINDING_RING && binding->stage_local_id >= seg->num_stages) {
+      fail_phase = "binding_stage_oob";
       rc = PRT_ERR_PARSE;
       goto out;
     }
@@ -735,14 +806,31 @@ int prt_action_alloc_spm(prt_runtime_t *rt, prt_schedule_action_t *action) {
                      binding->slot_count, binding->pages_per_slot,
                      binding->alias_group_id, preferred_buf);
     }
+    PRT_PROGRESS_LOG("action=%u segment=%u alloc-spm binding-begin idx=%u/%u buffer=%u tensor=%u kind=%u stage=%u slots=%u pages_per_slot=%u alias_group=%u pref_cnt=%u",
+                     action->action_id, action->segment_idx,
+                     i + 1U, seg->buffer_binding_count,
+                     binding->buffer_id, binding->tensor_id,
+                     (uint32_t)binding->kind, binding->stage_local_id,
+                     binding->slot_count, binding->pages_per_slot,
+                     binding->alias_group_id, preferred_cnt);
 
     if (binding->kind == PRT_BUFFER_BINDING_RING) {
       for (uint32_t slot = 0; slot < binding->slot_count; ++slot) {
         prt_page_list_t pages;
         if (binding->pages_per_slot == 0U) continue;
+        fail_phase = "ring_alloc_slot_pages";
+        PRT_PROGRESS_LOG("action=%u segment=%u alloc-spm ring-slot begin buffer=%u tensor=%u slot=%u pages=%u",
+                         action->action_id, action->segment_idx,
+                         binding->buffer_id, binding->tensor_id,
+                         slot, binding->pages_per_slot);
         rc = alloc_slot_pages_for_action(rt, action, &alloc_key_cursor, binding->pages_per_slot,
                                          preferred_mgrs, preferred_cnt, &pages);
         if (rc != PRT_OK) goto out;
+        PRT_PROGRESS_LOG("action=%u segment=%u alloc-spm ring-slot alloc end buffer=%u tensor=%u slot=%u pages=%u total_spm_pages=%u",
+                         action->action_id, action->segment_idx,
+                         binding->buffer_id, binding->tensor_id,
+                         slot, pages.size, action->spm_source.num_spm_pages);
+        fail_phase = "ring_append_spm_binding";
         rc = append_spm_binding(&action->spm_source.ring_pages, &action->spm_source.ring_count,
                                 &action->spm_source.ring_cap, binding->buffer_id,
                                 binding->tensor_id, UINT32_MAX, slot, &pages);
@@ -750,21 +838,41 @@ int prt_action_alloc_spm(prt_runtime_t *rt, prt_schedule_action_t *action) {
         log_action_page_list(rt, action, "RING", binding->buffer_id, binding->tensor_id,
                              UINT32_MAX, slot, &pages);
       }
+      PRT_PROGRESS_LOG("action=%u segment=%u alloc-spm binding-end idx=%u/%u buffer=%u ring_count=%u total_spm_pages=%u",
+                       action->action_id, action->segment_idx,
+                       i + 1U, seg->buffer_binding_count,
+                       binding->buffer_id, action->spm_source.ring_count,
+                       action->spm_source.num_spm_pages);
       continue;
     }
 
     if (binding->kind == PRT_BUFFER_BINDING_WEIGHT) {
       prt_page_list_t pages;
       if (binding->slot_count == 0U || binding->pages_per_slot == 0U) continue;
+      fail_phase = "weight_alloc_slot_pages";
+      PRT_PROGRESS_LOG("action=%u segment=%u alloc-spm weight begin buffer=%u tensor=%u pages=%u",
+                       action->action_id, action->segment_idx,
+                       binding->buffer_id, binding->tensor_id,
+                       binding->pages_per_slot);
       rc = alloc_slot_pages_for_action(rt, action, &alloc_key_cursor, binding->pages_per_slot,
                                        preferred_mgrs, preferred_cnt, &pages);
       if (rc != PRT_OK) goto out;
+      PRT_PROGRESS_LOG("action=%u segment=%u alloc-spm weight alloc end buffer=%u tensor=%u pages=%u total_spm_pages=%u",
+                       action->action_id, action->segment_idx,
+                       binding->buffer_id, binding->tensor_id,
+                       pages.size, action->spm_source.num_spm_pages);
+      fail_phase = "weight_append_spm_binding";
       rc = append_spm_binding(&action->spm_source.weight_pages, &action->spm_source.weight_count,
                               &action->spm_source.weight_cap, binding->buffer_id,
                               binding->tensor_id, binding->stage_local_id, 0U, &pages);
       if (rc != PRT_OK) goto out;
       log_action_page_list(rt, action, "WEIGHT", binding->buffer_id, binding->tensor_id,
                            binding->stage_local_id, 0U, &pages);
+      PRT_PROGRESS_LOG("action=%u segment=%u alloc-spm binding-end idx=%u/%u buffer=%u weight_count=%u total_spm_pages=%u",
+                       action->action_id, action->segment_idx,
+                       i + 1U, seg->buffer_binding_count,
+                       binding->buffer_id, action->spm_source.weight_count,
+                       action->spm_source.num_spm_pages);
       continue;
     }
 
@@ -772,22 +880,45 @@ int prt_action_alloc_spm(prt_runtime_t *rt, prt_schedule_action_t *action) {
       alias_group_plan_t *alias_plan = NULL;
       if (binding->slot_count == 0U || binding->pages_per_slot == 0U) continue;
       if (binding->alias_group_id != 0U) {
+        fail_phase = "pipe_find_alias_group_plan";
+        PRT_PROGRESS_LOG("action=%u segment=%u alloc-spm pipe-alias begin buffer=%u tensor=%u alias_group=%u slots=%u",
+                         action->action_id, action->segment_idx,
+                         binding->buffer_id, binding->tensor_id,
+                         binding->alias_group_id, binding->slot_count);
         alias_plan = find_alias_group_plan(alias_groups, alias_group_count, binding->alias_group_id);
         if (!alias_plan) {
           if (binding->slot_count > 2U) {
+            fprintf(stderr,
+                    "action_alloc_spm: segment=%u buffer=%u tensor=%u alias_group=%u slot_count=%u exceeds supported alias slot count\n",
+                    action->segment_idx, binding->buffer_id, binding->tensor_id,
+                    binding->alias_group_id, binding->slot_count);
             rc = PRT_ERR_NOT_IMPL;
             goto out;
           }
+          fail_phase = "pipe_create_alias_group_plan";
           alias_plan = &alias_groups[alias_group_count++];
           memset(alias_plan, 0, sizeof(*alias_plan));
           alias_plan->alias_group_id = binding->alias_group_id;
           alias_plan->slot_count = binding->slot_count;
           for (uint32_t slot = 0; slot < binding->slot_count; ++slot) {
+            fail_phase = "pipe_alias_alloc_slot_pages";
+            PRT_PROGRESS_LOG("action=%u segment=%u alloc-spm pipe-alias-slot begin buffer=%u tensor=%u alias_group=%u slot=%u pages=%u",
+                             action->action_id, action->segment_idx,
+                             binding->buffer_id, binding->tensor_id,
+                             binding->alias_group_id, slot,
+                             binding->pages_per_slot);
             rc = alloc_slot_pages_for_action(rt, action, &alloc_key_cursor, binding->pages_per_slot,
                                              preferred_mgrs, preferred_cnt, &alias_plan->slot_pages[slot]);
             if (rc != PRT_OK) goto out;
+            PRT_PROGRESS_LOG("action=%u segment=%u alloc-spm pipe-alias-slot end buffer=%u tensor=%u alias_group=%u slot=%u pages=%u total_spm_pages=%u",
+                             action->action_id, action->segment_idx,
+                             binding->buffer_id, binding->tensor_id,
+                             binding->alias_group_id, slot,
+                             alias_plan->slot_pages[slot].size,
+                             action->spm_source.num_spm_pages);
           }
         } else if (alias_plan->slot_count < binding->slot_count) {
+          fail_phase = "pipe_alias_slot_count_parse";
           rc = PRT_ERR_PARSE;
           goto out;
         }
@@ -796,10 +927,20 @@ int prt_action_alloc_spm(prt_runtime_t *rt, prt_schedule_action_t *action) {
         prt_page_list_t pages;
         if (alias_plan) pages = alias_plan->slot_pages[slot];
         else {
+          fail_phase = "pipe_alloc_slot_pages";
+          PRT_PROGRESS_LOG("action=%u segment=%u alloc-spm pipe-slot begin buffer=%u tensor=%u slot=%u pages=%u",
+                           action->action_id, action->segment_idx,
+                           binding->buffer_id, binding->tensor_id,
+                           slot, binding->pages_per_slot);
           rc = alloc_slot_pages_for_action(rt, action, &alloc_key_cursor, binding->pages_per_slot,
                                            preferred_mgrs, preferred_cnt, &pages);
           if (rc != PRT_OK) goto out;
+          PRT_PROGRESS_LOG("action=%u segment=%u alloc-spm pipe-slot alloc end buffer=%u tensor=%u slot=%u pages=%u total_spm_pages=%u",
+                           action->action_id, action->segment_idx,
+                           binding->buffer_id, binding->tensor_id,
+                           slot, pages.size, action->spm_source.num_spm_pages);
         }
+        fail_phase = "pipe_append_spm_binding";
         rc = append_spm_binding(&action->spm_source.in_stage_pages, &action->spm_source.in_stage_count,
                                 &action->spm_source.in_stage_cap, binding->buffer_id,
                                 binding->tensor_id, binding->stage_local_id,
@@ -808,6 +949,11 @@ int prt_action_alloc_spm(prt_runtime_t *rt, prt_schedule_action_t *action) {
         log_action_page_list(rt, action, "PIPE", binding->buffer_id, binding->tensor_id,
                              binding->stage_local_id, slot, &pages);
       }
+      PRT_PROGRESS_LOG("action=%u segment=%u alloc-spm binding-end idx=%u/%u buffer=%u pipe_count=%u total_spm_pages=%u",
+                       action->action_id, action->segment_idx,
+                       i + 1U, seg->buffer_binding_count,
+                       binding->buffer_id, action->spm_source.in_stage_count,
+                       action->spm_source.num_spm_pages);
       continue;
     }
   }
@@ -830,6 +976,15 @@ int prt_action_alloc_spm(prt_runtime_t *rt, prt_schedule_action_t *action) {
   return PRT_OK;
 
 out:
+  if (rc != PRT_OK) {
+    fprintf(stderr,
+            "action_alloc_spm: segment=%u phase=%s rc=%s(%d) page_count=%u buffer=%u tensor=%u stage=%u slot_count=%u alias_group=%u\n",
+            action ? action->segment_idx : UINT32_MAX,
+            fail_phase ? fail_phase : "unknown",
+            prt_err_str(rc), rc, page_count,
+            fail_buffer_id, fail_tensor_id, fail_stage_id,
+            fail_slot_count, fail_alias_group_id);
+  }
   free(alias_groups);
   if (rt && action && action->alias_page_count > 0U && rt->cfg.spm_xlate_enable &&
       action->spm_xlate.pte_count > 0U) {
@@ -918,7 +1073,13 @@ int prt_action_bind_topology(prt_runtime_t *rt, prt_schedule_action_t *action) {
     const prt_buffer_binding_t *binding_meta = find_segment_buffer_binding(seg, rb->buffer_id);
     uint32_t slots = rb->size;
     if (binding_meta) {
-      if (binding_meta->kind != PRT_BUFFER_BINDING_RING) return PRT_ERR_PARSE;
+      if (binding_meta->kind != PRT_BUFFER_BINDING_RING) {
+        fprintf(stderr,
+                "action_bind_topology: segment=%u ring buffer_id=%u tensor=%u kind-mismatch meta_kind=%u expected=%u\n",
+                action->segment_idx, rb->buffer_id, rb->tensor_id,
+                binding_meta->kind, (uint32_t)PRT_BUFFER_BINDING_RING);
+        return PRT_ERR_PARSE;
+      }
       if (binding_meta->slot_count > 0U && binding_meta->slot_count != rb->size) return PRT_ERR_STATE;
       if (binding_meta->slot_count > 0U) slots = binding_meta->slot_count;
     }
@@ -939,8 +1100,21 @@ int prt_action_bind_topology(prt_runtime_t *rt, prt_schedule_action_t *action) {
     prt_pipebuf_t *b = &exec->pipebufs[i];
     const prt_buffer_binding_t *binding_meta = find_segment_buffer_binding(seg, b->buffer_id);
     uint32_t slots;
-    if (!binding_meta) return PRT_ERR_PARSE;
-    if (binding_meta->kind != PRT_BUFFER_BINDING_PIPE) return PRT_ERR_PARSE;
+    if (!binding_meta) {
+      fprintf(stderr,
+              "action_bind_topology: segment=%u pipe stage=%u tensor=%u buffer_id=%u missing binding kind=%u is_entry=%d\n",
+              action->segment_idx, b->stage_idx, b->tensor_id, b->buffer_id,
+              (uint32_t)b->kind, b->is_entry);
+      return PRT_ERR_PARSE;
+    }
+    if (binding_meta->kind != PRT_BUFFER_BINDING_PIPE) {
+      fprintf(stderr,
+              "action_bind_topology: segment=%u pipe stage=%u tensor=%u buffer_id=%u kind-mismatch meta_kind=%u expected=%u is_entry=%d pipe_kind=%u\n",
+              action->segment_idx, b->stage_idx, b->tensor_id, b->buffer_id,
+              binding_meta->kind, (uint32_t)PRT_BUFFER_BINDING_PIPE, b->is_entry,
+              (uint32_t)b->kind);
+      return PRT_ERR_PARSE;
+    }
     slots = b->with_double_buffer ? 2U : 1U;
     if (binding_meta->slot_count > 0U && binding_meta->slot_count < slots) return PRT_ERR_STATE;
 

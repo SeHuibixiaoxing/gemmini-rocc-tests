@@ -2,10 +2,13 @@
 #include "prt_progress.h"
 
 #include <ctype.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 
 #define PRT_MAPPING_CACHE_MAGIC0 0x5052544dU
 #define PRT_MAPPING_CACHE_MAGIC1 0x43414348U
@@ -83,40 +86,131 @@ static uint64_t monotonic_ms(void) {
   return (uint64_t)ts.tv_sec * 1000ULL + (uint64_t)ts.tv_nsec / 1000000ULL;
 }
 
+static int read_full_pread_at(int fd, char *buf, size_t len, off_t base_off) {
+  size_t off = 0U;
+
+  while (off < len) {
+    size_t chunk = len - off;
+    ssize_t n;
+
+    if (chunk > (1U << 20)) chunk = (1U << 20);
+    n = pread(fd, buf + off, chunk, base_off + (off_t)off);
+    if (n > 0) {
+      off += (size_t)n;
+      continue;
+    }
+    if (n == 0) return PRT_ERR_IO;
+    if (n < 0 && errno == EINTR) continue;
+    return PRT_ERR_IO;
+  }
+
+  return PRT_OK;
+}
+
+static int read_full_pread(int fd, char *buf, size_t len) {
+  return read_full_pread_at(fd, buf, len, 0);
+}
+
+static uint32_t prt_env_u32_default(const char *name, uint32_t default_value) {
+  const char *value = getenv(name);
+  char *end = NULL;
+  unsigned long parsed;
+
+  if (!value || !*value) return default_value;
+  errno = 0;
+  parsed = strtoul(value, &end, 10);
+  if (errno != 0 || end == value) return default_value;
+  if (parsed > 0xffffffffUL) return default_value;
+  return (uint32_t)parsed;
+}
+
+static int parse_u32_token_advance(char *p, char **out_next, uint32_t *out) {
+  char *end = NULL;
+  unsigned long x;
+
+  if (!p || !out_next || !out) return PRT_ERR_INVAL;
+  errno = 0;
+  x = strtoul(p, &end, 10);
+  if (end == p) return PRT_ERR_PARSE;
+  if (errno != 0 || x > 0xffffffffUL) return PRT_ERR_PARSE;
+  *out = (uint32_t)x;
+  *out_next = end;
+  return PRT_OK;
+}
+
 static int load_file(const char *path, char **out_buf, size_t *out_len) {
-  FILE *f;
-  long sz;
+  int fd = -1;
+  off_t sz_off;
+  size_t sz;
   char *buf;
+  size_t off = 0U;
   if (!path || !out_buf) return PRT_ERR_INVAL;
-  f = fopen(path, "rb");
-  if (!f) return PRT_ERR_IO;
-  if (fseek(f, 0, SEEK_END) != 0) {
-    fclose(f);
+
+  PRT_PROGRESS_LOG("artifacts file open begin path=%s", path);
+  fd = open(path, O_RDONLY | O_CLOEXEC);
+  if (fd < 0) {
+    PRT_PROGRESS_LOG("artifacts file open fail path=%s errno=%d", path, errno);
     return PRT_ERR_IO;
   }
-  sz = ftell(f);
-  if (sz < 0) {
-    fclose(f);
+  PRT_PROGRESS_LOG("artifacts file open end path=%s", path);
+
+  PRT_PROGRESS_LOG("artifacts file seek-end begin path=%s", path);
+  sz_off = lseek(fd, 0, SEEK_END);
+  if (sz_off < 0) {
+    PRT_PROGRESS_LOG("artifacts file seek-end fail path=%s errno=%d", path, errno);
+    close(fd);
     return PRT_ERR_IO;
   }
-  if (fseek(f, 0, SEEK_SET) != 0) {
-    fclose(f);
+  PRT_PROGRESS_LOG("artifacts file seek-end end path=%s", path);
+  if ((uint64_t)sz_off > (uint64_t)(SIZE_MAX - 1U)) {
+    PRT_PROGRESS_LOG("artifacts file size overflow path=%s bytes=%lld", path, (long long)sz_off);
+    close(fd);
     return PRT_ERR_IO;
   }
-  buf = (char *)malloc((size_t)sz + 1U);
+  sz = (size_t)sz_off;
+  PRT_PROGRESS_LOG("artifacts file size path=%s bytes=%zu", path, sz);
+
+  PRT_PROGRESS_LOG("artifacts file alloc begin path=%s bytes=%zu", path, sz + 1U);
+  buf = (char *)malloc(sz + 1U);
   if (!buf) {
-    fclose(f);
+    PRT_PROGRESS_LOG("artifacts file alloc fail path=%s bytes=%zu", path, sz + 1U);
+    close(fd);
     return PRT_ERR_NOMEM;
   }
-  if (fread(buf, 1, (size_t)sz, f) != (size_t)sz) {
+  PRT_PROGRESS_LOG("artifacts file alloc end path=%s bytes=%zu", path, sz + 1U);
+
+  PRT_PROGRESS_LOG("artifacts file pread begin path=%s bytes=%zu", path, sz);
+  while (off < sz) {
+    size_t chunk = sz - off;
+    ssize_t n;
+
+    if (chunk > (1U << 20)) chunk = (1U << 20);
+    PRT_PROGRESS_LOG("artifacts file pread chunk-begin path=%s off=%zu chunk=%zu", path, off, chunk);
+    n = pread(fd, buf + off, chunk, (off_t)off);
+    if (n > 0) {
+      off += (size_t)n;
+      PRT_PROGRESS_LOG("artifacts file pread chunk-end path=%s off=%zu read=%lld",
+                       path, off, (long long)n);
+      continue;
+    }
+    if (n < 0 && errno == EINTR) {
+      PRT_PROGRESS_LOG("artifacts file pread chunk-retry path=%s off=%zu errno=%d",
+                       path, off, errno);
+      continue;
+    }
+    PRT_PROGRESS_LOG("artifacts file pread fail path=%s off=%zu rc=%lld errno=%d",
+                     path, off, (long long)n, errno);
     free(buf);
-    fclose(f);
+    close(fd);
     return PRT_ERR_IO;
   }
+  PRT_PROGRESS_LOG("artifacts file pread end path=%s bytes=%zu", path, sz);
   buf[sz] = '\0';
-  fclose(f);
+  PRT_PROGRESS_LOG("artifacts file close begin path=%s", path);
+  close(fd);
+  PRT_PROGRESS_LOG("artifacts file close end path=%s", path);
   *out_buf = buf;
-  if (out_len) *out_len = (size_t)sz;
+  if (out_len) *out_len = sz;
   return PRT_OK;
 }
 
@@ -152,16 +246,15 @@ static char *value_after_colon(char *line) {
 
 static int parse_u32_scalar(char *line, uint32_t *out) {
   char *v = value_after_colon(line);
-  unsigned long x;
+  char *end = NULL;
   if (!v || !out) return PRT_ERR_PARSE;
-  x = strtoul(v, NULL, 10);
-  *out = (uint32_t)x;
-  return PRT_OK;
+  return parse_u32_token_advance(v, &end, out);
 }
 
 static int parse_u32_list_from_value(char *v, uint32_t *out, uint32_t *out_n, uint32_t cap) {
   uint32_t n = 0;
   char *p;
+  int rc;
   if (!v || !out || !out_n || cap == 0) return PRT_ERR_INVAL;
   p = strchr(v, '[');
   if (!p) {
@@ -177,7 +270,9 @@ static int parse_u32_list_from_value(char *v, uint32_t *out, uint32_t *out_n, ui
       continue;
     }
     if (n >= cap) return PRT_ERR_PARSE;
-    out[n++] = (uint32_t)strtoul(p, &p, 10);
+    rc = parse_u32_token_advance(p, &p, &out[n]);
+    if (rc != PRT_OK) return rc;
+    n++;
   }
   *out_n = n;
   return PRT_OK;
@@ -211,6 +306,252 @@ static int arrays_equal(const uint32_t *a, uint32_t a_n, const uint32_t *b, uint
     if (a[i] != b[i]) return 0;
   }
   return 1;
+}
+
+static uint32_t u32_map_lookup_value(const prt_u32_map_t *map, uint32_t key, int *out_found) {
+  if (out_found) *out_found = 0;
+  if (!map || !map->data) return 0;
+  for (uint32_t i = 0; i < map->size; ++i) {
+    if (map->data[i].key == key) {
+      if (out_found) *out_found = 1;
+      return map->data[i].value;
+    }
+  }
+  return 0;
+}
+
+static int stage_find_tensor_slot_local(const prt_stage_map_t *stage, uint32_t tensor_id, uint32_t *out_slot) {
+  if (!stage || !out_slot) return PRT_ERR_INVAL;
+  for (uint32_t i = 0; i < stage->tensor_id_count; ++i) {
+    if (stage->tensor_ids[i] == tensor_id) {
+      *out_slot = i;
+      return PRT_OK;
+    }
+  }
+  return PRT_ERR_NOT_READY;
+}
+
+static uint32_t stage_local_tensor_bytes_with_fallback(const prt_stage_map_t *stage, uint32_t slot) {
+  uint32_t bytes;
+  if (!stage || slot >= PRT_MAX_LAYER_TENSORS) return 0U;
+  bytes = stage->local_spm_tensor_bytes[slot];
+  if (bytes == 0U) bytes = stage->local_spm_page_count[slot] * PRT_PAGE_SIZE_BYTES;
+  return bytes;
+}
+
+typedef struct {
+  uint32_t tensor_id;
+  uint32_t min_bytes;
+  uint32_t max_bytes;
+  uint32_t type_mask;
+} segment_tensor_contract_t;
+
+#define SEGMENT_TENSOR_MASK_TRANSPORT 0x1U
+#define SEGMENT_TENSOR_MASK_ALL_RING 0x2U
+
+static segment_tensor_contract_t *find_or_add_segment_tensor_contract(segment_tensor_contract_t *contracts,
+                                                                     uint32_t *count,
+                                                                     uint32_t tensor_id) {
+  if (!contracts || !count) return NULL;
+  for (uint32_t i = 0; i < *count; ++i) {
+    if (contracts[i].tensor_id == tensor_id) return &contracts[i];
+  }
+  if (*count >= PRT_MAX_TENSORS) return NULL;
+  contracts[*count].tensor_id = tensor_id;
+  contracts[*count].min_bytes = UINT32_MAX;
+  contracts[*count].max_bytes = 0U;
+  contracts[*count].type_mask = 0U;
+  *count += 1U;
+  return &contracts[*count - 1U];
+}
+
+static uint32_t segment_tensor_contract_expected_ring_pages(const segment_tensor_contract_t *contract) {
+  uint32_t bytes;
+  if (!contract) return 0U;
+  if (contract->type_mask & SEGMENT_TENSOR_MASK_ALL_RING) bytes = contract->max_bytes;
+  else if (contract->type_mask & SEGMENT_TENSOR_MASK_TRANSPORT) bytes = contract->min_bytes;
+  else return 0U;
+  if (bytes == 0U) return 0U;
+  return (bytes + PRT_PAGE_SIZE_BYTES - 1U) / PRT_PAGE_SIZE_BYTES;
+}
+
+static const prt_buffer_binding_t *find_segment_ring_binding_by_tensor(const prt_segment_desc_t *seg, uint32_t tensor_id) {
+  if (!seg || !seg->buffer_bindings) return NULL;
+  for (uint32_t i = 0; i < seg->buffer_binding_count; ++i) {
+    const prt_buffer_binding_t *binding = &seg->buffer_bindings[i];
+    if (binding->kind == PRT_BUFFER_BINDING_RING && binding->tensor_id == tensor_id) return binding;
+  }
+  return NULL;
+}
+
+static int validate_segment_transport_contract(uint32_t seg_idx, const prt_segment_desc_t *seg) {
+  segment_tensor_contract_t contracts[PRT_MAX_TENSORS];
+  uint32_t contract_count = 0U;
+  memset(contracts, 0, sizeof(contracts));
+
+  if (!seg) return PRT_ERR_INVAL;
+
+  for (uint32_t stage_idx = 0; stage_idx < seg->num_stages; ++stage_idx) {
+    const prt_stage_map_t *stage = &seg->stages[stage_idx];
+    for (uint32_t i = 0; i < stage->num_entry; ++i) {
+      const prt_tensor_binding_t *tb = &stage->entry[i];
+      segment_tensor_contract_t *contract;
+      uint32_t slot = 0U;
+      uint32_t local_bytes = 0U;
+      if (stage_find_tensor_slot_local(stage, tb->tensor_id, &slot) != PRT_OK) {
+        fprintf(stderr, "segment transport validate: seg=%u stage=%u missing entry tensor slot tensor=%u\n",
+                seg_idx, stage_idx, tb->tensor_id);
+        return PRT_ERR_PARSE;
+      }
+      local_bytes = stage_local_tensor_bytes_with_fallback(stage, slot);
+      contract = find_or_add_segment_tensor_contract(contracts, &contract_count, tb->tensor_id);
+      if (!contract) return PRT_ERR_NOMEM;
+      if (!strcmp(tb->tensor_type, "ALL_RINGBUFFER")) {
+        contract->type_mask |= SEGMENT_TENSOR_MASK_ALL_RING;
+        if (stage_idx == 0U) {
+          fprintf(stderr, "segment transport validate: seg=%u tensor=%u boundary entry cannot be ALL_RINGBUFFER\n",
+                  seg_idx, tb->tensor_id);
+          return PRT_ERR_PARSE;
+        }
+      } else if (!strcmp(tb->tensor_type, "ISOLATE_SPM") || !strcmp(tb->tensor_type, "DRAM_DEPEN")) {
+        contract->type_mask |= SEGMENT_TENSOR_MASK_TRANSPORT;
+      }
+      if (local_bytes > 0U) {
+        if (contract->min_bytes == UINT32_MAX || local_bytes < contract->min_bytes) contract->min_bytes = local_bytes;
+        if (local_bytes > contract->max_bytes) contract->max_bytes = local_bytes;
+      }
+    }
+
+    for (uint32_t i = 0; i < stage->num_export; ++i) {
+      const prt_tensor_binding_t *tb = &stage->exports[i];
+      segment_tensor_contract_t *contract;
+      uint32_t slot = 0U;
+      uint32_t local_bytes = 0U;
+      if (stage_find_tensor_slot_local(stage, tb->tensor_id, &slot) != PRT_OK) {
+        fprintf(stderr, "segment transport validate: seg=%u stage=%u missing export tensor slot tensor=%u\n",
+                seg_idx, stage_idx, tb->tensor_id);
+        return PRT_ERR_PARSE;
+      }
+      local_bytes = stage_local_tensor_bytes_with_fallback(stage, slot);
+      contract = find_or_add_segment_tensor_contract(contracts, &contract_count, tb->tensor_id);
+      if (!contract) return PRT_ERR_NOMEM;
+      if (!strcmp(tb->tensor_type, "ALL_RINGBUFFER")) {
+        contract->type_mask |= SEGMENT_TENSOR_MASK_ALL_RING;
+        if (stage_idx + 1U == seg->num_stages) {
+          fprintf(stderr, "segment transport validate: seg=%u tensor=%u boundary export cannot be ALL_RINGBUFFER\n",
+                  seg_idx, tb->tensor_id);
+          return PRT_ERR_PARSE;
+        }
+      } else if (!strcmp(tb->tensor_type, "ISOLATE_SPM") || !strcmp(tb->tensor_type, "DRAM_DEPEN")) {
+        contract->type_mask |= SEGMENT_TENSOR_MASK_TRANSPORT;
+      }
+      if (local_bytes > 0U) {
+        if (contract->min_bytes == UINT32_MAX || local_bytes < contract->min_bytes) contract->min_bytes = local_bytes;
+        if (local_bytes > contract->max_bytes) contract->max_bytes = local_bytes;
+      }
+    }
+  }
+
+  for (uint32_t i = 0; i < contract_count; ++i) {
+    const segment_tensor_contract_t *contract = &contracts[i];
+    int has_transport = 0;
+    int has_ring_slot = 0;
+    uint32_t transport_bytes =
+      u32_map_lookup_value(&seg->transport_effective_bytes, contract->tensor_id, &has_transport);
+    uint32_t ring_slot_bytes =
+      u32_map_lookup_value(&seg->ring_slot_effective_bytes, contract->tensor_id, &has_ring_slot);
+    if ((contract->type_mask & SEGMENT_TENSOR_MASK_ALL_RING) &&
+        (contract->type_mask & SEGMENT_TENSOR_MASK_TRANSPORT)) {
+      fprintf(stderr, "segment transport validate: seg=%u tensor=%u mixes ALL_RINGBUFFER with transport types\n",
+              seg_idx, contract->tensor_id);
+      return PRT_ERR_PARSE;
+    }
+    if ((contract->type_mask & SEGMENT_TENSOR_MASK_TRANSPORT) != 0U) {
+      if (contract->min_bytes == UINT32_MAX || contract->min_bytes == 0U) {
+        fprintf(stderr, "segment transport validate: seg=%u tensor=%u missing min bytes for transport contract\n",
+                seg_idx, contract->tensor_id);
+        return PRT_ERR_PARSE;
+      }
+      if (!has_transport || transport_bytes != contract->min_bytes) {
+        fprintf(stderr,
+                "segment transport validate: seg=%u tensor=%u transport_effective_bytes=%u expected=%u present=%u\n",
+                seg_idx, contract->tensor_id, transport_bytes, contract->min_bytes, has_transport);
+        return PRT_ERR_PARSE;
+      }
+      if (has_ring_slot) {
+        fprintf(stderr, "segment transport validate: seg=%u tensor=%u unexpected ring_slot_effective_bytes=%u\n",
+                seg_idx, contract->tensor_id, ring_slot_bytes);
+        return PRT_ERR_PARSE;
+      }
+    } else if (has_transport) {
+      fprintf(stderr, "segment transport validate: seg=%u tensor=%u unexpected transport_effective_bytes=%u\n",
+              seg_idx, contract->tensor_id, transport_bytes);
+      return PRT_ERR_PARSE;
+    }
+
+    if ((contract->type_mask & SEGMENT_TENSOR_MASK_ALL_RING) != 0U) {
+      if (contract->max_bytes == 0U) {
+        fprintf(stderr, "segment transport validate: seg=%u tensor=%u missing max bytes for ALL_RINGBUFFER\n",
+                seg_idx, contract->tensor_id);
+        return PRT_ERR_PARSE;
+      }
+      if (!has_ring_slot || ring_slot_bytes != contract->max_bytes) {
+        fprintf(stderr,
+                "segment transport validate: seg=%u tensor=%u ring_slot_effective_bytes=%u expected=%u present=%u\n",
+                seg_idx, contract->tensor_id, ring_slot_bytes, contract->max_bytes, has_ring_slot);
+        return PRT_ERR_PARSE;
+      }
+    } else if (has_ring_slot) {
+      fprintf(stderr, "segment transport validate: seg=%u tensor=%u unexpected ring_slot_effective_bytes=%u\n",
+              seg_idx, contract->tensor_id, ring_slot_bytes);
+      return PRT_ERR_PARSE;
+    }
+  }
+
+  for (uint32_t i = 0; i < seg->num_ring_cfg; ++i) {
+    const prt_ring_cfg_t *cfg = &seg->ring_cfgs[i];
+    const prt_buffer_binding_t *binding;
+    const segment_tensor_contract_t *contract = NULL;
+    uint32_t expected_pages = 0U;
+    if (cfg->count == 0U) continue;
+    for (uint32_t c = 0; c < contract_count; ++c) {
+      if (contracts[c].tensor_id == cfg->tensor_id) {
+        contract = &contracts[c];
+        break;
+      }
+    }
+    if (!contract) {
+      fprintf(stderr, "segment transport validate: seg=%u tensor=%u ring cfg missing tensor contract\n",
+              seg_idx, cfg->tensor_id);
+      return PRT_ERR_PARSE;
+    }
+    expected_pages = segment_tensor_contract_expected_ring_pages(contract);
+    if (expected_pages == 0U) {
+      fprintf(stderr, "segment transport validate: seg=%u tensor=%u ring cfg has unsupported tensor class\n",
+              seg_idx, cfg->tensor_id);
+      return PRT_ERR_PARSE;
+    }
+    if (cfg->size_per != expected_pages) {
+      fprintf(stderr, "segment transport validate: seg=%u tensor=%u ring size_per=%u expected=%u\n",
+              seg_idx, cfg->tensor_id, cfg->size_per, expected_pages);
+      return PRT_ERR_PARSE;
+    }
+    binding = find_segment_ring_binding_by_tensor(seg, cfg->tensor_id);
+    if (!binding) {
+      fprintf(stderr, "segment transport validate: seg=%u tensor=%u missing ring buffer binding\n",
+              seg_idx, cfg->tensor_id);
+      return PRT_ERR_PARSE;
+    }
+    if (binding->pages_per_slot != expected_pages || binding->slot_count != cfg->count) {
+      fprintf(stderr,
+              "segment transport validate: seg=%u tensor=%u ring binding slot_count/pages=%u/%u expected=%u/%u\n",
+              seg_idx, cfg->tensor_id, binding->slot_count, binding->pages_per_slot,
+              cfg->count, expected_pages);
+      return PRT_ERR_PARSE;
+    }
+  }
+
+  return PRT_OK;
 }
 
 static void mapping_entry_reset(mapping_entry_t *entry) {
@@ -307,20 +648,30 @@ static int mapping_entry_from_cache(mapping_entry_t *entry, const mapping_cache_
 }
 
 static int load_mapping_cache_file(const char *cache_path, mapping_db_t *db) {
-  FILE *f = NULL;
+  int fd = -1;
   mapping_cache_header_t header;
   uint64_t load_start_ms;
   uint64_t parse_start_ms;
+  const uint32_t probe_start = prt_env_u32_default("PIPELINE_RUNTIME_MAPPING_CACHE_PROBE_START",
+                                                   UINT32_MAX);
+  const uint32_t probe_end = prt_env_u32_default("PIPELINE_RUNTIME_MAPPING_CACHE_PROBE_END",
+                                                 probe_start);
+  const int probe_enabled = probe_start != UINT32_MAX && probe_end >= probe_start;
   int rc = PRT_ERR_IO;
 
   if (!cache_path || !db) return PRT_ERR_INVAL;
   load_start_ms = monotonic_ms();
   (void)load_start_ms;
   PRT_PROGRESS_LOG("artifacts mapping cache load begin cache=%s", cache_path);
+  PRT_PROGRESS_LOG("artifacts mapping cache read-mode cache=%s mode=pread", cache_path);
+  if (probe_enabled) {
+    PRT_PROGRESS_LOG("artifacts mapping cache probe-range cache=%s start=%u end=%u",
+                     cache_path, probe_start, probe_end);
+  }
 
-  f = fopen(cache_path, "rb");
-  if (!f) return PRT_ERR_IO;
-  if (fread(&header, sizeof(header), 1, f) != 1U) {
+  fd = open(cache_path, O_RDONLY | O_CLOEXEC);
+  if (fd < 0) return PRT_ERR_IO;
+  if (read_full_pread_at(fd, (char *)&header, sizeof(header), 0) != PRT_OK) {
     rc = PRT_ERR_PARSE;
     goto out;
   }
@@ -342,14 +693,39 @@ static int load_mapping_cache_file(const char *cache_path, mapping_db_t *db) {
   for (uint32_t entry_idx = 0; entry_idx < header.entry_count; ++entry_idx) {
     mapping_cache_entry_t cached;
     mapping_entry_t entry;
-    if (fread(&cached, sizeof(cached), 1, f) != 1U) {
+    const off_t entry_off =
+      (off_t)sizeof(header) + (off_t)entry_idx * (off_t)sizeof(cached);
+    const int trace_entry = probe_enabled && entry_idx >= probe_start && entry_idx <= probe_end;
+    if (trace_entry) {
+      PRT_PROGRESS_LOG("artifacts mapping cache probe idx=%u step=before-read off=%lld",
+                       entry_idx, (long long)entry_off);
+    }
+    if (read_full_pread_at(fd, (char *)&cached, sizeof(cached), entry_off) != PRT_OK) {
       rc = PRT_ERR_PARSE;
       goto out;
     }
+    if (trace_entry) {
+      PRT_PROGRESS_LOG(
+        "artifacts mapping cache probe idx=%u step=after-read layer=%u acc=%u split=%u active=%u counts=%u/%u/%u/%u/%u/%u",
+        entry_idx, cached.layer_id, cached.target_accel, cached.split_kind, cached.active,
+        cached.dram_n, cached.spm_n, cached.spm_addr_n,
+        cached.first_vpage_n, cached.page_count_n, cached.spm_bytes_n);
+    }
     rc = mapping_entry_from_cache(&entry, &cached);
     if (rc != PRT_OK) goto out;
+    if (trace_entry) {
+      PRT_PROGRESS_LOG(
+        "artifacts mapping cache probe idx=%u step=after-decode layer=%u acc=%u split=%u active=%d counts=%u/%u/%u/%u/%u/%u",
+        entry_idx, entry.layer_id, entry.target_accel, entry.split_kind, entry.active,
+        entry.dram_n, entry.spm_n, entry.spm_addr_n,
+        entry.first_vpage_n, entry.page_count_n, entry.spm_bytes_n);
+    }
     rc = mapping_db_append(db, &entry);
     if (rc != PRT_OK) goto out;
+    if (trace_entry) {
+      PRT_PROGRESS_LOG("artifacts mapping cache probe idx=%u step=after-append db_count=%u",
+                       entry_idx, db->count);
+    }
     if ((db->count % PRT_MAPPING_PARSE_PROGRESS_INTERVAL) == 0U ||
         db->count == header.entry_count) {
       PRT_PROGRESS_LOG("artifacts mapping cache progress cache=%s entries=%u elapsed_ms=%llu",
@@ -364,7 +740,7 @@ static int load_mapping_cache_file(const char *cache_path, mapping_db_t *db) {
   rc = PRT_OK;
 
 out:
-  if (f) fclose(f);
+  if (fd >= 0) close(fd);
   if (rc != PRT_OK) {
     mapping_db_reset(db);
     fprintf(stderr, "mapping cache load failed: cache=%s rc=%d\n", cache_path, rc);
@@ -446,24 +822,43 @@ static int parse_mapping_file(const char *path, mapping_db_t *db) {
   char *cache_path = NULL;
   char *p;
   size_t buf_len = 0;
+  uint32_t line_no = 0;
   uint32_t estimated_entries;
+  uint32_t cur_entry_ord = 0;
+  uint32_t parse_progress_interval =
+    prt_env_u32_default("PIPELINE_RUNTIME_MAPPING_PARSE_PROGRESS_INTERVAL",
+                        PRT_MAPPING_PARSE_PROGRESS_INTERVAL);
+  const uint32_t probe_start = prt_env_u32_default("PIPELINE_RUNTIME_MAPPING_PARSE_PROBE_START",
+                                                   UINT32_MAX);
+  const uint32_t probe_end = prt_env_u32_default("PIPELINE_RUNTIME_MAPPING_PARSE_PROBE_END",
+                                                 probe_start);
+  const int probe_enabled = probe_start != UINT32_MAX && probe_end >= probe_start;
   mapping_entry_t cur;
   int rc;
+  int trace_entry = 0;
   uint64_t load_start_ms;
   uint64_t parse_start_ms;
 
   if (!path || !db) return PRT_ERR_INVAL;
   (void)load_start_ms;
   (void)parse_start_ms;
+  if (parse_progress_interval == 0U) {
+    parse_progress_interval = PRT_MAPPING_PARSE_PROGRESS_INTERVAL;
+  }
   cache_path = mapping_cache_path_from_yaml(path);
   if (cache_path) {
-    rc = load_mapping_cache_file(cache_path, db);
-    if (rc == PRT_OK) {
-      free(cache_path);
-      return PRT_OK;
+    if (prt_env_flag_enabled_impl("PIPELINE_RUNTIME_DISABLE_MAPPING_CACHE", 0)) {
+      PRT_PROGRESS_LOG("artifacts mapping cache disabled layer_mapping=%s cache=%s reason=env",
+                       path, cache_path);
+    } else {
+      rc = load_mapping_cache_file(cache_path, db);
+      if (rc == PRT_OK) {
+        free(cache_path);
+        return PRT_OK;
+      }
+      PRT_PROGRESS_LOG("artifacts mapping cache fallback layer_mapping=%s cache=%s rc=%d",
+                       path, cache_path, rc);
     }
-    PRT_PROGRESS_LOG("artifacts mapping cache fallback layer_mapping=%s cache=%s rc=%d",
-                     path, cache_path, rc);
     free(cache_path);
   }
 
@@ -487,8 +882,12 @@ static int parse_mapping_file(const char *path, mapping_db_t *db) {
       return rc;
     }
   }
-  PRT_PROGRESS_LOG("artifacts mapping parse begin layer_mapping=%s estimated_entries=%u",
-                   path, estimated_entries);
+  PRT_PROGRESS_LOG("artifacts mapping parse begin layer_mapping=%s estimated_entries=%u progress_interval=%u",
+                   path, estimated_entries, parse_progress_interval);
+  if (probe_enabled) {
+    PRT_PROGRESS_LOG("artifacts mapping parse probe-range layer_mapping=%s start=%u end=%u",
+                     path, probe_start, probe_end);
+  }
   mapping_entry_reset(&cur);
   parse_start_ms = monotonic_ms();
   p = buf;
@@ -502,18 +901,29 @@ static int parse_mapping_file(const char *path, mapping_db_t *db) {
     } else {
       p = NULL;
     }
+    line_no++;
     rtrim(line);
     t = ltrim(line);
     if (*t == '\0' || *t == '#') continue;
 
     if (strncmp(t, "- layer_id:", 11) == 0) {
       if (cur.active) {
+        if (trace_entry) {
+          PRT_PROGRESS_LOG("artifacts mapping parse probe entry=%u step=before-append line=%u layer=%u acc=%u split=%u counts=%u/%u/%u/%u/%u/%u",
+                           cur_entry_ord, line_no, cur.layer_id, cur.target_accel, cur.split_kind,
+                           cur.dram_n, cur.spm_n, cur.spm_addr_n,
+                           cur.first_vpage_n, cur.page_count_n, cur.spm_bytes_n);
+        }
         rc = mapping_db_append(db, &cur);
         if (rc != PRT_OK) {
           free(buf);
           return rc;
         }
-        if ((db->count % PRT_MAPPING_PARSE_PROGRESS_INTERVAL) == 0U) {
+        if (trace_entry) {
+          PRT_PROGRESS_LOG("artifacts mapping parse probe entry=%u step=after-append db_count=%u",
+                           cur_entry_ord, db->count);
+        }
+        if ((db->count % parse_progress_interval) == 0U) {
           PRT_PROGRESS_LOG("artifacts mapping parse progress layer_mapping=%s entries=%u elapsed_ms=%llu",
                            path, db->count,
                            (unsigned long long)(monotonic_ms() - parse_start_ms));
@@ -521,7 +931,15 @@ static int parse_mapping_file(const char *path, mapping_db_t *db) {
       }
       mapping_entry_reset(&cur);
       cur.active = 1;
+      cur_entry_ord = db->count + 1U;
+      trace_entry = probe_enabled && cur_entry_ord >= probe_start && cur_entry_ord <= probe_end;
+      if (trace_entry) {
+        PRT_PROGRESS_LOG("artifacts mapping parse probe entry=%u step=begin line=%u text=%s",
+                         cur_entry_ord, line_no, t);
+      }
       if (parse_u32_scalar(t, &cur.layer_id) != PRT_OK) {
+        PRT_PROGRESS_LOG("artifacts mapping parse error layer_mapping=%s entry=%u line=%u field=layer_id text=%s",
+                         path, cur_entry_ord, line_no, t);
         free(buf);
         return PRT_ERR_PARSE;
       }
@@ -529,9 +947,15 @@ static int parse_mapping_file(const char *path, mapping_db_t *db) {
     }
 
     if (!cur.active) continue;
+    if (trace_entry) {
+      PRT_PROGRESS_LOG("artifacts mapping parse probe entry=%u step=line line=%u text=%s",
+                       cur_entry_ord, line_no, t);
+    }
 
     if (starts_key(t, "target_accel")) {
       if (parse_u32_scalar(t, &cur.target_accel) != PRT_OK) {
+        PRT_PROGRESS_LOG("artifacts mapping parse error layer_mapping=%s entry=%u line=%u field=target_accel text=%s",
+                         path, cur_entry_ord, line_no, t);
         free(buf);
         return PRT_ERR_PARSE;
       }
@@ -541,6 +965,8 @@ static int parse_mapping_file(const char *path, mapping_db_t *db) {
     if (starts_key(t, "mapping_dram_bypass")) {
       if (parse_u32_list_from_value(value_after_colon(t), cur.dram, &cur.dram_n,
                                     PRT_MAX_LAYER_TENSORS) != PRT_OK) {
+        PRT_PROGRESS_LOG("artifacts mapping parse error layer_mapping=%s entry=%u line=%u field=mapping_dram_bypass text=%s",
+                         path, cur_entry_ord, line_no, t);
         free(buf);
         return PRT_ERR_PARSE;
       }
@@ -550,6 +976,8 @@ static int parse_mapping_file(const char *path, mapping_db_t *db) {
     if (starts_key(t, "mapping_spm_bypass")) {
       if (parse_u32_list_from_value(value_after_colon(t), cur.spm, &cur.spm_n,
                                     PRT_MAX_LAYER_TENSORS) != PRT_OK) {
+        PRT_PROGRESS_LOG("artifacts mapping parse error layer_mapping=%s entry=%u line=%u field=mapping_spm_bypass text=%s",
+                         path, cur_entry_ord, line_no, t);
         free(buf);
         return PRT_ERR_PARSE;
       }
@@ -564,6 +992,8 @@ static int parse_mapping_file(const char *path, mapping_db_t *db) {
     if (starts_key(t, "others_spm_tensor_addr")) {
       if (parse_u32_list_from_value(value_after_colon(t), cur.spm_addr, &cur.spm_addr_n,
                                     PRT_MAX_LAYER_TENSORS) != PRT_OK) {
+        PRT_PROGRESS_LOG("artifacts mapping parse error layer_mapping=%s entry=%u line=%u field=others_spm_tensor_addr text=%s",
+                         path, cur_entry_ord, line_no, t);
         free(buf);
         return PRT_ERR_PARSE;
       }
@@ -573,6 +1003,8 @@ static int parse_mapping_file(const char *path, mapping_db_t *db) {
     if (starts_key(t, "others_first_tensor_page_num")) {
       if (parse_u32_list_from_value(value_after_colon(t), cur.first_vpage, &cur.first_vpage_n,
                                     PRT_MAX_LAYER_TENSORS) != PRT_OK) {
+        PRT_PROGRESS_LOG("artifacts mapping parse error layer_mapping=%s entry=%u line=%u field=others_first_tensor_page_num text=%s",
+                         path, cur_entry_ord, line_no, t);
         free(buf);
         return PRT_ERR_PARSE;
       }
@@ -582,6 +1014,8 @@ static int parse_mapping_file(const char *path, mapping_db_t *db) {
     if (starts_key(t, "others_spm_tensor_page_count")) {
       if (parse_u32_list_from_value(value_after_colon(t), cur.page_count, &cur.page_count_n,
                                     PRT_MAX_LAYER_TENSORS) != PRT_OK) {
+        PRT_PROGRESS_LOG("artifacts mapping parse error layer_mapping=%s entry=%u line=%u field=others_spm_tensor_page_count text=%s",
+                         path, cur_entry_ord, line_no, t);
         free(buf);
         return PRT_ERR_PARSE;
       }
@@ -591,6 +1025,8 @@ static int parse_mapping_file(const char *path, mapping_db_t *db) {
     if (starts_key(t, "others_spm_tensor_util")) {
       if (parse_u32_list_from_value(value_after_colon(t), cur.spm_bytes, &cur.spm_bytes_n,
                                     PRT_MAX_LAYER_TENSORS) != PRT_OK) {
+        PRT_PROGRESS_LOG("artifacts mapping parse error layer_mapping=%s entry=%u line=%u field=others_spm_tensor_util text=%s",
+                         path, cur_entry_ord, line_no, t);
         free(buf);
         return PRT_ERR_PARSE;
       }
@@ -599,12 +1035,22 @@ static int parse_mapping_file(const char *path, mapping_db_t *db) {
   }
 
   if (cur.active) {
+    if (trace_entry) {
+      PRT_PROGRESS_LOG("artifacts mapping parse probe entry=%u step=before-final-append line=%u layer=%u acc=%u split=%u counts=%u/%u/%u/%u/%u/%u",
+                       cur_entry_ord, line_no, cur.layer_id, cur.target_accel, cur.split_kind,
+                       cur.dram_n, cur.spm_n, cur.spm_addr_n,
+                       cur.first_vpage_n, cur.page_count_n, cur.spm_bytes_n);
+    }
     rc = mapping_db_append(db, &cur);
     if (rc != PRT_OK) {
       free(buf);
       return rc;
     }
-    if ((db->count % PRT_MAPPING_PARSE_PROGRESS_INTERVAL) == 0U ||
+    if (trace_entry) {
+      PRT_PROGRESS_LOG("artifacts mapping parse probe entry=%u step=after-final-append db_count=%u",
+                       cur_entry_ord, db->count);
+    }
+    if ((db->count % parse_progress_interval) == 0U ||
         db->count == estimated_entries) {
       PRT_PROGRESS_LOG("artifacts mapping parse progress layer_mapping=%s entries=%u elapsed_ms=%llu",
                        path, db->count,
@@ -771,6 +1217,8 @@ int prt_validate_gemmini_artifacts(const char *model_yaml, const char *layer_map
       rc = validate_stage_against_mapping_entries(layer_mapping_yaml, &db, seg_idx, stage_idx, stage);
       if (rc != PRT_OK) goto out;
     }
+    rc = validate_segment_transport_contract(seg_idx, seg);
+    if (rc != PRT_OK) goto out;
     PRT_PROGRESS_LOG("artifacts validate segment-end seg=%u stages=%u elapsed_ms=%llu",
                      seg_idx, seg->num_stages,
                      (unsigned long long)(monotonic_ms() - seg_start_ms));

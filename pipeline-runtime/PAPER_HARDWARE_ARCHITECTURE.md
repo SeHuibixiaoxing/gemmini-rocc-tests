@@ -1241,6 +1241,32 @@ stdbuf -oL -eL \
   - pass 只要求 `ok0 && ok1`
   - `overlap` / `short_before_long` 继续打印，但只作为观测指标
 
+### 11.13 2026-04-07 runtime pair-manager 软件适配事实
+
+在上述 small-config baremetal pair-manager 验证完成后，`pipeline-runtime` 软件栈也已补上显式 pair-manager 模式：
+
+- runtime CLI / cfg 新增：
+  - `--pair-manager-mode <0|1>`
+- `pair_manager_mode = 0`：
+  - 保持旧的 separate-manager 行为
+- `pair_manager_mode = 1`：
+  - 要求 `num_dma_mgrs == num_gemmini_mgrs`
+  - 要求 `dma_base_id == gemmini_base_id`
+  - stage 分配、DMA pipe export、Gemmini task、SPM/xlate 都使用同一个 pair manager-id 空间
+  - `custom3` 仍给 Gemmini，`custom2` 仍给 DMA
+  - 本轮没有改写 `pipeline-runtime/src/prt_rerocc.c` 的 acquire/fence/release 协议，只改正 runtime 的 manager-id 假设
+
+同时，bertmini runtime Linux 入口脚本也已新增：
+
+- `PAIR_MANAGER_MODE=1`
+  - pair 模式下默认令 `DMA_BASE_ID = GEMMINI_BASE_ID`
+  - 若用户传入不一致的 `NUM_DMA` 或 `DMA_BASE_ID`，脚本直接报错，不再静默落回 separate-manager 语义
+
+后续 FireSim 运行仍需继续遵守：
+
+- 任何 binary / rootfs / workload / AGFI 更新后必须重新 `infrasetup`
+- workload 结束后必须及时 `terminaterunfarm`，并确认实例真的被回收
+
 为了减少本地 smoke 噪声，仍保留：
 
 - `tools/DRAMSim2/AddressMapping.cpp`

@@ -128,6 +128,24 @@ static inline const char *prt_audit_log_path_impl(void) {
   return path;
 }
 
+static inline int prt_checkpoint_log_enabled_impl(void) {
+  static int enabled = -1;
+  if (enabled < 0) {
+    enabled = prt_env_flag_enabled_impl("PIPELINE_RUNTIME_CHECKPOINT_LOG_ENABLE", 0);
+  }
+  return enabled;
+}
+
+static inline const char *prt_checkpoint_log_path_impl(void) {
+  static int initialized = 0;
+  static const char *path = NULL;
+  if (!initialized) {
+    path = getenv("PIPELINE_RUNTIME_CHECKPOINT_LOG_PATH");
+    initialized = 1;
+  }
+  return path;
+}
+
 static inline int prt_log_fd_impl(void) {
   static int log_fd = -2;
   if (log_fd == -2) {
@@ -139,16 +157,17 @@ static inline int prt_log_fd_impl(void) {
 
 static inline void prt_write_fd_all_impl(int fd, const char *buf, size_t len) {
   if (!buf || len == 0U) return;
-  const char *ptr = buf;
-  size_t remaining = len;
-  while (remaining > 0U) {
-    ssize_t written = write(fd, ptr, remaining);
+  for (int retries = 0; retries < 4; ++retries) {
+    ssize_t written = write(fd, buf, len);
     if (written > 0) {
-      ptr += (size_t)written;
-      remaining -= (size_t)written;
+      // Best-effort logging only: once the kernel accepted any bytes, do not
+      // spin waiting for the remainder. In long FireSim Linux runs the guest
+      // can otherwise wedge in hot logging paths after a partial append.
+      return;
+    }
+    if (written < 0 && (errno == EINTR || errno == EAGAIN || errno == EWOULDBLOCK)) {
       continue;
     }
-    if (written < 0 && errno == EINTR) continue;
     break;
   }
 }
@@ -196,6 +215,19 @@ static inline int prt_audit_log_fd_impl(void) {
   return log_fd;
 }
 
+static inline int prt_checkpoint_log_fd_impl(void) {
+  static int log_fd = -2;
+  if (log_fd == -2) {
+    const char *path = prt_checkpoint_log_path_impl();
+    if (prt_checkpoint_log_enabled_impl() && path && *path) {
+      log_fd = open(path, O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC, 0644);
+    } else {
+      log_fd = -1;
+    }
+  }
+  return log_fd;
+}
+
 static inline void prt_guest_write_all_impl(const char *buf, size_t len) {
   const int guest_log_fd = prt_guest_log_fd_impl();
   if (!buf || len == 0U) return;
@@ -228,6 +260,13 @@ static inline void prt_audit_write_all_impl(const char *buf, size_t len) {
   if (!buf || len == 0U) return;
   if (audit_log_fd < 0) return;
   prt_write_fd_all_impl(audit_log_fd, buf, len);
+}
+
+static inline void prt_checkpoint_write_all_impl(const char *buf, size_t len) {
+  const int checkpoint_log_fd = prt_checkpoint_log_fd_impl();
+  if (!buf || len == 0U) return;
+  if (checkpoint_log_fd < 0) return;
+  prt_write_fd_all_impl(checkpoint_log_fd, buf, len);
 }
 
 static inline void prt_guest_prefixed_vlog_impl(const char *prefix, const char *fmt, va_list ap) {
@@ -336,6 +375,35 @@ static inline void prt_audit_prefixed_vlog_impl(const char *prefix, const char *
 
   prt_audit_write_all_impl(line, used);
 }
+
+static inline void prt_checkpoint_prefixed_vlog_impl(const char *prefix, const char *fmt, va_list ap) {
+  char line[2048];
+  int prefix_rc;
+  int body_rc;
+  size_t used = 0U;
+
+  prefix_rc = snprintf(line, sizeof(line), "%s", prefix ? prefix : "");
+  if (prefix_rc < 0) return;
+  if ((size_t)prefix_rc >= sizeof(line)) {
+    line[sizeof(line) - 2U] = '\n';
+    line[sizeof(line) - 1U] = '\0';
+    prt_checkpoint_write_all_impl(line, sizeof(line) - 1U);
+    return;
+  }
+
+  used = (size_t)prefix_rc;
+  body_rc = vsnprintf(line + used, sizeof(line) - used, fmt, ap);
+  if (body_rc < 0) return;
+
+  used += (size_t)body_rc;
+  if (used >= sizeof(line) - 1U) {
+    used = sizeof(line) - 2U;
+  }
+  line[used++] = '\n';
+  line[used] = '\0';
+
+  prt_checkpoint_write_all_impl(line, used);
+}
 #else
 static inline void prt_deep_write_all_impl(const char *buf, size_t len) {
   if (!buf || len == 0U) return;
@@ -344,6 +412,12 @@ static inline void prt_deep_write_all_impl(const char *buf, size_t len) {
 }
 
 static inline void prt_audit_write_all_impl(const char *buf, size_t len) {
+  if (!buf || len == 0U) return;
+  fwrite(buf, 1U, len, stderr);
+  fflush(stderr);
+}
+
+static inline void prt_checkpoint_write_all_impl(const char *buf, size_t len) {
   if (!buf || len == 0U) return;
   fwrite(buf, 1U, len, stderr);
   fflush(stderr);
@@ -364,6 +438,22 @@ static inline void prt_audit_log_impl(const char *fmt, ...) {
 #define PRT_AUDIT_LOG(fmt, ...)                                     \
   do {                                                              \
     prt_audit_log_impl(fmt, ##__VA_ARGS__);                         \
+  } while (0)
+
+static inline void prt_checkpoint_log_impl(const char *fmt, ...) {
+  va_list ap;
+  va_start(ap, fmt);
+#ifdef BAREMETAL
+  prt_stream_prefixed_vlog_impl(stderr, "[prt-checkpoint] ", fmt, ap);
+#else
+  prt_checkpoint_prefixed_vlog_impl("[prt-checkpoint] ", fmt, ap);
+#endif
+  va_end(ap);
+}
+
+#define PRT_CHECKPOINT_LOG(fmt, ...)                                \
+  do {                                                              \
+    prt_checkpoint_log_impl(fmt, ##__VA_ARGS__);                    \
   } while (0)
 
 #if PRT_ENABLE_CRITICAL_UART_PROBE
