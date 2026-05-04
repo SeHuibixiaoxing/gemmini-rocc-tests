@@ -1,0 +1,3 @@
+4355a46b19d348dc2f57c046f8ef63d4538ebb936000f3c9ee954a27460dd865  /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/artifacts/20260504T181615Z_min1bp_build_vivado_segv/build-tmux.exitcode
+da98187326da4e8951d51e0398ec8452c666e4133c340ee0327a9037629f59d8  /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/artifacts/20260504T181615Z_min1bp_build_vivado_segv/build-tmux.metadata
+8d858b174f22d1ec36bf2f6b304071f7139f068aa8988d47080489e2fcfd4486  /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/artifacts/20260504T181615Z_min1bp_build_vivado_segv/hs_err_pid2107.log
