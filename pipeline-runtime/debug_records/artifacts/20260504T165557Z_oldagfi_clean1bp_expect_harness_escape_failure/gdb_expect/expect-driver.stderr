@@ -1,0 +1,6 @@
+invalid command name "0\"
+    while executing
+"0\\"
+    invoked from within
+"gdb_cmd "print/x smoke_memory_probe\\[0\\]""
+    (file "/home/ubuntu/chipyard/tmp/firesim-aws-f2/gdbserver-tests/remote-swbreak-expect-20260504T165557Z-192_168_1_30/remote-swbreak.expect" line 76)

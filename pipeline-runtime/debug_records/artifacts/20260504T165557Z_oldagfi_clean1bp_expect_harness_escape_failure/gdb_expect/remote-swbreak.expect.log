@@ -1,0 +1,76 @@
+spawn /home/ubuntu/chipyard/.conda-env/riscv-tools/bin/riscv64-unknown-linux-gnu-gdb /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/workloads/rocket-singlecore-nic-gdbserver-smoke/overlay/root/gdbserver-smoke/gdbserver-smoke
+GNU gdb (GDB) 14.1
+Copyright (C) 2023 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+Type "show copying" and "show warranty" for details.
+This GDB was configured as "--host=x86_64-pc-linux-gnu --target=riscv64-unknown-linux-gnu".
+Type "show configuration" for configuration details.
+For bug reporting instructions, please see:
+<https://www.gnu.org/software/gdb/bugs/>.
+Find the GDB manual and other documentation resources online at:
+    <http://www.gnu.org/software/gdb/documentation/>.
+
+For help, type "help".
+Type "apropos word" to search for commands related to "word"...
+Reading symbols from /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/workloads/rocket-singlecore-nic-gdbserver-smoke/overlay/root/gdbserver-smoke/gdbserver-smoke...
+[?2004h(gdb) set pagination off
+[?2004l[?2004h(gdb) set confirm off
+[?2004l[?2004h(gdb) set print thread-events off
+[?2004l[?2004h(gdb) set debuginfod enabled off
+[?2004l[?2004h(gdb) set auto-load safe-path /
+[?2004l[?2004h(gdb) set remotetimeout 180
+[?2004l[?2004h(gdb) target remote :32345
+[?2004lRemote debugging using :32345
+0x0000000000010438 in _start ()
+[?2004h(gdb) break main
+[?2004lBreakpoint 1 at 0x106a4: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/workloads/rocket-singlecore-nic-gdbserver-smoke/gdbserver-smoke.c, line 51.
+[?2004h(gdb) break smoke_iteration_hook
+[?2004lBreakpoint 2 at 0x10598: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/workloads/rocket-singlecore-nic-gdbserver-smoke/gdbserver-smoke.c, line 29.
+[?2004h(gdb) break smoke_worker_heartbeat
+[?2004lBreakpoint 3 at 0x105e8: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/workloads/rocket-singlecore-nic-gdbserver-smoke/gdbserver-smoke.c, line 33.
+[?2004h(gdb) info breakpoints
+[?2004lNum     Type           Disp Enb Address            What
+1       breakpoint     keep y   0x00000000000106a4 in main 
+                                                   at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/workloads/rocket-singlecore-nic-gdbserver-smoke/gdbserver-smoke.c:51
+2       breakpoint     keep y   0x0000000000010598 in smoke_iteration_hook 
+                                                   at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/workloads/rocket-singlecore-nic-gdbserver-smoke/gdbserver-smoke.c:29
+3       breakpoint     keep y   0x00000000000105e8 in smoke_worker_heartbeat 
+                                                   at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/workloads/rocket-singlecore-nic-gdbserver-smoke/gdbserver-smoke.c:33
+[?2004h(gdb) continue
+[?2004lContinuing.
+
+Breakpoint 1, main ()
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/workloads/rocket-singlecore-nic-gdbserver-smoke/gdbserver-smoke.c:51
+51	  puts("gdbserver-smoke: begin");
+[?2004h[?2004l[?2004h(gdb) bt
+[?2004l#0  main ()
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/workloads/rocket-singlecore-nic-gdbserver-smoke/gdbserver-smoke.c:51
+[?2004h(gdb) info registers pc sp ra a0 a1
+[?2004lpc             0x106a4	0x106a4 <main+8>
+sp             0x3ffffffb00	0x3ffffffb00
+ra             0x108a8	0x108a8 <__libc_start_call_main+54>
+a0             0x1	1
+a1             0x3ffffffcf8	274877906168
+[?2004h(gdb) x/12i $pc
+[?2004l=> 0x106a4 <main+8>:	lui	a5,0x58
+   0x106a8 <main+12>:	addi	a0,a5,-1248
+   0x106ac <main+16>:	jal	0x14a9a <puts>
+   0x106b0 <main+20>:	lui	a5,0x89
+   0x106b4 <main+24>:	ld	a5,1464(a5)
+   0x106b8 <main+28>:	mv	a0,a5
+   0x106ba <main+30>:	jal	0x1496c <fflush>
+   0x106be <main+34>:	sw	zero,-20(s0)
+   0x106c2 <main+38>:	j	0x10726 <main+138>
+   0x106c4 <main+40>:	addi	a4,s0,-72
+   0x106c8 <main+44>:	lw	a5,-20(s0)
+   0x106cc <main+48>:	slli	a5,a5,0x3
+[?2004h(gdb) print smoke_counter
+[?2004l$1 = 0
+[?2004h(gdb) invalid command name "0\"
+    while executing
+"0\\"
+    invoked from within
+"gdb_cmd "print/x smoke_memory_probe\\[0\\]""
+    (file "/home/ubuntu/chipyard/tmp/firesim-aws-f2/gdbserver-tests/remote-swbreak-expect-20260504T165557Z-192_168_1_30/remote-swbreak.expect" line 76)
