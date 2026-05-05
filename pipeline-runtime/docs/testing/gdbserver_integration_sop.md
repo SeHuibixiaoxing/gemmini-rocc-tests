@@ -1,6 +1,6 @@
 # Pipeline Runtime gdbserver Integration SOP
 
-更新时间：`2026-05-05 16:35 UTC`
+更新时间：`2026-05-05 16:55 UTC`
 
 ## 1. 目标
 
@@ -392,6 +392,13 @@ rg -n "SimpleNICBridgeModule|ice-nic@10016000|bytes_written_per_beat|write_shift
 
 如果 freshness gate 找不到这些 marker，不要等 Vivado 完成；先停止构建并记录为
 “构建输入不新鲜/目标不对”。
+
+2026-05-05 当前 cfg32 NIC 构建 `pairdummy-cfg32-nic-mainline-20260505T132956Z`
+已通过本节 freshness gate：本地与远端 build host `192.168.0.60` 的
+`FireSim-generated.sv` 均为 `2026-05-05 16:46:07 UTC`、`166512822` bytes；
+生成 RTL 同时包含 `SimpleNICBridgeModule`、`bytes_written_per_beat` 和
+`write_shift`；`network-audit` 找到 `ice-nic@10016000`。该轮仍未产生
+AGFI/AFI，尚不能更新 HWDB 或启动 cfg32 NIC gdbserver run。
 
 每次汇报 buildbitstream 已启动时，都要同时汇报：
 
