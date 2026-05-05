@@ -85,6 +85,13 @@ allocation order、默认 xlate range 和 idle check 都改为使用独立的 SP
 
 验收：日志中能看到 action manager 表；任何越权 manager 使用都 fail-fast。
 
+当前状态：`2026-05-05T152012Z` 已补第一版 DMA manager ownership 运行时断言。
+`dma_batch_scope_acquire`、直接 `prt_dma_submit` 和 host `prt_dma_copy_spm_va`
+入口会检查 `stage_idx` 是否有效、`manager_id` 是否属于当前 action 给该 stage
+绑定的 DMA manager；在 pair-manager mode 下，也接受同一 stage 的 paired
+Gemmini manager set。这样 DMA/Gemmini 共用 local id 时，误用 manager 会先报
+`dma manager contract violation`，不再直接表现成硬件 DMA fence 卡死。
+
 ## P1：SPM 稳定绑定
 
 措施：

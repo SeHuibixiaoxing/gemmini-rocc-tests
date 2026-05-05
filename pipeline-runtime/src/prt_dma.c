@@ -92,6 +92,8 @@ static int dma_completion_flag_refresh(prt_dma_token_t *tok);
 static int dma_batch_scope_acquire(prt_runtime_t *rt, uint32_t stage_idx,
                                    uint32_t manager_id, uint32_t opcode_id,
                                    prt_rr_scope_t *scope);
+static int dma_validate_stage_manager(const prt_runtime_t *rt, uint32_t stage_idx,
+                                      uint32_t manager_id, const char *where);
 
 static inline void dma_cpu_fence_rw(void) {
 #if defined(__riscv)
@@ -99,6 +101,40 @@ static inline void dma_cpu_fence_rw(void) {
 #else
   __asm__ volatile("" ::: "memory");
 #endif
+}
+
+static int dma_validate_stage_manager(const prt_runtime_t *rt, uint32_t stage_idx,
+                                      uint32_t manager_id, const char *where) {
+  const prt_action_exec_t *exec;
+  uint32_t tile_count;
+  if (!rt) return PRT_ERR_INVAL;
+  exec = prt_runtime_current_exec_const(rt);
+  if (!exec) return PRT_OK;
+  if (stage_idx >= exec->stage_thread_count) {
+    fprintf(stderr,
+            "dma manager contract violation at %s: stage=%u stage_count=%u manager=%u\n",
+            where ? where : "unknown", stage_idx, exec->stage_thread_count,
+            manager_id);
+    return PRT_ERR_INVAL;
+  }
+  if (exec->stage_dma_ids[stage_idx] == manager_id) return PRT_OK;
+  if (!prt_cfg_pair_manager_mode_enabled(&rt->cfg)) {
+    fprintf(stderr,
+            "dma manager contract violation at %s: stage=%u manager=%u assigned_dma=%u pair=0\n",
+            where ? where : "unknown", stage_idx, manager_id,
+            exec->stage_dma_ids[stage_idx]);
+    return PRT_ERR_STATE;
+  }
+  tile_count = exec->stage_tile_counts[stage_idx];
+  if (tile_count > PRT_MAX_CORES) tile_count = PRT_MAX_CORES;
+  for (uint32_t i = 0; i < tile_count; ++i) {
+    if (exec->stage_mgr_ids[stage_idx][i] == manager_id) return PRT_OK;
+  }
+  fprintf(stderr,
+          "dma manager contract violation at %s: stage=%u manager=%u assigned_dma=%u tile_count=%u pair=1\n",
+          where ? where : "unknown", stage_idx, manager_id,
+          exec->stage_dma_ids[stage_idx], tile_count);
+  return PRT_ERR_STATE;
 }
 
 static uint32_t dma_breadcrumb_flags_from_token(const prt_dma_token_t *tok, uint32_t extra_flags) {
@@ -1740,8 +1776,11 @@ static int dma_token_fence_scope(prt_dma_token_t *tok) {
 static int dma_batch_scope_acquire(prt_runtime_t *rt, uint32_t stage_idx,
                                    uint32_t manager_id, uint32_t opcode_id,
                                    prt_rr_scope_t *scope) {
+  int rc;
   if (!scope) return PRT_ERR_INVAL;
   memset(scope, 0, sizeof(*scope));
+  rc = dma_validate_stage_manager(rt, stage_idx, manager_id, "dma_batch_scope_acquire");
+  if (rc != PRT_OK) return rc;
 #if defined(__riscv)
   return prt_rr_acquire_scope(rt, stage_idx, manager_id, opcode_id, scope);
 #else
@@ -2080,7 +2119,12 @@ void prt_dma_backend_destroy(prt_runtime_t *rt) {
 }
 
 int prt_dma_submit(prt_runtime_t *rt, const prt_dma_req_t *req, prt_dma_token_t *tok) {
+  int rc;
   if (!rt || !req || !tok || !rt->dma_ops.submit) return PRT_ERR_INVAL;
+  rc = dma_validate_stage_manager(rt, tok->stage_idx, req->src_acc, "prt_dma_submit/src");
+  if (rc != PRT_OK) return rc;
+  rc = dma_validate_stage_manager(rt, tok->stage_idx, req->dst_acc, "prt_dma_submit/dst");
+  if (rc != PRT_OK) return rc;
   return rt->dma_ops.submit(rt, req, tok);
 }
 
@@ -2305,6 +2349,8 @@ int prt_dma_copy_spm_va(prt_runtime_t *rt, uint64_t dst_va, uint64_t src_va, uin
 
   if (!rt || bytes == 0) return PRT_ERR_INVAL;
   memset(&scope, 0, sizeof(scope));
+  rc = dma_validate_stage_manager(rt, stage_idx, manager_id, "prt_dma_copy_spm_va");
+  if (rc != PRT_OK) return rc;
   page_bytes = rt->cfg.page_size_bytes ? rt->cfg.page_size_bytes : PRT_PAGE_SIZE_BYTES;
   seg_cap = (uint32_t)((bytes + page_bytes - 1ULL) / page_bytes) + 2U;
 #if !defined(__riscv)
