@@ -256,6 +256,12 @@ DMA prefetch/export 和 Gemmini compute overlap，可能需要同一 manager。�
 
 建议短期默认禁止同一 manager 上 DMA/Gemmini overlap；只有在实现 shared scope 或明确串行化后再打开。
 
+当前状态：`2026-05-05T152012Z` 已加 DMA 侧 manager ownership guard。
+它不能自动证明 DMA/Gemmini overlap 安全，但能先防止 DMA 路径使用未分配给当前
+stage/action 的 manager。若后续 gdbserver 看到卡在 DMA fence，至少可以排除一类
+“传错 manager 后硬件一直等”的软件误用；剩余问题再看 completion、direct/bounce、
+ReRoCC scope 或硬件 DMA 本身。
+
 ## 19. 页数量应始终用 `num_gemmini_mgrs`
 
 同意。尤其在 4 CPU core、12 Gemmini manager 的目标上，按 `num_cores` 计算总页是错误模型。
