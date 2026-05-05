@@ -110,3 +110,41 @@ capture:
 
 Only a clean or plausible AGFI should proceed to `infrasetup` and the remote
 gdbserver software-breakpoint smoke workflow.
+
+## 2026-05-05 07:00 UTC monitor checkpoint
+
+No build had completed by this checkpoint, and no new AGFI/AFI was available.
+EC2 state showed only the manager plus three build hosts:
+
+- manager: `i-08b9950158e875a41`, `c5.2xlarge`, private IP `192.168.1.149`
+- original TIMING_HOLDFIX: `i-093a29cdf23e009b0`, `m8i.2xlarge`,
+  private IP `192.168.1.36`
+- TIMING + PCIS: `i-0ba6729824eb22932`, `m8i.2xlarge`,
+  private IP `192.168.3.248`
+- TIMING_HOLDFIX + PCIS: `i-069ea3337cb1e7d55`, `m8i.2xlarge`,
+  private IP `192.168.3.128`
+
+Build status:
+
+- `rocket-singlecore-nic-timingholdfix1bp-build-20260505-0517`
+  - still running in route
+  - no `Route 35-514` hold-fix bailout seen
+  - repeated `Route 35-469` warnings remain
+  - latest visible intermediate timing:
+    `WNS=-2.049`, `TNS=-5286.672`, `WHS=-1.015`, `THS=-611.616`
+- `rocket-singlecore-nic-timingpcisreg1bp-build-20260505-0637`
+  - still running
+  - in placement / floorplanning
+  - no post-place timing yet
+- `rocket-singlecore-nic-timingholdfixpcisreg1bp-build-20260505-0639`
+  - still running
+  - in placement / floorplanning
+  - no post-place timing yet
+
+Interpretation:
+
+- The original TIMING_HOLDFIX build is still not clean, but it is materially
+  different from ordinary TIMING: the router has not printed `Route 35-514`.
+- The PCIS register-slice builds have not reached the point where the critical
+  path effect can be judged.
+- Continue monitoring at the next 1200 second interval.
