@@ -41,7 +41,8 @@ SPM page 粒度必须按 `1024` 字节解释。用 `--spm-page-bytes 4096` 会�
 `runtime_prepare_stage_spm_windows` 阶段立刻报出 stage 0 / tensor `1000001`
 的 `localSpmTensorAddr=1024` 不在 slot 1 window 内；改为
 `--spm-page-bytes 1024` 后，同一组 `bertmini/ours2/pairdummy-sbus128`
-YAML、`--backend cpu`、`--batch 1`、跳过 model/input/golden 的干跑退出 0。
+YAML、`--backend cpu`、`--batch 1`、`--pages-per-acc 1024`、跳过
+model/input/golden 的干跑退出 0。
 因此该 fail-fast 对 workflow 配置错误有效，后续 FireSim wrapper 需要保持
 默认 `PRT_PAGE_SIZE_BYTES=1024`，不要把 `--spm-page-bytes` 覆盖成 4096。
 

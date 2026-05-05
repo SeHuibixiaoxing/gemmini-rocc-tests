@@ -68,7 +68,7 @@ timeout 180 ./pipeline_runtime \
   --gemmini-base-id 0 \
   --dma-base-id 0 \
   --spm-page-bytes 1024 \
-  --pages-per-acc 256 \
+  --pages-per-acc 1024 \
   --skip-model-bin-load \
   --skip-input-load \
   --skip-golden-check
@@ -78,6 +78,10 @@ Result:
 
 - exit code 0 in about 5 seconds;
 - no stdout/stderr diagnostics.
+
+The command above matches the FireMarshal fixed profile's `PAGES_PER_ACC=1024`.
+An earlier local dry-run used `--pages-per-acc 256`; that was only a weaker
+host-side smoke and is not the acceptance configuration for this target.
 
 ## Configuration pitfall caught
 
