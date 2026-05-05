@@ -148,3 +148,46 @@ Interpretation:
 - The PCIS register-slice builds have not reached the point where the critical
   path effect can be judged.
 - Continue monitoring at the next 1200 second interval.
+
+## 2026-05-05 07:22 UTC monitor checkpoint
+
+No build had completed by this checkpoint, and no new AGFI/AFI was available.
+The same three build hosts remained running.
+
+Build status:
+
+- `rocket-singlecore-nic-timingholdfix1bp-build-20260505-0517`
+  - still running in route
+  - still no `Route 35-514` hold-fix bailout seen
+  - repeated `Route 35-469` warnings continue
+  - latest visible route intermediate remains:
+    `WNS=-2.049`, `TNS=-5286.672`, `WHS=-1.015`, `THS=-611.616`
+- `rocket-singlecore-nic-timingpcisreg1bp-build-20260505-0637`
+  - reached post-place / phys_opt
+  - post-placement WNS: `-2.039`
+  - phys_opt visible summary: `WNS=-1.911`, `TNS=-2420.912`,
+    `WHS=-3.713`, `THS=-6016.338`
+  - no route-stage verdict yet
+- `rocket-singlecore-nic-timingholdfixpcisreg1bp-build-20260505-0639`
+  - reached post-place / phys_opt
+  - post-placement WNS: `-2.039`
+  - post-phys_opt visible summary: `WNS=-1.911`, `TNS=-2420.912`,
+    `WHS=-3.713`, `THS=-5972.714`
+  - phys_opt completed successfully and started writing
+    `post_phys_opt.dcp`
+  - no route-stage verdict yet
+
+Interpretation:
+
+- The PCIS register slice appears to have materially improved setup pressure
+  before route compared with the no-PCIS TIMING_HOLDFIX comparison:
+  setup TNS is roughly `-2421` instead of roughly `-4238` at comparable
+  post-phys_opt visibility.
+- Hold pressure is still severe before route (`WHS=-3.713`), so the decisive
+  question remains whether routing can avoid ordinary TIMING's `Route 35-514`
+  bailout.
+- The visible phys_opt critical processing for PCIS builds now includes
+  `SH_DDR` / `PIPE_DDR_STAT0` paths rather than only the PCIS boundary. If the
+  PCIS builds fail, the next static target should be those DDR-status/status
+  pipeline paths, not 8BP logic.
+- Continue monitoring at the next 1200 second interval.
