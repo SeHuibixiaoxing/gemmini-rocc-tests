@@ -1,0 +1,34 @@
+[firesim-tmux] started at 2026-05-05T11:51:32Z
+[firesim-tmux] working directory: /home/ubuntu/chipyard/sims/firesim/deploy
+[firesim-tmux] command: firesim infrasetup -c /home/ubuntu/chipyard/sims/firesim/deploy/config_runtime_f2_rocket_singlecore_nic_gdbserver_smoke_notrace_clean1bp_recovereddriver_30mhz.yaml -a /home/ubuntu/chipyard/tmp/firesim-aws-f2/hwdb/config_hwdb_f2_rocket_singlecore_nic_notrace_30mhz_agfi03d951_timingholdfixpcisreg1bp_driver.yaml -r /home/ubuntu/chipyard/sims/firesim/deploy/config_build_recipes_f2_rocket_singlecore_nic_notrace_30mhz.yaml
+[firesim-tmux] propagated FIRESIM env vars:  
+/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/transport.py:178: CryptographyDeprecationWarning: Blowfish has been deprecated
+  'class': algorithms.Blowfish,
+FireSim Manager. Docs: https://docs.fires.im
+Running: infrasetup
+
+run_farm_hosts_dict defaultdict(<class 'list'>, {'f2.6xlarge': [(<runtools.run_farm.Inst object at 0x788ee655b8b0>, None)], 'f2.12xlarge': [], 'f2.48xlarge': [], 'm4.16xlarge': [], 'z1d.3xlarge': [], 'z1d.6xlarge': [], 'z1d.12xlarge': []})
+set_server_hardware_config 0 None
+[192.168.1.73] Checking if host instance is up...
+Building switch model binary for switch switch0
+[192.168.1.73] Copying FPGA simulation infrastructure for slot: 0.
+[192.168.1.73] Installing AWS FPGA SDK on remote nodes. Upstream hash: 8892cb1
+Warning: run() received nonzero return code 1 while executing 'cd aws-fpga && git checkout 8892cb1'!
+[192.168.1.73] Unloading XRT-related Kernel Modules.
+Warning: run() received nonzero return code 5 while executing 'sudo systemctl stop mpd'!
+Warning: run() received nonzero return code 1 while executing 'sudo yum remove -y xrt xrt-aws'!
+[192.168.1.73] Clearing FPGA Slot 0.
+[192.168.1.73] Checking for Cleared FPGA Slot 0.
+[192.168.1.73] Flashing FPGA Slot: 0 with agfi: agfi-03d9518415ec82449.
+[192.168.1.73] Checking for Flashed FPGA Slot: 0 with agfi: agfi-03d9518415ec82449.
+Warning: run() received nonzero return code 1 while executing 'sudo pkill -SIGKILL hw_server'!
+Warning: run() received nonzero return code 1 while executing 'sudo pkill -SIGKILL fpga-local-cmd'!
+[192.168.1.73] Starting Vivado hw_server.
+[192.168.1.73] Starting Vivado virtual JTAG.
+[192.168.1.73] Preflighting FireSim driver readiness for slot 0 (attempt 1/3).
+Warning: run() received nonzero return code 1 while executing 'sudo pkill -SIGKILL FireSim-f2'!
+[192.168.1.73] FireSim driver readiness preflight passed for slot 0.
+[192.168.1.73] Copying switch simulation infrastructure for switch slot: 0.
+The full log of this run is:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-05--11-51-33-infrasetup-KOQH5VLU8695UZGR.log
+[firesim-tmux] finished at 2026-05-05T11:54:54Z with exit code 0

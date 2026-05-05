@@ -1,0 +1,769 @@
+2026-05-05 11:51:33,363 [main        ] [INFO ]  FireSim Manager. Docs: https://docs.fires.im
+Running: infrasetup
+
+2026-05-05 11:51:33,364 [__init__    ] [DEBUG]  RuntimeHWConfig self.platform f2
+2026-05-05 11:51:33,364 [__init__    ] [DEBUG]  {'config_file_name': '/home/ubuntu/chipyard/tmp/firesim-aws-f2/hwdb/config_hwdb_f2_rocket_singlecore_nic_notrace_30mhz_agfi03d951_timingholdfixpcisreg1bp_driver.yaml',
+ 'hwconf_dict': {'firesim_rocket_singlecore_nic_notrace_30mhz': <runtools.runtime_config.RuntimeHWConfig object at 0x788ef7665150>},
+ 'simulation_mode_string': 'FPGA simulation'}
+2026-05-05 11:51:33,386 [get_localhos] [DEBUG]  i-08b9950158e875a41
+2026-05-05 11:51:33,386 [get_localhos] [DEBUG]  
+2026-05-05 11:51:33,386 [get_localhos] [DEBUG]  AWS Host Detected
+2026-05-05 11:51:33,386 [get_localhos] [DEBUG]  i-08b9950158e875a41
+2026-05-05 11:51:33,514 [_new_conn   ] [DEBUG]  Starting new HTTPS connection (1): ec2.us-west-2.amazonaws.com:443
+2026-05-05 11:51:33,620 [_make_reques] [DEBUG]  https://ec2.us-west-2.amazonaws.com:443 "POST / HTTP/1.1" 200 352
+2026-05-05 11:51:33,622 [get_localhos] [DEBUG]  {'Name': 'firesim-manager-wzy'}
+2026-05-05 11:51:33,624 [__init__    ] [DEBUG]  {'autocounter_config': AutoCounterConfig(readrate=0),
+ 'default_plusarg_passthrough': '+simplenic-relaxed-required-bytes=1 '
+                                '+simplenic-empty-switch-poll-interval=1024 '
+                                '+simplenic-token-debug=0 '
+                                '+cpu-managed-stream-debug=0 '
+                                '+heartbeat-polling-interval=100000000',
+ 'defaulthwconfig': 'firesim_rocket_singlecore_nic_notrace_30mhz',
+ 'hostdebug_config': HostDebugConfig(zero_out_dram=False,
+                                     disable_synth_asserts=False),
+ 'linklatency': 6405,
+ 'metasimulation_enabled': False,
+ 'metasimulation_host_simulator': 'verilator',
+ 'metasimulation_only_plusargs': '+fesvr-step-size=128 +max-cycles=100000000',
+ 'metasimulation_only_vcs_plusargs': '+vcs+initreg+0 +vcs+initmem+0',
+ 'netbandwidth': 200,
+ 'no_net_num_nodes': 1,
+ 'partition_config': PartitionConfig(node=None,
+                                     fpga_cnt=1,
+                                     pidx_to_slotid={},
+                                     pcim_slot_offset=[],
+                                     mode=<PartitionMode.FAST_MODE: 0>),
+ 'profileinterval': -1,
+ 'run_farm_dispatcher': <runtools.run_farm.AWSEC2F2 object at 0x788ef7665210>,
+ 'suffixtag': 'f2-rocket-singlecore-nic-gdbserver-smoke-notrace-clean1bp-recovereddriver',
+ 'switchinglatency': 10,
+ 'synthprint_config': SynthPrintConfig(start=0, end=0, cycle_prefix=True),
+ 'terminateoncompletion': False,
+ 'topology': 'example_1config',
+ 'tracerv_config': TracerVConfig(enable=False,
+                                 select=1,
+                                 start=0,
+                                 end=-1,
+                                 output_format=0),
+ 'workload_name': 'rocket-singlecore-nic-gdbserver-smoke.json'}
+2026-05-05 11:51:33,626 [__init__    ] [DEBUG]  {'config_file_name': '/home/ubuntu/chipyard/sims/firesim/deploy/config_build_recipes_f2_rocket_singlecore_nic_notrace_30mhz.yaml',
+ 'hwconf_dict': {'firesim_rocket_singlecore_nic_notrace_30mhz': <runtools.runtime_config.RuntimeBuildRecipeConfig object at 0x788ef76994b0>},
+ 'simulation_mode_string': 'Metasimulation'}
+2026-05-05 11:51:33,626 [allocate_sim] [INFO ]  run_farm_hosts_dict defaultdict(<class 'list'>, {'f2.6xlarge': [(<runtools.run_farm.Inst object at 0x788ee655b8b0>, None)], 'f2.12xlarge': [], 'f2.48xlarge': [], 'm4.16xlarge': [], 'z1d.3xlarge': [], 'z1d.6xlarge': [], 'z1d.12xlarge': []})
+2026-05-05 11:51:33,626 [pass_apply_d] [DEBUG]  pass_apply_default_hwconfig, RuntimeHWConfig: firesim_rocket_singlecore_nic_notrace_30mhz
+DeployQuintuplet: None
+DeployMakefrag: None
+AGFI: agfi-03d9518415ec82449
+Bitstream tar: None
+CustomRuntimeConf: None
+2026-05-05 11:51:33,626 [set_server_h] [INFO ]  set_server_hardware_config 0 None
+2026-05-05 11:51:33,630 [decorator   ] [DEBUG]  deprecate positional args: graphviz.backend.piping.pipe(['renderer', 'formatter', 'neato_no_op', 'quiet'])
+2026-05-05 11:51:33,630 [decorator   ] [DEBUG]  deprecate positional args: graphviz.backend.rendering.render(['renderer', 'formatter', 'neato_no_op', 'quiet'])
+2026-05-05 11:51:33,630 [decorator   ] [DEBUG]  deprecate positional args: graphviz.backend.unflattening.unflatten(['stagger', 'fanout', 'chain', 'encoding'])
+2026-05-05 11:51:33,631 [decorator   ] [DEBUG]  deprecate positional args: graphviz.backend.viewing.view(['quiet'])
+2026-05-05 11:51:33,632 [decorator   ] [DEBUG]  deprecate positional args: graphviz.quoting.quote(['is_html_string', 'is_valid_id', 'dot_keywords', 'endswith_odd_number_of_backslashes', 'escape_unescaped_quotes'])
+2026-05-05 11:51:33,633 [decorator   ] [DEBUG]  deprecate positional args: graphviz.quoting.a_list(['kwargs', 'attributes'])
+2026-05-05 11:51:33,633 [decorator   ] [DEBUG]  deprecate positional args: graphviz.quoting.attr_list(['kwargs', 'attributes'])
+2026-05-05 11:51:33,633 [decorator   ] [DEBUG]  deprecate positional args: graphviz.dot.Dot.clear(['keep_attrs'])
+2026-05-05 11:51:33,633 [decorator   ] [DEBUG]  deprecate positional args: graphviz.dot.Dot.__iter__(['subgraph'])
+2026-05-05 11:51:33,633 [decorator   ] [DEBUG]  deprecate positional args: graphviz.dot.Dot.node(['_attributes'])
+2026-05-05 11:51:33,633 [decorator   ] [DEBUG]  deprecate positional args: graphviz.dot.Dot.edge(['_attributes'])
+2026-05-05 11:51:33,633 [decorator   ] [DEBUG]  deprecate positional args: graphviz.dot.Dot.attr(['_attributes'])
+2026-05-05 11:51:33,633 [decorator   ] [DEBUG]  deprecate positional args: graphviz.dot.Dot.subgraph(['name', 'comment', 'graph_attr', 'node_attr', 'edge_attr', 'body'])
+2026-05-05 11:51:33,634 [decorator   ] [DEBUG]  deprecate positional args: graphviz.piping.Pipe._pipe_legacy(['renderer', 'formatter', 'neato_no_op', 'quiet'])
+2026-05-05 11:51:33,634 [decorator   ] [DEBUG]  deprecate positional args: graphviz.saving.Save.save(['directory'])
+2026-05-05 11:51:33,634 [decorator   ] [DEBUG]  deprecate positional args: graphviz.rendering.Render.render(['directory', 'view', 'cleanup', 'format', 'renderer', 'formatter', 'neato_no_op', 'quiet', 'quiet_view'])
+2026-05-05 11:51:33,634 [decorator   ] [DEBUG]  deprecate positional args: graphviz.rendering.Render.view(['directory', 'cleanup', 'quiet', 'quiet_view'])
+2026-05-05 11:51:33,635 [decorator   ] [DEBUG]  deprecate positional args: graphviz.unflattening.Unflatten.unflatten(['stagger', 'fanout', 'chain'])
+2026-05-05 11:51:33,635 [decorator   ] [DEBUG]  deprecate positional args: graphviz.graphs.BaseGraph.__init__(['comment', 'filename', 'directory', 'format', 'engine', 'encoding', 'graph_attr', 'node_attr', 'edge_attr', 'body', 'strict'])
+2026-05-05 11:51:33,635 [decorator   ] [DEBUG]  deprecate positional args: graphviz.sources.Source.from_file(['directory', 'format', 'engine', 'encoding', 'renderer', 'formatter'])
+2026-05-05 11:51:33,635 [decorator   ] [DEBUG]  deprecate positional args: graphviz.sources.Source.__init__(['filename', 'directory', 'format', 'engine', 'encoding'])
+2026-05-05 11:51:33,635 [decorator   ] [DEBUG]  deprecate positional args: graphviz.sources.Source.save(['directory'])
+2026-05-05 11:51:33,636 [mkdirs      ] [DEBUG]  os.makedirs('generated-topology-diagrams')
+2026-05-05 11:51:33,636 [save        ] [DEBUG]  write lines to 'generated-topology-diagrams/firesim_topologyexample_1config.gv'
+2026-05-05 11:51:33,636 [run_check   ] [DEBUG]  run [PosixPath('dot'), '-Kdot', '-Tpdf', '-O', 'firesim_topologyexample_1config.gv']
+2026-05-05 11:51:33,672 [_new_conn   ] [DEBUG]  Starting new HTTPS connection (1): ec2.us-west-2.amazonaws.com:443
+2026-05-05 11:51:33,781 [_make_reques] [DEBUG]  https://ec2.us-west-2.amazonaws.com:443 "POST / HTTP/1.1" 200 219
+2026-05-05 11:51:33,794 [_new_conn   ] [DEBUG]  Starting new HTTPS connection (1): ec2.us-west-2.amazonaws.com:443
+2026-05-05 11:51:33,878 [_make_reques] [DEBUG]  https://ec2.us-west-2.amazonaws.com:443 "POST / HTTP/1.1" 200 219
+2026-05-05 11:51:33,891 [_new_conn   ] [DEBUG]  Starting new HTTPS connection (1): ec2.us-west-2.amazonaws.com:443
+2026-05-05 11:51:34,037 [_make_reques] [DEBUG]  https://ec2.us-west-2.amazonaws.com:443 "POST / HTTP/1.1" 200 5075
+2026-05-05 11:51:34,051 [_new_conn   ] [DEBUG]  Starting new HTTPS connection (1): ec2.us-west-2.amazonaws.com:443
+2026-05-05 11:51:34,131 [_make_reques] [DEBUG]  https://ec2.us-west-2.amazonaws.com:443 "POST / HTTP/1.1" 200 219
+2026-05-05 11:51:34,142 [_new_conn   ] [DEBUG]  Starting new HTTPS connection (1): ec2.us-west-2.amazonaws.com:443
+2026-05-05 11:51:34,223 [_make_reques] [DEBUG]  https://ec2.us-west-2.amazonaws.com:443 "POST / HTTP/1.1" 200 219
+2026-05-05 11:51:34,281 [_new_conn   ] [DEBUG]  Starting new HTTPS connection (1): ec2.us-west-2.amazonaws.com:443
+2026-05-05 11:51:34,351 [_make_reques] [DEBUG]  https://ec2.us-west-2.amazonaws.com:443 "POST / HTTP/1.1" 200 219
+2026-05-05 11:51:34,365 [_new_conn   ] [DEBUG]  Starting new HTTPS connection (1): ec2.us-west-2.amazonaws.com:443
+2026-05-05 11:51:34,417 [_make_reques] [DEBUG]  https://ec2.us-west-2.amazonaws.com:443 "POST / HTTP/1.1" 200 219
+2026-05-05 11:51:34,420 [bind_real_in] [DEBUG]  Using f2.12xlarge instances with IPs:
+[]
+2026-05-05 11:51:34,420 [bind_real_in] [DEBUG]  Using f2.48xlarge instances with IPs:
+[]
+2026-05-05 11:51:34,420 [bind_real_in] [DEBUG]  Using f2.6xlarge instances with IPs:
+['192.168.1.73']
+2026-05-05 11:51:34,420 [bind_real_in] [DEBUG]  Using m4.16xlarge instances with IPs:
+[]
+2026-05-05 11:51:34,420 [bind_real_in] [DEBUG]  Using z1d.12xlarge instances with IPs:
+[]
+2026-05-05 11:51:34,420 [bind_real_in] [DEBUG]  Using z1d.3xlarge instances with IPs:
+[]
+2026-05-05 11:51:34,420 [bind_real_in] [DEBUG]  Using z1d.6xlarge instances with IPs:
+[]
+2026-05-05 11:51:34,422 [flush       ] [DEBUG]  [192.168.1.73] Executing task 'instance_liveness'
+2026-05-05 11:51:34,427 [instance_liv] [INFO ]  [192.168.1.73] Checking if host instance is up...
+2026-05-05 11:51:34,428 [flush       ] [DEBUG]  [192.168.1.73] run: uname -a
+2026-05-05 11:53:31,267 [flush       ] [DEBUG]  [192.168.1.73] out: Linux ip-192-168-1-73 6.8.0-1021-aws #23-Ubuntu SMP Mon Dec  9 23:59:34 UTC 2024 x86_64 x86_64 x86_64 GNU/Linux
+2026-05-05 11:53:31,267 [flush       ] [DEBUG]  [192.168.1.73] out: 
+2026-05-05 11:53:31,269 [flush       ] [DEBUG]  [192.168.1.73] run: echo $0
+2026-05-05 11:53:31,381 [flush       ] [DEBUG]  [192.168.1.73] out: /bin/bash
+2026-05-05 11:53:31,381 [flush       ] [DEBUG]  [192.168.1.73] out: 
+2026-05-05 11:53:31,405 [downloadURI ] [DEBUG]  Download attempt 1 of 4: 'file:///home/ubuntu/chipyard/tmp/firesim-aws-f2/driver-bundles/agfi03d951-timingholdfixpcisreg1bp-20260505/driver-bundle.tar.gz' to '/tmp/tmpk8pp_ts4/41c949264374c2ed5d4ad7fccbfb537ca48f887c2abc7dd10a3e1aea1ad95e8d'
+2026-05-05 11:53:31,437 [downloadURI ] [DEBUG]  Successfully fetched 'file:///home/ubuntu/chipyard/tmp/firesim-aws-f2/driver-bundles/agfi03d951-timingholdfixpcisreg1bp-20260505/driver-bundle.tar.gz' to '/tmp/tmpk8pp_ts4/41c949264374c2ed5d4ad7fccbfb537ca48f887c2abc7dd10a3e1aea1ad95e8d'
+2026-05-05 11:53:31,438 [flush       ] [DEBUG]  [localhost] Executing task 'build_drivers_helper'
+2026-05-05 11:53:31,438 [build_driver] [DEBUG]  skipping driver build because we're using /home/ubuntu/chipyard/tmp/firesim-aws-f2/driver-bundles/agfi03d951-timingholdfixpcisreg1bp-20260505/driver-bundle.tar.gz
+2026-05-05 11:53:31,439 [buildswitch ] [INFO ]  Building switch model binary for switch switch0
+2026-05-05 11:53:31,439 [buildswitch ] [DEBUG]  // THIS FILE IS MACHINE GENERATED. SEE deploy/buildtools/switchmodelconfig.py
+        
+    #ifdef NUMCLIENTSCONFIG
+    #define NUMPORTS 2
+    #define NUMDOWNLINKS 1
+    #define NUMUPLINKS 1
+    #endif
+    #ifdef PORTSETUPCONFIG
+    ports[0] = new ShmemPort(0, "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000", false);
+ports[1] = new SSHPort(1);
+
+    #endif
+    
+    #ifdef MACPORTSCONFIG
+    #define MAC2PORT_SIZE 3
+    uint16_t mac2port[3]  {1, 1, 0};
+    #endif
+    
+2026-05-05 11:53:31,439 [flush       ] [DEBUG]  [localhost] local: mkdir -p ../target-design/switch/switch0-E2WJKMOU5U2MTCIXBYEIYCLS1GXQ25T9NGFJ009EUJXHTE3S7UYJWLN202YVDTBU-build/
+2026-05-05 11:53:31,441 [local_logged] [DEBUG]  
+2026-05-05 11:53:31,441 [local_logged] [DEBUG]  
+2026-05-05 11:53:31,441 [flush       ] [DEBUG]  [localhost] local: cp ../target-design/switch/*.h ../target-design/switch/switch0-E2WJKMOU5U2MTCIXBYEIYCLS1GXQ25T9NGFJ009EUJXHTE3S7UYJWLN202YVDTBU-build/
+2026-05-05 11:53:31,443 [local_logged] [DEBUG]  
+2026-05-05 11:53:31,443 [local_logged] [DEBUG]  
+2026-05-05 11:53:31,443 [flush       ] [DEBUG]  [localhost] local: cp ../target-design/switch/*.cc ../target-design/switch/switch0-E2WJKMOU5U2MTCIXBYEIYCLS1GXQ25T9NGFJ009EUJXHTE3S7UYJWLN202YVDTBU-build/
+2026-05-05 11:53:31,445 [local_logged] [DEBUG]  
+2026-05-05 11:53:31,445 [local_logged] [DEBUG]  
+2026-05-05 11:53:31,445 [flush       ] [DEBUG]  [localhost] local: cp ../target-design/switch/Makefile ../target-design/switch/switch0-E2WJKMOU5U2MTCIXBYEIYCLS1GXQ25T9NGFJ009EUJXHTE3S7UYJWLN202YVDTBU-build/
+2026-05-05 11:53:31,447 [local_logged] [DEBUG]  
+2026-05-05 11:53:31,447 [local_logged] [DEBUG]  
+2026-05-05 11:53:31,447 [flush       ] [DEBUG]  [localhost] local: cd ../target-design/switch/switch0-E2WJKMOU5U2MTCIXBYEIYCLS1GXQ25T9NGFJ009EUJXHTE3S7UYJWLN202YVDTBU-build/ && make
+2026-05-05 11:53:32,652 [local_logged] [DEBUG]  g++ -fopenmp -g3 -O3 -std=gnu++11 -Wl,-rpath='$ORIGIN' -o switch switch.cc -lrt
+2026-05-05 11:53:32,652 [local_logged] [DEBUG]  In file included from switch.cc:80:
+shmemport.h: In constructor 'ShmemPort::ShmemPort(int, char*, bool)':
+shmemport.h:46:21: warning: ISO C++ forbids converting a string constant to 'char*' [-Wwrite-strings]
+   46 |     recvdirection = "stn";
+      |                     ^~~~~
+shmemport.h:47:21: warning: ISO C++ forbids converting a string constant to 'char*' [-Wwrite-strings]
+   47 |     senddirection = "nts";
+      |                     ^~~~~
+shmemport.h:50:21: warning: ISO C++ forbids converting a string constant to 'char*' [-Wwrite-strings]
+   50 |     recvdirection = "nts";
+      |                     ^~~~~
+shmemport.h:51:21: warning: ISO C++ forbids converting a string constant to 'char*' [-Wwrite-strings]
+   51 |     senddirection = "stn";
+      |                     ^~~~~
+In file included from switch.cc:261:
+switchconfig.h: In function 'int main(int, char**)':
+switchconfig.h:9:33: warning: ISO C++ forbids converting a string constant to 'char*' [-Wwrite-strings]
+    9 |     ports[0] = new ShmemPort(0, "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000", false);
+      |                                 ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+2026-05-05 11:53:32,652 [flush       ] [DEBUG]  [localhost] local: mv ../target-design/switch/switch0-E2WJKMOU5U2MTCIXBYEIYCLS1GXQ25T9NGFJ009EUJXHTE3S7UYJWLN202YVDTBU-build/switch ../target-design/switch/switch0-E2WJKMOU5U2MTCIXBYEIYCLS1GXQ25T9NGFJ009EUJXHTE3S7UYJWLN202YVDTBU-build/switch0
+2026-05-05 11:53:32,655 [local_logged] [DEBUG]  
+2026-05-05 11:53:32,655 [local_logged] [DEBUG]  
+2026-05-05 11:53:32,656 [flush       ] [DEBUG]  [192.168.1.73] Executing task 'infrasetup_node_wrapper'
+2026-05-05 11:53:32,660 [instance_log] [INFO ]  [192.168.1.73] Copying FPGA simulation infrastructure for slot: 0.
+2026-05-05 11:53:32,660 [flush       ] [DEBUG]  [192.168.1.73] run: mkdir -p /home/ubuntu/sim_slot_0/rsyncdir/
+2026-05-05 11:53:32,947 [flush       ] [DEBUG]  [192.168.1.73] rsync_project: rsync  -pthrv -L --rsh='ssh -i /home/ubuntu/firesim.pem  -o StrictHostKeyChecking=no ' workloads/rocket-singlecore-nic-gdbserver-smoke/../../../../../software/firemarshal/images/firechip/rocket-singlecore-nic-gdbserver-smoke/rocket-singlecore-nic-gdbserver-smoke.img ubuntu@192.168.1.73:/home/ubuntu/sim_slot_0/rsyncdir/rocket-singlecore-nic-gdbserver-smoke0-rocket-singlecore-nic-gdbserver-smoke.img
+2026-05-05 11:53:32,947 [flush       ] [DEBUG]  [localhost] local: rsync  -pthrv -L --rsh='ssh -i /home/ubuntu/firesim.pem  -o StrictHostKeyChecking=no ' workloads/rocket-singlecore-nic-gdbserver-smoke/../../../../../software/firemarshal/images/firechip/rocket-singlecore-nic-gdbserver-smoke/rocket-singlecore-nic-gdbserver-smoke.img ubuntu@192.168.1.73:/home/ubuntu/sim_slot_0/rsyncdir/rocket-singlecore-nic-gdbserver-smoke0-rocket-singlecore-nic-gdbserver-smoke.img
+2026-05-05 11:53:34,098 [copy_sim_slo] [DEBUG]  sending incremental file list
+rocket-singlecore-nic-gdbserver-smoke.img
+
+sent 308.18M bytes  received 35 bytes  123.27M bytes/sec
+total size is 308.11M  speedup is 1.00
+2026-05-05 11:53:34,098 [copy_sim_slo] [DEBUG]  Warning: Permanently added '192.168.1.73' (ED25519) to the list of known hosts.
+2026-05-05 11:53:34,098 [flush       ] [DEBUG]  [192.168.1.73] rsync_project: rsync  -pthrv -L --rsh='ssh -i /home/ubuntu/firesim.pem  -o StrictHostKeyChecking=no ' workloads/rocket-singlecore-nic-gdbserver-smoke/../../../../../software/firemarshal/images/firechip/rocket-singlecore-nic-gdbserver-smoke/rocket-singlecore-nic-gdbserver-smoke-bin ubuntu@192.168.1.73:/home/ubuntu/sim_slot_0/rsyncdir/rocket-singlecore-nic-gdbserver-smoke0-rocket-singlecore-nic-gdbserver-smoke-bin
+2026-05-05 11:53:34,098 [flush       ] [DEBUG]  [localhost] local: rsync  -pthrv -L --rsh='ssh -i /home/ubuntu/firesim.pem  -o StrictHostKeyChecking=no ' workloads/rocket-singlecore-nic-gdbserver-smoke/../../../../../software/firemarshal/images/firechip/rocket-singlecore-nic-gdbserver-smoke/rocket-singlecore-nic-gdbserver-smoke-bin ubuntu@192.168.1.73:/home/ubuntu/sim_slot_0/rsyncdir/rocket-singlecore-nic-gdbserver-smoke0-rocket-singlecore-nic-gdbserver-smoke-bin
+2026-05-05 11:53:34,582 [copy_sim_slo] [DEBUG]  sending incremental file list
+rocket-singlecore-nic-gdbserver-smoke-bin
+
+sent 20.96M bytes  received 35 bytes  41.92M bytes/sec
+total size is 20.96M  speedup is 1.00
+2026-05-05 11:53:34,583 [copy_sim_slo] [DEBUG]  
+2026-05-05 11:53:34,583 [flush       ] [DEBUG]  [192.168.1.73] rsync_project: rsync  -pthrv -L --rsh='ssh -i /home/ubuntu/firesim.pem  -o StrictHostKeyChecking=no ' /tmp/tmpk8pp_ts4/41c949264374c2ed5d4ad7fccbfb537ca48f887c2abc7dd10a3e1aea1ad95e8d ubuntu@192.168.1.73:/home/ubuntu/sim_slot_0/rsyncdir/driver-bundle.tar.gz
+2026-05-05 11:53:34,583 [flush       ] [DEBUG]  [localhost] local: rsync  -pthrv -L --rsh='ssh -i /home/ubuntu/firesim.pem  -o StrictHostKeyChecking=no ' /tmp/tmpk8pp_ts4/41c949264374c2ed5d4ad7fccbfb537ca48f887c2abc7dd10a3e1aea1ad95e8d ubuntu@192.168.1.73:/home/ubuntu/sim_slot_0/rsyncdir/driver-bundle.tar.gz
+2026-05-05 11:53:35,166 [copy_sim_slo] [DEBUG]  sending incremental file list
+41c949264374c2ed5d4ad7fccbfb537ca48f887c2abc7dd10a3e1aea1ad95e8d
+
+sent 80.84M bytes  received 35 bytes  53.89M bytes/sec
+total size is 80.82M  speedup is 1.00
+2026-05-05 11:53:35,166 [copy_sim_slo] [DEBUG]  
+2026-05-05 11:53:35,166 [flush       ] [DEBUG]  [192.168.1.73] run: cp -r /home/ubuntu/sim_slot_0/rsyncdir//* /home/ubuntu/sim_slot_0//
+2026-05-05 11:53:35,532 [flush       ] [DEBUG]  [192.168.1.73] run: tar -xf driver-bundle.tar.gz
+2026-05-05 11:53:36,894 [flush       ] [DEBUG]  [localhost] local: git -C platforms/f2/aws-fpga-firesim-f2 describe --tags --always --dirty
+2026-05-05 11:53:36,903 [instance_log] [INFO ]  [192.168.1.73] Installing AWS FPGA SDK on remote nodes. Upstream hash: 8892cb1
+2026-05-05 11:53:36,903 [flush       ] [DEBUG]  [192.168.1.73] run: git clone https://github.com/firesim/aws-fpga-firesim-f2.git aws-fpga
+2026-05-05 11:53:37,896 [flush       ] [DEBUG]  [192.168.1.73] out: Cloning into 'aws-fpga'...
+2026-05-05 11:53:39,413 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Enumerating objects: 15306, done.[K
+2026-05-05 11:53:39,413 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:   1% (1/57)[K
+2026-05-05 11:53:39,413 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:   3% (2/57)[K
+2026-05-05 11:53:39,413 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:   5% (3/57)[K
+2026-05-05 11:53:39,413 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:   7% (4/57)[K
+2026-05-05 11:53:39,413 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:   8% (5/57)[K
+2026-05-05 11:53:39,413 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  10% (6/57)[K
+2026-05-05 11:53:39,413 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  12% (7/57)[K
+2026-05-05 11:53:39,413 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  14% (8/57)[K
+2026-05-05 11:53:39,414 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  15% (9/57)[K
+2026-05-05 11:53:39,414 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  17% (10/57)[K
+2026-05-05 11:53:39,414 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  19% (11/57)[K
+2026-05-05 11:53:39,414 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  21% (12/57)[K
+2026-05-05 11:53:39,414 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  22% (13/57)[K
+2026-05-05 11:53:39,414 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  24% (14/57)[K
+2026-05-05 11:53:39,414 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  26% (15/57)[K
+2026-05-05 11:53:39,414 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  28% (16/57)[K
+2026-05-05 11:53:39,414 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  29% (17/57)[K
+2026-05-05 11:53:39,414 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  31% (18/57)[K
+2026-05-05 11:53:39,414 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  33% (19/57)[K
+2026-05-05 11:53:39,414 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  35% (20/57)[K
+2026-05-05 11:53:39,414 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  36% (21/57)[K
+2026-05-05 11:53:39,415 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  38% (22/57)[K
+2026-05-05 11:53:39,415 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  40% (23/57)[K
+2026-05-05 11:53:39,415 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  42% (24/57)[K
+2026-05-05 11:53:39,415 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  43% (25/57)[K
+2026-05-05 11:53:39,415 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  45% (26/57)[K
+2026-05-05 11:53:39,415 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  47% (27/57)[K
+2026-05-05 11:53:39,415 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  49% (28/57)[K
+2026-05-05 11:53:39,415 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  50% (29/57)[K
+2026-05-05 11:53:39,415 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  52% (30/57)[K
+2026-05-05 11:53:39,415 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  54% (31/57)[K
+2026-05-05 11:53:39,415 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  56% (32/57)[K
+2026-05-05 11:53:39,415 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  57% (33/57)[K
+2026-05-05 11:53:39,416 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  59% (34/57)[K
+2026-05-05 11:53:39,416 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  61% (35/57)[K
+2026-05-05 11:53:39,416 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  63% (36/57)[K
+2026-05-05 11:53:39,416 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  64% (37/57)[K
+2026-05-05 11:53:39,416 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  66% (38/57)[K
+2026-05-05 11:53:39,416 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  68% (39/57)[K
+2026-05-05 11:53:39,416 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  70% (40/57)[K
+2026-05-05 11:53:39,416 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  71% (41/57)[K
+2026-05-05 11:53:39,416 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  73% (42/57)[K
+2026-05-05 11:53:39,416 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  75% (43/57)[K
+2026-05-05 11:53:39,416 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  77% (44/57)[K
+2026-05-05 11:53:39,416 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  78% (45/57)[K
+2026-05-05 11:53:39,416 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  80% (46/57)[K
+2026-05-05 11:53:39,416 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  82% (47/57)[K
+2026-05-05 11:53:39,416 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  84% (48/57)[K
+2026-05-05 11:53:39,416 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  85% (49/57)[K
+2026-05-05 11:53:39,416 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  87% (50/57)[K
+2026-05-05 11:53:39,416 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  89% (51/57)[K
+2026-05-05 11:53:39,416 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  91% (52/57)[K
+2026-05-05 11:53:39,416 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  92% (53/57)[K
+2026-05-05 11:53:39,416 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  94% (54/57)[K
+2026-05-05 11:53:39,416 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  96% (55/57)[K
+2026-05-05 11:53:39,417 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects:  98% (56/57)[K
+2026-05-05 11:53:39,417 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects: 100% (57/57)[K
+2026-05-05 11:53:39,417 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Counting objects: 100% (57/57), done.[K
+2026-05-05 11:53:39,417 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects:   2% (1/40)[K
+2026-05-05 11:53:39,417 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects:   5% (2/40)[K
+2026-05-05 11:53:39,417 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects:   7% (3/40)[K
+2026-05-05 11:53:39,417 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects:  10% (4/40)[K
+2026-05-05 11:53:39,417 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects:  12% (5/40)[K
+2026-05-05 11:53:39,417 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects:  15% (6/40)[K
+2026-05-05 11:53:39,417 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects:  17% (7/40)[K
+2026-05-05 11:53:39,417 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects:  20% (8/40)[K
+2026-05-05 11:53:39,417 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects:  22% (9/40)[K
+2026-05-05 11:53:39,417 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects:  25% (10/40)[K
+2026-05-05 11:53:39,417 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects:  27% (11/40)[K
+2026-05-05 11:53:39,417 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects:  30% (12/40)[K
+2026-05-05 11:53:39,417 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects:  32% (13/40)[K
+2026-05-05 11:53:39,417 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects:  35% (14/40)[K
+2026-05-05 11:53:39,417 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects:  37% (15/40)[K
+2026-05-05 11:53:39,417 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects:  40% (16/40)[K
+2026-05-05 11:53:39,417 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects:  42% (17/40)[K
+2026-05-05 11:53:39,417 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects:  45% (18/40)[K
+2026-05-05 11:53:39,417 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects:  47% (19/40)[K
+2026-05-05 11:53:39,417 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects:  50% (20/40)[K
+2026-05-05 11:53:39,417 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects:  52% (21/40)[K
+2026-05-05 11:53:39,417 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects:  55% (22/40)[K
+2026-05-05 11:53:39,417 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects:  57% (23/40)[K
+2026-05-05 11:53:39,418 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects:  60% (24/40)[K
+2026-05-05 11:53:39,418 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects:  62% (25/40)[K
+2026-05-05 11:53:39,418 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects:  65% (26/40)[K
+2026-05-05 11:53:39,418 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects:  67% (27/40)[K
+2026-05-05 11:53:39,418 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects:  70% (28/40)[K
+2026-05-05 11:53:39,418 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects:  72% (29/40)[K
+2026-05-05 11:53:39,418 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects:  75% (30/40)[K
+2026-05-05 11:53:39,419 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects:  77% (31/40)[K
+2026-05-05 11:53:39,419 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects:  80% (32/40)[K
+2026-05-05 11:53:39,419 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects:  82% (33/40)[K
+2026-05-05 11:53:39,419 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects:  85% (34/40)[K
+2026-05-05 11:53:39,419 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects:  87% (35/40)[K
+2026-05-05 11:53:39,419 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects:  90% (36/40)[K
+2026-05-05 11:53:39,419 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects:  92% (37/40)[K
+2026-05-05 11:53:39,419 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects:  95% (38/40)[K
+2026-05-05 11:53:39,419 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects:  97% (39/40)[K
+2026-05-05 11:53:39,419 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects: 100% (40/40)[K
+2026-05-05 11:53:39,419 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Compressing objects: 100% (40/40), done.[K
+2026-05-05 11:53:39,553 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:   0% (1/15306)
+2026-05-05 11:53:39,556 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:   1% (154/15306)
+2026-05-05 11:53:39,557 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:   2% (307/15306)
+2026-05-05 11:53:39,611 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:   3% (460/15306)
+2026-05-05 11:53:39,634 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:   4% (613/15306)
+2026-05-05 11:53:40,417 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:   5% (766/15306), 19.36 MiB | 38.62 MiB/s
+2026-05-05 11:53:40,555 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:   5% (899/15306), 50.50 MiB | 50.50 MiB/s
+2026-05-05 11:53:40,706 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:   6% (919/15306), 50.50 MiB | 50.50 MiB/s
+2026-05-05 11:53:40,756 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:   7% (1072/15306), 50.50 MiB | 50.50 MiB/s
+2026-05-05 11:53:40,759 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:   8% (1225/15306), 50.50 MiB | 50.50 MiB/s
+2026-05-05 11:53:40,763 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:   9% (1378/15306), 50.50 MiB | 50.50 MiB/s
+2026-05-05 11:53:40,768 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  10% (1531/15306), 50.50 MiB | 50.50 MiB/s
+2026-05-05 11:53:40,779 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  11% (1684/15306), 50.50 MiB | 50.50 MiB/s
+2026-05-05 11:53:40,797 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  12% (1837/15306), 50.50 MiB | 50.50 MiB/s
+2026-05-05 11:53:40,803 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  13% (1990/15306), 50.50 MiB | 50.50 MiB/s
+2026-05-05 11:53:41,028 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  14% (2143/15306), 50.50 MiB | 50.50 MiB/s
+2026-05-05 11:53:41,055 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  15% (2296/15306), 50.50 MiB | 50.50 MiB/s
+2026-05-05 11:53:41,056 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  16% (2449/15306), 77.19 MiB | 51.45 MiB/s
+2026-05-05 11:53:41,057 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  17% (2603/15306), 77.19 MiB | 51.45 MiB/s
+2026-05-05 11:53:41,058 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  18% (2756/15306), 77.19 MiB | 51.45 MiB/s
+2026-05-05 11:53:41,064 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  19% (2909/15306), 77.19 MiB | 51.45 MiB/s
+2026-05-05 11:53:41,087 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  20% (3062/15306), 77.19 MiB | 51.45 MiB/s
+2026-05-05 11:53:41,098 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  21% (3215/15306), 77.19 MiB | 51.45 MiB/s
+2026-05-05 11:53:41,130 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  22% (3368/15306), 77.19 MiB | 51.45 MiB/s
+2026-05-05 11:53:41,131 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  23% (3521/15306), 77.19 MiB | 51.45 MiB/s
+2026-05-05 11:53:41,368 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  24% (3674/15306), 77.19 MiB | 51.45 MiB/s
+2026-05-05 11:53:41,390 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  25% (3827/15306), 77.19 MiB | 51.45 MiB/s
+2026-05-05 11:53:41,528 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  26% (3980/15306), 77.19 MiB | 51.45 MiB/s
+2026-05-05 11:53:41,537 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  27% (4133/15306), 77.19 MiB | 51.45 MiB/s
+2026-05-05 11:53:41,546 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  28% (4286/15306), 77.19 MiB | 51.45 MiB/s
+2026-05-05 11:53:41,549 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  29% (4439/15306), 77.19 MiB | 51.45 MiB/s
+2026-05-05 11:53:41,549 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  29% (4541/15306), 77.19 MiB | 51.45 MiB/s
+2026-05-05 11:53:41,758 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  30% (4592/15306), 104.03 MiB | 52.01 MiB/s
+2026-05-05 11:53:41,844 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  31% (4745/15306), 104.03 MiB | 52.01 MiB/s
+2026-05-05 11:53:41,915 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  32% (4898/15306), 104.03 MiB | 52.01 MiB/s
+2026-05-05 11:53:41,932 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  33% (5051/15306), 104.03 MiB | 52.01 MiB/s
+2026-05-05 11:53:41,937 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  34% (5205/15306), 104.03 MiB | 52.01 MiB/s
+2026-05-05 11:53:41,938 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  35% (5358/15306), 104.03 MiB | 52.01 MiB/s
+2026-05-05 11:53:41,939 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  36% (5511/15306), 104.03 MiB | 52.01 MiB/s
+2026-05-05 11:53:41,940 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  37% (5664/15306), 104.03 MiB | 52.01 MiB/s
+2026-05-05 11:53:41,941 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  38% (5817/15306), 104.03 MiB | 52.01 MiB/s
+2026-05-05 11:53:41,943 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  39% (5970/15306), 104.03 MiB | 52.01 MiB/s
+2026-05-05 11:53:41,944 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  40% (6123/15306), 104.03 MiB | 52.01 MiB/s
+2026-05-05 11:53:41,944 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  41% (6276/15306), 104.03 MiB | 52.01 MiB/s
+2026-05-05 11:53:41,946 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  42% (6429/15306), 104.03 MiB | 52.01 MiB/s
+2026-05-05 11:53:41,958 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  43% (6582/15306), 104.03 MiB | 52.01 MiB/s
+2026-05-05 11:53:41,962 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  44% (6735/15306), 104.03 MiB | 52.01 MiB/s
+2026-05-05 11:53:41,967 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  45% (6888/15306), 104.03 MiB | 52.01 MiB/s
+2026-05-05 11:53:41,969 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  46% (7041/15306), 104.03 MiB | 52.01 MiB/s
+2026-05-05 11:53:41,972 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  47% (7194/15306), 104.03 MiB | 52.01 MiB/s
+2026-05-05 11:53:42,094 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  48% (7347/15306), 130.30 MiB | 52.12 MiB/s
+2026-05-05 11:53:42,118 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  49% (7500/15306), 130.30 MiB | 52.12 MiB/s
+2026-05-05 11:53:42,120 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  50% (7653/15306), 130.30 MiB | 52.12 MiB/s
+2026-05-05 11:53:42,121 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  51% (7807/15306), 130.30 MiB | 52.12 MiB/s
+2026-05-05 11:53:42,555 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  51% (7872/15306), 160.36 MiB | 53.45 MiB/s
+2026-05-05 11:53:42,574 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  52% (7960/15306), 160.36 MiB | 53.45 MiB/s
+2026-05-05 11:53:42,827 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  53% (8113/15306), 160.36 MiB | 53.45 MiB/s
+2026-05-05 11:53:43,188 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  54% (8266/15306), 187.65 MiB | 53.61 MiB/s
+2026-05-05 11:53:43,317 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  55% (8419/15306), 187.65 MiB | 53.61 MiB/s
+2026-05-05 11:53:43,321 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  56% (8572/15306), 187.65 MiB | 53.61 MiB/s
+2026-05-05 11:53:43,333 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  57% (8725/15306), 187.65 MiB | 53.61 MiB/s
+2026-05-05 11:53:43,341 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  58% (8878/15306), 187.65 MiB | 53.61 MiB/s
+2026-05-05 11:53:43,342 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  59% (9031/15306), 187.65 MiB | 53.61 MiB/s
+2026-05-05 11:53:43,384 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  60% (9184/15306), 187.65 MiB | 53.61 MiB/s
+2026-05-05 11:53:43,389 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  61% (9337/15306), 187.65 MiB | 53.61 MiB/s
+2026-05-05 11:53:43,390 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  62% (9490/15306), 187.65 MiB | 53.61 MiB/s
+2026-05-05 11:53:43,391 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  63% (9643/15306), 187.65 MiB | 53.61 MiB/s
+2026-05-05 11:53:43,392 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  64% (9796/15306), 187.65 MiB | 53.61 MiB/s
+2026-05-05 11:53:43,393 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  65% (9949/15306), 187.65 MiB | 53.61 MiB/s
+2026-05-05 11:53:43,395 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  66% (10102/15306), 187.65 MiB | 53.61 MiB/s
+2026-05-05 11:53:43,409 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  67% (10256/15306), 187.65 MiB | 53.61 MiB/s
+2026-05-05 11:53:43,409 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  68% (10409/15306), 187.65 MiB | 53.61 MiB/s
+2026-05-05 11:53:43,413 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  69% (10562/15306), 187.65 MiB | 53.61 MiB/s
+2026-05-05 11:53:43,414 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  70% (10715/15306), 187.65 MiB | 53.61 MiB/s
+2026-05-05 11:53:43,416 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  71% (10868/15306), 187.65 MiB | 53.61 MiB/s
+2026-05-05 11:53:43,417 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  72% (11021/15306), 187.65 MiB | 53.61 MiB/s
+2026-05-05 11:53:43,418 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  73% (11174/15306), 187.65 MiB | 53.61 MiB/s
+2026-05-05 11:53:43,491 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  74% (11327/15306), 187.65 MiB | 53.61 MiB/s
+2026-05-05 11:53:43,555 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  74% (11330/15306), 216.20 MiB | 54.05 MiB/s
+2026-05-05 11:53:44,130 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  75% (11480/15306), 241.96 MiB | 53.77 MiB/s
+2026-05-05 11:53:44,319 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  76% (11633/15306), 241.96 MiB | 53.77 MiB/s
+2026-05-05 11:53:44,569 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  76% (11679/15306), 272.48 MiB | 56.10 MiB/s
+2026-05-05 11:53:44,740 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  77% (11786/15306), 272.48 MiB | 56.10 MiB/s
+2026-05-05 11:53:44,743 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  78% (11939/15306), 272.48 MiB | 56.10 MiB/s
+2026-05-05 11:53:44,815 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  79% (12092/15306), 272.48 MiB | 56.10 MiB/s
+2026-05-05 11:53:44,836 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  80% (12245/15306), 272.48 MiB | 56.10 MiB/s
+2026-05-05 11:53:44,837 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  81% (12398/15306), 272.48 MiB | 56.10 MiB/s
+2026-05-05 11:53:44,838 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  82% (12551/15306), 272.48 MiB | 56.10 MiB/s
+2026-05-05 11:53:44,848 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  83% (12704/15306), 272.48 MiB | 56.10 MiB/s
+2026-05-05 11:53:44,864 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  84% (12858/15306), 272.48 MiB | 56.10 MiB/s
+2026-05-05 11:53:44,872 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  85% (13011/15306), 272.48 MiB | 56.10 MiB/s
+2026-05-05 11:53:45,273 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  86% (13164/15306), 289.73 MiB | 53.01 MiB/s
+2026-05-05 11:53:45,548 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  87% (13317/15306), 289.73 MiB | 53.01 MiB/s
+2026-05-05 11:53:45,569 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  87% (13336/15306), 315.73 MiB | 52.86 MiB/s
+2026-05-05 11:53:45,673 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  88% (13470/15306), 315.73 MiB | 52.86 MiB/s
+2026-05-05 11:53:45,692 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  89% (13623/15306), 315.73 MiB | 52.86 MiB/s
+2026-05-05 11:53:46,073 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  90% (13776/15306), 343.90 MiB | 53.15 MiB/s
+2026-05-05 11:53:46,090 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  91% (13929/15306), 343.90 MiB | 53.15 MiB/s
+2026-05-05 11:53:46,091 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  92% (14082/15306), 343.90 MiB | 53.15 MiB/s
+2026-05-05 11:53:46,091 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  93% (14235/15306), 343.90 MiB | 53.15 MiB/s
+2026-05-05 11:53:46,092 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  94% (14388/15306), 343.90 MiB | 53.15 MiB/s
+2026-05-05 11:53:46,569 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  94% (14520/15306), 372.82 MiB | 53.74 MiB/s
+2026-05-05 11:53:46,999 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  95% (14541/15306), 372.82 MiB | 53.74 MiB/s
+2026-05-05 11:53:47,323 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  96% (14694/15306), 401.81 MiB | 53.50 MiB/s
+2026-05-05 11:53:47,344 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  97% (14847/15306), 401.81 MiB | 53.50 MiB/s
+2026-05-05 11:53:47,345 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  98% (15000/15306), 401.81 MiB | 53.50 MiB/s
+2026-05-05 11:53:47,345 [flush       ] [DEBUG]  [192.168.1.73] out: remote: Total 15306 (delta 17), reused 39 (delta 15), pack-reused 15249 (from 1)[K
+2026-05-05 11:53:47,345 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects:  99% (15153/15306), 401.81 MiB | 53.50 MiB/s
+2026-05-05 11:53:47,346 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects: 100% (15306/15306), 401.81 MiB | 53.50 MiB/s
+2026-05-05 11:53:47,346 [flush       ] [DEBUG]  [192.168.1.73] out: Receiving objects: 100% (15306/15306), 416.42 MiB | 53.42 MiB/s, done.
+2026-05-05 11:53:47,347 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:   0% (0/8429)
+2026-05-05 11:53:47,348 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:   1% (85/8429)
+2026-05-05 11:53:47,353 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:   2% (169/8429)
+2026-05-05 11:53:47,354 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:   3% (253/8429)
+2026-05-05 11:53:47,355 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:   4% (338/8429)
+2026-05-05 11:53:47,358 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:   5% (422/8429)
+2026-05-05 11:53:47,366 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:   6% (506/8429)
+2026-05-05 11:53:47,371 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:   7% (591/8429)
+2026-05-05 11:53:47,372 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:   8% (675/8429)
+2026-05-05 11:53:47,407 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:   9% (759/8429)
+2026-05-05 11:53:47,408 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  10% (843/8429)
+2026-05-05 11:53:47,409 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  11% (928/8429)
+2026-05-05 11:53:47,410 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  12% (1013/8429)
+2026-05-05 11:53:47,412 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  13% (1096/8429)
+2026-05-05 11:53:47,414 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  14% (1181/8429)
+2026-05-05 11:53:47,416 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  15% (1265/8429)
+2026-05-05 11:53:47,418 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  16% (1349/8429)
+2026-05-05 11:53:47,420 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  17% (1433/8429)
+2026-05-05 11:53:47,423 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  18% (1519/8429)
+2026-05-05 11:53:47,424 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  19% (1602/8429)
+2026-05-05 11:53:47,425 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  20% (1686/8429)
+2026-05-05 11:53:47,426 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  21% (1772/8429)
+2026-05-05 11:53:47,429 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  22% (1855/8429)
+2026-05-05 11:53:47,434 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  23% (1939/8429)
+2026-05-05 11:53:47,434 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  24% (2023/8429)
+2026-05-05 11:53:47,435 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  25% (2108/8429)
+2026-05-05 11:53:47,436 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  26% (2192/8429)
+2026-05-05 11:53:47,438 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  27% (2276/8429)
+2026-05-05 11:53:47,439 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  28% (2361/8429)
+2026-05-05 11:53:47,446 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  29% (2445/8429)
+2026-05-05 11:53:47,451 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  30% (2529/8429)
+2026-05-05 11:53:47,455 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  31% (2613/8429)
+2026-05-05 11:53:47,458 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  32% (2698/8429)
+2026-05-05 11:53:47,459 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  33% (2783/8429)
+2026-05-05 11:53:47,460 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  34% (2866/8429)
+2026-05-05 11:53:47,492 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  35% (2951/8429)
+2026-05-05 11:53:47,503 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  36% (3037/8429)
+2026-05-05 11:53:47,505 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  37% (3119/8429)
+2026-05-05 11:53:47,509 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  38% (3204/8429)
+2026-05-05 11:53:47,510 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  39% (3289/8429)
+2026-05-05 11:53:47,516 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  40% (3372/8429)
+2026-05-05 11:53:47,518 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  41% (3456/8429)
+2026-05-05 11:53:47,523 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  42% (3541/8429)
+2026-05-05 11:53:47,531 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  43% (3625/8429)
+2026-05-05 11:53:47,537 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  44% (3709/8429)
+2026-05-05 11:53:47,543 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  45% (3794/8429)
+2026-05-05 11:53:47,544 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  46% (3878/8429)
+2026-05-05 11:53:47,545 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  47% (3963/8429)
+2026-05-05 11:53:47,545 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  48% (4046/8429)
+2026-05-05 11:53:47,546 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  49% (4131/8429)
+2026-05-05 11:53:47,546 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  50% (4215/8429)
+2026-05-05 11:53:47,547 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  51% (4299/8429)
+2026-05-05 11:53:47,548 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  52% (4385/8429)
+2026-05-05 11:53:47,549 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  53% (4471/8429)
+2026-05-05 11:53:47,551 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  54% (4552/8429)
+2026-05-05 11:53:47,553 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  55% (4636/8429)
+2026-05-05 11:53:47,555 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  56% (4721/8429)
+2026-05-05 11:53:47,556 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  57% (4805/8429)
+2026-05-05 11:53:47,559 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  58% (4889/8429)
+2026-05-05 11:53:47,561 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  59% (4975/8429)
+2026-05-05 11:53:47,562 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  60% (5058/8429)
+2026-05-05 11:53:47,564 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  61% (5142/8429)
+2026-05-05 11:53:47,565 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  62% (5231/8429)
+2026-05-05 11:53:47,566 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  63% (5311/8429)
+2026-05-05 11:53:47,567 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  64% (5395/8429)
+2026-05-05 11:53:47,568 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  65% (5479/8429)
+2026-05-05 11:53:47,569 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  66% (5564/8429)
+2026-05-05 11:53:47,572 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  67% (5648/8429)
+2026-05-05 11:53:47,573 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  68% (5732/8429)
+2026-05-05 11:53:47,575 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  69% (5817/8429)
+2026-05-05 11:53:47,577 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  70% (5903/8429)
+2026-05-05 11:53:47,578 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  71% (5985/8429)
+2026-05-05 11:53:47,582 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  72% (6072/8429)
+2026-05-05 11:53:47,584 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  73% (6157/8429)
+2026-05-05 11:53:47,587 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  74% (6239/8429)
+2026-05-05 11:53:47,588 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  75% (6322/8429)
+2026-05-05 11:53:47,590 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  76% (6407/8429)
+2026-05-05 11:53:47,592 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  77% (6491/8429)
+2026-05-05 11:53:47,594 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  78% (6575/8429)
+2026-05-05 11:53:47,595 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  79% (6659/8429)
+2026-05-05 11:53:47,596 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  80% (6744/8429)
+2026-05-05 11:53:47,597 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  81% (6828/8429)
+2026-05-05 11:53:47,598 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  82% (6914/8429)
+2026-05-05 11:53:47,599 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  83% (6997/8429)
+2026-05-05 11:53:47,600 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  84% (7081/8429)
+2026-05-05 11:53:47,602 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  85% (7166/8429)
+2026-05-05 11:53:47,603 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  86% (7249/8429)
+2026-05-05 11:53:47,605 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  87% (7334/8429)
+2026-05-05 11:53:47,606 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  88% (7419/8429)
+2026-05-05 11:53:47,610 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  89% (7502/8429)
+2026-05-05 11:53:47,611 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  90% (7587/8429)
+2026-05-05 11:53:47,612 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  91% (7671/8429)
+2026-05-05 11:53:47,613 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  92% (7755/8429)
+2026-05-05 11:53:47,615 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  93% (7839/8429)
+2026-05-05 11:53:47,652 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  94% (7924/8429)
+2026-05-05 11:53:47,653 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  95% (8008/8429)
+2026-05-05 11:53:47,654 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  96% (8092/8429)
+2026-05-05 11:53:47,655 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  97% (8177/8429)
+2026-05-05 11:53:47,656 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  98% (8266/8429)
+2026-05-05 11:53:47,656 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas:  99% (8345/8429)
+2026-05-05 11:53:48,257 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas: 100% (8429/8429)
+2026-05-05 11:53:48,257 [flush       ] [DEBUG]  [192.168.1.73] out: Resolving deltas: 100% (8429/8429), done.
+2026-05-05 11:53:49,502 [flush       ] [DEBUG]  [192.168.1.73] out: 
+2026-05-05 11:53:49,509 [flush       ] [DEBUG]  [192.168.1.73] run: cd aws-fpga && git checkout 8892cb1
+2026-05-05 11:53:49,622 [flush       ] [DEBUG]  [192.168.1.73] out: error: pathspec '8892cb1' did not match any file(s) known to git
+2026-05-05 11:53:49,623 [flush       ] [DEBUG]  [192.168.1.73] out: 
+2026-05-05 11:53:49,623 [flush       ] [INFO ]  Warning: run() received nonzero return code 1 while executing 'cd aws-fpga && git checkout 8892cb1'!
+2026-05-05 11:53:49,623 [flush       ] [DEBUG]  [192.168.1.73] run: source sdk_setup.sh
+2026-05-05 11:53:49,741 [flush       ] [DEBUG]  [192.168.1.73] out: INFO: Setting up environment variables
+2026-05-05 11:53:49,741 [flush       ] [DEBUG]  [192.168.1.73] out: INFO: Changing AWS_FPGA_REPO_DIR from /home/ubuntu//src/project_data//aws-fpga to /home/ubuntu/aws-fpga
+2026-05-05 11:53:50,370 [flush       ] [DEBUG]  [192.168.1.73] out: Entering /home/ubuntu/aws-fpga/sdk/userspace/utils
+2026-05-05 11:53:50,478 [flush       ] [DEBUG]  [192.168.1.73] out: rm -f *.o *.a ../lib/libutils.a
+2026-05-05 11:53:50,482 [flush       ] [DEBUG]  [192.168.1.73] out: /usr/bin/gcc -DCONFIG_LOGLEVEL=0 -DFPGA_PCI_BARS_MAX=64 -DCLI_VERSION='"2.2.1"' -g -std=gnu99 -fPIC -Wall -Werror -W -Wno-parentheses -Wstrict-prototypes -Wmissing-prototypes -I. -I../include -I/usr/include   -c -o io.o io.c
+2026-05-05 11:53:57,151 [flush       ] [DEBUG]  [192.168.1.73] out: /usr/bin/gcc -DCONFIG_LOGLEVEL=0 -DFPGA_PCI_BARS_MAX=64 -DCLI_VERSION='"2.2.1"' -g -std=gnu99 -fPIC -Wall -Werror -W -Wno-parentheses -Wstrict-prototypes -Wmissing-prototypes -I. -I../include -I/usr/include   -c -o log.o log.c
+2026-05-05 11:53:57,195 [flush       ] [DEBUG]  [192.168.1.73] out: /usr/bin/gcc -DCONFIG_LOGLEVEL=0 -DFPGA_PCI_BARS_MAX=64 -DCLI_VERSION='"2.2.1"' -g -std=gnu99 -fPIC -Wall -Werror -W -Wno-parentheses -Wstrict-prototypes -Wmissing-prototypes -I. -I../include -I/usr/include   -c -o logger-kmsg.o logger-kmsg.c
+2026-05-05 11:53:57,224 [flush       ] [DEBUG]  [192.168.1.73] out: mkdir -p ../lib
+2026-05-05 11:53:57,226 [flush       ] [DEBUG]  [192.168.1.73] out: ar rcs ../lib/libutils.a io.o log.o logger-kmsg.o
+2026-05-05 11:53:57,338 [flush       ] [DEBUG]  [192.168.1.73] out: Entering /home/ubuntu/aws-fpga/sdk/userspace/fpga_libs/fpga_pci
+2026-05-05 11:53:57,340 [flush       ] [DEBUG]  [192.168.1.73] out: rm -f *.o ../../lib/libfpga_pci.a
+2026-05-05 11:53:57,344 [flush       ] [DEBUG]  [192.168.1.73] out: /usr/bin/gcc -DCONFIG_LOGLEVEL=0 -DFPGA_PCI_BARS_MAX=64 -DCLI_VERSION='"2.2.1"' -g -std=gnu99 -fPIC -Wall -Werror -W -Wno-parentheses -Wstrict-prototypes -Wmissing-prototypes -I. -I../../include -I/usr/include   -c -o fpga_pci.o fpga_pci.c
+2026-05-05 11:53:57,506 [flush       ] [DEBUG]  [192.168.1.73] out: /usr/bin/gcc -DCONFIG_LOGLEVEL=0 -DFPGA_PCI_BARS_MAX=64 -DCLI_VERSION='"2.2.1"' -g -std=gnu99 -fPIC -Wall -Werror -W -Wno-parentheses -Wstrict-prototypes -Wmissing-prototypes -I. -I../../include -I/usr/include   -c -o fpga_pci_sysfs.o fpga_pci_sysfs.c
+2026-05-05 11:53:57,569 [flush       ] [DEBUG]  [192.168.1.73] out: mkdir -p ../../lib
+2026-05-05 11:53:57,570 [flush       ] [DEBUG]  [192.168.1.73] out: ar rcs ../../lib/libfpga_pci.a fpga_pci.o fpga_pci_sysfs.o
+2026-05-05 11:53:57,573 [flush       ] [DEBUG]  [192.168.1.73] out: Entering /home/ubuntu/aws-fpga/sdk/userspace/fpga_libs/fpga_dma
+2026-05-05 11:53:57,575 [flush       ] [DEBUG]  [192.168.1.73] out: rm -f *.o ../../lib/libfpga_dma.a
+2026-05-05 11:53:57,579 [flush       ] [DEBUG]  [192.168.1.73] out: /usr/bin/gcc -DCONFIG_LOGLEVEL=0 -DFPGA_PCI_BARS_MAX=64 -DCLI_VERSION='"2.2.1"' -g -std=gnu99 -fPIC -Wall -Werror -W -Wno-parentheses -Wstrict-prototypes -Wmissing-prototypes -I. -I../../include -I/usr/include   -c -o fpga_dma_mem.o fpga_dma_mem.c
+2026-05-05 11:53:57,609 [flush       ] [DEBUG]  [192.168.1.73] out: /usr/bin/gcc -DCONFIG_LOGLEVEL=0 -DFPGA_PCI_BARS_MAX=64 -DCLI_VERSION='"2.2.1"' -g -std=gnu99 -fPIC -Wall -Werror -W -Wno-parentheses -Wstrict-prototypes -Wmissing-prototypes -I. -I../../include -I/usr/include   -c -o fpga_dma_utils.o fpga_dma_utils.c
+2026-05-05 11:53:57,648 [flush       ] [DEBUG]  [192.168.1.73] out: mkdir -p ../../lib
+2026-05-05 11:53:57,650 [flush       ] [DEBUG]  [192.168.1.73] out: ar rcs ../../lib/libfpga_dma.a fpga_dma_mem.o fpga_dma_utils.o
+2026-05-05 11:53:57,653 [flush       ] [DEBUG]  [192.168.1.73] out: Entering /home/ubuntu/aws-fpga/sdk/userspace/fpga_libs/fpga_clkgen
+2026-05-05 11:53:57,655 [flush       ] [DEBUG]  [192.168.1.73] out: rm -f *.o ../../lib/libfpga_clkgen.a
+2026-05-05 11:53:57,660 [flush       ] [DEBUG]  [192.168.1.73] out: /usr/bin/gcc -DCONFIG_LOGLEVEL=0 -DFPGA_PCI_BARS_MAX=64 -DCLI_VERSION='"2.2.1"' -g -std=gnu99 -fPIC -Wall -Werror -W -Wno-parentheses -Wstrict-prototypes -Wmissing-prototypes -I. -I../../include -I/usr/include   -c -o fpga_clkgen_mmcm.o fpga_clkgen_mmcm.c
+2026-05-05 11:53:57,697 [flush       ] [DEBUG]  [192.168.1.73] out: /usr/bin/gcc -DCONFIG_LOGLEVEL=0 -DFPGA_PCI_BARS_MAX=64 -DCLI_VERSION='"2.2.1"' -g -std=gnu99 -fPIC -Wall -Werror -W -Wno-parentheses -Wstrict-prototypes -Wmissing-prototypes -I. -I../../include -I/usr/include   -c -o fpga_clkgen_utils.o fpga_clkgen_utils.c
+2026-05-05 11:53:57,737 [flush       ] [DEBUG]  [192.168.1.73] out: mkdir -p ../../lib
+2026-05-05 11:53:57,739 [flush       ] [DEBUG]  [192.168.1.73] out: ar rcs ../../lib/libfpga_clkgen.a fpga_clkgen_mmcm.o fpga_clkgen_utils.o
+2026-05-05 11:53:57,742 [flush       ] [DEBUG]  [192.168.1.73] out: Entering /home/ubuntu/aws-fpga/sdk/userspace/fpga_libs/fpga_mgmt
+2026-05-05 11:53:57,744 [flush       ] [DEBUG]  [192.168.1.73] out: rm -f *.o ../../lib/libfpga_mgmt.a ../../lib/so/libfpga_mgmt.so.1.0.0
+2026-05-05 11:53:57,748 [flush       ] [DEBUG]  [192.168.1.73] out: /usr/bin/gcc  -DCONFIG_LOGLEVEL=0 -DFPGA_PCI_BARS_MAX=64 -DCLI_VERSION='"2.2.1"' -g -std=gnu99 -fPIC -Wall -Werror -W -Wno-parentheses -Wstrict-prototypes -Wmissing-prototypes -I. -I../../include -I/usr/include   -c -o fpga_hal_mbox.o fpga_hal_mbox.c
+2026-05-05 11:53:57,787 [flush       ] [DEBUG]  [192.168.1.73] out: /usr/bin/gcc  -DCONFIG_LOGLEVEL=0 -DFPGA_PCI_BARS_MAX=64 -DCLI_VERSION='"2.2.1"' -g -std=gnu99 -fPIC -Wall -Werror -W -Wno-parentheses -Wstrict-prototypes -Wmissing-prototypes -I. -I../../include -I/usr/include   -c -o fpga_mgmt.o fpga_mgmt.c
+2026-05-05 11:53:57,840 [flush       ] [DEBUG]  [192.168.1.73] out: /usr/bin/gcc  -DCONFIG_LOGLEVEL=0 -DFPGA_PCI_BARS_MAX=64 -DCLI_VERSION='"2.2.1"' -g -std=gnu99 -fPIC -Wall -Werror -W -Wno-parentheses -Wstrict-prototypes -Wmissing-prototypes -I. -I../../include -I/usr/include   -c -o fpga_mgmt_cmd.o fpga_mgmt_cmd.c
+2026-05-05 11:53:57,879 [flush       ] [DEBUG]  [192.168.1.73] out: mkdir -p ../../lib
+2026-05-05 11:53:57,880 [flush       ] [DEBUG]  [192.168.1.73] out: for library in ../../lib/libfpga_pci.a ../../lib/libutils.a ../../lib/libfpga_dma.a ../../lib/libfpga_clkgen.a; do ar -x $library; done
+2026-05-05 11:53:57,887 [flush       ] [DEBUG]  [192.168.1.73] out: ar rcs ../../lib/libfpga_mgmt.a *.o
+2026-05-05 11:53:57,893 [flush       ] [DEBUG]  [192.168.1.73] out: mkdir -p ../../lib/so
+2026-05-05 11:53:57,894 [flush       ] [DEBUG]  [192.168.1.73] out: /usr/bin/gcc -o ../../lib/so/libfpga_mgmt.so.1.0.0 -shared fpga_hal_mbox.o fpga_mgmt.o fpga_mgmt_cmd.o -Wl,-soname,libfpga_mgmt.so.1 -Wl,--whole-archive ../../lib/libfpga_pci.a ../../lib/libutils.a ../../lib/libfpga_dma.a ../../lib/libfpga_clkgen.a -Wl,--no-whole-archive -lrt -lpthread
+2026-05-05 11:53:58,348 [flush       ] [DEBUG]  [192.168.1.73] out: ln -sf libfpga_mgmt.so.1.0.0 ../../lib/so/libfpga_mgmt.so
+2026-05-05 11:53:58,350 [flush       ] [DEBUG]  [192.168.1.73] out: Entering /home/ubuntu/aws-fpga/sdk/userspace/fpga_mgmt_tools/src
+2026-05-05 11:53:58,352 [flush       ] [DEBUG]  [192.168.1.73] out: rm -f *.o *.a fpga-local-cmd static-fpga-local-cmd
+2026-05-05 11:53:58,357 [flush       ] [DEBUG]  [192.168.1.73] out: /usr/bin/gcc -DCONFIG_LOGLEVEL=0 -DFPGA_PCI_BARS_MAX=64 -DCLI_VERSION='"2.2.1"' -g  -Wall -Werror -W -Wno-parentheses -Wstrict-prototypes -Wmissing-prototypes -I../../include/hal -I../../include -I../. -I.   -c -o fpga_local_cmd.o fpga_local_cmd.c
+2026-05-05 11:53:58,418 [flush       ] [DEBUG]  [192.168.1.73] out: /usr/bin/gcc -DCONFIG_LOGLEVEL=0 -DFPGA_PCI_BARS_MAX=64 -DCLI_VERSION='"2.2.1"' -g  -Wall -Werror -W -Wno-parentheses -Wstrict-prototypes -Wmissing-prototypes -I../../include/hal -I../../include -I../. -I.   -c -o fpga_local_cmd_parse.o fpga_local_cmd_parse.c
+2026-05-05 11:53:58,471 [flush       ] [DEBUG]  [192.168.1.73] out: /usr/bin/gcc -DCONFIG_LOGLEVEL=0 -DFPGA_PCI_BARS_MAX=64 -DCLI_VERSION='"2.2.1"' -g  -Wall -Werror -W -Wno-parentheses -Wstrict-prototypes -Wmissing-prototypes -I../../include/hal -I../../include -I../. -I.   -c -o virtual_jtag_pcie.o virtual_jtag_pcie.c
+2026-05-05 11:53:58,510 [flush       ] [DEBUG]  [192.168.1.73] out: /usr/bin/gcc -DCONFIG_LOGLEVEL=0 -DFPGA_PCI_BARS_MAX=64 -DCLI_VERSION='"2.2.1"' -g  -Wall -Werror -W -Wno-parentheses -Wstrict-prototypes -Wmissing-prototypes -I../../include/hal -I../../include -I../. -I.   -c -o virtual_jtag_server.o virtual_jtag_server.c
+2026-05-05 11:53:58,838 [flush       ] [DEBUG]  [192.168.1.73] out: /usr/bin/gcc -o fpga-local-cmd fpga_local_cmd.o fpga_local_cmd_parse.o virtual_jtag_pcie.o virtual_jtag_server.o -L../../lib/so -lfpga_mgmt
+2026-05-05 11:53:58,857 [flush       ] [DEBUG]  [192.168.1.73] out: /usr/bin/gcc -o static-fpga-local-cmd fpga_local_cmd.o fpga_local_cmd_parse.o virtual_jtag_pcie.o virtual_jtag_server.o -L../../lib -lfpga_mgmt -lrt -lpthread
+2026-05-05 11:53:58,877 [flush       ] [DEBUG]  [192.168.1.73] out: Entering /home/ubuntu/aws-fpga/sdk/userspace/fpga_mgmt_examples/src
+2026-05-05 11:53:58,878 [flush       ] [DEBUG]  [192.168.1.73] out: rm -rf build *.o *.a
+2026-05-05 11:53:58,883 [flush       ] [DEBUG]  [192.168.1.73] out: mkdir -p build
+2026-05-05 11:53:58,885 [flush       ] [DEBUG]  [192.168.1.73] out: /usr/bin/gcc -o build/clear_single_fpga clear_single_fpga.c -L../../lib/so -lfpga_mgmt -DCONFIG_LOGLEVEL=0 -DFPGA_PCI_BARS_MAX=64 -DCLI_VERSION='"2.2.1"' -g -Wall -Werror -W -Wno-parentheses -Wstrict-prototypes -Wmissing-prototypes -I../../include/hal -I../../include -I../. -I.
+2026-05-05 11:53:58,931 [flush       ] [DEBUG]  [192.168.1.73] out: /usr/bin/gcc -o build/clear_multiple_fpga clear_multiple_fpga.c -L../../lib/so -lfpga_mgmt -DCONFIG_LOGLEVEL=0 -DFPGA_PCI_BARS_MAX=64 -DCLI_VERSION='"2.2.1"' -g -Wall -Werror -W -Wno-parentheses -Wstrict-prototypes -Wmissing-prototypes -I../../include/hal -I../../include -I../. -I.
+2026-05-05 11:53:58,977 [flush       ] [DEBUG]  [192.168.1.73] out: /usr/bin/gcc -o build/load_single_fpga load_single_fpga.c -L../../lib/so -lfpga_mgmt -DCONFIG_LOGLEVEL=0 -DFPGA_PCI_BARS_MAX=64 -DCLI_VERSION='"2.2.1"' -g -Wall -Werror -W -Wno-parentheses -Wstrict-prototypes -Wmissing-prototypes -I../../include/hal -I../../include -I../. -I.
+2026-05-05 11:53:59,022 [flush       ] [DEBUG]  [192.168.1.73] out: /usr/bin/gcc -o build/load_multiple_fpga load_multiple_fpga.c -L../../lib/so -lfpga_mgmt -DCONFIG_LOGLEVEL=0 -DFPGA_PCI_BARS_MAX=64 -DCLI_VERSION='"2.2.1"' -g -Wall -Werror -W -Wno-parentheses -Wstrict-prototypes -Wmissing-prototypes -I../../include/hal -I../../include -I../. -I.
+2026-05-05 11:53:59,070 [flush       ] [DEBUG]  [192.168.1.73] out: /usr/bin/gcc -o build/prefetch_multiple_afi prefetch_multiple_afi.c -L../../lib/so -lfpga_mgmt -DCONFIG_LOGLEVEL=0 -DFPGA_PCI_BARS_MAX=64 -DCLI_VERSION='"2.2.1"' -g -Wall -Werror -W -Wno-parentheses -Wstrict-prototypes -Wmissing-prototypes -I../../include/hal -I../../include -I../. -I.
+2026-05-05 11:53:59,115 [flush       ] [DEBUG]  [192.168.1.73] out: /usr/bin/gcc -o build/static_clear_single_fpga clear_single_fpga.c -L../../lib -lfpga_mgmt -lrt -lpthread -DCONFIG_LOGLEVEL=0 -DFPGA_PCI_BARS_MAX=64 -DCLI_VERSION='"2.2.1"' -g -Wall -Werror -W -Wno-parentheses -Wstrict-prototypes -Wmissing-prototypes -I../../include/hal -I../../include -I../. -I.
+2026-05-05 11:53:59,162 [flush       ] [DEBUG]  [192.168.1.73] out: /usr/bin/gcc -o build/static_clear_multiple_fpga clear_multiple_fpga.c -L../../lib -lfpga_mgmt -lrt -lpthread -DCONFIG_LOGLEVEL=0 -DFPGA_PCI_BARS_MAX=64 -DCLI_VERSION='"2.2.1"' -g -Wall -Werror -W -Wno-parentheses -Wstrict-prototypes -Wmissing-prototypes -I../../include/hal -I../../include -I../. -I.
+2026-05-05 11:53:59,209 [flush       ] [DEBUG]  [192.168.1.73] out: /usr/bin/gcc -o build/static_load_single_fpga load_single_fpga.c -L../../lib -lfpga_mgmt -lrt -lpthread -DCONFIG_LOGLEVEL=0 -DFPGA_PCI_BARS_MAX=64 -DCLI_VERSION='"2.2.1"' -g -Wall -Werror -W -Wno-parentheses -Wstrict-prototypes -Wmissing-prototypes -I../../include/hal -I../../include -I../. -I.
+2026-05-05 11:53:59,254 [flush       ] [DEBUG]  [192.168.1.73] out: /usr/bin/gcc -o build/static_load_multiple_fpga load_multiple_fpga.c -L../../lib -lfpga_mgmt -lrt -lpthread -DCONFIG_LOGLEVEL=0 -DFPGA_PCI_BARS_MAX=64 -DCLI_VERSION='"2.2.1"' -g -Wall -Werror -W -Wno-parentheses -Wstrict-prototypes -Wmissing-prototypes -I../../include/hal -I../../include -I../. -I.
+2026-05-05 11:53:59,301 [flush       ] [DEBUG]  [192.168.1.73] out: /usr/bin/gcc -o build/static_prefetch_multiple_afi prefetch_multiple_afi.c -L../../lib -lfpga_mgmt -lrt -lpthread -DCONFIG_LOGLEVEL=0 -DFPGA_PCI_BARS_MAX=64 -DCLI_VERSION='"2.2.1"' -g -Wall -Werror -W -Wno-parentheses -Wstrict-prototypes -Wmissing-prototypes -I../../include/hal -I../../include -I../. -I.
+2026-05-05 11:53:59,350 [flush       ] [DEBUG]  [192.168.1.73] out: Build complete.
+2026-05-05 11:53:59,352 [flush       ] [DEBUG]  [192.168.1.73] out: 
+2026-05-05 11:53:59,352 [flush       ] [DEBUG]  [192.168.1.73] out: Root privileges are required to install. You may be asked for your password...
+2026-05-05 11:53:59,363 [flush       ] [DEBUG]  [192.168.1.73] out: Executing as root...
+2026-05-05 11:53:59,364 [flush       ] [DEBUG]  [192.168.1.73] out: 
+2026-05-05 11:53:59,365 [flush       ] [DEBUG]  [192.168.1.73] out: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/snap/bin
+2026-05-05 11:53:59,366 [flush       ] [DEBUG]  [192.168.1.73] out: AWS FPGA: Copying Amazon FPGA Image (AFI) Management Tools to /usr/local/bin
+2026-05-05 11:53:59,374 [flush       ] [DEBUG]  [192.168.1.73] out: AWS FPGA: Installing shared library to /usr/local/lib
+2026-05-05 11:53:59,772 [flush       ] [DEBUG]  [192.168.1.73] out: 	libfpga_mgmt.so.1 (libc6,x86-64) => /usr/local/lib/libfpga_mgmt.so.1
+2026-05-05 11:53:59,773 [flush       ] [DEBUG]  [192.168.1.73] out: AWS FPGA: Done with Amazon FPGA Image (AFI) Management Tools install.
+2026-05-05 11:53:59,775 [flush       ] [DEBUG]  [192.168.1.73] out: Done with SDK install.
+2026-05-05 11:54:03,597 [flush       ] [DEBUG]  [192.168.1.73] out: Collecting setuptools
+2026-05-05 11:54:03,640 [flush       ] [DEBUG]  [192.168.1.73] out:   Downloading setuptools-82.0.1-py3-none-any.whl.metadata (6.5 kB)
+2026-05-05 11:54:03,905 [flush       ] [DEBUG]  [192.168.1.73] out: Collecting Cython
+2026-05-05 11:54:03,913 [flush       ] [DEBUG]  [192.168.1.73] out:   Downloading cython-3.2.4-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (7.5 kB)
+2026-05-05 11:54:03,962 [flush       ] [DEBUG]  [192.168.1.73] out: Downloading setuptools-82.0.1-py3-none-any.whl (1.0 MB)
+2026-05-05 11:54:03,999 [flush       ] [DEBUG]  [192.168.1.73] out: [?25l   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0.0/1.0 MB[0m [31m?[0m eta [36m-:--:--[0m
+2026-05-05 11:54:04,004 [flush       ] [DEBUG]  [192.168.1.73] out: [2K   [91m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m[91m╸[0m [32m1.0/1.0 MB[0m [31m38.8 MB/s[0m eta [36m0:00:01[0m
+2026-05-05 11:54:04,004 [flush       ] [DEBUG]  [192.168.1.73] out: [2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m1.0/1.0 MB[0m [31m25.7 MB/s[0m eta [36m0:00:00[0m
+2026-05-05 11:54:04,011 [flush       ] [DEBUG]  [192.168.1.73] out: [?25hDownloading cython-3.2.4-cp312-cp312-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (3.4 MB)
+2026-05-05 11:54:04,045 [flush       ] [DEBUG]  [192.168.1.73] out: [?25l   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m0.0/3.4 MB[0m [31m?[0m eta [36m-:--:--[0m
+2026-05-05 11:54:04,046 [flush       ] [DEBUG]  [192.168.1.73] out: [2K   [90m━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━[0m [32m3.4/3.4 MB[0m [31m107.3 MB/s[0m eta [36m0:00:00[0m
+2026-05-05 11:54:04,106 [flush       ] [DEBUG]  [192.168.1.73] out: [?25hInstalling collected packages: setuptools, Cython
+2026-05-05 11:54:05,270 [flush       ] [DEBUG]  [192.168.1.73] out: Successfully installed Cython-3.2.4 setuptools-82.0.1
+2026-05-05 11:54:05,627 [flush       ] [DEBUG]  [192.168.1.73] out: Compiling fpga_utils.pyx because it changed.
+2026-05-05 11:54:05,627 [flush       ] [DEBUG]  [192.168.1.73] out: Compiling fpga_mgmt_wrapper.pyx because it changed.
+2026-05-05 11:54:05,627 [flush       ] [DEBUG]  [192.168.1.73] out: Compiling fpga_pci_wrapper.pyx because it changed.
+2026-05-05 11:54:05,628 [flush       ] [DEBUG]  [192.168.1.73] out: Compiling fpga_clkgen_wrapper.pyx because it changed.
+2026-05-05 11:54:05,638 [flush       ] [DEBUG]  [192.168.1.73] out: [1/4] Cythonizing fpga_clkgen_wrapper.pyx
+2026-05-05 11:54:05,956 [flush       ] [DEBUG]  [192.168.1.73] out: [2/4] Cythonizing fpga_mgmt_wrapper.pyx
+2026-05-05 11:54:06,049 [flush       ] [DEBUG]  [192.168.1.73] out: [3/4] Cythonizing fpga_pci_wrapper.pyx
+2026-05-05 11:54:06,147 [flush       ] [DEBUG]  [192.168.1.73] out: [4/4] Cythonizing fpga_utils.pyx
+2026-05-05 11:54:06,185 [flush       ] [DEBUG]  [192.168.1.73] out: running build_ext
+2026-05-05 11:54:06,189 [flush       ] [DEBUG]  [192.168.1.73] out: building 'fpga_utils' extension
+2026-05-05 11:54:06,189 [flush       ] [DEBUG]  [192.168.1.73] out: creating build/temp.linux-x86_64-cpython-312
+2026-05-05 11:54:06,189 [flush       ] [DEBUG]  [192.168.1.73] out: x86_64-linux-gnu-gcc -fno-strict-overflow -Wsign-compare -DNDEBUG -g -O2 -Wall -fPIC -I/home/ubuntu/aws-fpga/sdk/userspace/include -I/home/ubuntu/aws-fpga/sdk/userspace/cython_bindings/venv/include -I/usr/include/python3.12 -c fpga_utils.c -o build/temp.linux-x86_64-cpython-312/fpga_utils.o -Wno-address-of-packed-member
+2026-05-05 11:54:07,922 [flush       ] [DEBUG]  [192.168.1.73] out: creating build/lib.linux-x86_64-cpython-312
+2026-05-05 11:54:07,923 [flush       ] [DEBUG]  [192.168.1.73] out: x86_64-linux-gnu-gcc -shared -Wl,-O1 -Wl,-Bsymbolic-functions -Wl,-Bsymbolic-functions -Wl,-z,relro -g -fwrapv -O2 build/temp.linux-x86_64-cpython-312/fpga_utils.o -L/home/ubuntu/aws-fpga/sdk/userspace/lib/so -L/usr/lib/x86_64-linux-gnu -lfpga_mgmt -o build/lib.linux-x86_64-cpython-312/fpga_utils.cpython-312-x86_64-linux-gnu.so
+2026-05-05 11:54:07,942 [flush       ] [DEBUG]  [192.168.1.73] out: building 'fpga_mgmt_wrapper' extension
+2026-05-05 11:54:07,943 [flush       ] [DEBUG]  [192.168.1.73] out: x86_64-linux-gnu-gcc -fno-strict-overflow -Wsign-compare -DNDEBUG -g -O2 -Wall -fPIC -I/home/ubuntu/aws-fpga/sdk/userspace/include -I/home/ubuntu/aws-fpga/sdk/userspace/cython_bindings/venv/include -I/usr/include/python3.12 -c fpga_mgmt_wrapper.c -o build/temp.linux-x86_64-cpython-312/fpga_mgmt_wrapper.o -Wno-address-of-packed-member
+2026-05-05 11:54:10,205 [flush       ] [DEBUG]  [192.168.1.73] out: x86_64-linux-gnu-gcc -shared -Wl,-O1 -Wl,-Bsymbolic-functions -Wl,-Bsymbolic-functions -Wl,-z,relro -g -fwrapv -O2 build/temp.linux-x86_64-cpython-312/fpga_mgmt_wrapper.o -L/home/ubuntu/aws-fpga/sdk/userspace/lib/so -L/home/ubuntu/aws-fpga/sdk/userspace/lib -L/usr/lib/x86_64-linux-gnu -lfpga_mgmt -o build/lib.linux-x86_64-cpython-312/fpga_mgmt_wrapper.cpython-312-x86_64-linux-gnu.so
+2026-05-05 11:54:10,226 [flush       ] [DEBUG]  [192.168.1.73] out: building 'fpga_pci_wrapper' extension
+2026-05-05 11:54:10,227 [flush       ] [DEBUG]  [192.168.1.73] out: x86_64-linux-gnu-gcc -fno-strict-overflow -Wsign-compare -DNDEBUG -g -O2 -Wall -fPIC -I/home/ubuntu/aws-fpga/sdk/userspace/include -I/home/ubuntu/aws-fpga/sdk/userspace/cython_bindings/venv/include -I/usr/include/python3.12 -c fpga_pci_wrapper.c -o build/temp.linux-x86_64-cpython-312/fpga_pci_wrapper.o -Wno-address-of-packed-member
+2026-05-05 11:54:12,216 [flush       ] [DEBUG]  [192.168.1.73] out: x86_64-linux-gnu-gcc -shared -Wl,-O1 -Wl,-Bsymbolic-functions -Wl,-Bsymbolic-functions -Wl,-z,relro -g -fwrapv -O2 build/temp.linux-x86_64-cpython-312/fpga_pci_wrapper.o /home/ubuntu/aws-fpga/sdk/userspace/lib/libfpga_pci.a -L/home/ubuntu/aws-fpga/sdk/userspace/lib/so -L/home/ubuntu/aws-fpga/sdk/userspace/lib -L/usr/lib/x86_64-linux-gnu -lfpga_mgmt -o build/lib.linux-x86_64-cpython-312/fpga_pci_wrapper.cpython-312-x86_64-linux-gnu.so
+2026-05-05 11:54:12,238 [flush       ] [DEBUG]  [192.168.1.73] out: building 'fpga_clkgen_wrapper' extension
+2026-05-05 11:54:12,238 [flush       ] [DEBUG]  [192.168.1.73] out: x86_64-linux-gnu-gcc -fno-strict-overflow -Wsign-compare -DNDEBUG -g -O2 -Wall -fPIC -I/home/ubuntu/aws-fpga/sdk/userspace/include -I/home/ubuntu/aws-fpga/sdk/userspace/cython_bindings/venv/include -I/usr/include/python3.12 -c fpga_clkgen_wrapper.c -o build/temp.linux-x86_64-cpython-312/fpga_clkgen_wrapper.o -Wno-address-of-packed-member
+2026-05-05 11:54:13,176 [flush       ] [DEBUG]  [192.168.1.73] out: x86_64-linux-gnu-gcc -shared -Wl,-O1 -Wl,-Bsymbolic-functions -Wl,-Bsymbolic-functions -Wl,-z,relro -g -fwrapv -O2 build/temp.linux-x86_64-cpython-312/fpga_clkgen_wrapper.o /home/ubuntu/aws-fpga/sdk/userspace/lib/libfpga_clkgen.a -L/home/ubuntu/aws-fpga/sdk/userspace/lib/so -L/usr/lib/x86_64-linux-gnu -lfpga_mgmt -o build/lib.linux-x86_64-cpython-312/fpga_clkgen_wrapper.cpython-312-x86_64-linux-gnu.so
+2026-05-05 11:54:13,197 [flush       ] [DEBUG]  [192.168.1.73] out: copying build/lib.linux-x86_64-cpython-312/fpga_utils.cpython-312-x86_64-linux-gnu.so -> 
+2026-05-05 11:54:13,197 [flush       ] [DEBUG]  [192.168.1.73] out: copying build/lib.linux-x86_64-cpython-312/fpga_mgmt_wrapper.cpython-312-x86_64-linux-gnu.so -> 
+2026-05-05 11:54:13,198 [flush       ] [DEBUG]  [192.168.1.73] out: copying build/lib.linux-x86_64-cpython-312/fpga_pci_wrapper.cpython-312-x86_64-linux-gnu.so -> 
+2026-05-05 11:54:13,199 [flush       ] [DEBUG]  [192.168.1.73] out: copying build/lib.linux-x86_64-cpython-312/fpga_clkgen_wrapper.cpython-312-x86_64-linux-gnu.so -> 
+2026-05-05 11:54:13,299 [flush       ] [DEBUG]  [192.168.1.73] out: Cython bindings setup complete!
+2026-05-05 11:54:13,299 [flush       ] [DEBUG]  [192.168.1.73] out: INFO: sdk_setup.sh PASSED
+2026-05-05 11:54:13,300 [flush       ] [DEBUG]  [192.168.1.73] out: 
+2026-05-05 11:54:13,303 [instance_log] [INFO ]  [192.168.1.73] Unloading XRT-related Kernel Modules.
+2026-05-05 11:54:13,303 [flush       ] [DEBUG]  [192.168.1.73] run: echo 'removing_xrt_start' | sudo tee /dev/kmsg
+2026-05-05 11:54:13,424 [flush       ] [DEBUG]  [192.168.1.73] out: removing_xrt_start
+2026-05-05 11:54:13,425 [flush       ] [DEBUG]  [192.168.1.73] out: 
+2026-05-05 11:54:13,426 [flush       ] [DEBUG]  [192.168.1.73] out: 
+2026-05-05 11:54:13,427 [flush       ] [DEBUG]  [192.168.1.73] run: sudo systemctl stop mpd
+2026-05-05 11:54:13,550 [flush       ] [DEBUG]  [192.168.1.73] out: [0;1;31mFailed to stop mpd.service: Unit mpd.service not loaded.[0m
+2026-05-05 11:54:13,550 [flush       ] [DEBUG]  [192.168.1.73] out: 
+2026-05-05 11:54:13,552 [flush       ] [DEBUG]  [192.168.1.73] out: 
+2026-05-05 11:54:13,561 [flush       ] [INFO ]  Warning: run() received nonzero return code 5 while executing 'sudo systemctl stop mpd'!
+2026-05-05 11:54:13,561 [flush       ] [DEBUG]  [192.168.1.73] run: sudo yum remove -y xrt xrt-aws
+2026-05-05 11:54:13,678 [flush       ] [DEBUG]  [192.168.1.73] out: sudo: yum: command not found
+2026-05-05 11:54:13,679 [flush       ] [DEBUG]  [192.168.1.73] out: 
+2026-05-05 11:54:13,685 [flush       ] [INFO ]  Warning: run() received nonzero return code 1 while executing 'sudo yum remove -y xrt xrt-aws'!
+2026-05-05 11:54:13,685 [flush       ] [DEBUG]  [192.168.1.73] run: echo 'removing_xrt_end' | sudo tee /dev/kmsg
+2026-05-05 11:54:13,806 [flush       ] [DEBUG]  [192.168.1.73] out: removing_xrt_end
+2026-05-05 11:54:13,806 [flush       ] [DEBUG]  [192.168.1.73] out: 
+2026-05-05 11:54:13,809 [flush       ] [DEBUG]  [192.168.1.73] out: 
+2026-05-05 11:54:13,809 [instance_log] [INFO ]  [192.168.1.73] Clearing FPGA Slot 0.
+2026-05-05 11:54:13,810 [flush       ] [DEBUG]  [192.168.1.73] run: echo 'about_to_clear_fpga0' | sudo tee /dev/kmsg
+2026-05-05 11:54:13,930 [flush       ] [DEBUG]  [192.168.1.73] out: about_to_clear_fpga0
+2026-05-05 11:54:13,930 [flush       ] [DEBUG]  [192.168.1.73] out: 
+2026-05-05 11:54:13,931 [flush       ] [DEBUG]  [192.168.1.73] out: 
+2026-05-05 11:54:13,934 [flush       ] [DEBUG]  [192.168.1.73] run: sudo fpga-clear-local-image -S 0 -A
+2026-05-05 11:54:14,128 [flush       ] [DEBUG]  [192.168.1.73] run: echo 'done_clearing_fpga0' | sudo tee /dev/kmsg
+2026-05-05 11:54:14,257 [flush       ] [DEBUG]  [192.168.1.73] out: done_clearing_fpga0
+2026-05-05 11:54:14,257 [flush       ] [DEBUG]  [192.168.1.73] out: 
+2026-05-05 11:54:14,258 [flush       ] [DEBUG]  [192.168.1.73] out: 
+2026-05-05 11:54:14,262 [instance_log] [INFO ]  [192.168.1.73] Checking for Cleared FPGA Slot 0.
+2026-05-05 11:54:14,263 [flush       ] [DEBUG]  [192.168.1.73] run: echo 'about_to_check_clear_fpga0' | sudo tee /dev/kmsg
+2026-05-05 11:54:14,382 [flush       ] [DEBUG]  [192.168.1.73] out: about_to_check_clear_fpga0
+2026-05-05 11:54:14,382 [flush       ] [DEBUG]  [192.168.1.73] out: 
+2026-05-05 11:54:14,384 [flush       ] [DEBUG]  [192.168.1.73] out: 
+2026-05-05 11:54:14,386 [flush       ] [DEBUG]  [192.168.1.73] run: until fpga_status="$(sudo fpga-describe-local-image -S 0 -R -H 2>/dev/null)" && { printf '%s' "${fpga_status}" | grep -q "cleared" || [ -z "${fpga_status}" ]; }; do  sleep 1;  done
+2026-05-05 11:54:29,899 [flush       ] [DEBUG]  [192.168.1.73] run: echo 'done_checking_clear_fpga0' | sudo tee /dev/kmsg
+2026-05-05 11:54:30,022 [flush       ] [DEBUG]  [192.168.1.73] out: done_checking_clear_fpga0
+2026-05-05 11:54:30,023 [flush       ] [DEBUG]  [192.168.1.73] out: 
+2026-05-05 11:54:30,024 [flush       ] [DEBUG]  [192.168.1.73] out: 
+2026-05-05 11:54:30,033 [instance_log] [INFO ]  [192.168.1.73] Flashing FPGA Slot: 0 with agfi: agfi-03d9518415ec82449.
+2026-05-05 11:54:30,033 [flush       ] [DEBUG]  [192.168.1.73] run: sudo fpga-load-local-image -S 0 -I agfi-03d9518415ec82449 -A
+2026-05-05 11:54:30,288 [instance_log] [INFO ]  [192.168.1.73] Checking for Flashed FPGA Slot: 0 with agfi: agfi-03d9518415ec82449.
+2026-05-05 11:54:30,288 [flush       ] [DEBUG]  [192.168.1.73] run: until sudo fpga-describe-local-image -S 0 -R -H | grep -q "loaded"; do  sleep 1;  done
+2026-05-05 11:54:43,738 [flush       ] [DEBUG]  [192.168.1.73] run: sudo pkill -SIGKILL hw_server
+2026-05-05 11:54:43,963 [flush       ] [INFO ]  Warning: run() received nonzero return code 1 while executing 'sudo pkill -SIGKILL hw_server'!
+2026-05-05 11:54:43,963 [flush       ] [DEBUG]  [192.168.1.73] run: sudo pkill -SIGKILL fpga-local-cmd
+2026-05-05 11:54:44,107 [flush       ] [INFO ]  Warning: run() received nonzero return code 1 while executing 'sudo pkill -SIGKILL fpga-local-cmd'!
+2026-05-05 11:54:44,108 [instance_log] [INFO ]  [192.168.1.73] Starting Vivado hw_server.
+2026-05-05 11:54:44,108 [flush       ] [DEBUG]  [192.168.1.73] run: screen -S hw_server -d -m bash -c "script -f -c 'hw_server'"; sleep 1
+2026-05-05 11:54:45,419 [instance_log] [INFO ]  [192.168.1.73] Starting Vivado virtual JTAG.
+2026-05-05 11:54:45,419 [flush       ] [DEBUG]  [192.168.1.73] run: screen -S virtual_jtag -d -m bash -c "script -f -c 'sudo fpga-start-virtual-jtag -P 10201 -S 0'"; sleep 1
+2026-05-05 11:54:46,540 [get_deployqu] [DEBUG]  get_deployquintuplet_for_config None <bound method RuntimeHWConfig.get_platform of <runtools.runtime_config.RuntimeHWConfig object at 0x788ef7665150>>
+2026-05-05 11:54:46,540 [get_deployqu] [DEBUG]  Setting deployquintuplet by querying the AGFI's description.
+2026-05-05 11:54:46,540 [get_afi_for_] [DEBUG]  agfi-03d9518415ec82449
+2026-05-05 11:54:46,540 [get_afi_for_] [DEBUG]  None
+2026-05-05 11:54:46,572 [_new_conn   ] [DEBUG]  Starting new HTTPS connection (1): ec2.us-west-2.amazonaws.com:443
+2026-05-05 11:54:49,662 [_make_reques] [DEBUG]  https://ec2.us-west-2.amazonaws.com:443 "POST / HTTP/1.1" 200 None
+2026-05-05 11:54:50,036 [_make_reques] [DEBUG]  https://ec2.us-west-2.amazonaws.com:443 "POST / HTTP/1.1" 200 None
+2026-05-05 11:54:50,036 [get_afi_for_] [DEBUG]  [{'FpgaImageId': 'afi-0bf1f9a2bdacaab09', 'FpgaImageGlobalId': 'agfi-03d9518415ec82449', 'Name': 'firesim_rocket_singlecore_nic_notrace_timingholdfixpcisreg1bp_30mhz', 'Description': 'firesim-deployquintuplet:f2-firesim-FireSim-FireSimRocketNICNoTraceConfig-BaseF2Config,firesim-deploytriplet:FireSim-FireSimRocketNICNoTraceConfig-BaseF2Config,firesim-commit:d05bd8374d5e4292e4788283b7412e540c4bce4b,firesim-deploymakefrag:../../../generators/firechip/chip/src/main/makefrag/firesim', 'ShellVersion': '0x10212415', 'PciId': {'DeviceId': '0xf002', 'VendorId': '0x1d0f', 'SubsystemId': '0x1d51', 'SubsystemVendorId': '0xfedc'}, 'State': {'Code': 'available'}, 'CreateTime': datetime.datetime(2026, 5, 5, 9, 13, 45, tzinfo=tzlocal()), 'UpdateTime': datetime.datetime(2026, 5, 5, 9, 39, 46, tzinfo=tzlocal()), 'OwnerId': '930030326150', 'Tags': [], 'Public': False, 'DataRetentionSupport': False}]
+2026-05-05 11:54:50,047 [_new_conn   ] [DEBUG]  Starting new HTTPS connection (1): ec2.us-west-2.amazonaws.com:443
+2026-05-05 11:54:50,152 [_make_reques] [DEBUG]  https://ec2.us-west-2.amazonaws.com:443 "POST / HTTP/1.1" 200 None
+2026-05-05 11:54:50,155 [instance_log] [INFO ]  [192.168.1.73] Preflighting FireSim driver readiness for slot 0 (attempt 1/3).
+2026-05-05 11:54:50,155 [flush       ] [DEBUG]  [192.168.1.73] run: sudo pkill -SIGKILL FireSim-f2
+2026-05-05 11:54:50,299 [flush       ] [INFO ]  Warning: run() received nonzero return code 1 while executing 'sudo pkill -SIGKILL FireSim-f2'!
+2026-05-05 11:54:50,299 [flush       ] [DEBUG]  [192.168.1.73] run: sudo fpga-describe-local-image -S 0 -R -H
+2026-05-05 11:54:50,612 [flush       ] [DEBUG]  [192.168.1.73] out: Type  FpgaImageSlot  FpgaImageId             StatusName    StatusCode   ErrorName    ErrorCode   ShVersion
+2026-05-05 11:54:50,612 [flush       ] [DEBUG]  [192.168.1.73] out: AFI          0       agfi-03d9518415ec82449  loaded            0        ok               0       0x10212415
+2026-05-05 11:54:51,199 [flush       ] [DEBUG]  [192.168.1.73] out: Type  FpgaImageSlot  VendorId    DeviceId    DBDF
+2026-05-05 11:54:51,199 [flush       ] [DEBUG]  [192.168.1.73] out: AFIDEVICE    0       0x1d0f      0xf002      0000:34:00.0
+2026-05-05 11:54:51,201 [flush       ] [DEBUG]  [192.168.1.73] out: 
+2026-05-05 11:54:51,209 [flush       ] [DEBUG]  [192.168.1.73] run: timeout --kill-after=5s 30s sudo ./FireSim-f2 +slotid=0 +macaddr0=00:12:6D:00:00:02 +netbw0=200 +linklatency0=6405 +shmemportname0=0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 +simplenic-relaxed-required-bytes=1 +simplenic-empty-switch-poll-interval=1024 +simplenic-token-debug=0 +cpu-managed-stream-debug=0 +heartbeat-polling-interval=100000000 +check-fingerprint
+2026-05-05 11:54:51,408 [flush       ] [DEBUG]  [192.168.1.73] out: AFI ID for Slot  0: agfi-03d9518415ec82449
+2026-05-05 11:54:51,408 [flush       ] [DEBUG]  [192.168.1.73] out: AFI PCI  Vendor ID: 0x1d0f, Device ID 0xf002
+2026-05-05 11:54:51,411 [flush       ] [DEBUG]  [192.168.1.73] out: Attached to BAR0 (OCL)
+2026-05-05 11:54:51,926 [flush       ] [DEBUG]  [192.168.1.73] out: Attached to BAR4 (PCIS, non-WC)
+2026-05-05 11:54:51,927 [flush       ] [DEBUG]  [192.168.1.73] out: widget_registry_t::add_widget(StreamEngine)
+2026-05-05 11:54:51,927 [flush       ] [DEBUG]  [192.168.1.73] out: cpu2fpga: 1, fpga2cpu: 1
+2026-05-05 11:54:51,927 [flush       ] [DEBUG]  [192.168.1.73] out: UART0 is here (stdin/stdout).
+2026-05-05 11:54:51,927 [flush       ] [DEBUG]  [192.168.1.73] out: using link latency: 6405 cycles
+2026-05-05 11:54:51,927 [flush       ] [DEBUG]  [192.168.1.73] out: using netbw: 200
+2026-05-05 11:54:51,927 [flush       ] [DEBUG]  [192.168.1.73] out: using netburst: 8
+2026-05-05 11:54:51,928 [flush       ] [DEBUG]  [192.168.1.73] out: using simplenic round debug: 0 successful rounds
+2026-05-05 11:54:51,928 [flush       ] [DEBUG]  [192.168.1.73] out: using simplenic relaxed required bytes: 1
+2026-05-05 11:54:51,928 [flush       ] [DEBUG]  [192.168.1.73] out: using simplenic empty switch poll interval: 1024 empty rounds
+2026-05-05 11:54:51,928 [flush       ] [DEBUG]  [192.168.1.73] out: using simplenic token debug: 0 events
+2026-05-05 11:54:51,928 [flush       ] [DEBUG]  [192.168.1.73] out: Using non-slot-id associated shmemportname:
+2026-05-05 11:54:51,928 [flush       ] [DEBUG]  [192.168.1.73] out: opening/creating shmem region
+2026-05-05 11:54:51,928 [flush       ] [DEBUG]  [192.168.1.73] out: /port_nts0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000_0
+2026-05-05 11:54:51,928 [flush       ] [DEBUG]  [192.168.1.73] out: Using non-slot-id associated shmemportname:
+2026-05-05 11:54:51,928 [flush       ] [DEBUG]  [192.168.1.73] out: opening/creating shmem region
+2026-05-05 11:54:51,928 [flush       ] [DEBUG]  [192.168.1.73] out: /port_stn0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000_0
+2026-05-05 11:54:51,928 [flush       ] [DEBUG]  [192.168.1.73] out: Using non-slot-id associated shmemportname:
+2026-05-05 11:54:51,928 [flush       ] [DEBUG]  [192.168.1.73] out: opening/creating shmem region
+2026-05-05 11:54:51,928 [flush       ] [DEBUG]  [192.168.1.73] out: /port_nts0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000_1
+2026-05-05 11:54:51,928 [flush       ] [DEBUG]  [192.168.1.73] out: Using non-slot-id associated shmemportname:
+2026-05-05 11:54:51,928 [flush       ] [DEBUG]  [192.168.1.73] out: opening/creating shmem region
+2026-05-05 11:54:51,929 [flush       ] [DEBUG]  [192.168.1.73] out: /port_stn0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000_1
+2026-05-05 11:54:51,929 [flush       ] [DEBUG]  [192.168.1.73] out: BUFBYTES 58560
+2026-05-05 11:54:51,929 [flush       ] [DEBUG]  [192.168.1.73] out: command line for program 0. argc=11:
+2026-05-05 11:54:51,929 [flush       ] [DEBUG]  [192.168.1.73] out: +slotid=0 +macaddr0=00:12:6D:00:00:02 +netbw0=200 +linklatency0=6405 +shmemportname0=0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 +simplenic-relaxed-required-bytes=1 +simplenic-empty-switch-poll-interval=1024 +simplenic-token-debug=0 +cpu-managed-stream-debug=0 +heartbeat-polling-interval=100000000 +check-fingerprint 
+2026-05-05 11:54:51,929 [flush       ] [DEBUG]  [192.168.1.73] out: entered simulation flow execution
+2026-05-05 11:54:51,929 [flush       ] [DEBUG]  [192.168.1.73] out: finished waiting
+2026-05-05 11:54:51,929 [flush       ] [DEBUG]  [192.168.1.73] out: FireSim fingerprint: 0x46697265
+2026-05-05 11:54:52,763 [flush       ] [DEBUG]  [192.168.1.73] out: 
+2026-05-05 11:54:52,773 [instance_log] [INFO ]  [192.168.1.73] FireSim driver readiness preflight passed for slot 0.
+2026-05-05 11:54:52,773 [instance_log] [INFO ]  [192.168.1.73] Copying switch simulation infrastructure for switch slot: 0.
+2026-05-05 11:54:52,773 [flush       ] [DEBUG]  [192.168.1.73] run: mkdir -p /home/ubuntu/switch_slot_0/
+2026-05-05 11:54:52,887 [flush       ] [DEBUG]  [localhost] local: grep '^ID=' /etc/os-release | awk -F= '{print $2}' | tr -d '"'
+2026-05-05 11:54:52,890 [get_local_sh] [DEBUG]  Running on OS: ubuntu
+2026-05-05 11:54:52,890 [flush       ] [DEBUG]  [localhost] local: dpkg -S /usr/lib/x86_64-linux-gnu/libc.so*
+2026-05-05 11:54:53,740 [get_local_sh] [DEBUG]  ['libc6-dev', 'libc6']
+2026-05-05 11:54:53,740 [flush       ] [DEBUG]  [localhost] local: dpkg -L libc6-dev | grep -P '\.so(\.|\s*$)'
+2026-05-05 11:54:53,757 [flush       ] [DEBUG]  [localhost] local: dpkg -L libc6 | grep -P '\.so(\.|\s*$)'
+2026-05-05 11:54:53,773 [get_local_sh] [DEBUG]  ['/usr/lib/x86_64-linux-gnu/audit/sotruss-lib.so', '/usr/lib/x86_64-linux-gnu/libc.so', '/usr/lib/x86_64-linux-gnu/libm.so', '/usr/share/gdb/auto-load/lib/x86_64-linux-gnu/libc.so.6-gdb.py', '/usr/lib/x86_64-linux-gnu/libBrokenLocale.so', '/usr/lib/x86_64-linux-gnu/libanl.so', '/usr/lib/x86_64-linux-gnu/libc_malloc_debug.so', '/usr/lib/x86_64-linux-gnu/libmvec.so', '/usr/lib/x86_64-linux-gnu/libnss_compat.so', '/usr/lib/x86_64-linux-gnu/libnss_hesiod.so', '/usr/lib/x86_64-linux-gnu/libresolv.so', '/usr/lib/x86_64-linux-gnu/libthread_db.so', '/etc/ld.so.conf.d', '/etc/ld.so.conf.d/x86_64-linux-gnu.conf', '/usr/lib/x86_64-linux-gnu/gconv/ANSI_X3.110.so', '/usr/lib/x86_64-linux-gnu/gconv/ARMSCII-8.so', '/usr/lib/x86_64-linux-gnu/gconv/ASMO_449.so', '/usr/lib/x86_64-linux-gnu/gconv/BIG5.so', '/usr/lib/x86_64-linux-gnu/gconv/BIG5HKSCS.so', '/usr/lib/x86_64-linux-gnu/gconv/BRF.so', '/usr/lib/x86_64-linux-gnu/gconv/CP10007.so', '/usr/lib/x86_64-linux-gnu/gconv/CP1125.so', '/usr/lib/x86_64-linux-gnu/gconv/CP1250.so', '/usr/lib/x86_64-linux-gnu/gconv/CP1251.so', '/usr/lib/x86_64-linux-gnu/gconv/CP1252.so', '/usr/lib/x86_64-linux-gnu/gconv/CP1253.so', '/usr/lib/x86_64-linux-gnu/gconv/CP1254.so', '/usr/lib/x86_64-linux-gnu/gconv/CP1255.so', '/usr/lib/x86_64-linux-gnu/gconv/CP1256.so', '/usr/lib/x86_64-linux-gnu/gconv/CP1257.so', '/usr/lib/x86_64-linux-gnu/gconv/CP1258.so', '/usr/lib/x86_64-linux-gnu/gconv/CP737.so', '/usr/lib/x86_64-linux-gnu/gconv/CP770.so', '/usr/lib/x86_64-linux-gnu/gconv/CP771.so', '/usr/lib/x86_64-linux-gnu/gconv/CP772.so', '/usr/lib/x86_64-linux-gnu/gconv/CP773.so', '/usr/lib/x86_64-linux-gnu/gconv/CP774.so', '/usr/lib/x86_64-linux-gnu/gconv/CP775.so', '/usr/lib/x86_64-linux-gnu/gconv/CP932.so', '/usr/lib/x86_64-linux-gnu/gconv/CSN_369103.so', '/usr/lib/x86_64-linux-gnu/gconv/CWI.so', '/usr/lib/x86_64-linux-gnu/gconv/DEC-MCS.so', '/usr/lib/x86_64-linux-gnu/gconv/EBCDIC-AT-DE-A.so', '/usr/lib/x86_64-linux-gnu/gconv/EBCDIC-AT-DE.so', '/usr/lib/x86_64-linux-gnu/gconv/EBCDIC-CA-FR.so', '/usr/lib/x86_64-linux-gnu/gconv/EBCDIC-DK-NO-A.so', '/usr/lib/x86_64-linux-gnu/gconv/EBCDIC-DK-NO.so', '/usr/lib/x86_64-linux-gnu/gconv/EBCDIC-ES-A.so', '/usr/lib/x86_64-linux-gnu/gconv/EBCDIC-ES-S.so', '/usr/lib/x86_64-linux-gnu/gconv/EBCDIC-ES.so', '/usr/lib/x86_64-linux-gnu/gconv/EBCDIC-FI-SE-A.so', '/usr/lib/x86_64-linux-gnu/gconv/EBCDIC-FI-SE.so', '/usr/lib/x86_64-linux-gnu/gconv/EBCDIC-FR.so', '/usr/lib/x86_64-linux-gnu/gconv/EBCDIC-IS-FRISS.so', '/usr/lib/x86_64-linux-gnu/gconv/EBCDIC-IT.so', '/usr/lib/x86_64-linux-gnu/gconv/EBCDIC-PT.so', '/usr/lib/x86_64-linux-gnu/gconv/EBCDIC-UK.so', '/usr/lib/x86_64-linux-gnu/gconv/EBCDIC-US.so', '/usr/lib/x86_64-linux-gnu/gconv/ECMA-CYRILLIC.so', '/usr/lib/x86_64-linux-gnu/gconv/EUC-CN.so', '/usr/lib/x86_64-linux-gnu/gconv/EUC-JISX0213.so', '/usr/lib/x86_64-linux-gnu/gconv/EUC-JP-MS.so', '/usr/lib/x86_64-linux-gnu/gconv/EUC-JP.so', '/usr/lib/x86_64-linux-gnu/gconv/EUC-KR.so', '/usr/lib/x86_64-linux-gnu/gconv/EUC-TW.so', '/usr/lib/x86_64-linux-gnu/gconv/GB18030.so', '/usr/lib/x86_64-linux-gnu/gconv/GBBIG5.so', '/usr/lib/x86_64-linux-gnu/gconv/GBGBK.so', '/usr/lib/x86_64-linux-gnu/gconv/GBK.so', '/usr/lib/x86_64-linux-gnu/gconv/GEORGIAN-ACADEMY.so', '/usr/lib/x86_64-linux-gnu/gconv/GEORGIAN-PS.so', '/usr/lib/x86_64-linux-gnu/gconv/GOST_19768-74.so', '/usr/lib/x86_64-linux-gnu/gconv/GREEK-CCITT.so', '/usr/lib/x86_64-linux-gnu/gconv/GREEK7-OLD.so', '/usr/lib/x86_64-linux-gnu/gconv/GREEK7.so', '/usr/lib/x86_64-linux-gnu/gconv/HP-GREEK8.so', '/usr/lib/x86_64-linux-gnu/gconv/HP-ROMAN8.so', '/usr/lib/x86_64-linux-gnu/gconv/HP-ROMAN9.so', '/usr/lib/x86_64-linux-gnu/gconv/HP-THAI8.so', '/usr/lib/x86_64-linux-gnu/gconv/HP-TURKISH8.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM037.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM038.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1004.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1008.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1008_420.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1025.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1026.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1046.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1047.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1097.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1112.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1122.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1123.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1124.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1129.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1130.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1132.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1133.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1137.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1140.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1141.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1142.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1143.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1144.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1145.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1146.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1147.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1148.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1149.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1153.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1154.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1155.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1156.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1157.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1158.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1160.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1161.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1162.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1163.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1164.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1166.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1167.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM12712.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1364.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1371.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1388.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1390.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM1399.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM16804.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM256.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM273.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM274.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM275.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM277.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM278.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM280.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM281.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM284.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM285.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM290.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM297.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM420.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM423.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM424.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM437.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM4517.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM4899.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM4909.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM4971.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM500.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM5347.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM803.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM850.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM851.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM852.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM855.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM856.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM857.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM858.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM860.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM861.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM862.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM863.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM864.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM865.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM866.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM866NAV.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM868.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM869.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM870.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM871.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM874.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM875.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM880.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM891.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM901.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM902.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM903.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM9030.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM904.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM905.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM9066.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM918.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM921.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM922.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM930.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM932.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM933.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM935.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM937.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM939.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM943.so', '/usr/lib/x86_64-linux-gnu/gconv/IBM9448.so', '/usr/lib/x86_64-linux-gnu/gconv/IEC_P27-1.so', '/usr/lib/x86_64-linux-gnu/gconv/INIS-8.so', '/usr/lib/x86_64-linux-gnu/gconv/INIS-CYRILLIC.so', '/usr/lib/x86_64-linux-gnu/gconv/INIS.so', '/usr/lib/x86_64-linux-gnu/gconv/ISIRI-3342.so', '/usr/lib/x86_64-linux-gnu/gconv/ISO-2022-CN-EXT.so', '/usr/lib/x86_64-linux-gnu/gconv/ISO-2022-CN.so', '/usr/lib/x86_64-linux-gnu/gconv/ISO-2022-JP-3.so', '/usr/lib/x86_64-linux-gnu/gconv/ISO-2022-JP.so', '/usr/lib/x86_64-linux-gnu/gconv/ISO-2022-KR.so', '/usr/lib/x86_64-linux-gnu/gconv/ISO-IR-197.so', '/usr/lib/x86_64-linux-gnu/gconv/ISO-IR-209.so', '/usr/lib/x86_64-linux-gnu/gconv/ISO646.so', '/usr/lib/x86_64-linux-gnu/gconv/ISO8859-1.so', '/usr/lib/x86_64-linux-gnu/gconv/ISO8859-10.so', '/usr/lib/x86_64-linux-gnu/gconv/ISO8859-11.so', '/usr/lib/x86_64-linux-gnu/gconv/ISO8859-13.so', '/usr/lib/x86_64-linux-gnu/gconv/ISO8859-14.so', '/usr/lib/x86_64-linux-gnu/gconv/ISO8859-15.so', '/usr/lib/x86_64-linux-gnu/gconv/ISO8859-16.so', '/usr/lib/x86_64-linux-gnu/gconv/ISO8859-2.so', '/usr/lib/x86_64-linux-gnu/gconv/ISO8859-3.so', '/usr/lib/x86_64-linux-gnu/gconv/ISO8859-4.so', '/usr/lib/x86_64-linux-gnu/gconv/ISO8859-5.so', '/usr/lib/x86_64-linux-gnu/gconv/ISO8859-6.so', '/usr/lib/x86_64-linux-gnu/gconv/ISO8859-7.so', '/usr/lib/x86_64-linux-gnu/gconv/ISO8859-8.so', '/usr/lib/x86_64-linux-gnu/gconv/ISO8859-9.so', '/usr/lib/x86_64-linux-gnu/gconv/ISO8859-9E.so', '/usr/lib/x86_64-linux-gnu/gconv/ISO_10367-BOX.so', '/usr/lib/x86_64-linux-gnu/gconv/ISO_11548-1.so', '/usr/lib/x86_64-linux-gnu/gconv/ISO_2033.so', '/usr/lib/x86_64-linux-gnu/gconv/ISO_5427-EXT.so', '/usr/lib/x86_64-linux-gnu/gconv/ISO_5427.so', '/usr/lib/x86_64-linux-gnu/gconv/ISO_5428.so', '/usr/lib/x86_64-linux-gnu/gconv/ISO_6937-2.so', '/usr/lib/x86_64-linux-gnu/gconv/ISO_6937.so', '/usr/lib/x86_64-linux-gnu/gconv/JOHAB.so', '/usr/lib/x86_64-linux-gnu/gconv/KOI-8.so', '/usr/lib/x86_64-linux-gnu/gconv/KOI8-R.so', '/usr/lib/x86_64-linux-gnu/gconv/KOI8-RU.so', '/usr/lib/x86_64-linux-gnu/gconv/KOI8-T.so', '/usr/lib/x86_64-linux-gnu/gconv/KOI8-U.so', '/usr/lib/x86_64-linux-gnu/gconv/LATIN-GREEK-1.so', '/usr/lib/x86_64-linux-gnu/gconv/LATIN-GREEK.so', '/usr/lib/x86_64-linux-gnu/gconv/MAC-CENTRALEUROPE.so', '/usr/lib/x86_64-linux-gnu/gconv/MAC-IS.so', '/usr/lib/x86_64-linux-gnu/gconv/MAC-SAMI.so', '/usr/lib/x86_64-linux-gnu/gconv/MAC-UK.so', '/usr/lib/x86_64-linux-gnu/gconv/MACINTOSH.so', '/usr/lib/x86_64-linux-gnu/gconv/MIK.so', '/usr/lib/x86_64-linux-gnu/gconv/NATS-DANO.so', '/usr/lib/x86_64-linux-gnu/gconv/NATS-SEFI.so', '/usr/lib/x86_64-linux-gnu/gconv/PT154.so', '/usr/lib/x86_64-linux-gnu/gconv/RK1048.so', '/usr/lib/x86_64-linux-gnu/gconv/SAMI-WS2.so', '/usr/lib/x86_64-linux-gnu/gconv/SHIFT_JISX0213.so', '/usr/lib/x86_64-linux-gnu/gconv/SJIS.so', '/usr/lib/x86_64-linux-gnu/gconv/T.61.so', '/usr/lib/x86_64-linux-gnu/gconv/TCVN5712-1.so', '/usr/lib/x86_64-linux-gnu/gconv/TIS-620.so', '/usr/lib/x86_64-linux-gnu/gconv/TSCII.so', '/usr/lib/x86_64-linux-gnu/gconv/UHC.so', '/usr/lib/x86_64-linux-gnu/gconv/UNICODE.so', '/usr/lib/x86_64-linux-gnu/gconv/UTF-16.so', '/usr/lib/x86_64-linux-gnu/gconv/UTF-32.so', '/usr/lib/x86_64-linux-gnu/gconv/UTF-7.so', '/usr/lib/x86_64-linux-gnu/gconv/VISCII.so', '/usr/lib/x86_64-linux-gnu/gconv/libCNS.so', '/usr/lib/x86_64-linux-gnu/gconv/libGB.so', '/usr/lib/x86_64-linux-gnu/gconv/libISOIR165.so', '/usr/lib/x86_64-linux-gnu/gconv/libJIS.so', '/usr/lib/x86_64-linux-gnu/gconv/libJISX0213.so', '/usr/lib/x86_64-linux-gnu/gconv/libKSC.so', '/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2', '/usr/lib/x86_64-linux-gnu/libBrokenLocale.so.1', '/usr/lib/x86_64-linux-gnu/libanl.so.1', '/usr/lib/x86_64-linux-gnu/libc.so.6', '/usr/lib/x86_64-linux-gnu/libc_malloc_debug.so.0', '/usr/lib/x86_64-linux-gnu/libdl.so.2', '/usr/lib/x86_64-linux-gnu/libm.so.6', '/usr/lib/x86_64-linux-gnu/libmemusage.so', '/usr/lib/x86_64-linux-gnu/libmvec.so.1', '/usr/lib/x86_64-linux-gnu/libnsl.so.1', '/usr/lib/x86_64-linux-gnu/libnss_compat.so.2', '/usr/lib/x86_64-linux-gnu/libnss_dns.so.2', '/usr/lib/x86_64-linux-gnu/libnss_files.so.2', '/usr/lib/x86_64-linux-gnu/libnss_hesiod.so.2', '/usr/lib/x86_64-linux-gnu/libpcprofile.so', '/usr/lib/x86_64-linux-gnu/libpthread.so.0', '/usr/lib/x86_64-linux-gnu/libresolv.so.2', '/usr/lib/x86_64-linux-gnu/librt.so.1', '/usr/lib/x86_64-linux-gnu/libthread_db.so.1', '/usr/lib/x86_64-linux-gnu/libutil.so.1', '/usr/lib64/ld-linux-x86-64.so.2']
+2026-05-05 11:54:53,773 [get_local_sh] [DEBUG]  Identifying ldd dependencies for: ../target-design/switch/switch0-E2WJKMOU5U2MTCIXBYEIYCLS1GXQ25T9NGFJ009EUJXHTE3S7UYJWLN202YVDTBU-build/switch0
+2026-05-05 11:54:53,781 [get_local_sh] [DEBUG]  /lib/x86_64-linux-gnu/librt.so.1 realpath /usr/lib/x86_64-linux-gnu/librt.so.1 found in glibc_shared_libs. skipping
+2026-05-05 11:54:53,781 [get_local_sh] [DEBUG]  /lib/x86_64-linux-gnu/libm.so.6 realpath /usr/lib/x86_64-linux-gnu/libm.so.6 found in glibc_shared_libs. skipping
+2026-05-05 11:54:53,781 [get_local_sh] [DEBUG]  /lib/x86_64-linux-gnu/libpthread.so.0 realpath /usr/lib/x86_64-linux-gnu/libpthread.so.0 found in glibc_shared_libs. skipping
+2026-05-05 11:54:53,782 [get_local_sh] [DEBUG]  /lib/x86_64-linux-gnu/libc.so.6 realpath /usr/lib/x86_64-linux-gnu/libc.so.6 found in glibc_shared_libs. skipping
+2026-05-05 11:54:53,782 [get_local_sh] [DEBUG]  /lib/x86_64-linux-gnu/libdl.so.2 realpath /usr/lib/x86_64-linux-gnu/libdl.so.2 found in glibc_shared_libs. skipping
+2026-05-05 11:54:53,782 [get_local_sh] [DEBUG]  [('/home/ubuntu/chipyard/.conda-env/lib/libstdc++.so.6.0.33', 'libstdc++.so.6'), ('/home/ubuntu/chipyard/.conda-env/lib/libgomp.so.1.0.0', 'libgomp.so.1'), ('/home/ubuntu/chipyard/.conda-env/lib/libgcc_s.so.1', 'libgcc_s.so.1')]
+2026-05-05 11:54:53,791 [flush       ] [DEBUG]  [192.168.1.73] put: /home/ubuntu/chipyard/sims/firesim/target-design/switch/switch0-E2WJKMOU5U2MTCIXBYEIYCLS1GXQ25T9NGFJ009EUJXHTE3S7UYJWLN202YVDTBU-build/switch0 -> /home/ubuntu/switch_slot_0/switch0
+2026-05-05 11:54:53,802 [flush       ] [DEBUG]  [192.168.1.73] put: /home/ubuntu/chipyard/.conda-env/lib/libstdc++.so.6.0.33 -> /home/ubuntu/switch_slot_0/libstdc++.so.6
+2026-05-05 11:54:53,924 [flush       ] [DEBUG]  [192.168.1.73] put: /home/ubuntu/chipyard/.conda-env/lib/libgomp.so.1.0.0 -> /home/ubuntu/switch_slot_0/libgomp.so.1
+2026-05-05 11:54:53,942 [flush       ] [DEBUG]  [192.168.1.73] put: /home/ubuntu/chipyard/.conda-env/lib/libgcc_s.so.1 -> /home/ubuntu/switch_slot_0/libgcc_s.so.1
+2026-05-05 11:54:53,977 [<module>    ] [INFO ]  The full log of this run is:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-05--11-51-33-infrasetup-KOQH5VLU8695UZGR.log

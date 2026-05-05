@@ -1,0 +1,23 @@
+[firesim-tmux] started at 2026-05-05T11:51:02Z
+[firesim-tmux] working directory: /home/ubuntu/chipyard/sims/firesim/deploy
+[firesim-tmux] command: firesim launchrunfarm -c /home/ubuntu/chipyard/sims/firesim/deploy/config_runtime_f2_rocket_singlecore_nic_gdbserver_smoke_notrace_clean1bp_recovereddriver_30mhz.yaml -a /home/ubuntu/chipyard/tmp/firesim-aws-f2/hwdb/config_hwdb_f2_rocket_singlecore_nic_notrace_30mhz_agfi03d951_timingholdfixpcisreg1bp_driver.yaml -r /home/ubuntu/chipyard/sims/firesim/deploy/config_build_recipes_f2_rocket_singlecore_nic_notrace_30mhz.yaml
+[firesim-tmux] propagated FIRESIM env vars:  
+/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/transport.py:178: CryptographyDeprecationWarning: Blowfish has been deprecated
+  'class': algorithms.Blowfish,
+FireSim Manager. Docs: https://docs.fires.im
+Running: launchrunfarm
+
+run_farm_hosts_dict defaultdict(<class 'list'>, {'f2.6xlarge': [(<runtools.run_farm.Inst object at 0x73a854e938b0>, None)], 'f2.12xlarge': [], 'f2.48xlarge': [], 'm4.16xlarge': [], 'z1d.3xlarge': [], 'z1d.6xlarge': [], 'z1d.12xlarge': []})
+set_server_hardware_config 0 None
+LAUNCHING: {'ImageId': 'ami-0d7cdfb6b3ce5b5e0', 'EbsOptimized': True, 'BlockDeviceMappings': [{'DeviceName': '/dev/sda1', 'Ebs': {'VolumeSize': 300, 'VolumeType': 'gp2'}}, {'DeviceName': '/dev/sdb', 'NoDevice': ''}], 'InstanceType': 'f2.6xlarge', 'MinCount': 1, 'MaxCount': 1, 'NetworkInterfaces': [{'SubnetId': 'subnet-0c591ac34405cea97', 'DeviceIndex': 0, 'AssociatePublicIpAddress': True, 'Groups': ['sg-08b5c402f8c99027f']}], 'KeyName': 'firesim', 'TagSpecifications': [{'ResourceType': 'instance', 'Tags': [{'Key': 'fsimcluster', 'Value': 'f2rocketsinglecorenicrecovered1bp'}]}], 'InstanceMarketOptions': {}}
+Waiting for instance boots: 0 f2.12xlarge
+Waiting for instance boots: 0 f2.48xlarge
+Waiting for instance boots: 1 f2.6xlarge
+i-0ccc5f9076abab277 booted!
+Waiting for instance boots: 0 m4.16xlarge
+Waiting for instance boots: 0 z1d.12xlarge
+Waiting for instance boots: 0 z1d.3xlarge
+Waiting for instance boots: 0 z1d.6xlarge
+The full log of this run is:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-05--11-51-02-launchrunfarm-2IG2GGOCLM2LI9MY.log
+[firesim-tmux] finished at 2026-05-05T11:51:11Z with exit code 0

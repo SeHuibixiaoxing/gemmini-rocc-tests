@@ -1,0 +1,9 @@
+[remote-swbreak-expect] private_ip=192.168.1.73
+[remote-swbreak-expect] local_port=32345
+[remote-swbreak-expect] guest_ip=172.16.0.2
+[remote-swbreak-expect] target_bin=/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/workloads/rocket-singlecore-nic-gdbserver-smoke/overlay/root/gdbserver-smoke/gdbserver-smoke
+[remote-swbreak-expect] out_dir=/home/ubuntu/chipyard/tmp/firesim-aws-f2/gdbserver-tests/remote-swbreak-expect-20260505T121059Z-192_168_1_73
+[remote-swbreak-expect] static_neigh=172.16.0.2 00:12:6d:00:00:02 dev tap0
+[remote-swbreak-expect] expect_rc=0
+[remote-swbreak-expect] transcript=/home/ubuntu/chipyard/tmp/firesim-aws-f2/gdbserver-tests/remote-swbreak-expect-20260505T121059Z-192_168_1_73/remote-swbreak.expect.log
+[remote-swbreak-expect] PASS

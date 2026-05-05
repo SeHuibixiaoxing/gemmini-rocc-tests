@@ -1,0 +1,128 @@
+#!/usr/bin/env expect
+set timeout [lindex $argv 3]
+
+set gdb [lindex $argv 0]
+set elf [lindex $argv 1]
+set port [lindex $argv 2]
+set transcript [lindex $argv 4]
+
+log_file -noappend $transcript
+spawn $gdb $elf
+
+proc need_prompt {} {
+    expect {
+        -re "\\(gdb\\) $" {}
+        timeout { puts stderr "timeout waiting for gdb prompt"; exit 3 }
+        eof { puts stderr "gdb exited unexpectedly"; exit 4 }
+    }
+}
+
+proc gdb_cmd {cmd {timeout_s 180}} {
+    set old_timeout $::timeout
+    set ::timeout $timeout_s
+    send -- "$cmd\r"
+    need_prompt
+    set ::timeout $old_timeout
+}
+
+proc gdb_target_remote {port {timeout_s 240}} {
+    set old_timeout $::timeout
+    set ::timeout $timeout_s
+    send -- "target remote :$port\r"
+    expect {
+        -re "Remote communication error|Target disconnected|Connection reset by peer" {
+            puts stderr "target remote failed: remote communication error"
+            exit 7
+        }
+        -re "\\(gdb\\) $" {}
+        timeout { puts stderr "timeout waiting for target remote stop"; exit 8 }
+        eof { puts stderr "gdb exited during target remote"; exit 9 }
+    }
+    set ::timeout $old_timeout
+}
+
+proc gdb_continue_to {pattern {timeout_s 180}} {
+    set old_timeout $::timeout
+    set ::timeout $timeout_s
+    send -- "continue\r"
+    expect {
+        -re $pattern { need_prompt }
+        timeout { puts stderr "timeout waiting for continue pattern: $pattern"; exit 5 }
+        eof { puts stderr "gdb exited during continue"; exit 6 }
+    }
+    set ::timeout $old_timeout
+}
+
+need_prompt
+gdb_cmd "set pagination off"
+gdb_cmd "set confirm off"
+gdb_cmd "set print thread-events off"
+gdb_cmd "set debuginfod enabled off"
+gdb_cmd "set auto-load safe-path /"
+gdb_cmd "set remotetimeout 180"
+gdb_target_remote $port 240
+puts "GDB_MARK_CONNECTED"
+gdb_cmd "break main"
+gdb_cmd "break smoke_iteration_hook"
+gdb_cmd "break smoke_worker_heartbeat"
+gdb_cmd "info breakpoints"
+
+gdb_continue_to "Breakpoint 1,.*main" 240
+puts "GDB_MARK_HIT_MAIN"
+gdb_cmd "bt"
+gdb_cmd "info registers pc sp ra a0 a1"
+gdb_cmd "x/12i \$pc"
+gdb_cmd "print smoke_counter"
+gdb_cmd "print/x smoke_memory_probe\[0\]"
+gdb_cmd "set variable smoke_memory_probe\[7\] = 0xabcdef"
+gdb_cmd "print/x smoke_memory_probe\[7\]"
+gdb_cmd "next" 180
+puts "GDB_MARK_NEXT_DONE"
+gdb_cmd "disable 1"
+
+gdb_continue_to "Breakpoint (2|3),.*smoke_(iteration_hook|worker_heartbeat)" 240
+puts "GDB_MARK_HIT_MULTI_SOFTWARE_BREAK"
+gdb_cmd "bt"
+gdb_cmd "info args"
+gdb_cmd "info threads"
+gdb_cmd "thread apply all bt" 240
+
+gdb_cmd "disable 3"
+gdb_continue_to "Breakpoint 2,.*smoke_iteration_hook" 240
+puts "GDB_MARK_HIT_ITERATION_BREAK"
+gdb_cmd "bt"
+gdb_cmd "info args"
+gdb_cmd "info registers pc sp"
+gdb_cmd "disable 2"
+
+puts "GDB_MARK_INTERRUPT_BEGIN"
+set old_timeout $timeout
+set timeout 60
+send -- "continue\r"
+after 2000
+send \003
+expect {
+    -re "received signal SIGINT|Program received signal SIGINT|Thread .* received signal SIGINT|Program received signal SIGTRAP|Thread .* received signal SIGTRAP" { need_prompt }
+    timeout { puts stderr "timeout waiting for Ctrl-C/SIGINT stop"; exit 7 }
+    eof { puts stderr "gdb exited during Ctrl-C test"; exit 8 }
+}
+set timeout $old_timeout
+puts "GDB_MARK_INTERRUPT_DONE"
+
+gdb_cmd "info threads"
+gdb_cmd "thread apply all bt" 240
+gdb_cmd "info registers pc sp ra"
+gdb_cmd "x/8i \$pc"
+
+set timeout 120
+send -- "detach\r"
+expect {
+    -re "Ending remote debugging|Inferior .* detached|Detaching from program" { need_prompt }
+    timeout { puts stderr "timeout waiting for detach"; exit 9 }
+    eof { puts stderr "gdb exited during detach"; exit 10 }
+}
+puts "GDB_MARK_DETACH_OK"
+
+send -- "quit\r"
+expect eof
+exit 0

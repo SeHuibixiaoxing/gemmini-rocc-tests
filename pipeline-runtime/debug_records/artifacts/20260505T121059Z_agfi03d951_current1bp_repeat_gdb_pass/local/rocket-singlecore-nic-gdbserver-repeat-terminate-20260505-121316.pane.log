@@ -1,0 +1,30 @@
+[firesim-tmux] started at 2026-05-05T12:13:18Z
+[firesim-tmux] working directory: /home/ubuntu/chipyard/sims/firesim/deploy
+[firesim-tmux] command: firesim terminaterunfarm --forceterminate -c /home/ubuntu/chipyard/sims/firesim/deploy/config_runtime_f2_rocket_singlecore_nic_gdbserver_smoke_notrace_clean1bp_recovereddriver_30mhz.yaml -a /home/ubuntu/chipyard/tmp/firesim-aws-f2/hwdb/config_hwdb_f2_rocket_singlecore_nic_notrace_30mhz_agfi03d951_timingholdfixpcisreg1bp_driver.yaml -r /home/ubuntu/chipyard/sims/firesim/deploy/config_build_recipes_f2_rocket_singlecore_nic_notrace_30mhz.yaml
+[firesim-tmux] propagated FIRESIM env vars:  
+/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/transport.py:178: CryptographyDeprecationWarning: Blowfish has been deprecated
+  'class': algorithms.Blowfish,
+FireSim Manager. Docs: https://docs.fires.im
+Running: terminaterunfarm
+
+run_farm_hosts_dict defaultdict(<class 'list'>, {'f2.6xlarge': [(<runtools.run_farm.Inst object at 0x7f4d448938b0>, None)], 'f2.12xlarge': [], 'f2.48xlarge': [], 'm4.16xlarge': [], 'z1d.3xlarge': [], 'z1d.6xlarge': [], 'z1d.12xlarge': []})
+set_server_hardware_config 0 None
+IMPORTANT!: This will terminate the following instances:
+f2.12xlarge
+[]
+f2.48xlarge
+[]
+f2.6xlarge
+['i-0ccc5f9076abab277']
+m4.16xlarge
+[]
+z1d.12xlarge
+[]
+z1d.3xlarge
+[]
+z1d.6xlarge
+[]
+Instances terminated. Please confirm in your AWS Management Console.
+The full log of this run is:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-05--12-13-18-terminaterunfarm-2MAS0XDRN9GO5SHZ.log
+[firesim-tmux] finished at 2026-05-05T12:13:20Z with exit code 0
