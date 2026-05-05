@@ -2,6 +2,10 @@
 
 更新时间：`2026-05-05 18:20 UTC`
 
+状态说明：本文保留 18:20 UTC 静态分析原文；构建状态已过期。当前 cfg32 NIC
+build 状态和 noTrace fallback 预案见
+[`cfg32_nic_gdbserver_build_status_and_contingency_20260505_temp.md`](cfg32_nic_gdbserver_build_status_and_contingency_20260505_temp.md)。
+
 本文记录等待 `cfg32_nic` bitstream 期间对 pipeline-runtime 卡死路径的静态复查。重点不是重新解释所有同步机制，
 而是明确哪些等待有软件 timeout，哪些等待一旦硬件不前进就只能靠 gdbserver/硬件观测定位。
 

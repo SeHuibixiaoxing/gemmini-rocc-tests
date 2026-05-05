@@ -2,6 +2,10 @@
 
 更新时间：`2026-05-05 18:36 UTC`
 
+状态说明：本文保留 18:36 UTC 静态分流原文；“当前构建状态”段已经过期。最新
+cfg32 NIC build 状态和 noTrace fallback 预案见
+[`cfg32_nic_gdbserver_build_status_and_contingency_20260505_temp.md`](cfg32_nic_gdbserver_build_status_and_contingency_20260505_temp.md)。
+
 本文记录等待 `12p4c128sbus32cfg + optimized DMA + current NIC` bitstream 时的静态排查结论。目标不是证明硬件正确，而是把新 AGFI 首次 gdbserver attach 后该看什么、如何按线程栈分流说清楚。
 
 ## 当前构建状态
@@ -73,4 +77,3 @@ thread apply all x/6i $pc
 - `blocking_debug` 路径下，普通 worker 不走 `stage_overlap_prefetch_entries()`，因此目前不应把同 stage DMA/Gemmini overlap 作为首要嫌疑。
 - fixed tensor 的 DMA load 发生在 `stage_prepare_exec_views()` 内，随后才绑定/flush stage xlate view。也就是说，若卡在 fixed-load DMA，优先看 DMA 的物理 page copy 和 manager scope；若卡在 xlate flush，说明已经过了 fixed-load DMA。
 - `hw_dma_fence()`、`gemmini_fence()`、`prt_rr_fence_scope()` 仍没有软件可打断的 timeout。GDB 的主要价值是抓住 PC 和 token/manager/stage 变量，而不是依赖 runtime 自己退出。
-
