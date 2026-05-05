@@ -1,0 +1,615 @@
+Script started on 2026-05-05 02:12:11+00:00 [COMMAND="sudo ./switch0 6405 10 200" TERM="screen" TTY="/dev/pts/6" COLUMNS="80" LINES="24"]
+Using link latency: 6405
+Using switching latency: 10
+BW throttle set to 1/1
+Downlink Port
+Using non-slot-id associated shmemportname:
+opening/creating shmem region
+/port_nts0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000_0
+Using non-slot-id associated shmemportname:
+opening/creating shmem region
+/port_stn0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000_0
+Using non-slot-id associated shmemportname:
+opening/creating shmem region
+/port_nts0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000_1
+Using non-slot-id associated shmemportname:
+opening/creating shmem region
+/port_stn0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000_1
+Slot ID not specified. Assuming tap0
+SSHPort opened TAP interface tap0 fd=7
+SWITCH DEBUG ShmemPort recv port=0 event=1 round=1 valid_flits=12 last_flits=1 marker=0x6db6d80000000000 sample0=0x1600000033330000/0 sample1=0xdd860200006d1200/0 sample2=0x0100240000000060/0 sample3=0x0000000000000000/0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=1 sample=0 token=0 data=0x1600000033330000 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=1 sample=1 token=1 data=0xdd860200006d1200 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=1 sample=2 token=2 data=0x0100240000000060 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=1 sample=3 token=3 data=0x0000000000000000 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=1 sample=4 token=4 data=0x0000000000000000 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=1 sample=5 token=5 data=0x00000000000002ff last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=1 sample=6 token=6 data=0x1600000000000000 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=1 sample=7 token=7 data=0x000100000205003a last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=1 sample=8 token=8 data=0x01000000806f008f last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=1 sample=9 token=9 data=0x000002ff00000004 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=1 sample=10 token=10 data=0x0100000000000000 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=1 sample=11 token=11 data=0x00000000020000ff last=1
+SWITCH DEBUG BasePort input_packet port=0 event=1 flits=12 sender=0 dat0=0x1600000033330000 dat1=0xdd860200006d1200 dat2=0x0100240000000060
+SWITCH DEBUG BasePort input_packet_flit port=0 event=1 idx=0 data=0x1600000033330000
+SWITCH DEBUG BasePort input_packet_flit port=0 event=1 idx=1 data=0xdd860200006d1200
+SWITCH DEBUG BasePort input_packet_flit port=0 event=1 idx=2 data=0x0100240000000060
+SWITCH DEBUG BasePort input_packet_flit port=0 event=1 idx=3 data=0x0000000000000000
+SWITCH DEBUG BasePort input_packet_flit port=0 event=1 idx=4 data=0x0000000000000000
+SWITCH DEBUG BasePort input_packet_flit port=0 event=1 idx=5 data=0x00000000000002ff
+SWITCH DEBUG BasePort input_packet_flit port=0 event=1 idx=6 data=0x1600000000000000
+SWITCH DEBUG BasePort input_packet_flit port=0 event=1 idx=7 data=0x000100000205003a
+SWITCH DEBUG BasePort input_packet_flit port=0 event=1 idx=8 data=0x01000000806f008f
+SWITCH DEBUG BasePort input_packet_flit port=0 event=1 idx=9 data=0x000002ff00000004
+SWITCH DEBUG BasePort input_packet_flit port=0 event=1 idx=10 data=0x0100000000000000
+SWITCH DEBUG BasePort input_packet_flit port=0 event=1 idx=11 data=0x00000000020000ff
+SWITCH DEBUG SSHPort output_buf port=1 event=1 valid_flits=12 last_flits=1 queued_flits=12 sample0=0x1600000033330000/0 sample1=0xdd860200006d1200/0 sample2=0x0100240000000060/0 sample3=0x0000000000000000/0
+SWITCH DEBUG SSHPort tap_send port=1 event=1 tap_len=94 flits=12 short=0 zero_eth_head=0 repair=0x0 word0=0x1600000033330000 word1=0xdd860200006d1200 word2=0x0100240000000060 bytes=33 33 00 00 00 16 00 12 6d 00 00 02 86 dd 60 00
+SWITCH DEBUG SSHPort tap_send_word port=1 event=1 idx=0 data=0x1600000033330000
+SWITCH DEBUG SSHPort tap_send_word port=1 event=1 idx=1 data=0xdd860200006d1200
+SWITCH DEBUG SSHPort tap_send_word port=1 event=1 idx=2 data=0x0100240000000060
+SWITCH DEBUG SSHPort tap_send_word port=1 event=1 idx=3 data=0x0000000000000000
+SWITCH DEBUG SSHPort tap_send_word port=1 event=1 idx=4 data=0x0000000000000000
+SWITCH DEBUG SSHPort tap_send_word port=1 event=1 idx=5 data=0x00000000000002ff
+SWITCH DEBUG SSHPort tap_send_word port=1 event=1 idx=6 data=0x1600000000000000
+SWITCH DEBUG SSHPort tap_send_word port=1 event=1 idx=7 data=0x000100000205003a
+SWITCH DEBUG SSHPort tap_send_word port=1 event=1 idx=8 data=0x01000000806f008f
+SWITCH DEBUG SSHPort tap_send_word port=1 event=1 idx=9 data=0x000002ff00000004
+SWITCH DEBUG SSHPort tap_send_word port=1 event=1 idx=10 data=0x0100000000000000
+SWITCH DEBUG SSHPort tap_send_word port=1 event=1 idx=11 data=0x00000000020000ff
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=1 off=0 bytes=33 33 00 00 00 16 00 12 6d 00 00 02 86 dd 60 00
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=1 off=16 bytes=00 00 00 24 00 01 00 00 00 00 00 00 00 00 00 00
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=1 off=32 bytes=00 00 00 00 00 00 ff 02 00 00 00 00 00 00 00 00
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=1 off=48 bytes=00 00 00 00 00 16 3a 00 05 02 00 00 01 00 8f 00
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=1 off=64 bytes=6f 80 00 00 00 01 04 00 00 00 ff 02 00 00 00 00
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=1 off=80 bytes=00 00 00 00 00 01 ff 00 00 02 00 00 00 00 00 00
+SWITCH DEBUG SSHPort tap_recv port=1 event=1 tap_len=74 bytes=00 12 6d 00 00 02 8e 6b 35 04 00 00 08 00 45 00
+SWITCH DEBUG BasePort input_packet port=1 event=1 flits=10 sender=1 dat0=0x0200006d12000000 dat1=0x0008000004356b8e dat2=0x0040299f3c000045
+SWITCH DEBUG BasePort input_packet_flit port=1 event=1 idx=0 data=0x0200006d12000000
+SWITCH DEBUG BasePort input_packet_flit port=1 event=1 idx=1 data=0x0008000004356b8e
+SWITCH DEBUG BasePort input_packet_flit port=1 event=1 idx=2 data=0x0040299f3c000045
+SWITCH DEBUG BasePort input_packet_flit port=1 event=1 idx=3 data=0x010010ac6f430640
+SWITCH DEBUG BasePort input_packet_flit port=1 event=1 idx=4 data=0x29097eb0020010ac
+SWITCH DEBUG BasePort input_packet_flit port=1 event=1 idx=5 data=0x00000000820df477
+SWITCH DEBUG BasePort input_packet_flit port=1 event=1 idx=6 data=0x00004677f0fa02a0
+SWITCH DEBUG BasePort input_packet_flit port=1 event=1 idx=7 data=0x0a080204b4050402
+SWITCH DEBUG BasePort input_packet_flit port=1 event=1 idx=8 data=0x00000000be61c8dc
+SWITCH DEBUG BasePort input_packet_flit port=1 event=1 idx=9 data=0x0000000007030301
+SWITCH DEBUG ShmemPort send port=0 event=1 round=0 valid_flits=10 last_flits=1 marker=0x0000000000000000 sample0=0x0200006d12000000/0 sample1=0x0008000004356b8e/0 sample2=0x0040299f3c000045/0 sample3=0x010010ac6f430640/0
+SWITCH DEBUG ShmemPort send_flit port=0 event=1 sample=0 token=10 data=0x0200006d12000000 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=1 sample=1 token=11 data=0x0008000004356b8e last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=1 sample=2 token=12 data=0x0040299f3c000045 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=1 sample=3 token=13 data=0x010010ac6f430640 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=1 sample=4 token=14 data=0x29097eb0020010ac last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=1 sample=5 token=15 data=0x00000000820df477 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=1 sample=6 token=16 data=0x00004677f0fa02a0 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=1 sample=7 token=17 data=0x0a080204b4050402 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=1 sample=8 token=18 data=0x00000000be61c8dc last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=1 sample=9 token=19 data=0x0000000007030301 last=1
+SWITCH DEBUG ShmemPort recv port=0 event=2 round=1 valid_flits=6 last_flits=1 marker=0x5db6d80000000002 sample0=0xffffffffffff0028/0 sample1=0x06080200006d1200/0 sample2=0x0100040600080100/0 sample3=0x10ac020000651200/0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=2 sample=0 token=0 data=0xffffffffffff0028 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=2 sample=1 token=1 data=0x06080200006d1200 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=2 sample=2 token=2 data=0x0100040600080100 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=2 sample=3 token=3 data=0x10ac020000651200 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=2 sample=4 token=4 data=0x0000000000000200 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=2 sample=5 token=5 data=0x00000000010010ac last=1
+SWITCH DEBUG BasePort input_packet port=0 event=2 flits=6 sender=0 dat0=0xffffffffffff0028 dat1=0x06080200006d1200 dat2=0x0100040600080100
+SWITCH DEBUG BasePort input_packet_flit port=0 event=2 idx=0 data=0xffffffffffff0028
+SWITCH DEBUG BasePort input_packet_flit port=0 event=2 idx=1 data=0x06080200006d1200
+SWITCH DEBUG BasePort input_packet_flit port=0 event=2 idx=2 data=0x0100040600080100
+SWITCH DEBUG BasePort input_packet_flit port=0 event=2 idx=3 data=0x10ac020000651200
+SWITCH DEBUG BasePort input_packet_flit port=0 event=2 idx=4 data=0x0000000000000200
+SWITCH DEBUG BasePort input_packet_flit port=0 event=2 idx=5 data=0x00000000010010ac
+SWITCH DEBUG SSHPort output_buf port=1 event=2 valid_flits=6 last_flits=1 queued_flits=6 sample0=0xffffffffffff0028/0 sample1=0x06080200006d1200/0 sample2=0x0100040600080100/0 sample3=0x10ac020000651200/0
+SWITCH DEBUG SSHPort tap_send port=1 event=2 tap_len=46 flits=6 short=0 zero_eth_head=0 repair=0x1 word0=0xffffffffffff0028 word1=0x06080200006d1200 word2=0x0100040600080100 bytes=ff ff ff ff ff ff 00 12 6d 00 00 02 08 06 00 01
+SWITCH DEBUG SSHPort tap_send_word port=1 event=2 idx=0 data=0xffffffffffff0028
+SWITCH DEBUG SSHPort tap_send_word port=1 event=2 idx=1 data=0x06080200006d1200
+SWITCH DEBUG SSHPort tap_send_word port=1 event=2 idx=2 data=0x0100040600080100
+SWITCH DEBUG SSHPort tap_send_word port=1 event=2 idx=3 data=0x10ac0200006d1200
+SWITCH DEBUG SSHPort tap_send_word port=1 event=2 idx=4 data=0x0000000000000200
+SWITCH DEBUG SSHPort tap_send_word port=1 event=2 idx=5 data=0x00000000010010ac
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=2 off=0 bytes=ff ff ff ff ff ff 00 12 6d 00 00 02 08 06 00 01
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=2 off=16 bytes=08 00 06 04 00 01 00 12 6d 00 00 02 ac 10 00 02
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=2 off=32 bytes=00 00 00 00 00 00 ac 10 00 01 00 00 00 00 00 00
+SWITCH DEBUG SSHPort tap_recv port=1 event=2 tap_len=42 bytes=00 12 6d 00 00 02 8e 6b 35 04 00 00 08 06 00 01
+SWITCH DEBUG BasePort input_packet port=1 event=2 flits=6 sender=1 dat0=0x0200006d12000000 dat1=0x0608000004356b8e dat2=0x0200040600080100
+SWITCH DEBUG BasePort input_packet_flit port=1 event=2 idx=0 data=0x0200006d12000000
+SWITCH DEBUG BasePort input_packet_flit port=1 event=2 idx=1 data=0x0608000004356b8e
+SWITCH DEBUG BasePort input_packet_flit port=1 event=2 idx=2 data=0x0200040600080100
+SWITCH DEBUG BasePort input_packet_flit port=1 event=2 idx=3 data=0x10ac000004356b8e
+SWITCH DEBUG BasePort input_packet_flit port=1 event=2 idx=4 data=0x0200006d12000100
+SWITCH DEBUG BasePort input_packet_flit port=1 event=2 idx=5 data=0x00000000020010ac
+SWITCH DEBUG ShmemPort send port=0 event=2 round=1 valid_flits=6 last_flits=1 marker=0x0000000000000000 sample0=0x0200006d12000000/0 sample1=0x0608000004356b8e/0 sample2=0x0200040600080100/0 sample3=0x10ac000004356b8e/0
+SWITCH DEBUG ShmemPort send_flit port=0 event=2 sample=0 token=10 data=0x0200006d12000000 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=2 sample=1 token=11 data=0x0608000004356b8e last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=2 sample=2 token=12 data=0x0200040600080100 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=2 sample=3 token=13 data=0x10ac000004356b8e last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=2 sample=4 token=14 data=0x0200006d12000100 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=2 sample=5 token=15 data=0x00000000020010ac last=1
+SWITCH DEBUG ShmemPort recv port=0 event=3 round=0 valid_flits=7 last_flits=0 marker=0x6db6d80000000003 sample0=0x000004356b8e0000/0 sample1=0x00080200006d1200/0 sample2=0x004000003c000045/0 sample3=0x020010ac98e20640/0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=3 sample=0 token=0 data=0x000004356b8e0000 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=3 sample=1 token=1 data=0x00080200006d1200 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=3 sample=2 token=2 data=0x004000003c000045 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=3 sample=3 token=3 data=0x020010ac98e20640 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=3 sample=4 token=4 data=0x7eb02909010010ac last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=3 sample=5 token=5 data=0x830df4771b193527 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=3 sample=6 token=6 data=0x00000a47707c12a0 last=0
+SWITCH DEBUG ShmemPort recv port=0 event=4 round=1 valid_flits=3 last_flits=1 marker=0x492ed80000000004 sample0=0x0a080204b4050402/0 sample1=0xbe61c8dc90f8ca75/0 sample2=0x0000000007030301/1 sample3=0x0000000000000000/0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=4 sample=0 token=0 data=0x0a080204b4050402 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=4 sample=1 token=1 data=0xbe61c8dc90f8ca75 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=4 sample=2 token=2 data=0x0000000007030301 last=1
+SWITCH DEBUG BasePort input_packet port=0 event=3 flits=10 sender=0 dat0=0x000004356b8e0000 dat1=0x00080200006d1200 dat2=0x004000003c000045
+SWITCH DEBUG BasePort input_packet_flit port=0 event=3 idx=0 data=0x000004356b8e0000
+SWITCH DEBUG BasePort input_packet_flit port=0 event=3 idx=1 data=0x00080200006d1200
+SWITCH DEBUG BasePort input_packet_flit port=0 event=3 idx=2 data=0x004000003c000045
+SWITCH DEBUG BasePort input_packet_flit port=0 event=3 idx=3 data=0x020010ac98e20640
+SWITCH DEBUG BasePort input_packet_flit port=0 event=3 idx=4 data=0x7eb02909010010ac
+SWITCH DEBUG BasePort input_packet_flit port=0 event=3 idx=5 data=0x830df4771b193527
+SWITCH DEBUG BasePort input_packet_flit port=0 event=3 idx=6 data=0x00000a47707c12a0
+SWITCH DEBUG BasePort input_packet_flit port=0 event=3 idx=7 data=0x0a080204b4050402
+SWITCH DEBUG BasePort input_packet_flit port=0 event=3 idx=8 data=0xbe61c8dc90f8ca75
+SWITCH DEBUG BasePort input_packet_flit port=0 event=3 idx=9 data=0x0000000007030301
+SWITCH DEBUG SSHPort output_buf port=1 event=3 valid_flits=10 last_flits=1 queued_flits=10 sample0=0x000004356b8e0000/0 sample1=0x00080200006d1200/0 sample2=0x004000003c000045/0 sample3=0x020010ac98e20640/0
+SWITCH DEBUG SSHPort tap_send port=1 event=3 tap_len=78 flits=10 short=0 zero_eth_head=0 repair=0x0 word0=0x000004356b8e0000 word1=0x00080200006d1200 word2=0x004000003c000045 bytes=8e 6b 35 04 00 00 00 12 6d 00 00 02 08 00 45 00
+SWITCH DEBUG SSHPort tap_send_word port=1 event=3 idx=0 data=0x000004356b8e0000
+SWITCH DEBUG SSHPort tap_send_word port=1 event=3 idx=1 data=0x00080200006d1200
+SWITCH DEBUG SSHPort tap_send_word port=1 event=3 idx=2 data=0x004000003c000045
+SWITCH DEBUG SSHPort tap_send_word port=1 event=3 idx=3 data=0x020010ac98e20640
+SWITCH DEBUG SSHPort tap_send_word port=1 event=3 idx=4 data=0x7eb02909010010ac
+SWITCH DEBUG SSHPort tap_send_word port=1 event=3 idx=5 data=0x830df4771b193527
+SWITCH DEBUG SSHPort tap_send_word port=1 event=3 idx=6 data=0x00000a47707c12a0
+SWITCH DEBUG SSHPort tap_send_word port=1 event=3 idx=7 data=0x0a080204b4050402
+SWITCH DEBUG SSHPort tap_send_word port=1 event=3 idx=8 data=0xbe61c8dc90f8ca75
+SWITCH DEBUG SSHPort tap_send_word port=1 event=3 idx=9 data=0x0000000007030301
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=3 off=0 bytes=8e 6b 35 04 00 00 00 12 6d 00 00 02 08 00 45 00
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=3 off=16 bytes=00 3c 00 00 40 00 40 06 e2 98 ac 10 00 02 ac 10
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=3 off=32 bytes=00 01 09 29 b0 7e 27 35 19 1b 77 f4 0d 83 a0 12
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=3 off=48 bytes=7c 70 47 0a 00 00 02 04 05 b4 04 02 08 0a 75 ca
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=3 off=64 bytes=f8 90 dc c8 61 be 01 03 03 07 00 00 00 00 00 00
+SWITCH DEBUG SSHPort tap_recv port=1 event=3 tap_len=66 bytes=00 12 6d 00 00 02 8e 6b 35 04 00 00 08 00 45 00
+SWITCH DEBUG BasePort input_packet port=1 event=3 flits=9 sender=1 dat0=0x0200006d12000000 dat1=0x0008000004356b8e dat2=0x00402a9f34000045
+SWITCH DEBUG BasePort input_packet_flit port=1 event=3 idx=0 data=0x0200006d12000000
+SWITCH DEBUG BasePort input_packet_flit port=1 event=3 idx=1 data=0x0008000004356b8e
+SWITCH DEBUG BasePort input_packet_flit port=1 event=3 idx=2 data=0x00402a9f34000045
+SWITCH DEBUG BasePort input_packet_flit port=1 event=3 idx=3 data=0x010010ac76430640
+SWITCH DEBUG BasePort input_packet_flit port=1 event=3 idx=4 data=0x29097eb0020010ac
+SWITCH DEBUG BasePort input_packet_flit port=1 event=3 idx=5 data=0x1c193527830df477
+SWITCH DEBUG BasePort input_packet_flit port=1 event=3 idx=6 data=0x000001f0f6011080
+SWITCH DEBUG BasePort input_packet_flit port=1 event=3 idx=7 data=0x0d62c8dc0a080101
+SWITCH DEBUG BasePort input_packet_flit port=1 event=3 idx=8 data=0x0000000090f8ca75
+SWITCH DEBUG ShmemPort send port=0 event=3 round=1 valid_flits=9 last_flits=1 marker=0x0000000000000000 sample0=0x0200006d12000000/0 sample1=0x0008000004356b8e/0 sample2=0x00402a9f34000045/0 sample3=0x010010ac76430640/0
+SWITCH DEBUG ShmemPort send_flit port=0 event=3 sample=0 token=10 data=0x0200006d12000000 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=3 sample=1 token=11 data=0x0008000004356b8e last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=3 sample=2 token=12 data=0x00402a9f34000045 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=3 sample=3 token=13 data=0x010010ac76430640 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=3 sample=4 token=14 data=0x29097eb0020010ac last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=3 sample=5 token=15 data=0x1c193527830df477 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=3 sample=6 token=16 data=0x000001f0f6011080 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=3 sample=7 token=17 data=0x0d62c8dc0a080101 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=3 sample=8 token=18 data=0x0000000090f8ca75 last=1
+SWITCH DEBUG SSHPort tap_recv port=1 event=4 tap_len=224 bytes=00 12 6d 00 00 02 8e 6b 35 04 00 00 08 00 45 00
+SWITCH DEBUG BasePort input_packet port=1 event=4 flits=29 sender=1 dat0=0x0200006d12000000 dat1=0x0008000004356b8e dat2=0x00402b9fd2000045
+SWITCH DEBUG BasePort input_packet_flit port=1 event=4 idx=0 data=0x0200006d12000000
+SWITCH DEBUG BasePort input_packet_flit port=1 event=4 idx=1 data=0x0008000004356b8e
+SWITCH DEBUG BasePort input_packet_flit port=1 event=4 idx=2 data=0x00402b9fd2000045
+SWITCH DEBUG BasePort input_packet_flit port=1 event=4 idx=3 data=0x010010acd7420640
+SWITCH DEBUG BasePort input_packet_flit port=1 event=4 idx=4 data=0x29097eb0020010ac
+SWITCH DEBUG BasePort input_packet_flit port=1 event=4 idx=5 data=0x1c193527830df477
+SWITCH DEBUG BasePort input_packet_flit port=1 event=4 idx=6 data=0x000036b3f6011880
+SWITCH DEBUG BasePort input_packet_flit port=1 event=4 idx=7 data=0x0d62c8dc0a080101
+SWITCH DEBUG BasePort input_packet_flit port=1 event=4 idx=8 data=0x5371242b90f8ca75
+SWITCH DEBUG BasePort input_packet_flit port=1 event=4 idx=9 data=0x646574726f707075
+SWITCH DEBUG BasePort input_packet_flit port=1 event=4 idx=10 data=0x727069746c756d3a
+SWITCH DEBUG BasePort input_packet_flit port=1 event=4 idx=11 data=0x733b2b737365636f
+SWITCH DEBUG BasePort input_packet_flit port=1 event=4 idx=12 data=0x3b2b6b6165726277
+SWITCH DEBUG BasePort input_packet_flit port=1 event=4 idx=13 data=0x2b6b616572627768
+SWITCH DEBUG BasePort input_packet_flit port=1 event=4 idx=14 data=0x49636f6c6552713b
+SWITCH DEBUG BasePort input_packet_flit port=1 event=4 idx=15 data=0x726f663b2b6e736e
+SWITCH DEBUG ShmemPort send port=0 event=4 round=1 valid_flits=29 last_flits=1 marker=0x0000000000000000 sample0=0x0200006d12000000/0 sample1=0x0008000004356b8e/0 sample2=0x00402b9fd2000045/0 sample3=0x010010acd7420640/0
+SWITCH DEBUG ShmemPort send_flit port=0 event=4 sample=0 token=10 data=0x0200006d12000000 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=4 sample=1 token=11 data=0x0008000004356b8e last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=4 sample=2 token=12 data=0x00402b9fd2000045 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=4 sample=3 token=13 data=0x010010acd7420640 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=4 sample=4 token=14 data=0x29097eb0020010ac last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=4 sample=5 token=15 data=0x1c193527830df477 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=4 sample=6 token=16 data=0x000036b3f6011880 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=4 sample=7 token=17 data=0x0d62c8dc0a080101 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=4 sample=8 token=18 data=0x5371242b90f8ca75 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=4 sample=9 token=19 data=0x646574726f707075 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=4 sample=10 token=20 data=0x727069746c756d3a last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=4 sample=11 token=21 data=0x733b2b737365636f last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=4 sample=12 token=22 data=0x3b2b6b6165726277 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=4 sample=13 token=23 data=0x2b6b616572627768 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=4 sample=14 token=24 data=0x49636f6c6552713b last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=4 sample=15 token=25 data=0x726f663b2b6e736e last=0
+SWITCH DEBUG ShmemPort recv port=0 event=5 round=1 valid_flits=7 last_flits=0 marker=0x6db6d80000000005 sample0=0x000004356b8e0000/0 sample1=0x00080200006d1200/0 sample2=0x0040050434000045/0 sample3=0x020010ac9bd60640/0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=5 sample=0 token=0 data=0x000004356b8e0000 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=5 sample=1 token=1 data=0x00080200006d1200 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=5 sample=2 token=2 data=0x0040050434000045 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=5 sample=3 token=3 data=0x020010ac9bd60640 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=5 sample=4 token=4 data=0x7eb02909010010ac last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=5 sample=5 token=5 data=0x210ef4771c193527 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=5 sample=6 token=6 data=0x000060f0f9001080 last=0
+SWITCH DEBUG ShmemPort recv port=0 event=6 round=0 valid_flits=2 last_flits=1 marker=0x4925d80000000006 sample0=0x90f8ca750a080101/0 sample1=0x000000000562c8dc/1 sample2=0x0000000000000000/0 sample3=0x0000000000000000/0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=6 sample=0 token=0 data=0x90f8ca750a080101 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=6 sample=1 token=1 data=0x000000000562c8dc last=1
+SWITCH DEBUG BasePort input_packet port=0 event=4 flits=9 sender=0 dat0=0x000004356b8e0000 dat1=0x00080200006d1200 dat2=0x0040050434000045
+SWITCH DEBUG BasePort input_packet_flit port=0 event=4 idx=0 data=0x000004356b8e0000
+SWITCH DEBUG BasePort input_packet_flit port=0 event=4 idx=1 data=0x00080200006d1200
+SWITCH DEBUG BasePort input_packet_flit port=0 event=4 idx=2 data=0x0040050434000045
+SWITCH DEBUG BasePort input_packet_flit port=0 event=4 idx=3 data=0x020010ac9bd60640
+SWITCH DEBUG BasePort input_packet_flit port=0 event=4 idx=4 data=0x7eb02909010010ac
+SWITCH DEBUG BasePort input_packet_flit port=0 event=4 idx=5 data=0x210ef4771c193527
+SWITCH DEBUG BasePort input_packet_flit port=0 event=4 idx=6 data=0x000060f0f9001080
+SWITCH DEBUG BasePort input_packet_flit port=0 event=4 idx=7 data=0x90f8ca750a080101
+SWITCH DEBUG BasePort input_packet_flit port=0 event=4 idx=8 data=0x000000000562c8dc
+SWITCH DEBUG SSHPort output_buf port=1 event=4 valid_flits=9 last_flits=1 queued_flits=9 sample0=0x000004356b8e0000/0 sample1=0x00080200006d1200/0 sample2=0x0040050434000045/0 sample3=0x020010ac9bd60640/0
+SWITCH DEBUG SSHPort tap_send port=1 event=4 tap_len=70 flits=9 short=0 zero_eth_head=0 repair=0x6 word0=0x000004356b8e0000 word1=0x00080200006d1200 word2=0x0040050434000045 bytes=8e 6b 35 04 00 00 00 12 6d 00 00 02 08 00 45 00
+SWITCH DEBUG SSHPort tap_send_word port=1 event=4 idx=0 data=0x000004356b8e0000
+SWITCH DEBUG SSHPort tap_send_word port=1 event=4 idx=1 data=0x00080200006d1200
+SWITCH DEBUG SSHPort tap_send_word port=1 event=4 idx=2 data=0x0040050434000045
+SWITCH DEBUG SSHPort tap_send_word port=1 event=4 idx=3 data=0x020010ac9bde0640
+SWITCH DEBUG SSHPort tap_send_word port=1 event=4 idx=4 data=0x7eb02909010010ac
+SWITCH DEBUG SSHPort tap_send_word port=1 event=4 idx=5 data=0x210ef4771c193527
+SWITCH DEBUG SSHPort tap_send_word port=1 event=4 idx=6 data=0x000068f0f9001080
+SWITCH DEBUG SSHPort tap_send_word port=1 event=4 idx=7 data=0x90f8ca750a080101
+SWITCH DEBUG SSHPort tap_send_word port=1 event=4 idx=8 data=0x000000000562c8dc
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=4 off=0 bytes=8e 6b 35 04 00 00 00 12 6d 00 00 02 08 00 45 00
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=4 off=16 bytes=00 34 04 05 40 00 40 06 de 9b ac 10 00 02 ac 10
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=4 off=32 bytes=00 01 09 29 b0 7e 27 35 19 1c 77 f4 0e 21 80 10
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=4 off=48 bytes=00 f9 f0 68 00 00 01 01 08 0a 75 ca f8 90 dc c8
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=4 off=64 bytes=62 05 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+SWITCH DEBUG ShmemPort recv port=0 event=7 round=1 valid_flits=9 last_flits=1 marker=0x6db6d80000000007 sample0=0x000004356b8e0000/0 sample1=0x00080200006d1200/0 sample2=0x0040060435000045/0 sample3=0x020010ac99d60640/0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=7 sample=0 token=0 data=0x000004356b8e0000 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=7 sample=1 token=1 data=0x00080200006d1200 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=7 sample=2 token=2 data=0x0040060435000045 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=7 sample=3 token=3 data=0x020010ac99d60640 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=7 sample=4 token=4 data=0x7eb02909010010ac last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=7 sample=5 token=5 data=0x210ef4771c193527 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=7 sample=6 token=6 data=0x000057c5f9001880 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=7 sample=7 token=7 data=0x90f8ca750a080101 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=7 sample=8 token=8 data=0x0000002b0562c8dc last=1
+SWITCH DEBUG BasePort input_packet port=0 event=5 flits=9 sender=0 dat0=0x000004356b8e0000 dat1=0x00080200006d1200 dat2=0x0040060435000045
+SWITCH DEBUG BasePort input_packet_flit port=0 event=5 idx=0 data=0x000004356b8e0000
+SWITCH DEBUG BasePort input_packet_flit port=0 event=5 idx=1 data=0x00080200006d1200
+SWITCH DEBUG BasePort input_packet_flit port=0 event=5 idx=2 data=0x0040060435000045
+SWITCH DEBUG BasePort input_packet_flit port=0 event=5 idx=3 data=0x020010ac99d60640
+SWITCH DEBUG BasePort input_packet_flit port=0 event=5 idx=4 data=0x7eb02909010010ac
+SWITCH DEBUG BasePort input_packet_flit port=0 event=5 idx=5 data=0x210ef4771c193527
+SWITCH DEBUG BasePort input_packet_flit port=0 event=5 idx=6 data=0x000057c5f9001880
+SWITCH DEBUG BasePort input_packet_flit port=0 event=5 idx=7 data=0x90f8ca750a080101
+SWITCH DEBUG BasePort input_packet_flit port=0 event=5 idx=8 data=0x0000002b0562c8dc
+SWITCH DEBUG SSHPort output_buf port=1 event=5 valid_flits=9 last_flits=1 queued_flits=9 sample0=0x000004356b8e0000/0 sample1=0x00080200006d1200/0 sample2=0x0040060435000045/0 sample3=0x020010ac99d60640/0
+SWITCH DEBUG SSHPort tap_send port=1 event=5 tap_len=70 flits=9 short=0 zero_eth_head=0 repair=0x6 word0=0x000004356b8e0000 word1=0x00080200006d1200 word2=0x0040060435000045 bytes=8e 6b 35 04 00 00 00 12 6d 00 00 02 08 00 45 00
+SWITCH DEBUG SSHPort tap_send_word port=1 event=5 idx=0 data=0x000004356b8e0000
+SWITCH DEBUG SSHPort tap_send_word port=1 event=5 idx=1 data=0x00080200006d1200
+SWITCH DEBUG SSHPort tap_send_word port=1 event=5 idx=2 data=0x0040060435000045
+SWITCH DEBUG SSHPort tap_send_word port=1 event=5 idx=3 data=0x020010ac99de0640
+SWITCH DEBUG SSHPort tap_send_word port=1 event=5 idx=4 data=0x7eb02909010010ac
+SWITCH DEBUG SSHPort tap_send_word port=1 event=5 idx=5 data=0x210ef4771c193527
+SWITCH DEBUG SSHPort tap_send_word port=1 event=5 idx=6 data=0x00005fc5f9001880
+SWITCH DEBUG SSHPort tap_send_word port=1 event=5 idx=7 data=0x90f8ca750a080101
+SWITCH DEBUG SSHPort tap_send_word port=1 event=5 idx=8 data=0x0000002b0562c8dc
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=5 off=0 bytes=8e 6b 35 04 00 00 00 12 6d 00 00 02 08 00 45 00
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=5 off=16 bytes=00 35 04 06 40 00 40 06 de 99 ac 10 00 02 ac 10
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=5 off=32 bytes=00 01 09 29 b0 7e 27 35 19 1c 77 f4 0e 21 80 18
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=5 off=48 bytes=00 f9 c5 5f 00 00 01 01 08 0a 75 ca f8 90 dc c8
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=5 off=64 bytes=62 05 2b 00 00 00 00 00 00 00 00 00 00 00 00 00
+SWITCH DEBUG SSHPort tap_recv port=1 event=5 tap_len=66 bytes=00 12 6d 00 00 02 8e 6b 35 04 00 00 08 00 45 00
+SWITCH DEBUG BasePort input_packet port=1 event=5 flits=9 sender=1 dat0=0x0200006d12000000 dat1=0x0008000004356b8e dat2=0x00402c9f34000045
+SWITCH DEBUG BasePort input_packet_flit port=1 event=5 idx=0 data=0x0200006d12000000
+SWITCH DEBUG BasePort input_packet_flit port=1 event=5 idx=1 data=0x0008000004356b8e
+SWITCH DEBUG BasePort input_packet_flit port=1 event=5 idx=2 data=0x00402c9f34000045
+SWITCH DEBUG BasePort input_packet_flit port=1 event=5 idx=3 data=0x010010ac74430640
+SWITCH DEBUG BasePort input_packet_flit port=1 event=5 idx=4 data=0x29097eb0020010ac
+SWITCH DEBUG BasePort input_packet_flit port=1 event=5 idx=5 data=0x1d193527210ef477
+SWITCH DEBUG BasePort input_packet_flit port=1 event=5 idx=6 data=0x0000e8eef6011080
+SWITCH DEBUG BasePort input_packet_flit port=1 event=5 idx=7 data=0x8762c8dc0a080101
+SWITCH DEBUG BasePort input_packet_flit port=1 event=5 idx=8 data=0x5371242b90f8ca75
+SWITCH DEBUG ShmemPort send port=0 event=5 round=1 valid_flits=9 last_flits=1 marker=0x0000000000000000 sample0=0x0200006d12000000/0 sample1=0x0008000004356b8e/0 sample2=0x00402c9f34000045/0 sample3=0x010010ac74430640/0
+SWITCH DEBUG ShmemPort send_flit port=0 event=5 sample=0 token=10 data=0x0200006d12000000 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=5 sample=1 token=11 data=0x0008000004356b8e last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=5 sample=2 token=12 data=0x00402c9f34000045 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=5 sample=3 token=13 data=0x010010ac74430640 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=5 sample=4 token=14 data=0x29097eb0020010ac last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=5 sample=5 token=15 data=0x1d193527210ef477 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=5 sample=6 token=16 data=0x0000e8eef6011080 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=5 sample=7 token=17 data=0x8762c8dc0a080101 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=5 sample=8 token=18 data=0x5371242b90f8ca75 last=1
+SWITCH DEBUG ShmemPort recv port=0 event=8 round=1 valid_flits=49 last_flits=0 marker=0x6db6d80000000009 sample0=0x000004356b8e0000/0 sample1=0x00080200006d1200/0 sample2=0x0040070466020045/0 sample3=0x020010ac67d40640/0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=8 sample=0 token=0 data=0x000004356b8e0000 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=8 sample=1 token=1 data=0x00080200006d1200 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=8 sample=2 token=2 data=0x0040070466020045 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=8 sample=3 token=3 data=0x020010ac67d40640 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=8 sample=4 token=4 data=0x7eb02909010010ac last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=8 sample=5 token=5 data=0x210ef4771d193527 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=8 sample=6 token=6 data=0x00000d5ff9001880 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=8 sample=7 token=7 data=0x90f8ca750a080101 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=8 sample=8 token=8 data=0x636150248762c8dc last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=8 sample=9 token=9 data=0x3d657a695374456b last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=8 sample=10 token=10 data=0x6150513b66663734 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=8 sample=11 token=11 data=0x6c616e6769537373 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=8 sample=12 token=12 data=0x676f7250513b2b73 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=8 sample=13 token=13 data=0x616e6769536d6172 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=8 sample=14 token=14 data=0x617453513b2b736c last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=8 sample=15 token=15 data=0x6874695770757472 last=0
+SWITCH DEBUG ShmemPort recv port=0 event=9 round=0 valid_flits=30 last_flits=1 marker=0x6db6d80000000010 sample0=0x3b2b737365636f72/0 sample1=0x6576652d63726f66/0 sample2=0x6f66763b2b73546e/0 sample3=0x746e657665256b72/0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=9 sample=0 token=0 data=0x3b2b737365636f72 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=9 sample=1 token=1 data=0x6576652d63726f66 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=9 sample=2 token=2 data=0x6f66763b2b73546e last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=9 sample=3 token=3 data=0x746e657665256b72 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=9 sample=4 token=4 data=0x2d636578653b2b73 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=9 sample=5 token=5 data=0x3b2b73746e657665 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=9 sample=6 token=6 data=0x706f74536e6f4e51 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=9 sample=7 token=7 data=0x6261736944513b2b last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=9 sample=8 token=8 data=0x6d6f646e6152656c last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=9 sample=9 token=9 data=0x2b6e6f6974615a69 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=9 sample=10 token=10 data=0x743a72656650713b last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=9 sample=11 token=11 data=0x723a736461657268 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=9 sample=12 token=12 data=0x6e6f433b2b646165 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=9 sample=13 token=13 data=0x6c616e6f69746964 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=9 sample=14 token=14 data=0x696f706b61657242 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=9 sample=15 token=15 data=0x6572423b2373746e last=0
+SWITCH DEBUG BasePort input_packet port=0 event=6 flits=79 sender=0 dat0=0x000004356b8e0000 dat1=0x00080200006d1200 dat2=0x0040070466020045
+SWITCH DEBUG BasePort input_packet_flit port=0 event=6 idx=0 data=0x000004356b8e0000
+SWITCH DEBUG BasePort input_packet_flit port=0 event=6 idx=1 data=0x00080200006d1200
+SWITCH DEBUG BasePort input_packet_flit port=0 event=6 idx=2 data=0x0040070466020045
+SWITCH DEBUG BasePort input_packet_flit port=0 event=6 idx=3 data=0x020010ac67d40640
+SWITCH DEBUG BasePort input_packet_flit port=0 event=6 idx=4 data=0x7eb02909010010ac
+SWITCH DEBUG BasePort input_packet_flit port=0 event=6 idx=5 data=0x210ef4771d193527
+SWITCH DEBUG BasePort input_packet_flit port=0 event=6 idx=6 data=0x00000d5ff9001880
+SWITCH DEBUG BasePort input_packet_flit port=0 event=6 idx=7 data=0x90f8ca750a080101
+SWITCH DEBUG BasePort input_packet_flit port=0 event=6 idx=8 data=0x636150248762c8dc
+SWITCH DEBUG BasePort input_packet_flit port=0 event=6 idx=9 data=0x3d657a695374456b
+SWITCH DEBUG BasePort input_packet_flit port=0 event=6 idx=10 data=0x6150513b66663734
+SWITCH DEBUG BasePort input_packet_flit port=0 event=6 idx=11 data=0x6c616e6769537373
+SWITCH DEBUG BasePort input_packet_flit port=0 event=6 idx=12 data=0x676f7250513b2b73
+SWITCH DEBUG BasePort input_packet_flit port=0 event=6 idx=13 data=0x616e6769536d6172
+SWITCH DEBUG BasePort input_packet_flit port=0 event=6 idx=14 data=0x617453513b2b736c
+SWITCH DEBUG BasePort input_packet_flit port=0 event=6 idx=15 data=0x6874695770757472
+SWITCH DEBUG SSHPort output_buf port=1 event=6 valid_flits=79 last_flits=1 queued_flits=79 sample0=0x000004356b8e0000/0 sample1=0x00080200006d1200/0 sample2=0x0040070466020045/0 sample3=0x020010ac67d40640/0
+SWITCH DEBUG SSHPort tap_send port=1 event=6 tap_len=630 flits=79 short=0 zero_eth_head=0 repair=0x6 word0=0x000004356b8e0000 word1=0x00080200006d1200 word2=0x0040070466020045 bytes=8e 6b 35 04 00 00 00 12 6d 00 00 02 08 00 45 00
+SWITCH DEBUG SSHPort tap_send_word port=1 event=6 idx=0 data=0x000004356b8e0000
+SWITCH DEBUG SSHPort tap_send_word port=1 event=6 idx=1 data=0x00080200006d1200
+SWITCH DEBUG SSHPort tap_send_word port=1 event=6 idx=2 data=0x0040070466020045
+SWITCH DEBUG SSHPort tap_send_word port=1 event=6 idx=3 data=0x020010ac67dc0640
+SWITCH DEBUG SSHPort tap_send_word port=1 event=6 idx=4 data=0x7eb02909010010ac
+SWITCH DEBUG SSHPort tap_send_word port=1 event=6 idx=5 data=0x210ef4771d193527
+SWITCH DEBUG SSHPort tap_send_word port=1 event=6 idx=6 data=0x00006390f9001880
+SWITCH DEBUG SSHPort tap_send_word port=1 event=6 idx=7 data=0x90f8ca750a080101
+SWITCH DEBUG SSHPort tap_send_word port=1 event=6 idx=8 data=0x636150248762c8dc
+SWITCH DEBUG SSHPort tap_send_word port=1 event=6 idx=9 data=0x3d657a695374456b
+SWITCH DEBUG SSHPort tap_send_word port=1 event=6 idx=10 data=0x6150513b66663734
+SWITCH DEBUG SSHPort tap_send_word port=1 event=6 idx=11 data=0x6c616e6769537373
+SWITCH DEBUG SSHPort tap_send_word port=1 event=6 idx=12 data=0x676f7250513b2b73
+SWITCH DEBUG SSHPort tap_send_word port=1 event=6 idx=13 data=0x616e6769536d6172
+SWITCH DEBUG SSHPort tap_send_word port=1 event=6 idx=14 data=0x617453513b2b736c
+SWITCH DEBUG SSHPort tap_send_word port=1 event=6 idx=15 data=0x6874695770757472
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=6 off=0 bytes=8e 6b 35 04 00 00 00 12 6d 00 00 02 08 00 45 00
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=6 off=16 bytes=02 66 04 07 40 00 40 06 dc 67 ac 10 00 02 ac 10
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=6 off=32 bytes=00 01 09 29 b0 7e 27 35 19 1d 77 f4 0e 21 80 18
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=6 off=48 bytes=00 f9 90 63 00 00 01 01 08 0a 75 ca f8 90 dc c8
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=6 off=64 bytes=62 87 24 50 61 63 6b 45 74 53 69 7a 65 3d 34 37
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=6 off=80 bytes=66 66 3b 51 50 61 73 73 53 69 67 6e 61 6c 73 2b
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=6 off=96 bytes=3b 51 50 72 6f 67 72 61 6d 53 69 67 6e 61 6c 73
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=6 off=112 bytes=2b 3b 51 53 74 61 72 74 75 70 57 69 74 68 53 48
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=6 off=128 bytes=65 6c 6c 2b 3b 51 45 6e 76 69 72 6f 6e 6d 65 6e
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=6 off=144 bytes=74 48 65 78 45 6e 63 6f 64 65 64 2b 3b 51 45 6e
+SWITCH DEBUG SSHPort tap_recv port=1 event=6 tap_len=66 bytes=00 12 6d 00 00 02 8e 6b 35 04 00 00 08 00 45 00
+SWITCH DEBUG BasePort input_packet port=1 event=6 flits=9 sender=1 dat0=0x0200006d12000000 dat1=0x0008000004356b8e dat2=0x00402d9f34000045
+SWITCH DEBUG BasePort input_packet_flit port=1 event=6 idx=0 data=0x0200006d12000000
+SWITCH DEBUG BasePort input_packet_flit port=1 event=6 idx=1 data=0x0008000004356b8e
+SWITCH DEBUG BasePort input_packet_flit port=1 event=6 idx=2 data=0x00402d9f34000045
+SWITCH DEBUG BasePort input_packet_flit port=1 event=6 idx=3 data=0x010010ac73430640
+SWITCH DEBUG BasePort input_packet_flit port=1 event=6 idx=4 data=0x29097eb0020010ac
+SWITCH DEBUG BasePort input_packet_flit port=1 event=6 idx=5 data=0x4f1b3527210ef477
+SWITCH DEBUG BasePort input_packet_flit port=1 event=6 idx=6 data=0x000093ecf2011080
+SWITCH DEBUG BasePort input_packet_flit port=1 event=6 idx=7 data=0xae62c8dc0a080101
+SWITCH DEBUG BasePort input_packet_flit port=1 event=6 idx=8 data=0x5371242b90f8ca75
+SWITCH DEBUG ShmemPort send port=0 event=6 round=0 valid_flits=9 last_flits=1 marker=0x0000000000000000 sample0=0x0200006d12000000/0 sample1=0x0008000004356b8e/0 sample2=0x00402d9f34000045/0 sample3=0x010010ac73430640/0
+SWITCH DEBUG ShmemPort send_flit port=0 event=6 sample=0 token=10 data=0x0200006d12000000 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=6 sample=1 token=11 data=0x0008000004356b8e last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=6 sample=2 token=12 data=0x00402d9f34000045 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=6 sample=3 token=13 data=0x010010ac73430640 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=6 sample=4 token=14 data=0x29097eb0020010ac last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=6 sample=5 token=15 data=0x4f1b3527210ef477 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=6 sample=6 token=16 data=0x000093ecf2011080 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=6 sample=7 token=17 data=0xae62c8dc0a080101 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=6 sample=8 token=18 data=0x5371242b90f8ca75 last=1
+SWITCH DEBUG SSHPort tap_recv port=1 event=7 tap_len=66 bytes=00 12 6d 00 00 02 8e 6b 35 04 00 00 08 00 45 00
+SWITCH DEBUG BasePort input_packet port=1 event=7 flits=9 sender=1 dat0=0x0200006d12000000 dat1=0x0008000004356b8e dat2=0x00402e9f34000045
+SWITCH DEBUG BasePort input_packet_flit port=1 event=7 idx=0 data=0x0200006d12000000
+SWITCH DEBUG BasePort input_packet_flit port=1 event=7 idx=1 data=0x0008000004356b8e
+SWITCH DEBUG BasePort input_packet_flit port=1 event=7 idx=2 data=0x00402e9f34000045
+SWITCH DEBUG BasePort input_packet_flit port=1 event=7 idx=3 data=0x010010ac72430640
+SWITCH DEBUG BasePort input_packet_flit port=1 event=7 idx=4 data=0x29097eb0020010ac
+SWITCH DEBUG BasePort input_packet_flit port=1 event=7 idx=5 data=0x4f1b3527210ef477
+SWITCH DEBUG BasePort input_packet_flit port=1 event=7 idx=6 data=0x000091ecf2011180
+SWITCH DEBUG BasePort input_packet_flit port=1 event=7 idx=7 data=0xaf62c8dc0a080101
+SWITCH DEBUG BasePort input_packet_flit port=1 event=7 idx=8 data=0x5371242b90f8ca75
+SWITCH DEBUG ShmemPort send port=0 event=7 round=1 valid_flits=9 last_flits=1 marker=0x0000000000000000 sample0=0x0200006d12000000/0 sample1=0x0008000004356b8e/0 sample2=0x00402e9f34000045/0 sample3=0x010010ac72430640/0
+SWITCH DEBUG ShmemPort send_flit port=0 event=7 sample=0 token=10 data=0x0200006d12000000 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=7 sample=1 token=11 data=0x0008000004356b8e last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=7 sample=2 token=12 data=0x00402e9f34000045 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=7 sample=3 token=13 data=0x010010ac72430640 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=7 sample=4 token=14 data=0x29097eb0020010ac last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=7 sample=5 token=15 data=0x4f1b3527210ef477 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=7 sample=6 token=16 data=0x000091ecf2011180 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=7 sample=7 token=17 data=0xaf62c8dc0a080101 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=7 sample=8 token=18 data=0x5371242b90f8ca75 last=1
+SWITCH DEBUG ShmemPort recv port=0 event=10 round=0 valid_flits=9 last_flits=1 marker=0x6db6d80000000015 sample0=0x000004356b8e0000/0 sample1=0x00080200006d1200/0 sample2=0x0040080434000045/0 sample3=0x020010ac98d60640/0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=10 sample=0 token=0 data=0x000004356b8e0000 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=10 sample=1 token=1 data=0x00080200006d1200 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=10 sample=2 token=2 data=0x0040080434000045 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=10 sample=3 token=3 data=0x020010ac98d60640 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=10 sample=4 token=4 data=0x7eb02909010010ac last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=10 sample=5 token=5 data=0x220ef4774d1b3527 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=10 sample=6 token=6 data=0x000089edf9001180 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=10 sample=7 token=7 data=0x90f8ca750a080101 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=10 sample=8 token=8 data=0x00000000a762c8dc last=1
+SWITCH DEBUG BasePort input_packet port=0 event=7 flits=9 sender=0 dat0=0x000004356b8e0000 dat1=0x00080200006d1200 dat2=0x0040080434000045
+SWITCH DEBUG BasePort input_packet_flit port=0 event=7 idx=0 data=0x000004356b8e0000
+SWITCH DEBUG BasePort input_packet_flit port=0 event=7 idx=1 data=0x00080200006d1200
+SWITCH DEBUG BasePort input_packet_flit port=0 event=7 idx=2 data=0x0040080434000045
+SWITCH DEBUG BasePort input_packet_flit port=0 event=7 idx=3 data=0x020010ac98d60640
+SWITCH DEBUG BasePort input_packet_flit port=0 event=7 idx=4 data=0x7eb02909010010ac
+SWITCH DEBUG BasePort input_packet_flit port=0 event=7 idx=5 data=0x220ef4774d1b3527
+SWITCH DEBUG BasePort input_packet_flit port=0 event=7 idx=6 data=0x000089edf9001180
+SWITCH DEBUG BasePort input_packet_flit port=0 event=7 idx=7 data=0x90f8ca750a080101
+SWITCH DEBUG BasePort input_packet_flit port=0 event=7 idx=8 data=0x00000000a762c8dc
+SWITCH DEBUG SSHPort output_buf port=1 event=7 valid_flits=9 last_flits=1 queued_flits=9 sample0=0x000004356b8e0000/0 sample1=0x00080200006d1200/0 sample2=0x0040080434000045/0 sample3=0x020010ac98d60640/0
+SWITCH DEBUG SSHPort tap_send port=1 event=7 tap_len=70 flits=9 short=0 zero_eth_head=0 repair=0x6 word0=0x000004356b8e0000 word1=0x00080200006d1200 word2=0x0040080434000045 bytes=8e 6b 35 04 00 00 00 12 6d 00 00 02 08 00 45 00
+SWITCH DEBUG SSHPort tap_send_word port=1 event=7 idx=0 data=0x000004356b8e0000
+SWITCH DEBUG SSHPort tap_send_word port=1 event=7 idx=1 data=0x00080200006d1200
+SWITCH DEBUG SSHPort tap_send_word port=1 event=7 idx=2 data=0x0040080434000045
+SWITCH DEBUG SSHPort tap_send_word port=1 event=7 idx=3 data=0x020010ac98de0640
+SWITCH DEBUG SSHPort tap_send_word port=1 event=7 idx=4 data=0x7eb02909010010ac
+SWITCH DEBUG SSHPort tap_send_word port=1 event=7 idx=5 data=0x220ef4774d1b3527
+SWITCH DEBUG SSHPort tap_send_word port=1 event=7 idx=6 data=0x000093edf9001180
+SWITCH DEBUG SSHPort tap_send_word port=1 event=7 idx=7 data=0x90f8ca750a080101
+SWITCH DEBUG SSHPort tap_send_word port=1 event=7 idx=8 data=0x00000000a762c8dc
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=7 off=0 bytes=8e 6b 35 04 00 00 00 12 6d 00 00 02 08 00 45 00
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=7 off=16 bytes=00 34 04 08 40 00 40 06 de 98 ac 10 00 02 ac 10
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=7 off=32 bytes=00 01 09 29 b0 7e 27 35 1b 4d 77 f4 0e 22 80 11
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=7 off=48 bytes=00 f9 ed 93 00 00 01 01 08 0a 75 ca f8 90 dc c8
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=7 off=64 bytes=62 a7 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+SWITCH DEBUG SSHPort tap_recv port=1 event=8 tap_len=78 bytes=00 12 6d 00 00 02 8e 6b 35 04 00 00 08 00 45 00
+SWITCH DEBUG BasePort input_packet port=1 event=8 flits=10 sender=1 dat0=0x0200006d12000000 dat1=0x0008000004356b8e dat2=0x00402f9f40000045
+SWITCH DEBUG BasePort input_packet_flit port=1 event=8 idx=0 data=0x0200006d12000000
+SWITCH DEBUG BasePort input_packet_flit port=1 event=8 idx=1 data=0x0008000004356b8e
+SWITCH DEBUG BasePort input_packet_flit port=1 event=8 idx=2 data=0x00402f9f40000045
+SWITCH DEBUG BasePort input_packet_flit port=1 event=8 idx=3 data=0x010010ac65430640
+SWITCH DEBUG BasePort input_packet_flit port=1 event=8 idx=4 data=0x29097eb0020010ac
+SWITCH DEBUG BasePort input_packet_flit port=1 event=8 idx=5 data=0x4f1b3527220ef477
+SWITCH DEBUG BasePort input_packet_flit port=1 event=8 idx=6 data=0x00004531f20110b0
+SWITCH DEBUG BasePort input_packet_flit port=1 event=8 idx=7 data=0xdf62c8dc0a080101
+SWITCH DEBUG BasePort input_packet_flit port=1 event=8 idx=8 data=0x0a05010190f8ca75
+SWITCH DEBUG BasePort input_packet_flit port=1 event=8 idx=9 data=0x4e1b35274d1b3527
+SWITCH DEBUG ShmemPort send port=0 event=8 round=0 valid_flits=10 last_flits=1 marker=0x0000000000000000 sample0=0x0200006d12000000/0 sample1=0x0008000004356b8e/0 sample2=0x00402f9f40000045/0 sample3=0x010010ac65430640/0
+SWITCH DEBUG ShmemPort send_flit port=0 event=8 sample=0 token=10 data=0x0200006d12000000 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=8 sample=1 token=11 data=0x0008000004356b8e last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=8 sample=2 token=12 data=0x00402f9f40000045 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=8 sample=3 token=13 data=0x010010ac65430640 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=8 sample=4 token=14 data=0x29097eb0020010ac last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=8 sample=5 token=15 data=0x4f1b3527220ef477 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=8 sample=6 token=16 data=0x00004531f20110b0 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=8 sample=7 token=17 data=0xdf62c8dc0a080101 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=8 sample=8 token=18 data=0x0a05010190f8ca75 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=8 sample=9 token=19 data=0x4e1b35274d1b3527 last=1
+SWITCH DEBUG SSHPort tap_recv port=1 event=9 tap_len=66 bytes=00 12 6d 00 00 02 8e 6b 35 04 00 00 08 00 45 00
+SWITCH DEBUG BasePort input_packet port=1 event=9 flits=9 sender=1 dat0=0x0200006d12000000 dat1=0x0008000004356b8e dat2=0x0040309f34000045
+SWITCH DEBUG BasePort input_packet_flit port=1 event=9 idx=0 data=0x0200006d12000000
+SWITCH DEBUG BasePort input_packet_flit port=1 event=9 idx=1 data=0x0008000004356b8e
+SWITCH DEBUG BasePort input_packet_flit port=1 event=9 idx=2 data=0x0040309f34000045
+SWITCH DEBUG BasePort input_packet_flit port=1 event=9 idx=3 data=0x010010ac70430640
+SWITCH DEBUG BasePort input_packet_flit port=1 event=9 idx=4 data=0x29097eb0020010ac
+SWITCH DEBUG BasePort input_packet_flit port=1 event=9 idx=5 data=0x4f1b3527210ef477
+SWITCH DEBUG BasePort input_packet_flit port=1 event=9 idx=6 data=0x000077ebf2011180
+SWITCH DEBUG BasePort input_packet_flit port=1 event=9 idx=7 data=0xc963c8dc0a080101
+SWITCH DEBUG BasePort input_packet_flit port=1 event=9 idx=8 data=0x0a05010190f8ca75
+SWITCH DEBUG ShmemPort send port=0 event=9 round=1 valid_flits=9 last_flits=1 marker=0x0000000000000000 sample0=0x0200006d12000000/0 sample1=0x0008000004356b8e/0 sample2=0x0040309f34000045/0 sample3=0x010010ac70430640/0
+SWITCH DEBUG ShmemPort send_flit port=0 event=9 sample=0 token=10 data=0x0200006d12000000 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=9 sample=1 token=11 data=0x0008000004356b8e last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=9 sample=2 token=12 data=0x0040309f34000045 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=9 sample=3 token=13 data=0x010010ac70430640 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=9 sample=4 token=14 data=0x29097eb0020010ac last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=9 sample=5 token=15 data=0x4f1b3527210ef477 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=9 sample=6 token=16 data=0x000077ebf2011180 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=9 sample=7 token=17 data=0xc963c8dc0a080101 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=9 sample=8 token=18 data=0x0a05010190f8ca75 last=1
+SWITCH DEBUG ShmemPort recv port=0 event=11 round=1 valid_flits=10 last_flits=1 marker=0x6db6d80000000017 sample0=0x000004356b8e0000/0 sample1=0x00080200006d1200/0 sample2=0x0040090440000045/0 sample3=0x020010ac8bd60640/0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=11 sample=0 token=0 data=0x000004356b8e0000 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=11 sample=1 token=1 data=0x00080200006d1200 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=11 sample=2 token=2 data=0x0040090440000045 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=11 sample=3 token=3 data=0x020010ac8bd60640 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=11 sample=4 token=4 data=0x7eb02909010010ac last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=11 sample=5 token=5 data=0x220ef477501b3527 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=11 sample=6 token=6 data=0x00002baaf90010b0 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=11 sample=7 token=7 data=0x91f8ca750a080101 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=11 sample=8 token=8 data=0x0a050101c163c8dc last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=11 sample=9 token=9 data=0x220ef477210ed477 last=1
+SWITCH DEBUG BasePort input_packet port=0 event=8 flits=10 sender=0 dat0=0x000004356b8e0000 dat1=0x00080200006d1200 dat2=0x0040090440000045
+SWITCH DEBUG BasePort input_packet_flit port=0 event=8 idx=0 data=0x000004356b8e0000
+SWITCH DEBUG BasePort input_packet_flit port=0 event=8 idx=1 data=0x00080200006d1200
+SWITCH DEBUG BasePort input_packet_flit port=0 event=8 idx=2 data=0x0040090440000045
+SWITCH DEBUG BasePort input_packet_flit port=0 event=8 idx=3 data=0x020010ac8bd60640
+SWITCH DEBUG BasePort input_packet_flit port=0 event=8 idx=4 data=0x7eb02909010010ac
+SWITCH DEBUG BasePort input_packet_flit port=0 event=8 idx=5 data=0x220ef477501b3527
+SWITCH DEBUG BasePort input_packet_flit port=0 event=8 idx=6 data=0x00002baaf90010b0
+SWITCH DEBUG BasePort input_packet_flit port=0 event=8 idx=7 data=0x91f8ca750a080101
+SWITCH DEBUG BasePort input_packet_flit port=0 event=8 idx=8 data=0x0a050101c163c8dc
+SWITCH DEBUG BasePort input_packet_flit port=0 event=8 idx=9 data=0x220ef477210ed477
+SWITCH DEBUG SSHPort output_buf port=1 event=8 valid_flits=10 last_flits=1 queued_flits=10 sample0=0x000004356b8e0000/0 sample1=0x00080200006d1200/0 sample2=0x0040090440000045/0 sample3=0x020010ac8bd60640/0
+SWITCH DEBUG SSHPort tap_send port=1 event=8 tap_len=78 flits=10 short=0 zero_eth_head=0 repair=0x6 word0=0x000004356b8e0000 word1=0x00080200006d1200 word2=0x0040090440000045 bytes=8e 6b 35 04 00 00 00 12 6d 00 00 02 08 00 45 00
+SWITCH DEBUG SSHPort tap_send_word port=1 event=8 idx=0 data=0x000004356b8e0000
+SWITCH DEBUG SSHPort tap_send_word port=1 event=8 idx=1 data=0x00080200006d1200
+SWITCH DEBUG SSHPort tap_send_word port=1 event=8 idx=2 data=0x0040090440000045
+SWITCH DEBUG SSHPort tap_send_word port=1 event=8 idx=3 data=0x020010ac8bde0640
+SWITCH DEBUG SSHPort tap_send_word port=1 event=8 idx=4 data=0x7eb02909010010ac
+SWITCH DEBUG SSHPort tap_send_word port=1 event=8 idx=5 data=0x220ef477501b3527
+SWITCH DEBUG SSHPort tap_send_word port=1 event=8 idx=6 data=0x000053aaf90010b0
+SWITCH DEBUG SSHPort tap_send_word port=1 event=8 idx=7 data=0x91f8ca750a080101
+SWITCH DEBUG SSHPort tap_send_word port=1 event=8 idx=8 data=0x0a050101c163c8dc
+SWITCH DEBUG SSHPort tap_send_word port=1 event=8 idx=9 data=0x220ef477210ed477
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=8 off=0 bytes=8e 6b 35 04 00 00 00 12 6d 00 00 02 08 00 45 00
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=8 off=16 bytes=00 40 04 09 40 00 40 06 de 8b ac 10 00 02 ac 10
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=8 off=32 bytes=00 01 09 29 b0 7e 27 35 1b 50 77 f4 0e 22 b0 10
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=8 off=48 bytes=00 f9 aa 53 00 00 01 01 08 0a 75 ca f8 91 dc c8
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=8 off=64 bytes=63 c1 01 01 05 0a 77 d4 0e 21 77 f4 0e 22 00 00
+SWITCH DEBUG ShmemPort recv port=0 event=12 round=0 valid_flits=9 last_flits=1 marker=0x6db6d80000000019 sample0=0x000004356b8e0000/0 sample1=0x00080200006d1200/0 sample2=0x00400a0434000045/0 sample3=0x020010ac96d60640/0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=12 sample=0 token=0 data=0x000004356b8e0000 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=12 sample=1 token=1 data=0x00080200006d1200 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=12 sample=2 token=2 data=0x00400a0434000045 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=12 sample=3 token=3 data=0x020010ac96d60640 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=12 sample=4 token=4 data=0x7eb02909010010ac last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=12 sample=5 token=5 data=0x220ef4774f1b3527 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=12 sample=6 token=6 data=0x0000a1ebf9001180 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=12 sample=7 token=7 data=0x5ef9ca750a080101 last=0
+SWITCH DEBUG ShmemPort recv_flit port=0 event=12 sample=8 token=8 data=0x00000000c163c8dc last=1
+SWITCH DEBUG BasePort input_packet port=0 event=9 flits=9 sender=0 dat0=0x000004356b8e0000 dat1=0x00080200006d1200 dat2=0x00400a0434000045
+SWITCH DEBUG BasePort input_packet_flit port=0 event=9 idx=0 data=0x000004356b8e0000
+SWITCH DEBUG BasePort input_packet_flit port=0 event=9 idx=1 data=0x00080200006d1200
+SWITCH DEBUG BasePort input_packet_flit port=0 event=9 idx=2 data=0x00400a0434000045
+SWITCH DEBUG BasePort input_packet_flit port=0 event=9 idx=3 data=0x020010ac96d60640
+SWITCH DEBUG BasePort input_packet_flit port=0 event=9 idx=4 data=0x7eb02909010010ac
+SWITCH DEBUG BasePort input_packet_flit port=0 event=9 idx=5 data=0x220ef4774f1b3527
+SWITCH DEBUG BasePort input_packet_flit port=0 event=9 idx=6 data=0x0000a1ebf9001180
+SWITCH DEBUG BasePort input_packet_flit port=0 event=9 idx=7 data=0x5ef9ca750a080101
+SWITCH DEBUG BasePort input_packet_flit port=0 event=9 idx=8 data=0x00000000c163c8dc
+SWITCH DEBUG SSHPort output_buf port=1 event=9 valid_flits=9 last_flits=1 queued_flits=9 sample0=0x000004356b8e0000/0 sample1=0x00080200006d1200/0 sample2=0x00400a0434000045/0 sample3=0x020010ac96d60640/0
+SWITCH DEBUG SSHPort tap_send port=1 event=9 tap_len=70 flits=9 short=0 zero_eth_head=0 repair=0x6 word0=0x000004356b8e0000 word1=0x00080200006d1200 word2=0x00400a0434000045 bytes=8e 6b 35 04 00 00 00 12 6d 00 00 02 08 00 45 00
+SWITCH DEBUG SSHPort tap_send_word port=1 event=9 idx=0 data=0x000004356b8e0000
+SWITCH DEBUG SSHPort tap_send_word port=1 event=9 idx=1 data=0x00080200006d1200
+SWITCH DEBUG SSHPort tap_send_word port=1 event=9 idx=2 data=0x00400a0434000045
+SWITCH DEBUG SSHPort tap_send_word port=1 event=9 idx=3 data=0x020010ac96de0640
+SWITCH DEBUG SSHPort tap_send_word port=1 event=9 idx=4 data=0x7eb02909010010ac
+SWITCH DEBUG SSHPort tap_send_word port=1 event=9 idx=5 data=0x220ef4774f1b3527
+SWITCH DEBUG SSHPort tap_send_word port=1 event=9 idx=6 data=0x0000a9ebf9001180
+SWITCH DEBUG SSHPort tap_send_word port=1 event=9 idx=7 data=0x5ef9ca750a080101
+SWITCH DEBUG SSHPort tap_send_word port=1 event=9 idx=8 data=0x00000000c163c8dc
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=9 off=0 bytes=8e 6b 35 04 00 00 00 12 6d 00 00 02 08 00 45 00
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=9 off=16 bytes=00 34 04 0a 40 00 40 06 de 96 ac 10 00 02 ac 10
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=9 off=32 bytes=00 01 09 29 b0 7e 27 35 1b 4f 77 f4 0e 22 80 11
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=9 off=48 bytes=00 f9 eb a9 00 00 01 01 08 0a 75 ca f9 5e dc c8
+SWITCH DEBUG SSHPort tap_send_bytes port=1 event=9 off=64 bytes=63 c1 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+SWITCH DEBUG SSHPort tap_recv port=1 event=10 tap_len=66 bytes=00 12 6d 00 00 02 8e 6b 35 04 00 00 08 00 45 00
+SWITCH DEBUG BasePort input_packet port=1 event=10 flits=9 sender=1 dat0=0x0200006d12000000 dat1=0x0008000004356b8e dat2=0x0040319f34000045
+SWITCH DEBUG BasePort input_packet_flit port=1 event=10 idx=0 data=0x0200006d12000000
+SWITCH DEBUG BasePort input_packet_flit port=1 event=10 idx=1 data=0x0008000004356b8e
+SWITCH DEBUG BasePort input_packet_flit port=1 event=10 idx=2 data=0x0040319f34000045
+SWITCH DEBUG BasePort input_packet_flit port=1 event=10 idx=3 data=0x010010ac6f430640
+SWITCH DEBUG BasePort input_packet_flit port=1 event=10 idx=4 data=0x29097eb0020010ac
+SWITCH DEBUG BasePort input_packet_flit port=1 event=10 idx=5 data=0x501b3527220ef477
+SWITCH DEBUG BasePort input_packet_flit port=1 event=10 idx=6 data=0x0000f83ff2011080
+SWITCH DEBUG BasePort input_packet_flit port=1 event=10 idx=7 data=0x780ecadc0a080101
+SWITCH DEBUG BasePort input_packet_flit port=1 event=10 idx=8 data=0x0a0501015ef9ca75
+SWITCH DEBUG ShmemPort send port=0 event=10 round=0 valid_flits=9 last_flits=1 marker=0x0000000000000000 sample0=0x0200006d12000000/0 sample1=0x0008000004356b8e/0 sample2=0x0040319f34000045/0 sample3=0x010010ac6f430640/0
+SWITCH DEBUG ShmemPort send_flit port=0 event=10 sample=0 token=10 data=0x0200006d12000000 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=10 sample=1 token=11 data=0x0008000004356b8e last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=10 sample=2 token=12 data=0x0040319f34000045 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=10 sample=3 token=13 data=0x010010ac6f430640 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=10 sample=4 token=14 data=0x29097eb0020010ac last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=10 sample=5 token=15 data=0x501b3527220ef477 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=10 sample=6 token=16 data=0x0000f83ff2011080 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=10 sample=7 token=17 data=0x780ecadc0a080101 last=0
+SWITCH DEBUG ShmemPort send_flit port=0 event=10 sample=8 token=18 data=0x0a0501015ef9ca75 last=1

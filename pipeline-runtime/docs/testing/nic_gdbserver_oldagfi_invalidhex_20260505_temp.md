@@ -43,3 +43,22 @@ cleared `0xDEADBEEFDEADBEEF` before publishing a full shared-memory buffer.
 This test does not require a new bitstream; it only requires `infrasetup` to
 rebuild/redeploy the switch.
 
+Update after FireSim `b17cc8979`:
+
+The marker-clearing control was tested on a fresh F2 with the same old AGFI and
+the same `01e763` driver bundle. It still failed with `Invalid hex digit 59`;
+pcap/switchlog again showed `$PackEtSize=47ff` in the payload-bearing RSP
+packet. Marker preservation is therefore not the root cause.
+
+Next low-cost control:
+
+Use the recovered original old-AGFI driver bundle instead of the `01e763`
+bundle:
+
+```text
+sims/firesim/deploy/config_hwdb_f2_rocket_singlecore_nic_notrace_30mhz_agfi0079_recovered_driver.yaml
+```
+
+The recovered bundle's `FireSim-f2` sha256 is
+`dc94d9f93b34dfc32dd994d8926d6cd81cf325003a8b2ba551eb9b3ff8d05a92`, matching
+the driver binary in the original 2026-04-30 old AGFI build result.
