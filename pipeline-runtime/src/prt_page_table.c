@@ -18,6 +18,7 @@
 
 #include "prt_runtime.h"
 #include "prt_progress.h"
+#include "prt_trigger_log.h"
 
 #define PRT_SPM_FAULT_OUT_OF_RANGE 1U
 #define PRT_SPM_FAULT_INVALID_PTE 2U
@@ -39,6 +40,32 @@ struct prt_spm_pt_chunk_s {
 };
 
 static __thread const char *t_prt_host_v2p_debug_scope = NULL;
+
+static prt_trigger_log_family_t prt_host_v2p_trigger_family(void) {
+  if (!t_prt_host_v2p_debug_scope) return PRT_TRIGGER_LOG_FAMILY_DMA_FIXED_LOAD;
+  if (strncmp(t_prt_host_v2p_debug_scope, "dma-export", 10) == 0) {
+    return PRT_TRIGGER_LOG_FAMILY_DMA_EXPORT;
+  }
+  return PRT_TRIGGER_LOG_FAMILY_DMA_FIXED_LOAD;
+}
+
+static void __attribute__((unused)) prt_host_v2p_trigger_scope(const char *phase, int rc) {
+  if (!phase || !*phase) return;
+  if (!t_prt_host_v2p_debug_scope) return;
+  prt_trigger_log_note(&(const prt_trigger_log_event_t){
+    .family = prt_host_v2p_trigger_family(),
+    .phase = phase,
+    .segment_idx = PRT_TRIGGER_LOG_ANY_U32,
+    .global_stage_id = PRT_TRIGGER_LOG_ANY_U32,
+    .local_stage_id = PRT_TRIGGER_LOG_ANY_U32,
+    .subbatch_id = PRT_TRIGGER_LOG_ANY_U32,
+    .manager_id = PRT_TRIGGER_LOG_ANY_U32,
+    .tensor_id = PRT_TRIGGER_LOG_ANY_U32,
+    .page_idx = PRT_TRIGGER_LOG_ANY_U32,
+    .token_id = PRT_TRIGGER_LOG_ANY_U32,
+    .rc = rc,
+  });
+}
 
 size_t prt_host_page_size_bytes(void) {
 #if defined(__linux__)
@@ -65,7 +92,7 @@ void prt_spm_xlate_ctx_publish(prt_spm_xlate_ctx_t *ctx) {
   if (!ctx || !ctx->pte || ctx->pte_count == 0U) return;
   __sync_synchronize();
 #if defined(__riscv)
-  asm volatile("fence rw, rw" ::: "memory");
+  __asm__ volatile("fence rw, rw" ::: "memory");
 #endif
 }
 
@@ -202,6 +229,7 @@ int prt_host_virt_to_phys(const void *vaddr, uint64_t *paddr) {
   const int trace_v2p = scope_tag != NULL && prt_log_gate_allow_deep_logs();
 
   if (!paddr) return PRT_ERR_INVAL;
+  prt_host_v2p_trigger_scope("iv2p-b", PRT_OK);
   if (trace_v2p) {
     PRT_PROGRESS_LOG("host-v2p begin scope=%s va=0x%llx page_sz=%zu vpn=%llu offset=%lld",
                      scope_tag,
@@ -212,6 +240,7 @@ int prt_host_virt_to_phys(const void *vaddr, uint64_t *paddr) {
   }
   fd = linux_pagemap_fd();
   if (fd < 0) {
+    prt_host_v2p_trigger_scope("iv2p-fd", PRT_ERR_IO);
     if (trace_v2p) {
       PRT_PROGRESS_LOG("host-v2p fd-fail scope=%s va=0x%llx rc=%d",
                        scope_tag,
@@ -227,7 +256,9 @@ int prt_host_virt_to_phys(const void *vaddr, uint64_t *paddr) {
                      (unsigned long long)va,
                      (long long)offset);
   }
+  prt_host_v2p_trigger_scope("iv2p-pb", PRT_OK);
   n = pread(fd, &entry, sizeof(entry), offset);
+  prt_host_v2p_trigger_scope("iv2p-pe", (n == (ssize_t)sizeof(entry)) ? PRT_OK : PRT_ERR_IO);
   if (trace_v2p) {
     PRT_PROGRESS_LOG("host-v2p pread-end scope=%s va=0x%llx n=%lld entry=0x%llx",
                      scope_tag,
@@ -236,6 +267,7 @@ int prt_host_virt_to_phys(const void *vaddr, uint64_t *paddr) {
                      (unsigned long long)entry);
   }
   if (n != (ssize_t)sizeof(entry)) {
+    prt_host_v2p_trigger_scope("iv2p-rf", PRT_ERR_IO);
     if (trace_v2p) {
       PRT_PROGRESS_LOG("host-v2p read-fail scope=%s va=0x%llx rc=%d errno=%d",
                        scope_tag,
@@ -246,6 +278,7 @@ int prt_host_virt_to_phys(const void *vaddr, uint64_t *paddr) {
     return PRT_ERR_IO;
   }
   if ((entry & present) == 0) {
+    prt_host_v2p_trigger_scope("iv2p-np", PRT_ERR_NOT_READY);
     if (trace_v2p) {
       PRT_PROGRESS_LOG("host-v2p not-present scope=%s va=0x%llx entry=0x%llx",
                        scope_tag,
@@ -257,6 +290,7 @@ int prt_host_virt_to_phys(const void *vaddr, uint64_t *paddr) {
 
   pfn = entry & pfn_mask;
   if (pfn == 0) {
+    prt_host_v2p_trigger_scope("iv2p-p0", PRT_ERR_NOT_READY);
     if (trace_v2p) {
       PRT_PROGRESS_LOG("host-v2p pfn-zero scope=%s va=0x%llx entry=0x%llx",
                        scope_tag,
@@ -274,6 +308,7 @@ int prt_host_virt_to_phys(const void *vaddr, uint64_t *paddr) {
                      (unsigned long long)pfn,
                      (unsigned long long)*paddr);
   }
+  prt_host_v2p_trigger_scope("iv2p-ok", PRT_OK);
   return PRT_OK;
 }
 

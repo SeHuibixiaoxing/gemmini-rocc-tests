@@ -44,6 +44,7 @@ static prt_breadcrumb_state_t g_prt_breadcrumb_state = {0, 0, PRT_BREADCRUMB_ANY
                                                         PRT_BREADCRUMB_ANY_U32,
                                                         0U, 0U, -1, 0U, NULL};
 static __thread prt_breadcrumb_dma_transfer_ctx_t t_prt_breadcrumb_dma_ctx = {0, 0, 0, 0, 0, 0, 0};
+static __thread uint32_t t_prt_breadcrumb_export_target_token = 0U;
 
 static int prt_breadcrumb_env_flag(const char *name, int default_value) {
   const char *value = getenv(name);
@@ -250,6 +251,7 @@ void prt_breadcrumb_destroy(void) {
   memset(&g_prt_breadcrumb_state, 0, sizeof(g_prt_breadcrumb_state));
   g_prt_breadcrumb_state.fd = -1;
   memset(&t_prt_breadcrumb_dma_ctx, 0, sizeof(t_prt_breadcrumb_dma_ctx));
+  t_prt_breadcrumb_export_target_token = 0U;
 }
 
 int prt_breadcrumb_enabled(void) {
@@ -273,6 +275,18 @@ void prt_breadcrumb_set_dma_transfer_context(uint32_t tensor_id,
 
 void prt_breadcrumb_clear_dma_transfer_context(void) {
   memset(&t_prt_breadcrumb_dma_ctx, 0, sizeof(t_prt_breadcrumb_dma_ctx));
+}
+
+void prt_breadcrumb_set_export_target_token(uint32_t token_id) {
+  t_prt_breadcrumb_export_target_token = token_id;
+}
+
+void prt_breadcrumb_clear_export_target_token(void) {
+  t_prt_breadcrumb_export_target_token = 0U;
+}
+
+uint32_t prt_breadcrumb_get_export_target_token(void) {
+  return t_prt_breadcrumb_export_target_token;
 }
 
 void prt_breadcrumb_note(prt_breadcrumb_kind_t kind,

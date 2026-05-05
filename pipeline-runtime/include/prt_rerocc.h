@@ -28,6 +28,9 @@ int prt_rr_acquire_scope(prt_runtime_t *rt, uint32_t stage_id,
                          uint32_t manager_id, uint32_t opcode_id,
                          prt_rr_scope_t *scope);
 int prt_rr_fence_scope(prt_rr_scope_t *scope);
+/* Pipeline-runtime callers must use the scoped wrapper instead of raw
+ * rr_release(): this helper waits on a same-cfg RRCFG readback before the
+ * scope can be invalidated/reused. */
 int prt_rr_release_scope(prt_rr_scope_t *scope);
 int prt_gemmini_spm_xlate_program(uint32_t manager_id, uint64_t ptbr_pa,
                                   uint32_t pte_count, uint32_t page_shift,

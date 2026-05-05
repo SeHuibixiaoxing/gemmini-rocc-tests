@@ -3,6 +3,7 @@
 #include <string.h>
 
 #include "prt_breadcrumb.h"
+#include "prt_debug_state.h"
 #include "prt_error.h"
 #include "prt_progress.h"
 #include "prt_trigger_log.h"
@@ -18,7 +19,7 @@
 
 #define PRT_RR_ACQUIRE_MAX_RETRIES 1000000UL
 #if !defined(RR_MAX_CFGS)
-#define RR_MAX_CFGS 16U
+#define RR_MAX_CFGS 32U
 #endif
 #define PRT_RR_SPM_XLATE_CFG_ID (RR_MAX_CFGS - 1U)
 
@@ -54,9 +55,9 @@ static void prt_rr_breadcrumb_note_acquire(uint32_t phase,
                       (uint64_t)csr_id, wdata, cfg_state, retries, line);
 }
 
-static void prt_rr_breadcrumb_note_release(uint32_t phase,
-                                           const prt_rr_scope_t *scope,
-                                           uint32_t line) {
+static void __attribute__((unused)) prt_rr_breadcrumb_note_release(uint32_t phase,
+                                                                  const prt_rr_scope_t *scope,
+                                                                  uint32_t line) {
   uint32_t flags = 0U;
   uint32_t token_id = 0U;
   uint32_t manager = PRT_BREADCRUMB_ANY_U32;
@@ -96,6 +97,26 @@ static void prt_rr_trigger_note(const char *phase,
   });
 }
 
+static void __attribute__((unused)) prt_spm_xlate_trigger_note(const char *phase,
+                                                               const prt_rr_scope_t *scope,
+                                                               uint32_t manager_id,
+                                                               uint32_t cfg_id,
+                                                               int rc) {
+  prt_trigger_log_note(&(const prt_trigger_log_event_t){
+    .family = PRT_TRIGGER_LOG_FAMILY_SPM_XLATE,
+    .phase = phase,
+    .segment_idx = PRT_TRIGGER_LOG_ANY_U32,
+    .global_stage_id = scope ? scope->stage_id : PRT_TRIGGER_LOG_ANY_U32,
+    .local_stage_id = scope ? scope->stage_id : PRT_TRIGGER_LOG_ANY_U32,
+    .subbatch_id = PRT_TRIGGER_LOG_ANY_U32,
+    .manager_id = manager_id,
+    .tensor_id = PRT_TRIGGER_LOG_ANY_U32,
+    .page_idx = PRT_TRIGGER_LOG_ANY_U32,
+    .token_id = cfg_id,
+    .rc = rc,
+  });
+}
+
 #if defined(__riscv)
 static uint64_t rr_read_opcode_binding(uint32_t opcode_id) {
   return rr_read_csr(CSR_RROPC0 + opcode_id);
@@ -116,6 +137,8 @@ static int prt_spm_xlate_acquire_scope(uint32_t manager_id, prt_rr_scope_t *scop
 }
 
 static void prt_spm_xlate_release_scope(prt_rr_scope_t *scope, uint64_t prev_binding) {
+  const uint32_t manager_id = scope ? scope->manager_id : PRT_TRIGGER_LOG_ANY_U32;
+  const uint32_t cfg_id = scope ? scope->cfg_id : PRT_TRIGGER_LOG_ANY_U32;
   if (!scope || !scope->valid) return;
   prt_breadcrumb_note(PRT_BREADCRUMB_KIND_SPM_XLATE,
                       PRT_BREADCRUMB_PHASE_SPM_XLATE_RELEASE_FENCE_BEGIN,
@@ -148,6 +171,7 @@ static void prt_spm_xlate_release_scope(prt_rr_scope_t *scope, uint64_t prev_bin
                    scope->manager_id, scope->cfg_id,
                    (unsigned long long)prev_binding);
   (void)prt_rr_release_scope(scope);
+  prt_spm_xlate_trigger_note("rst-b", scope, manager_id, cfg_id, PRT_OK);
   prt_breadcrumb_note(PRT_BREADCRUMB_KIND_SPM_XLATE,
                       PRT_BREADCRUMB_PHASE_SPM_XLATE_RELEASE_END,
                       PRT_BREADCRUMB_ANY_U32, 0U, scope->manager_id,
@@ -168,6 +192,7 @@ static void prt_spm_xlate_release_scope(prt_rr_scope_t *scope, uint64_t prev_bin
                    scope->manager_id, scope->cfg_id,
                    (unsigned long long)prev_binding);
   rr_restore_opcode_binding(3U, prev_binding);
+  prt_spm_xlate_trigger_note("rst-e", scope, manager_id, cfg_id, PRT_OK);
   prt_breadcrumb_note(PRT_BREADCRUMB_KIND_SPM_XLATE,
                       PRT_BREADCRUMB_PHASE_SPM_XLATE_RESTORE_END,
                       PRT_BREADCRUMB_ANY_U32, 0U, scope->manager_id,
@@ -191,6 +216,7 @@ static int prt_rr_acquire_scope_cfg(prt_runtime_t *rt, uint32_t cfg_id,
   scope->stage_id = stage_id;
   scope->manager_id = manager_id;
   scope->opcode_id = opcode_id;
+  prt_debug_state_set_rr(stage_id, manager_id, opcode_id, cfg_id);
 
 #if defined(__riscv)
     const int sparse_probe = (stage_id == 0U && opcode_id == 2U);
@@ -260,7 +286,7 @@ static int prt_rr_acquire_scope_cfg(prt_runtime_t *rt, uint32_t cfg_id,
                          stage_id, manager_id, opcode_id, scope->cfg_id, retries);
         return PRT_ERR_TIMEOUT;
       }
-      asm volatile("nop");
+      __asm__ volatile("nop");
     }
     if (retries > 0UL) {
       PRT_PROGRESS_LOG("rr-acquire done stage=%u manager=%u opcode=%u cfg=%u retries=%lu",
@@ -367,6 +393,13 @@ int prt_rr_release_scope(prt_rr_scope_t *scope) {
                         scope->opcode_id, scope->cfg_id, PRT_OK);
     prt_rr_breadcrumb_note_release(PRT_BREADCRUMB_PHASE_RR_RELEASE_BEGIN, scope, __LINE__);
     rr_release(scope->cfg_id);
+    prt_rr_breadcrumb_note_release(PRT_BREADCRUMB_PHASE_RR_RELEASE_AFTER_CSR_WRITE,
+                                   scope, __LINE__);
+    /* Raw rr_release() only issues the release request. Pipeline-runtime keeps
+     * the scope live until a same-cfg RRCFG readback retires, so downstream
+     * callers cannot immediately reuse the cfg/opcode binding in the transient
+     * release-ack window. */
+    (void)rr_read_csr(CSR_RRCFG0 + scope->cfg_id);
     scope->valid = 0;
     prt_rr_breadcrumb_note_release(PRT_BREADCRUMB_PHASE_RR_RELEASE_END, scope, __LINE__);
     prt_rr_trigger_note("rel-e", scope->stage_id, scope->manager_id,

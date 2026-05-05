@@ -1,6 +1,6 @@
 # Pipeline Runtime 优化与修复措施草案
 
-更新时间：`2026-05-05 13:20 UTC`
+更新时间：`2026-05-05 16:50 UTC`
 
 本文把 [`问题.md`](问题.md) 中的优化点和风险点转成可执行措施。优先级按“正确性先于性能、可调试性先于复杂 overlap”排序。
 
@@ -91,6 +91,12 @@ allocation order、默认 xlate range 和 idle check 都改为使用独立的 SP
 绑定的 DMA manager；在 pair-manager mode 下，也接受同一 stage 的 paired
 Gemmini manager set。这样 DMA/Gemmini 共用 local id 时，误用 manager 会先报
 `dma manager contract violation`，不再直接表现成硬件 DMA fence 卡死。
+
+当前状态：`2026-05-05T165017Z` 默认 host 构建已恢复通过，三套
+`bertmini` artifact (`ours2/gemini2/tangram2`) 在 `--page-size-bytes 1024`
+下通过静态审计，并且 `--backend cpu` / `--batch 1` / skip model/input/golden
+dry-run 全部退出 0。这证明当前软件树至少具备可重建性和 artifact/SPM/manager
+合同的最小闭环；它仍不能替代 FPGA 上的 DMA/Gemmini custom 指令验证。
 
 ## P1：SPM 稳定绑定
 

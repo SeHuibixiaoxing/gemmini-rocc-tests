@@ -93,6 +93,9 @@ static prt_trigger_log_family_t prt_trigger_log_family_from_env(const char *valu
   }
   if (!strcmp(value, "dma-export") || !strcmp(value, "dexp")) return PRT_TRIGGER_LOG_FAMILY_DMA_EXPORT;
   if (!strcmp(value, "rr")) return PRT_TRIGGER_LOG_FAMILY_RR;
+  if (!strcmp(value, "spm-xlate") || !strcmp(value, "spm") || !strcmp(value, "sx")) {
+    return PRT_TRIGGER_LOG_FAMILY_SPM_XLATE;
+  }
   if (!strcmp(value, "gemmini-pointwise") || !strcmp(value, "pointwise") || !strcmp(value, "gpw")) {
     return PRT_TRIGGER_LOG_FAMILY_GEMMINI_POINTWISE;
   }
@@ -106,6 +109,7 @@ static const char *prt_trigger_log_family_code(prt_trigger_log_family_t family) 
     case PRT_TRIGGER_LOG_FAMILY_DMA_EXPORT: return "dexp";
     case PRT_TRIGGER_LOG_FAMILY_RR: return "rr";
     case PRT_TRIGGER_LOG_FAMILY_GEMMINI_POINTWISE: return "gpw";
+    case PRT_TRIGGER_LOG_FAMILY_SPM_XLATE: return "sx";
     default: return "any";
   }
 }

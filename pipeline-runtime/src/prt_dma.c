@@ -35,7 +35,41 @@
 #define DMA_MON_EFF_BW_X1000_BPC 6ULL
 #endif
 
+#ifndef PRT_ENABLE_FIRESIM_TRACERV_DMA_WINDOW_MARKERS
+#define PRT_ENABLE_FIRESIM_TRACERV_DMA_WINDOW_MARKERS 0
+#endif
+
+#if defined(__GNUC__)
+#pragma GCC diagnostic ignored "-Wunused-function"
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#endif
+
 #define PRT_DMA_COMPLETION_SLOT_COUNT_DEFAULT 1024U
+
+typedef enum {
+  PRT_DMA_TRACERV_MARKER_PROGRAM_BEGIN = 0,
+  PRT_DMA_TRACERV_MARKER_PROGRAM_POST_FENCE,
+  PRT_DMA_TRACERV_MARKER_PROGRAM_POST_DST,
+  PRT_DMA_TRACERV_MARKER_PROGRAM_POST_SRC,
+  PRT_DMA_TRACERV_MARKER_WAIT_BEFORE_FENCE,
+  PRT_DMA_TRACERV_MARKER_WAIT_AFTER_FENCE,
+  PRT_DMA_TRACERV_MARKER_WAIT_BEFORE_SHARED_FENCE,
+  PRT_DMA_TRACERV_MARKER_WAIT_AFTER_SHARED_FENCE,
+  PRT_DMA_TRACERV_MARKER_BATCH_RELEASE_BEGIN,
+  PRT_DMA_TRACERV_MARKER_BATCH_RELEASE_END,
+} prt_dma_tracerv_marker_t;
+
+typedef struct {
+  int valid;
+  uint32_t page_idx;
+  uint64_t copied_bytes;
+} prt_dma_tracerv_scope_ctx_t;
+
+static __thread prt_dma_tracerv_scope_ctx_t g_prt_dma_tracerv_scope_ctx = {
+  .valid = 0,
+  .page_idx = UINT32_MAX,
+  .copied_bytes = 0ULL,
+};
 
 static int dma_blocking_submit(prt_runtime_t *rt, const prt_dma_req_t *req, prt_dma_token_t *tok);
 static int dma_blocking_wait(prt_runtime_t *rt, prt_dma_token_t *tok, uint64_t timeout_ns);
@@ -75,6 +109,22 @@ static int dma_should_log_export_chunk_marker(uint32_t page_idx, uint32_t page_c
 static int dma_env_flag_enabled(const char *name, int default_value);
 static uint32_t dma_env_u32(const char *name, uint32_t default_value);
 static int dma_env_has_value(const char *name);
+static int dma_bounce_bypass_enabled(void);
+#if defined(__linux__) && defined(__riscv)
+static int dma_force_direct_enabled(void);
+#endif
+static int dma_tracerv_dma_window_page_range_match(uint32_t page_idx);
+static inline int dma_tracerv_dma_window_target_match(uint32_t stage_idx, uint32_t tensor_id,
+                                                      uint32_t page_idx, uint64_t copied_bytes);
+static inline void dma_tracerv_dma_window_scope_push(uint32_t page_idx, uint64_t copied_bytes);
+static inline void dma_tracerv_dma_window_scope_pop(void);
+static inline int dma_tracerv_dma_window_scope_match(uint32_t stage_idx, uint32_t tensor_id);
+static inline void dma_tracerv_dma_window_emit(prt_dma_tracerv_marker_t marker);
+static inline void dma_tracerv_dma_window_marker_if_scope(uint32_t stage_idx, uint32_t tensor_id,
+                                                          prt_dma_tracerv_marker_t marker);
+static inline void dma_tracerv_dma_window_marker_if_match(uint32_t stage_idx, uint32_t tensor_id,
+                                                          uint32_t page_idx, uint64_t copied_bytes,
+                                                          prt_dma_tracerv_marker_t marker);
 static int dma_submit_wait_annotated(prt_runtime_t *rt, const prt_dma_req_t *req,
                                      uint32_t stage_idx, uint32_t tensor_id,
                                      uint64_t timeout_ns);
@@ -186,6 +236,59 @@ static void dma_breadcrumb_page_end(uint32_t tensor_id, uint32_t manager_id,
                         __LINE__);
   }
   prt_breadcrumb_clear_dma_transfer_context();
+}
+
+static void dma_breadcrumb_export_loop_phase(uint32_t stage_idx,
+                                             uint32_t tensor_id,
+                                             uint32_t manager_id,
+                                             uint32_t page_idx,
+                                             const prt_dma_req_t *req,
+                                             int rc,
+                                             uint32_t flags,
+                                             uint64_t timeout_ns,
+                                             uint32_t phase,
+                                             uint32_t line) {
+  if (stage_idx != 0U || tensor_id != 2U) return;
+  if (!prt_breadcrumb_enabled() || !req) return;
+  prt_breadcrumb_note(PRT_BREADCRUMB_KIND_DMA,
+                      phase,
+                      tensor_id,
+                      0U,
+                      manager_id,
+                      page_idx,
+                      rc,
+                      flags,
+                      req->src_addr,
+                      req->dst_addr,
+                      req->bytes,
+                      timeout_ns,
+                      line);
+}
+
+static void dma_breadcrumb_export_loop_phase_token(uint32_t stage_idx,
+                                                   uint32_t tensor_id,
+                                                   uint32_t manager_id,
+                                                   uint32_t page_idx,
+                                                   const prt_dma_req_t *req,
+                                                   int rc,
+                                                   uint32_t flags,
+                                                   uint64_t timeout_ns,
+                                                   uint32_t token_id,
+                                                   uint32_t phase,
+                                                   uint32_t line) {
+  if (stage_idx != 0U || tensor_id != 2U) return;
+  if (!prt_breadcrumb_enabled() || !req) return;
+  prt_breadcrumb_note(PRT_BREADCRUMB_KIND_DMA,
+                      phase,
+                      tensor_id,
+                      token_id,
+                      manager_id,
+                      page_idx,
+                      rc,
+                      flags,
+                      req->src_addr,
+                      req->dst_addr,
+                      req->bytes, timeout_ns, line);
 }
 
 static void dma_trigger_note(prt_trigger_log_family_t family,
@@ -320,7 +423,7 @@ static int dma_prefault_and_lock_buffer(const char *tag, void *buf, size_t bytes
     touch[off] = 0;
   }
   touch[bytes - 1U] = 0;
-  asm volatile("fence rw, rw" ::: "memory");
+  __asm__ volatile("fence rw, rw" ::: "memory");
   PRT_PROGRESS_LOG("%s after-prefault ptr=%p size=%zu page_bytes=%zu",
                    tag, buf, bytes, page_bytes);
 
@@ -614,6 +717,20 @@ static int dma_copy_host_to_spm_pages_linux(prt_runtime_t *rt, const prt_page_li
         }
         if (rc != PRT_OK) goto done;
         chunk = dma_min_u64(chunk, bounce_room);
+        if (dma_bounce_bypass_enabled()) {
+          if (fixed_page_probe) {
+            PRT_PROGRESS_LOG("dma-fixed-load-host stage=%u tensor=%u phase=bounce-bypass page=%u/%u copied=%llu chunk=%llu src_va=0x%llx dst=0x%llx bounce_ptr=0x%llx",
+                             stage_idx, tensor_id, i, dst_pages->size,
+                             (unsigned long long)copied,
+                             (unsigned long long)chunk,
+                             (unsigned long long)(uintptr_t)src_ptr,
+                             (unsigned long long)dst_addr,
+                             (unsigned long long)(uintptr_t)bounce_ptr);
+          }
+          copied += chunk;
+          remaining -= chunk;
+          continue;
+        }
         memcpy(bounce_ptr, src_ptr, (size_t)chunk);
         dma_trigger_fixed_load_host("v2p-b", stage_idx, manager_id, tensor_id, i, PRT_OK);
         if (fixed_page_probe) {
@@ -738,6 +855,8 @@ static int dma_copy_spm_pages_to_host_linux(prt_runtime_t *rt, uint8_t *dst_host
   const uint64_t page_bytes = rt->cfg.page_size_bytes ? rt->cfg.page_size_bytes : PRT_PAGE_SIZE_BYTES;
   uint64_t remaining = total_bytes;
   int rc = PRT_OK;
+  uint32_t tracerv_release_page_idx = UINT32_MAX;
+  uint64_t tracerv_release_copied_bytes = 0ULL;
 
   if (!rt || !src_pages || !src_pages->data || src_pages->size == 0 || !dst_host || total_bytes == 0U) {
     return PRT_ERR_INVAL;
@@ -789,9 +908,57 @@ static int dma_copy_spm_pages_to_host_linux(prt_runtime_t *rt, uint8_t *dst_host
         rc = dma_stage_bounce_region(rt, stage_idx, dma_debug_mod64(src_addr), &bounce_ptr, &bounce_room);
         if (rc != PRT_OK) goto done;
         chunk = dma_min_u64(chunk, bounce_room);
+        if (dma_bounce_bypass_enabled()) {
+          req.src_addr = src_addr;
+          req.dst_addr = (uint64_t)(uintptr_t)dst_ptr;
+          req.bytes = chunk;
+          if (page_probe) {
+            PRT_PROGRESS_LOG("dma-export-host stage=%u tensor=%u phase=bounce-bypass page=%u/%u copied=%llu chunk=%llu src=0x%llx dst_va=0x%llx bounce_ptr=0x%llx bounce=%u",
+                             stage_idx, tensor_id, i, src_pages->size,
+                             (unsigned long long)copied,
+                             (unsigned long long)chunk,
+                             (unsigned long long)src_addr,
+                             (unsigned long long)(uintptr_t)dst_ptr,
+                             (unsigned long long)(uintptr_t)bounce_ptr,
+                             (uint32_t)used_bounce);
+          }
+          if (first_chunk_probe) {
+            PRT_PROGRESS_LOG("dma-export-host stage=%u tensor=%u phase=first-chunk-bounce-bypass page=%u copied=%llu chunk=%llu src=0x%llx dst_va=0x%llx bounce=%u",
+                             stage_idx, tensor_id, i,
+                             (unsigned long long)copied,
+                             (unsigned long long)chunk,
+                             (unsigned long long)src_addr,
+                             (unsigned long long)(uintptr_t)dst_ptr,
+                             (uint32_t)used_bounce);
+          }
+          dma_breadcrumb_export_loop_phase(stage_idx, tensor_id, manager_id, i, &req, PRT_OK,
+                                           PRT_BREADCRUMB_FLAG_BOUNCE,
+                                           timeout_ns,
+                                           PRT_BREADCRUMB_PHASE_DMA_PAGE_AFTER_ACCOUNTING,
+                                           __LINE__);
+          copied += chunk;
+          remaining -= chunk;
+          continue;
+        }
+        req.src_addr = src_addr;
+        req.dst_addr = (uint64_t)(uintptr_t)bounce_ptr;
+        req.bytes = chunk;
         dma_trigger_export_host("v2p-b", stage_idx, manager_id, tensor_id, i, PRT_OK);
+        dma_breadcrumb_export_loop_phase(stage_idx, tensor_id, manager_id, i, &req, PRT_OK,
+                                         used_bounce ? PRT_BREADCRUMB_FLAG_BOUNCE : 0U,
+                                         timeout_ns,
+                                         PRT_BREADCRUMB_PHASE_DMA_PAGE_BEFORE_V2P,
+                                         __LINE__);
+        prt_host_virt_to_phys_debug_scope_push("dma-export-bounce-dst");
         rc = prt_host_virt_to_phys((const void *)bounce_ptr, &dst_pa);
+        prt_host_virt_to_phys_debug_scope_pop();
+        req.dst_addr = dst_pa;
         dma_trigger_export_host("v2p-e", stage_idx, manager_id, tensor_id, i, rc);
+        dma_breadcrumb_export_loop_phase(stage_idx, tensor_id, manager_id, i, &req, rc,
+                                         used_bounce ? PRT_BREADCRUMB_FLAG_BOUNCE : 0U,
+                                         timeout_ns,
+                                         PRT_BREADCRUMB_PHASE_DMA_PAGE_AFTER_V2P,
+                                         __LINE__);
         if (rc != PRT_OK) goto done;
         req.src_addr = src_addr;
         req.dst_addr = dst_pa;
@@ -830,12 +997,28 @@ static int dma_copy_spm_pages_to_host_linux(prt_runtime_t *rt, uint8_t *dst_host
         dma_breadcrumb_page_begin(tensor_id, manager_id, i, &req,
                                   used_bounce ? PRT_BREADCRUMB_FLAG_BOUNCE : 0U,
                                   timeout_ns);
+        if (dma_tracerv_dma_window_target_match(stage_idx, tensor_id, i, copied)) {
+          tracerv_release_page_idx = i;
+          tracerv_release_copied_bytes = copied;
+        }
+        dma_tracerv_dma_window_scope_push(i, copied);
         rc = dma_submit_wait_annotated_scoped(rt, &req, stage_idx, tensor_id, timeout_ns, &scope,
                                               dma_export_probe_enabled() && (page_probe || first_chunk_probe));
+        dma_tracerv_dma_window_scope_pop();
+        dma_breadcrumb_export_loop_phase(stage_idx, tensor_id, manager_id, i, &req, rc,
+                                         used_bounce ? PRT_BREADCRUMB_FLAG_BOUNCE : 0U,
+                                         timeout_ns,
+                                         PRT_BREADCRUMB_PHASE_DMA_PAGE_AFTER_SUBMITWAIT_RETURN,
+                                         __LINE__);
         dma_breadcrumb_page_end(tensor_id, manager_id, i, &req, rc,
                                 used_bounce ? PRT_BREADCRUMB_FLAG_BOUNCE : 0U,
                                 timeout_ns);
         dma_trigger_export_host("sw-e", stage_idx, manager_id, tensor_id, i, rc);
+        dma_breadcrumb_export_loop_phase(stage_idx, tensor_id, manager_id, i, &req, rc,
+                                         used_bounce ? PRT_BREADCRUMB_FLAG_BOUNCE : 0U,
+                                         timeout_ns,
+                                         PRT_BREADCRUMB_PHASE_DMA_PAGE_AFTER_PAGE_END,
+                                         __LINE__);
         if (page_probe) {
           PRT_PROGRESS_LOG("dma-export-host stage=%u tensor=%u phase=page-submitwait-end page=%u/%u copied=%llu chunk=%llu rc=%d bounce=%u",
                            stage_idx, tensor_id, i, src_pages->size,
@@ -877,8 +1060,22 @@ static int dma_copy_spm_pages_to_host_linux(prt_runtime_t *rt, uint8_t *dst_host
         memcpy(dst_ptr, bounce_ptr, (size_t)chunk);
         copied += chunk;
         remaining -= chunk;
+        dma_breadcrumb_export_loop_phase(stage_idx, tensor_id, manager_id, i, &req, rc,
+                                         used_bounce ? PRT_BREADCRUMB_FLAG_BOUNCE : 0U,
+                                         timeout_ns,
+                                         PRT_BREADCRUMB_PHASE_DMA_PAGE_AFTER_ACCOUNTING,
+                                         __LINE__);
         continue;
       }
+      req.src_addr = src_addr;
+      req.dst_addr = (uint64_t)(uintptr_t)dst_ptr;
+      req.bytes = chunk;
+      dma_breadcrumb_export_loop_phase_token(stage_idx, tensor_id, manager_id, i, &req, PRT_OK,
+                                             0U,
+                                             timeout_ns,
+                                             prt_breadcrumb_get_export_target_token(),
+                                             PRT_BREADCRUMB_PHASE_DMA_PAGE_DIRECT_PATH_DECIDED,
+                                             __LINE__);
       if (page_probe) {
         PRT_PROGRESS_LOG("dma-export-host stage=%u tensor=%u phase=v2p-begin page=%u/%u copied=%llu chunk=%llu dst_va=0x%llx bounce=%u",
                          stage_idx, tensor_id, i, src_pages->size,
@@ -888,8 +1085,21 @@ static int dma_copy_spm_pages_to_host_linux(prt_runtime_t *rt, uint8_t *dst_host
                          (uint32_t)used_bounce);
       }
       dma_trigger_export_host("v2p-b", stage_idx, manager_id, tensor_id, i, PRT_OK);
+      dma_breadcrumb_export_loop_phase(stage_idx, tensor_id, manager_id, i, &req, PRT_OK,
+                                       used_bounce ? PRT_BREADCRUMB_FLAG_BOUNCE : 0U,
+                                       timeout_ns,
+                                       PRT_BREADCRUMB_PHASE_DMA_PAGE_BEFORE_V2P,
+                                       __LINE__);
+      prt_host_virt_to_phys_debug_scope_push("dma-export-direct-dst");
       rc = prt_host_virt_to_phys((const void *)dst_ptr, &dst_pa);
+      prt_host_virt_to_phys_debug_scope_pop();
+      req.dst_addr = dst_pa;
       dma_trigger_export_host("v2p-e", stage_idx, manager_id, tensor_id, i, rc);
+      dma_breadcrumb_export_loop_phase(stage_idx, tensor_id, manager_id, i, &req, rc,
+                                       used_bounce ? PRT_BREADCRUMB_FLAG_BOUNCE : 0U,
+                                       timeout_ns,
+                                       PRT_BREADCRUMB_PHASE_DMA_PAGE_AFTER_V2P,
+                                       __LINE__);
       if (page_probe) {
         PRT_PROGRESS_LOG("dma-export-host stage=%u tensor=%u phase=v2p-end page=%u/%u copied=%llu chunk=%llu dst_va=0x%llx dst_pa=0x%llx rc=%d bounce=%u",
                          stage_idx, tensor_id, i, src_pages->size,
@@ -939,12 +1149,28 @@ static int dma_copy_spm_pages_to_host_linux(prt_runtime_t *rt, uint8_t *dst_host
       dma_breadcrumb_page_begin(tensor_id, manager_id, i, &req,
                                 used_bounce ? PRT_BREADCRUMB_FLAG_BOUNCE : 0U,
                                 timeout_ns);
+      if (dma_tracerv_dma_window_target_match(stage_idx, tensor_id, i, copied)) {
+        tracerv_release_page_idx = i;
+        tracerv_release_copied_bytes = copied;
+      }
+      dma_tracerv_dma_window_scope_push(i, copied);
       rc = dma_submit_wait_annotated_scoped(rt, &req, stage_idx, tensor_id, timeout_ns, &scope,
                                             dma_export_probe_enabled() && (page_probe || first_chunk_probe));
+      dma_tracerv_dma_window_scope_pop();
+      dma_breadcrumb_export_loop_phase(stage_idx, tensor_id, manager_id, i, &req, rc,
+                                       used_bounce ? PRT_BREADCRUMB_FLAG_BOUNCE : 0U,
+                                       timeout_ns,
+                                       PRT_BREADCRUMB_PHASE_DMA_PAGE_AFTER_SUBMITWAIT_RETURN,
+                                       __LINE__);
       dma_breadcrumb_page_end(tensor_id, manager_id, i, &req, rc,
                               used_bounce ? PRT_BREADCRUMB_FLAG_BOUNCE : 0U,
                               timeout_ns);
       dma_trigger_export_host("sw-e", stage_idx, manager_id, tensor_id, i, rc);
+      dma_breadcrumb_export_loop_phase(stage_idx, tensor_id, manager_id, i, &req, rc,
+                                       used_bounce ? PRT_BREADCRUMB_FLAG_BOUNCE : 0U,
+                                       timeout_ns,
+                                       PRT_BREADCRUMB_PHASE_DMA_PAGE_AFTER_PAGE_END,
+                                       __LINE__);
       if (page_probe) {
         PRT_PROGRESS_LOG("dma-export-host stage=%u tensor=%u phase=page-submitwait-end page=%u/%u copied=%llu chunk=%llu rc=%d bounce=%u",
                          stage_idx, tensor_id, i, src_pages->size,
@@ -985,11 +1211,24 @@ static int dma_copy_spm_pages_to_host_linux(prt_runtime_t *rt, uint8_t *dst_host
       }
       copied += chunk;
       remaining -= chunk;
+      dma_breadcrumb_export_loop_phase(stage_idx, tensor_id, manager_id, i, &req, rc,
+                                       used_bounce ? PRT_BREADCRUMB_FLAG_BOUNCE : 0U,
+                                       timeout_ns,
+                                       PRT_BREADCRUMB_PHASE_DMA_PAGE_AFTER_ACCOUNTING,
+                                       __LINE__);
     }
   }
 
 done:
+  dma_tracerv_dma_window_marker_if_match(stage_idx, tensor_id,
+                                         tracerv_release_page_idx,
+                                         tracerv_release_copied_bytes,
+                                         PRT_DMA_TRACERV_MARKER_BATCH_RELEASE_BEGIN);
   dma_batch_scope_release(&scope);
+  dma_tracerv_dma_window_marker_if_match(stage_idx, tensor_id,
+                                         tracerv_release_page_idx,
+                                         tracerv_release_copied_bytes,
+                                         PRT_DMA_TRACERV_MARKER_BATCH_RELEASE_END);
   return rc;
 }
 #endif
@@ -1194,6 +1433,171 @@ static int dma_env_has_value(const char *name) {
 }
 #endif
 
+static int dma_bounce_bypass_enabled(void) {
+#if !defined(BAREMETAL)
+  static int initialized = 0;
+  static int enabled = 0;
+  if (!initialized) {
+    enabled = dma_env_flag_enabled("PIPELINE_RUNTIME_DMA_BOUNCE_BYPASS_ENABLE", 0);
+    initialized = 1;
+  }
+  return enabled;
+#else
+  return 0;
+#endif
+}
+
+#if defined(__linux__) && defined(__riscv)
+static int dma_force_direct_enabled(void) {
+#if !defined(BAREMETAL)
+  static int initialized = 0;
+  static int enabled = 0;
+  if (!initialized) {
+    enabled = dma_env_flag_enabled("PIPELINE_RUNTIME_DMA_FORCE_DIRECT_ENABLE", 0);
+    initialized = 1;
+  }
+  return enabled;
+#else
+  return 0;
+#endif
+}
+#endif
+
+static int dma_tracerv_dma_window_page_range_match(uint32_t page_idx) {
+#if !defined(BAREMETAL)
+  static int initialized = 0;
+  static int configured = 0;
+  static uint32_t start = 0U;
+  static uint32_t end = UINT32_MAX;
+  if (!initialized) {
+    const int has_start = dma_env_has_value("PIPELINE_RUNTIME_DMA_TRACERV_PAGE_START");
+    const int has_end = dma_env_has_value("PIPELINE_RUNTIME_DMA_TRACERV_PAGE_END");
+    configured = has_start || has_end;
+    if (has_start) start = dma_env_u32("PIPELINE_RUNTIME_DMA_TRACERV_PAGE_START", 0U);
+    if (has_end) end = dma_env_u32("PIPELINE_RUNTIME_DMA_TRACERV_PAGE_END", UINT32_MAX);
+    if (!has_start) start = 0U;
+    if (!has_end) end = UINT32_MAX;
+    if (start > end) {
+      const uint32_t tmp = start;
+      start = end;
+      end = tmp;
+    }
+    initialized = 1;
+  }
+  if (!configured) return 1;
+  return page_idx >= start && page_idx <= end;
+#else
+  (void)page_idx;
+  return 1;
+#endif
+}
+
+static inline int dma_tracerv_dma_window_target_match(uint32_t stage_idx,
+                                                      uint32_t tensor_id,
+                                                      uint32_t page_idx,
+                                                      uint64_t copied_bytes) {
+#if defined(__riscv) && PRT_ENABLE_FIRESIM_TRACERV_DMA_WINDOW_MARKERS
+  if (stage_idx != 0U) return 0;
+  if (tensor_id != 6U) return 0;
+  if (copied_bytes != 0ULL) return 0;
+  return dma_tracerv_dma_window_page_range_match(page_idx);
+#else
+  (void)stage_idx;
+  (void)tensor_id;
+  (void)page_idx;
+  (void)copied_bytes;
+  return 0;
+#endif
+}
+
+static inline void dma_tracerv_dma_window_scope_push(uint32_t page_idx, uint64_t copied_bytes) {
+#if defined(__riscv) && PRT_ENABLE_FIRESIM_TRACERV_DMA_WINDOW_MARKERS
+  g_prt_dma_tracerv_scope_ctx.valid = 1;
+  g_prt_dma_tracerv_scope_ctx.page_idx = page_idx;
+  g_prt_dma_tracerv_scope_ctx.copied_bytes = copied_bytes;
+#else
+  (void)page_idx;
+  (void)copied_bytes;
+#endif
+}
+
+static inline void dma_tracerv_dma_window_scope_pop(void) {
+#if defined(__riscv) && PRT_ENABLE_FIRESIM_TRACERV_DMA_WINDOW_MARKERS
+  g_prt_dma_tracerv_scope_ctx.valid = 0;
+  g_prt_dma_tracerv_scope_ctx.page_idx = UINT32_MAX;
+  g_prt_dma_tracerv_scope_ctx.copied_bytes = 0ULL;
+#endif
+}
+
+static inline int dma_tracerv_dma_window_scope_match(uint32_t stage_idx, uint32_t tensor_id) {
+#if defined(__riscv) && PRT_ENABLE_FIRESIM_TRACERV_DMA_WINDOW_MARKERS
+  if (!g_prt_dma_tracerv_scope_ctx.valid) return 0;
+  return dma_tracerv_dma_window_target_match(stage_idx,
+                                             tensor_id,
+                                             g_prt_dma_tracerv_scope_ctx.page_idx,
+                                             g_prt_dma_tracerv_scope_ctx.copied_bytes);
+#else
+  (void)stage_idx;
+  (void)tensor_id;
+  return 0;
+#endif
+}
+
+static inline void dma_tracerv_dma_window_emit(prt_dma_tracerv_marker_t marker) {
+#if defined(__riscv) && PRT_ENABLE_FIRESIM_TRACERV_DMA_WINDOW_MARKERS
+  switch (marker) {
+    case PRT_DMA_TRACERV_MARKER_PROGRAM_BEGIN:
+      __asm__ volatile(".word 0x00018013" ::: "memory");
+      break;
+    case PRT_DMA_TRACERV_MARKER_PROGRAM_POST_FENCE:
+      __asm__ volatile(".word 0x00020013" ::: "memory");
+      break;
+    case PRT_DMA_TRACERV_MARKER_PROGRAM_POST_DST:
+      __asm__ volatile(".word 0x00028013" ::: "memory");
+      break;
+    case PRT_DMA_TRACERV_MARKER_PROGRAM_POST_SRC:
+      __asm__ volatile(".word 0x00030013" ::: "memory");
+      break;
+    case PRT_DMA_TRACERV_MARKER_WAIT_BEFORE_FENCE:
+      __asm__ volatile(".word 0x00038013" ::: "memory");
+      break;
+    case PRT_DMA_TRACERV_MARKER_WAIT_AFTER_FENCE:
+      __asm__ volatile(".word 0x00040013" ::: "memory");
+      break;
+    case PRT_DMA_TRACERV_MARKER_WAIT_BEFORE_SHARED_FENCE:
+      __asm__ volatile(".word 0x00048013" ::: "memory");
+      break;
+    case PRT_DMA_TRACERV_MARKER_WAIT_AFTER_SHARED_FENCE:
+      __asm__ volatile(".word 0x00050013" ::: "memory");
+      break;
+    case PRT_DMA_TRACERV_MARKER_BATCH_RELEASE_BEGIN:
+      __asm__ volatile(".word 0x00058013" ::: "memory");
+      break;
+    case PRT_DMA_TRACERV_MARKER_BATCH_RELEASE_END:
+      __asm__ volatile(".word 0x00060013" ::: "memory");
+      break;
+  }
+#else
+  (void)marker;
+#endif
+}
+
+static inline void dma_tracerv_dma_window_marker_if_scope(uint32_t stage_idx,
+                                                          uint32_t tensor_id,
+                                                          prt_dma_tracerv_marker_t marker) {
+  if (!dma_tracerv_dma_window_scope_match(stage_idx, tensor_id)) return;
+  dma_tracerv_dma_window_emit(marker);
+}
+
+static inline void dma_tracerv_dma_window_marker_if_match(uint32_t stage_idx,
+                                                          uint32_t tensor_id,
+                                                          uint32_t page_idx,
+                                                          uint64_t copied_bytes,
+                                                          prt_dma_tracerv_marker_t marker) {
+  if (!dma_tracerv_dma_window_target_match(stage_idx, tensor_id, page_idx, copied_bytes)) return;
+  dma_tracerv_dma_window_emit(marker);
+}
+
 static int dma_submit_marker_trace_enabled(void) {
 #if !defined(BAREMETAL)
   static int initialized = 0;
@@ -1343,9 +1747,9 @@ static uint32_t dma_fixed_load_pre_src_nops(void) {
 static void dma_busy_wait_nops(uint32_t count) {
   for (uint32_t i = 0; i < count; ++i) {
 #if defined(__riscv)
-    asm volatile("nop");
+    __asm__ volatile("nop");
 #else
-    asm volatile("" ::: "memory");
+    __asm__ volatile("" ::: "memory");
 #endif
   }
 }
@@ -1395,6 +1799,7 @@ static uint32_t dma_export_chunk_log_stride(void) {
 
 #if defined(__linux__) && defined(__riscv)
 static int dma_chunk_needs_bounce(uint64_t src_addr, uint64_t dst_addr, uint64_t bytes) {
+  if (dma_force_direct_enabled()) return 0;
   return bytes >= 64ULL && dma_debug_mod64(src_addr) != dma_debug_mod64(dst_addr);
 }
 
@@ -1486,8 +1891,9 @@ static void dma_debug_capture_done_flag(prt_runtime_t *rt, prt_dma_token_t *tok)
 static void dma_log_pending_state(const char *tag, const prt_dma_token_t *tok, uint64_t elapsed_ns) {
 #if !PRT_ENABLE_PROGRESS_LOG
   (void)tag;
+  (void)tok;
   (void)elapsed_ns;
-#endif
+#else
   int hw_done;
   if (!dma_should_progress_log(tok)) return;
   hw_done = dma_completion_flag_value(tok);
@@ -1511,6 +1917,7 @@ static void dma_log_pending_state(const char *tag, const prt_dma_token_t *tok, u
     (unsigned long long)tok->debug_done_flag_pa,
     tok->hw_done_flag_pa_rc,
     prt_err_str(tok->hw_done_flag_pa_rc));
+#endif
 }
 
 static int dma_should_marker_trace_submit(const prt_dma_req_t *req, uint32_t tensor_id) {
@@ -1938,7 +2345,7 @@ static inline void hw_dma_set_src(uint64_t addr, uint64_t len) {
 }
 
 static inline void hw_dma_submit_fence(void) {
-  asm volatile("fence rw, rw" ::: "memory");
+  __asm__ volatile("fence rw, rw" ::: "memory");
 }
 
 static inline uint64_t hw_dma_read_monitor(uint64_t stat_id) {
@@ -1949,9 +2356,9 @@ static inline uint64_t hw_dma_read_monitor(uint64_t stat_id) {
 
 static inline uint64_t hw_dma_fence(void) {
   uint64_t status = 0;
-  asm volatile("fence" ::: "memory");
+  __asm__ volatile("fence" ::: "memory");
   ROCC_INSTRUCTION_R_R_R(XCUSTOM_DMA, status, 0, 0, 3);
-  asm volatile("fence" ::: "memory");
+  __asm__ volatile("fence" ::: "memory");
   return status;
 }
 
@@ -1965,7 +2372,8 @@ static void dma_log_rr_snapshot_marker(const char *tag, const prt_dma_token_t *t
   const uint64_t cfg1 = dma_debug_rr_read_cfg(1U);
   const uint64_t cfg2 = dma_debug_rr_read_cfg(2U);
   const uint64_t cfg3 = dma_debug_rr_read_cfg(3U);
-  const uint64_t cfg15 = dma_debug_rr_read_cfg(15U);
+  const uint32_t reserved_cfg_id = RR_MAX_CFGS - 1U;
+  const uint64_t cfg_reserved = dma_debug_rr_read_cfg(reserved_cfg_id);
   uint64_t cfg_scope = UINT64_MAX;
   if (tok && tok->rr_cfg_id < RR_MAX_CFGS) {
     cfg_scope = dma_debug_rr_read_cfg(tok->rr_cfg_id);
@@ -1987,7 +2395,7 @@ static void dma_log_rr_snapshot_marker(const char *tag, const prt_dma_token_t *t
                  (unsigned long long)opc1,
                  (unsigned long long)opc2,
                  (unsigned long long)opc3);
-  PRT_MARKER_LOG("%s cfg token=%u cfg_scope=0x%llx cfg0=0x%llx cfg1=0x%llx cfg2=0x%llx cfg3=0x%llx cfg15=0x%llx",
+  PRT_MARKER_LOG("%s cfg token=%u cfg_scope=0x%llx cfg0=0x%llx cfg1=0x%llx cfg2=0x%llx cfg3=0x%llx cfg_reserved[%u]=0x%llx",
                  snapshot_tag,
                  tok ? tok->id : 0U,
                  (unsigned long long)cfg_scope,
@@ -1995,7 +2403,8 @@ static void dma_log_rr_snapshot_marker(const char *tag, const prt_dma_token_t *t
                  (unsigned long long)cfg1,
                  (unsigned long long)cfg2,
                  (unsigned long long)cfg3,
-                 (unsigned long long)cfg15);
+                 reserved_cfg_id,
+                 (unsigned long long)cfg_reserved);
 }
 
 #if defined(__linux__) && defined(__riscv)
@@ -2721,6 +3130,8 @@ static int dma_blocking_submit(prt_runtime_t *rt, const prt_dma_req_t *req, prt_
     tok->status = tok->hw_done_flag_pa_rc;
     return tok->hw_done_flag_pa_rc;
   }
+  dma_tracerv_dma_window_marker_if_scope(tok->stage_idx, tok->tensor_id,
+                                         PRT_DMA_TRACERV_MARKER_PROGRAM_BEGIN);
   PRT_PROGRESS_RAW_LINE("[prt-raw] dma pre-program");
   if (checkpoint_submit) {
     PRT_CHECKPOINT_LOG("dma stage=%u checkpoint=program-begin tensor=%u src=0x%llx dst=0x%llx bytes=%llu done_pa=0x%llx",
@@ -2784,6 +3195,8 @@ static int dma_blocking_submit(prt_runtime_t *rt, const prt_dma_req_t *req, prt_
                      (unsigned long long)tok->debug_done_flag_pa);
   }
   hw_dma_submit_fence();
+  dma_tracerv_dma_window_marker_if_scope(tok->stage_idx, tok->tensor_id,
+                                         PRT_DMA_TRACERV_MARKER_PROGRAM_POST_FENCE);
   if (checkpoint_submit) {
     PRT_CHECKPOINT_LOG("dma stage=%u checkpoint=program-post-fence tensor=%u", tok->stage_idx, tok->tensor_id);
   }
@@ -2821,6 +3234,8 @@ static int dma_blocking_submit(prt_runtime_t *rt, const prt_dma_req_t *req, prt_
                      (unsigned long long)tok->debug_done_flag_pa);
   }
   hw_dma_set_dst(progress_dst_addr, tok->debug_done_flag_pa);
+  dma_tracerv_dma_window_marker_if_scope(tok->stage_idx, tok->tensor_id,
+                                         PRT_DMA_TRACERV_MARKER_PROGRAM_POST_DST);
   if (checkpoint_submit) {
     PRT_CHECKPOINT_LOG("dma stage=%u checkpoint=program-post-dst tensor=%u dst=0x%llx done_pa=0x%llx",
                        tok->stage_idx, tok->tensor_id,
@@ -2920,6 +3335,8 @@ static int dma_blocking_submit(prt_runtime_t *rt, const prt_dma_req_t *req, prt_
     }
   }
   hw_dma_set_src(progress_src_addr, progress_bytes);
+  dma_tracerv_dma_window_marker_if_scope(tok->stage_idx, tok->tensor_id,
+                                         PRT_DMA_TRACERV_MARKER_PROGRAM_POST_SRC);
   if (checkpoint_submit) {
     PRT_CHECKPOINT_LOG("dma stage=%u checkpoint=program-post-src tensor=%u src=0x%llx bytes=%llu",
                        tok->stage_idx, tok->tensor_id,
@@ -3059,7 +3476,11 @@ static int dma_blocking_wait(prt_runtime_t *rt, prt_dma_token_t *tok, uint64_t t
                          (unsigned long long)dma_debug_mod64(tok->debug_done_flag_pa),
                          dma_debug_full_byte_mode_hint(tok->debug_src_addr, tok->debug_dst_addr, tok->debug_bytes));
   }
+  dma_tracerv_dma_window_marker_if_scope(tok->stage_idx, tok->tensor_id,
+                                         PRT_DMA_TRACERV_MARKER_WAIT_BEFORE_FENCE);
   fence_status = hw_dma_fence();
+  dma_tracerv_dma_window_marker_if_scope(tok->stage_idx, tok->tensor_id,
+                                         PRT_DMA_TRACERV_MARKER_WAIT_AFTER_FENCE);
   dma_completion_flag_refresh(tok);
   if (checkpoint_wait) {
     PRT_CHECKPOINT_LOG("dma stage=%u checkpoint=wait-fence-done tensor=%u token=%u status=%llu hw_done=%d",
@@ -3129,7 +3550,11 @@ static int dma_blocking_wait(prt_runtime_t *rt, prt_dma_token_t *tok, uint64_t t
                         tok->debug_done_flag_pa,
                         0ULL,
                         __LINE__);
+    dma_tracerv_dma_window_marker_if_scope(tok->stage_idx, tok->tensor_id,
+                                           PRT_DMA_TRACERV_MARKER_WAIT_BEFORE_SHARED_FENCE);
     (void)dma_token_fence_scope(tok);
+    dma_tracerv_dma_window_marker_if_scope(tok->stage_idx, tok->tensor_id,
+                                           PRT_DMA_TRACERV_MARKER_WAIT_AFTER_SHARED_FENCE);
     if (sparse_wait_probe) {
       PRT_PROGRESS_LOG("dma-wait-inner phase=after-shared-fence token=%u stage=%u tensor=%u valid=%u",
                        tok->id,

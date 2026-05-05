@@ -12,6 +12,7 @@ typedef enum {
   PRT_TRIGGER_LOG_FAMILY_DMA_EXPORT = 3,
   PRT_TRIGGER_LOG_FAMILY_RR = 4,
   PRT_TRIGGER_LOG_FAMILY_GEMMINI_POINTWISE = 5,
+  PRT_TRIGGER_LOG_FAMILY_SPM_XLATE = 6,
 } prt_trigger_log_family_t;
 
 typedef struct {

@@ -39,6 +39,9 @@ DMA_FIXED_SUBMIT_RE = re.compile(
 DMA_FIXED_WAIT_RE = re.compile(
     r"dma-fixed-load-wait phase=(?P<phase>[a-z0-9-]+) token=(?P<tok>\d+) stage=(?P<stage>\d+) tensor=(?P<tensor>\d+)"
 )
+SPM_XLATE_RELEASE_RE = re.compile(
+    r"spm-xlate-release mgr=(?P<mgr>\d+) cfg=(?P<cfg>\d+) phase=(?P<phase>[a-z0-9-]+)"
+)
 TRIGGER_LINE_RE = re.compile(
     r"seq=(?P<seq>\d+) "
     r"fam=(?P<fam>\S+) "
@@ -63,7 +66,7 @@ def parse_args() -> argparse.Namespace:
         "path",
         nargs="?",
         default="",
-        help="capture directory, breadcrumb binary, or sparse log path",
+        help="capture directory, watchdog capture prefix, breadcrumb binary, or sparse log path",
     )
     parser.add_argument("--breadcrumb", default="", help="explicit breadcrumb binary path")
     parser.add_argument("--sparse-log", default="", help="explicit sparse log path")
@@ -116,10 +119,36 @@ def resolve_inputs(args: argparse.Namespace) -> tuple[Optional[Path], Optional[P
             if trigger_log_path is None:
                 matches = sorted(path.glob("*guest-trigger-log.txt"))
                 trigger_log_path = matches[0] if matches else None
-        elif path.name.endswith(".bin") and breadcrumb_path is None:
-            breadcrumb_path = path
-        elif sparse_log_path is None:
-            sparse_log_path = path
+        else:
+            resolved_from_prefix = False
+            if path.exists():
+                if path.name.endswith(".bin") and breadcrumb_path is None:
+                    breadcrumb_path = path
+                elif path.name.endswith("guest-sparse-log.txt") and sparse_log_path is None:
+                    sparse_log_path = path
+                elif path.name.endswith("guest-trigger-log.txt") and trigger_log_path is None:
+                    trigger_log_path = path
+                elif sparse_log_path is None:
+                    sparse_log_path = path
+            else:
+                prefix = str(path)
+                if breadcrumb_path is None:
+                    candidate = Path(prefix + ".guest-breadcrumb.bin")
+                    if candidate.exists():
+                        breadcrumb_path = candidate
+                        resolved_from_prefix = True
+                if sparse_log_path is None:
+                    candidate = Path(prefix + ".guest-sparse-log.txt")
+                    if candidate.exists():
+                        sparse_log_path = candidate
+                        resolved_from_prefix = True
+                if trigger_log_path is None:
+                    candidate = Path(prefix + ".guest-trigger-log.txt")
+                    if candidate.exists():
+                        trigger_log_path = candidate
+                        resolved_from_prefix = True
+            if resolved_from_prefix and sparse_log_path is None and path.exists():
+                sparse_log_path = path
 
     return breadcrumb_path, sparse_log_path, trigger_log_path
 
@@ -204,6 +233,14 @@ def parse_sparse_summary(
             summary["dma_fixed_wait"] = data
             if data.get("phase") == "after-release":
                 last_wait_after_release_tok = int(data["tok"])
+            continue
+
+        match = SPM_XLATE_RELEASE_RE.search(line)
+        if match:
+            data = {k: v for k, v in match.groupdict().items() if v is not None}
+            data["line"] = line
+            data["line_idx"] = str(idx)
+            summary["spm_xlate_release"] = data
             continue
 
     summary["dma_fixed_focus_page_phases"] = focus_page_phases
@@ -330,6 +367,24 @@ def classify_frontier(
             "Prioritize the path after `dma-fixed-load-wait phase=after-release` and before the following `doneflag-end`.",
         )
 
+    spm_xlate_release = sparse_summary.get("spm_xlate_release")
+    if isinstance(spm_xlate_release, dict):
+        phase = spm_xlate_release.get("phase", "n/a")
+        if phase == "restore-begin":
+            return (
+                "inside spm-xlate restore path",
+                "Read `prt_spm_xlate_release_scope()` first, then use the existing `spm-xlate` trigger family to isolate `restore-begin -> restore-end`.",
+            )
+        if phase == "release-end":
+            return (
+                "between spm-xlate release-end and restore-end",
+                "Inspect the `rr_restore_opcode_binding(3U, prev_binding)` boundary before adding wider logs.",
+            )
+        return (
+            f"inside spm-xlate release path ({phase})",
+            "Read `prt_spm_xlate_release_scope()` before widening logs; keep the next rerun scoped to the `spm-xlate` trigger family.",
+        )
+
     if slot is None:
         if sparse_summary.get("pointwise_matmul"):
             return (
@@ -418,6 +473,9 @@ def frontier_summary(
     sparse_summary: Dict[str, object],
     verdict: str,
 ) -> str:
+    if sparse_summary.get("spm_xlate_release"):
+        data = sparse_summary["spm_xlate_release"]
+        return "spm-xlate-release mgr={mgr} cfg={cfg} phase={phase}".format(**data)
     if sparse_summary.get("dma_fixed_host"):
         data = sparse_summary["dma_fixed_host"]
         return "dma-fixed-load stage={stage} tensor={tensor} page={page} phase={phase}".format(**data)
@@ -524,6 +582,19 @@ def emit_trigger_env(
         env["PIPELINE_RUNTIME_DEBUG_TRIGGER_LOCAL_STAGE"] = data["stage"]
         env["PIPELINE_RUNTIME_DEBUG_TRIGGER_TENSOR_ID"] = data["tensor"]
         env["PIPELINE_RUNTIME_DEBUG_TRIGGER_TOKEN"] = data["tok"]
+    elif sparse_summary.get("spm_xlate_release"):
+        data = sparse_summary["spm_xlate_release"]
+        env["PIPELINE_RUNTIME_DEBUG_TRIGGER_KIND"] = "spm-xlate"
+        env["PIPELINE_RUNTIME_DEBUG_TRIGGER_MANAGER"] = data["mgr"]
+        env["PIPELINE_RUNTIME_DEBUG_TRIGGER_TOKEN"] = data["cfg"]
+        if slot is not None and slot.segment_idx != breadcrumb.PRT_BREADCRUMB_ANY_U32:
+            env["PIPELINE_RUNTIME_DEBUG_TRIGGER_SEGMENT"] = str(slot.segment_idx)
+        if slot is not None and slot.global_stage_id != breadcrumb.PRT_BREADCRUMB_ANY_U32:
+            env["PIPELINE_RUNTIME_DEBUG_TRIGGER_GLOBAL_STAGE"] = str(slot.global_stage_id)
+        if slot is not None and slot.local_stage_id != breadcrumb.PRT_BREADCRUMB_ANY_U32:
+            env["PIPELINE_RUNTIME_DEBUG_TRIGGER_LOCAL_STAGE"] = str(slot.local_stage_id)
+        if slot is not None and slot.subbatch_id != breadcrumb.PRT_BREADCRUMB_ANY_U32:
+            env["PIPELINE_RUNTIME_DEBUG_TRIGGER_SUBBATCH"] = str(slot.subbatch_id)
     elif slot is not None and slot.kind == 5:
         sparse_key, sparse_data = latest_sparse_item(
             sparse_summary,
@@ -647,6 +718,8 @@ def recommend_next_probe(
         return "retarget-trigger-or-raise-budget-before-frontier-claim"
     if claim_class in ("observability_only", "hardware_candidate", "frontier_moved_without_repo_change"):
         return "control-rerun-first"
+    if sparse_summary.get("spm_xlate_release"):
+        return "static-read-spm-xlate-restore-then-sx-trigger"
     if slot is not None and slot.kind == 2:
         return "static-read-dma-page-boundary-then-page-trigger"
     if slot is not None and slot.kind == 5:
@@ -752,6 +825,7 @@ def main() -> int:
     print(format_sparse_item("sparse_dma_export_host", sparse_summary.get("dma_export_host")))
     print(format_sparse_item("sparse_dma_fixed_submit", sparse_summary.get("dma_fixed_submit")))
     print(format_sparse_item("sparse_dma_fixed_wait", sparse_summary.get("dma_fixed_wait")))
+    print(format_sparse_item("sparse_spm_xlate_release", sparse_summary.get("spm_xlate_release")))
     print(
         format_sparse_list(
             "sparse_dma_fixed_focus_page_phases",

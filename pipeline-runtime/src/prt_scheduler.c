@@ -505,6 +505,8 @@ int prt_process_c2(prt_runtime_t *rt, prt_pipebuf_t *buf, uint32_t idx, uint64_t
     if (sparse_export_probe) {
       uint32_t next_sbatch = buf->subbatch_offset;
       int full = buf->full[idx];
+      (void)next_sbatch;
+      (void)full;
       PRT_PROGRESS_LOG("c2-export stage=%u tensor=%u phase=retire idx=%u rc=%d next_sbatch=%u full=%d",
                        buf->stage_idx, buf->tensor_id, idx, rc, next_sbatch, full);
     }

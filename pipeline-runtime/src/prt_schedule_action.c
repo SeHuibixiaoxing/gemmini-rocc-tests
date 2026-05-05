@@ -541,6 +541,7 @@ int prt_action_alloc_acc(prt_runtime_t *rt, prt_schedule_action_t *action) {
 
   seg = action->pipeline_segment_ref;
   seg_stage_count = seg->num_stages;
+  (void)seg_stage_count;
   if (gemmini_mgr_count > PRT_MAX_CORES || dma_mgr_count > PRT_MAX_CORES) {
     fprintf(stderr, "action_alloc_acc: manager count exceeds compile-time max cores\n");
     return PRT_ERR_NOT_IMPL;

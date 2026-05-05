@@ -107,7 +107,7 @@ static int read_full_pread_at(int fd, char *buf, size_t len, off_t base_off) {
   return PRT_OK;
 }
 
-static int read_full_pread(int fd, char *buf, size_t len) {
+static int __attribute__((unused)) read_full_pread(int fd, char *buf, size_t len) {
   return read_full_pread_at(fd, buf, len, 0);
 }
 

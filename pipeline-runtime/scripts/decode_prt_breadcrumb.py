@@ -40,6 +40,12 @@ PHASE_NAMES = {
     115: "dma_submitwait_after_wait",
     116: "dma_submitwait_after_cleanup",
     117: "dma_wait_before_shared_fence",
+    118: "dma_page_after_submitwait_return",
+    119: "dma_page_after_page_end",
+    120: "dma_page_after_accounting",
+    121: "dma_page_before_v2p",
+    122: "dma_page_after_v2p",
+    123: "dma_page_direct_path_decided",
     200: "spm_xlate_flush_begin",
     201: "spm_xlate_flush_end",
     202: "spm_xlate_release_fence_begin",
@@ -57,6 +63,7 @@ PHASE_NAMES = {
     306: "rr_acquire_after_call",
     307: "rr_release_begin",
     308: "rr_release_end",
+    309: "rr_release_after_csr_write",
     400: "gemmini_pointwise_call_begin",
     401: "gemmini_pointwise_call_return",
     402: "gemmini_pointwise_matmul_begin",
@@ -66,6 +73,11 @@ PHASE_NAMES = {
     406: "gemmini_pointwise_postcall_gemmini_fence_return",
     407: "gemmini_pointwise_postcall_drain_return",
     408: "gemmini_pointwise_postcall_release_return",
+    409: "gemmini_pointwise_precall_after_scope_marker",
+    410: "gemmini_pointwise_precall_after_binding_snapshot",
+    411: "gemmini_pointwise_precall_dispatch_decided",
+    412: "gemmini_pointwise_precall_after_postflush_snapshot",
+    413: "gemmini_pointwise_precall_ready",
 }
 
 FALLBACK_TYPE_NAMES = {
@@ -84,6 +96,11 @@ GEMMINI_PHASES = {
     406,
     407,
     408,
+    409,
+    410,
+    411,
+    412,
+    413,
 }
 
 

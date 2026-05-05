@@ -5,6 +5,7 @@
 #include "prt_runtime.h"
 #include "prt_action_queue.h"
 #include "prt_breadcrumb.h"
+#include "prt_debug_state.h"
 #include "prt_rerocc.h"
 #include "prt_gemmini_artifacts.h"
 #include "prt_progress.h"
@@ -53,7 +54,7 @@ uint64_t prt_now_ns(void) {
 uint64_t prt_now_cycle(void) {
 #if defined(__riscv)
   uint64_t c = 0;
-  asm volatile("rdcycle %0" : "=r"(c));
+  __asm__ volatile("rdcycle %0" : "=r"(c));
   return c;
 #else
   return prt_now_ns();
@@ -199,6 +200,32 @@ static const char *progress_pipebuf_kind_name(prt_pipebuf_kind_t kind) {
   }
 }
 
+static uint32_t debug_wait_phase_id(const char *phase) {
+  if (!phase) return PRT_DEBUG_WAIT_NONE;
+  if (strcmp(phase, "entry-c1-process") == 0) return PRT_DEBUG_WAIT_ENTRY_C1_PROCESS;
+  if (strcmp(phase, "entry-c5-process") == 0) return PRT_DEBUG_WAIT_ENTRY_C5_PROCESS;
+  if (strcmp(phase, "entry-c7-ring-ready") == 0) return PRT_DEBUG_WAIT_ENTRY_C7_RING_READY;
+  if (strcmp(phase, "entry-full") == 0) return PRT_DEBUG_WAIT_ENTRY_FULL;
+  if (strcmp(phase, "export-ring-idle") == 0) return PRT_DEBUG_WAIT_EXPORT_RING_IDLE;
+  if (strcmp(phase, "export-c4-drain") == 0) return PRT_DEBUG_WAIT_EXPORT_C4_DRAIN;
+  if (strcmp(phase, "export-dma-retire") == 0) return PRT_DEBUG_WAIT_EXPORT_DMA_RETIRE;
+  if (strcmp(phase, "export-empty") == 0) return PRT_DEBUG_WAIT_EXPORT_EMPTY;
+  return PRT_DEBUG_WAIT_NONE;
+}
+
+static void debug_note_worker_wait(uint32_t stage_id, uint32_t subbatch, const char *phase,
+                                   prt_pipebuf_t *buf, uint32_t idx, int rc) {
+  prt_debug_state_set_wait(stage_id, subbatch, debug_wait_phase_id(phase),
+                           buf ? buf->tensor_id : PRT_DEBUG_U32_NONE,
+                           idx,
+                           buf ? (uint32_t)buf->kind : PRT_DEBUG_U32_NONE,
+                           buf ? buf->in_use_idx : PRT_DEBUG_U32_NONE,
+                           buf ? buf->no_use_idx : PRT_DEBUG_U32_NONE,
+                           (uintptr_t)buf,
+                           buf ? (uintptr_t)buf->ring : 0,
+                           rc);
+}
+
 #if PRT_ENABLE_PROGRESS_LOG
 static const char *progress_split_kind_name(prt_layer_split_t kind) {
   switch (kind) {
@@ -216,6 +243,7 @@ static void progress_log_worker_wait(uint32_t stage_id, uint32_t subbatch, const
                                      uint64_t *last_log_ms, int rc) {
   uint64_t now = monotonic_ms();
   uint64_t elapsed_ms = now >= wait_begin_ms ? (now - wait_begin_ms) : 0;
+  debug_note_worker_wait(stage_id, subbatch, phase, buf, idx, rc);
   if (last_log_ms && *last_log_ms != 0 && now - *last_log_ms < 1000ULL) return;
   if (last_log_ms) *last_log_ms = now;
 
@@ -275,14 +303,9 @@ static void progress_log_worker_wait(uint32_t stage_id, uint32_t subbatch, const
 static void progress_log_worker_wait(uint32_t stage_id, uint32_t subbatch, const char *phase,
                                      prt_pipebuf_t *buf, uint32_t idx, uint64_t wait_begin_ms,
                                      uint64_t *last_log_ms, int rc) {
-  (void)stage_id;
-  (void)subbatch;
-  (void)phase;
-  (void)buf;
-  (void)idx;
+  debug_note_worker_wait(stage_id, subbatch, phase, buf, idx, rc);
   (void)wait_begin_ms;
   (void)last_log_ms;
-  (void)rc;
 }
 #endif
 
@@ -666,6 +689,8 @@ static int pick_affinity_cpu(uint32_t preferred_idx, int *out_cpu) {
 static void stage_bind_current_thread(prt_runtime_t *rt, prt_stage_thread_ctx_t *ctx) {
   const prt_action_exec_t *exec;
   int target_cpu = -1;
+  int actual_cpu = -1;
+  int actual_errno = 0;
   cpu_set_t set;
   int rc;
   if (!rt || !ctx) return;
@@ -687,6 +712,19 @@ static void stage_bind_current_thread(prt_runtime_t *rt, prt_stage_thread_ctx_t 
             ctx->stage_id, target_cpu, errno);
     return;
   }
+
+  errno = 0;
+  actual_cpu = sched_getcpu();
+  actual_errno = errno;
+  (void)actual_cpu;
+  (void)actual_errno;
+  PRT_PROGRESS_LOG("worker-affinity stage=%u acc=%u dma=%u target_cpu=%d actual_cpu=%d actual_errno=%d",
+                   ctx->stage_id,
+                   exec->stage_acc_ids[ctx->stage_id],
+                   exec->stage_dma_ids[ctx->stage_id],
+                   target_cpu,
+                   actual_cpu,
+                   actual_cpu < 0 ? actual_errno : 0);
 }
 
 static uint32_t runtime_stage_global_id(const prt_schedule_action_t *action, uint32_t local_stage_id) {
@@ -914,6 +952,7 @@ static int prefault_and_lock_blob(const char *kind, const char *path, void *buf,
   size_t next_progress_bytes = progress_interval_bytes;
 
   if (!buf || blob_size == 0U) return PRT_OK;
+  (void)total_pages;
 
   PRT_PROGRESS_LOG("%s before-prefault path=%s ptr=%p size=%zu page_bytes=%zu mode=write-preserve",
                    tag, blob_path, buf, blob_size, step);
@@ -1860,6 +1899,7 @@ static int copy_tensor_pages_to_model_alias_target(prt_runtime_t *rt, uint32_t t
                                                    const char *target_kind, uint32_t target_slot,
                                                    uint64_t dst_addr) {
   const uint64_t timeout_ns = export_dma_timeout_ns(rt);
+  const uint32_t breadcrumb_token_id = target_seq + 1U;
   int rc;
   if (!rt || !pages || !target_kind || src_size == 0U) return PRT_ERR_INVAL;
   if (stage_id == 0U && tensor_id == 2U) {
@@ -1878,7 +1918,12 @@ static int copy_tensor_pages_to_model_alias_target(prt_runtime_t *rt, uint32_t t
                  pages->size,
                  manager_id,
                  rt->cfg.export_dma_timeout_ms);
+  // Reserve token 0 for page-level breadcrumbs; alias-target exports use
+  // target_seq + 1 so the direct-path probe lands outside the current slot14
+  // equivalence class.
+  prt_breadcrumb_set_export_target_token(breadcrumb_token_id);
   rc = prt_dma_copy_spm_pages_to_dram(rt, dst_addr, pages, manager_id, stage_id, tensor_id, timeout_ns);
+  prt_breadcrumb_clear_export_target_token();
   PRT_MARKER_LOG("export-target stage=%u tensor=%u layer=%u slot=%u target=%s target_slot=%u dst=0x%llx bytes=%llu pages=%u dma=%u rc=%d end",
                  stage_id, tensor_id, layer_index, slot, target_kind, target_slot,
                  (unsigned long long)dst_addr,
@@ -2029,6 +2074,8 @@ static int stage_prepare_exec_views(prt_runtime_t *rt, uint32_t stage_id, const 
   const prt_stage_map_t *stage;
   prt_schedule_action_t *action;
   uint32_t page_bytes;
+  uint32_t gate_segment_idx = PRT_LOG_GATE_ANY_U32;
+  uint32_t gate_global_stage_id = stage_id;
   int need_flush = 0;
   if (!rt || !layer) return PRT_ERR_INVAL;
   stage = runtime_stage_map(rt, stage_id);
@@ -2036,6 +2083,10 @@ static int stage_prepare_exec_views(prt_runtime_t *rt, uint32_t stage_id, const 
   action = prt_runtime_current_action(rt);
   exec = prt_runtime_current_exec(rt);
   if (!exec) return PRT_ERR_STATE;
+  if (action) {
+    gate_segment_idx = action->segment_idx;
+    gate_global_stage_id = runtime_stage_global_id(action, stage_id);
+  }
   if (stage_id == 0U) {
     PRT_PROGRESS_LOG("stage-exec-views phase=begin segment=%u stage=%u layer=%u tensors=%u",
                      action ? action->segment_idx : UINT32_MAX,
@@ -2191,6 +2242,8 @@ static int stage_prepare_exec_views(prt_runtime_t *rt, uint32_t stage_id, const 
     uint32_t flush_mgrs[PRT_MAX_CORES];
     uint32_t flush_mgr_count = runtime_collect_stage_gemmini_mgrs(rt, stage_id, flush_mgrs, PRT_MAX_CORES);
     int rc;
+    (void)flush_mgrs;
+    (void)flush_mgr_count;
     if (should_log_exec_view_steps(action, stage_id)) {
       PRT_MARKER_LOG("exec-bind-flush action=%u segment=%u stage=%u begin mgr_count=%u mgr0=%u mgr1=%u mgr2=%u mgr3=%u",
                      action->action_id, action->segment_idx, stage_id,
@@ -2200,7 +2253,9 @@ static int stage_prepare_exec_views(prt_runtime_t *rt, uint32_t stage_id, const 
                      flush_mgr_count > 2U ? flush_mgrs[2] : 0U,
                      flush_mgr_count > 3U ? flush_mgrs[3] : 0U);
       }
+    prt_log_gate_set_context(gate_segment_idx, gate_global_stage_id, stage_id, PRT_LOG_GATE_ANY_U32);
     rc = runtime_flush_stage_spm_xlate(rt, stage_id);
+    prt_log_gate_clear_context();
     if (should_log_exec_view_steps(action, stage_id)) {
       PRT_MARKER_LOG("exec-bind-flush action=%u segment=%u stage=%u end rc=%d mgr_count=%u mgr0=%u mgr1=%u mgr2=%u mgr3=%u",
                      action->action_id, action->segment_idx, stage_id, rc,
@@ -3418,6 +3473,7 @@ static int stage_wait_exports_ready(prt_runtime_t *rt, uint32_t stage_id, uint32
     uint64_t wait_begin_ms = monotonic_ms();
 
     if (b->kind == PRT_BUF_C8_EXPORT_ALL_RING) {
+      debug_note_worker_wait(stage_id, subbatch, "export-ring-idle", b, b->in_use_idx, PRT_OK);
       rc = prt_ring_wait_idle(b->ring, timeout_ns);
       if (rc == PRT_ERR_TIMEOUT) {
         progress_log_worker_wait(stage_id, subbatch, "export-ring-idle", b, b->in_use_idx,
@@ -3445,6 +3501,7 @@ static int stage_wait_exports_ready(prt_runtime_t *rt, uint32_t stage_id, uint32
           }
         }
 
+        debug_note_worker_wait(stage_id, subbatch, "export-c4-drain", b, idx, PRT_OK);
         rc = wait_pipebuf_cv(b, 1000000ULL);
         if (rc == PRT_ERR_TIMEOUT) {
           progress_log_worker_wait(stage_id, subbatch, "export-c4-drain", b, idx,
@@ -3475,6 +3532,7 @@ static int stage_wait_exports_ready(prt_runtime_t *rt, uint32_t stage_id, uint32
         pthread_mutex_unlock(&b->lock);
         if (empty) break;
 
+        debug_note_worker_wait(stage_id, subbatch, "export-dma-retire", b, idx, PRT_OK);
         rc = wait_pipebuf_cv(b, 1000000ULL);
         if (rc == PRT_ERR_TIMEOUT) {
           progress_log_worker_wait(stage_id, subbatch, "export-dma-retire", b, idx,
@@ -3488,6 +3546,7 @@ static int stage_wait_exports_ready(prt_runtime_t *rt, uint32_t stage_id, uint32
         }
       }
     } else {
+      debug_note_worker_wait(stage_id, subbatch, "export-empty", b, b->in_use_idx, PRT_OK);
       rc = prt_pipebuf_wait_empty(b, b->in_use_idx, timeout_ns);
       if (rc == PRT_ERR_TIMEOUT) {
         progress_log_worker_wait(stage_id, subbatch, "export-empty", b, b->in_use_idx,
@@ -4025,7 +4084,6 @@ static void *stage_worker_main(void *arg) {
                    (ctx->stage_id < exec->stage_thread_count) ? exec->stage_acc_ids[ctx->stage_id] : 0U,
                    (ctx->stage_id < exec->stage_thread_count) ? exec->stage_dma_ids[ctx->stage_id] : 0U,
                    (ctx->stage_id < exec->stage_thread_count) ? exec->stage_tile_counts[ctx->stage_id] : 0U);
-
   while (!ctx->stop && !rt->stop_requested && !rt->fatal_error) {
     int rc;
     int retry = 0;
@@ -4035,6 +4093,8 @@ static void *stage_worker_main(void *arg) {
     uint32_t progress_sbatch = progress_stage_sbatch(entry_bufs, entry_count, export_bufs, export_count);
     uint32_t segment_idx = ctx->action ? ctx->action->segment_idx : 0U;
     uint32_t global_stage_id = runtime_stage_global_id(ctx->action, ctx->stage_id);
+    prt_debug_state_set_worker(segment_idx, global_stage_id, ctx->stage_id,
+                               progress_sbatch, PRT_DEBUG_PHASE_WORKER_LOOP);
 
     if (ctx->stage_id == 0U) {
       PRT_CHECKPOINT_LOG("worker stage=%u checkpoint=after-progress-sbatch subbatch=%u segment=%u global_stage=%u",
@@ -4060,6 +4120,7 @@ static void *stage_worker_main(void *arg) {
             PRT_CHECKPOINT_LOG("worker stage=%u checkpoint=before-c1 subbatch=%u entry=%u tensor=%u idx=%u",
                                ctx->stage_id, progress_sbatch, i, b->tensor_id, idx);
           }
+          debug_note_worker_wait(ctx->stage_id, progress_sbatch, "entry-c1-process", b, idx, PRT_OK);
           rc = prt_process_c1(rt, b, idx, wait_timeout_ns);
           if (ctx->stage_id == 0U) {
             PRT_CHECKPOINT_LOG("worker stage=%u checkpoint=after-c1 subbatch=%u entry=%u tensor=%u idx=%u rc=%d",
@@ -4080,6 +4141,7 @@ static void *stage_worker_main(void *arg) {
         case PRT_BUF_C5_ENTRY_ISOLATE_WITH_RING:
           prt_log_gate_set_context(segment_idx, global_stage_id, ctx->stage_id, progress_sbatch);
           entry_process_has_context = 1;
+          debug_note_worker_wait(ctx->stage_id, progress_sbatch, "entry-c5-process", b, idx, PRT_OK);
           rc = prt_process_c5(rt, b, idx, wait_timeout_ns);
           if (rc == PRT_ERR_TIMEOUT) {
             progress_log_worker_wait(ctx->stage_id, progress_sbatch, "entry-c5-process", b, idx,
@@ -4093,6 +4155,7 @@ static void *stage_worker_main(void *arg) {
         case PRT_BUF_C7_ENTRY_ALL_RING:
           prt_log_gate_set_context(segment_idx, global_stage_id, ctx->stage_id, progress_sbatch);
           entry_process_has_context = 1;
+          debug_note_worker_wait(ctx->stage_id, progress_sbatch, "entry-c7-ring-ready", b, idx, PRT_OK);
           rc = prt_ring_wait_ready(b->ring, b->subbatch_offset, wait_timeout_ns);
           if (rc == PRT_ERR_TIMEOUT) {
             progress_log_worker_wait(ctx->stage_id, progress_sbatch, "entry-c7-ring-ready", b, idx,
@@ -4118,6 +4181,7 @@ static void *stage_worker_main(void *arg) {
         PRT_CHECKPOINT_LOG("worker stage=%u checkpoint=before-entry-full subbatch=%u entry=%u tensor=%u idx=%u",
                            ctx->stage_id, progress_sbatch, i, b->tensor_id, idx);
       }
+      debug_note_worker_wait(ctx->stage_id, progress_sbatch, "entry-full", b, idx, PRT_OK);
       rc = prt_pipebuf_wait_full(b, idx, wait_timeout_ns);
       if (ctx->stage_id == 0U) {
         PRT_CHECKPOINT_LOG("worker stage=%u checkpoint=after-entry-full subbatch=%u entry=%u tensor=%u idx=%u rc=%d",
@@ -4158,6 +4222,8 @@ static void *stage_worker_main(void *arg) {
       break;
     }
 
+    prt_debug_state_set_worker(segment_idx, global_stage_id, ctx->stage_id,
+                               progress_sbatch, PRT_DEBUG_PHASE_GEMM_PREP);
     {
       prt_conv_task_t task;
       prt_gemmini_conv_desc_t conv_desc;
@@ -4269,6 +4335,8 @@ static void *stage_worker_main(void *arg) {
       PRT_MARKER_LOG("wrk-issue s=%u sb=%u", ctx->stage_id, progress_sbatch);
       PRT_PROGRESS_HOT_ERR_LOG("worker stage=%u subbatch=%u gemm-run-enter", ctx->stage_id, progress_sbatch);
       PRT_PROGRESS_RAW_LINE("[prt-raw] wrk-gb");
+      prt_debug_state_set_worker(segment_idx, global_stage_id, ctx->stage_id,
+                                 progress_sbatch, PRT_DEBUG_PHASE_GEMM_RUN);
       rc = prt_gemm_conv_run(rt, &task, timeout_ns);
       PRT_PROGRESS_RAW_LINE("[prt-raw] wrk-ge");
       PRT_MARKER_LOG("wrk-exit s=%u sb=%u rc=%d", ctx->stage_id, progress_sbatch, rc);
@@ -4296,6 +4364,8 @@ static void *stage_worker_main(void *arg) {
         prt_trace_on_gemm_fence(rt);
         prt_trace_log_event(rt, ctx->stage_id, PRT_TRACE_EVT_GEMM_FENCE_BEGIN, 0, 0);
         PRT_MARKER_LOG("worker stage=%u subbatch=%u gemm-fence-enter", ctx->stage_id, progress_sbatch);
+        prt_debug_state_set_worker(segment_idx, global_stage_id, ctx->stage_id,
+                                   progress_sbatch, PRT_DEBUG_PHASE_GEMM_FENCE);
         rc = prt_gemm_fence(rt, &task, timeout_ns);
         PRT_MARKER_LOG("worker stage=%u subbatch=%u gemm-fence-exit rc=%d",
                        ctx->stage_id, progress_sbatch, rc);
@@ -4315,6 +4385,8 @@ static void *stage_worker_main(void *arg) {
       }
       PRT_MARKER_LOG("worker stage=%u subbatch=%u export-sync-enter", ctx->stage_id, progress_sbatch);
       PRT_PROGRESS_RAW_LINE("[prt-raw] exs-b");
+      prt_debug_state_set_worker(segment_idx, global_stage_id, ctx->stage_id,
+                                 progress_sbatch, PRT_DEBUG_PHASE_EXPORT_SYNC);
       rc = sync_stage_export_aliases(rt, segment_idx, ctx->stage_id, global_stage_id, progress_sbatch);
       PRT_PROGRESS_RAW_LINE("[prt-raw] exs-e");
       PRT_MARKER_LOG("worker stage=%u subbatch=%u export-sync-exit rc=%d",
@@ -4328,6 +4400,8 @@ static void *stage_worker_main(void *arg) {
       prt_runtime_trigger_note_worker(segment_idx, global_stage_id, ctx->stage_id,
                                       progress_sbatch, "cmp-d", PRT_OK);
       PRT_PROGRESS_LOG("worker stage=%u subbatch=%u compute-done", ctx->stage_id, progress_sbatch);
+      prt_debug_state_set_worker(segment_idx, global_stage_id, ctx->stage_id,
+                                 progress_sbatch, PRT_DEBUG_PHASE_WORKER_DONE);
       last_wait_log_ms = 0;
     }
     if (rt->fatal_error || rt->stop_requested) break;
@@ -4444,6 +4518,8 @@ int prt_runtime_init(const prt_runtime_cfg_t *cfg, prt_runtime_t *rt) {
   int rc;
   if (!cfg || !rt) return PRT_ERR_INVAL;
   memset(rt, 0, sizeof(*rt));
+  prt_debug_filter_init_from_env();
+  prt_debug_state_reset_thread();
   rt->cfg = *cfg;
   pthread_mutex_init(&rt->action_queue_lock, NULL);
 
@@ -4903,6 +4979,7 @@ int prt_runtime_run(prt_runtime_t *rt, const prt_run_args_t *args) {
     pthread_attr_t stage_thread_attr;
     int stage_thread_attr_ready = 0;
     size_t stage_stack_bytes = 0U;
+    prt_debug_state_set_segment(seg_idx);
     PRT_MARKER_LOG("segment=%u begin stages=%u seg_subbatch=%u last=%u",
                    seg_idx, seg->num_stages, seg->subbatch_size, (uint32_t)is_last_segment);
     PRT_PROGRESS_LOG("segment=%u init begin stages=%u seg_subbatch_size=%u is_last=%u",
