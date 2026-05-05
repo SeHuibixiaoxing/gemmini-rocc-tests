@@ -1,6 +1,6 @@
 # Pipeline Runtime gdbserver Integration SOP
 
-更新时间：`2026-05-05 16:55 UTC`
+更新时间：`2026-05-05 17:05 UTC`
 
 ## 1. 目标
 
@@ -400,6 +400,13 @@ rg -n "SimpleNICBridgeModule|ice-nic@10016000|bytes_written_per_beat|write_shift
 `write_shift`；`network-audit` 找到 `ice-nic@10016000`。该轮仍未产生
 AGFI/AFI，尚不能更新 HWDB 或启动 cfg32 NIC gdbserver run。
 
+2026-05-05 17:02 UTC 复查：该构建已完成 GoldenGate 和远端源码同步，当前在 build host
+`i-0479b74dd4de8e428` / `192.168.0.60` 上执行 Vivado customer CL 综合。远端主进程是
+`vivado -mode batch -source build_all.tcl ... SSI_SpreadLogic_high AggressiveExplore AggressiveExplore ... H2`，
+并伴随多个 parallel synth worker；日志已有多条 `synth_design completed successfully`，但还没有
+可用于判断资源余量的 utilization/place/timing report，也没有 AGFI/AFI。此时不应停止构建或更新
+HWDB；继续按 1200s 轮询等待 post-synth/place 结果。
+
 每次汇报 buildbitstream 已启动时，都要同时汇报：
 
 - tmux session 名称；
@@ -544,7 +551,8 @@ generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdumm
 ```bash
 generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdummy_sbus128_gdbserver_cfg32_nic_workflow.sh launch
 generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdummy_sbus128_gdbserver_cfg32_nic_workflow.sh infrasetup
-generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdummy_sbus128_gdbserver_cfg32_nic_workflow.sh run
+RUN_HOST_PRIVATE_IP="$(generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdummy_sbus128_gdbserver_cfg32_nic_workflow.sh current-private-ip)"
+generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdummy_sbus128_gdbserver_cfg32_nic_workflow.sh run "${RUN_HOST_PRIVATE_IP}"
 ```
 
 说明：
@@ -571,6 +579,36 @@ generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdumm
 generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdummy_sbus128_gdbserver_cfg32_nic_workflow.sh network-audit
 generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdummy_sbus128_gdbserver_cfg32_nic_workflow.sh network-prepare
 ```
+
+### 6.2.1 cfg32 NIC 构建成功后的强制检查点
+
+新 `cfg32_nic` AGFI 生成后，进入 runfarm 之前必须做一个 git 检查点。该 commit 至少要写清：
+
+- AGFI / AFI / build result 目录；
+- build config、recipe、deploy triplet、strategy、frequency；
+- buildbitstream session、manager log、pane log、远端 Vivado log；
+- freshness gate 结果和关键 marker；
+- HWDB 更新的 AGFI 与 `driver_tar`；
+- 当前未验证项：还没有跑 gdbserver workload、还没有证明 pipeline-runtime 能继续执行。
+
+不要把 HWDB 更新和后续 runtime 代码修复混在同一个 commit。先提交“新 bitstream 可引用”的状态，
+再启动 `launchrunfarm -> infrasetup -> runworkload`。
+
+### 6.2.2 cfg32 NIC 首轮 attach 判据
+
+首轮目标是证明“pipeline-runtime 可以被 remote gdbserver 稳定接管”，不是证明模型结果正确。
+最小通过条件：
+
+- guest UART 出现 IceNet probe / network OK / `[gdbserver] phase=listening`，且 `guest_ipv4` 非空；
+- manager 到 run host 的 SSH tunnel 建立成功；
+- 第一次 TCP 客户端是真实 cross-gdb；
+- `target remote :32345` 成功停住 inferior；
+- `info threads` 和 `thread apply all bt` 能返回 runtime 线程；
+- 能读 `rt->cfg.sync_mode`、`rt->cfg.dma_backend`、`rt->cfg.gemmini_mode`；
+- 能 `Ctrl-C` 抢回 prompt，并能 `detach` 或 `continue` 到预期状态。
+
+若这些通过而 runtime 后续卡死，结论应写成“gdbserver 链路通过，pipeline-runtime 工作负载暴露
+软件/硬件执行卡点”，再用 backtrace 继续定位，不要把它归类为 gdbserver/NIC attach 失败。
 
 ### 6.3 取 run host private IP
 
@@ -1066,8 +1104,9 @@ cp /home/ubuntu/chipyard/tmp/firesim-aws-f2/tmux/rocket-singlecore-nic-gdbserver
 - 2026-05-05 已重新启动 `12p4c128sbus32cfg + optimized DMA + current NIC`
   主线构建：
   `pairdummy-cfg32-nic-mainline-20260505T132956Z`。
-  当前仍在本地 GoldenGate 阶段，尚未产生新 AGFI；对应 pane log 是
+  当前已经进入远端 Vivado customer CL 综合阶段，尚未产生新 AGFI；对应 pane log 是
   `/home/ubuntu/chipyard/tmp/firesim-aws-f2/tmux/pairdummy-cfg32-nic-mainline-20260505T132956Z.pane.log`。
+  build host 是 `i-0479b74dd4de8e428`，private IP `192.168.0.60`。
 - 该构建的前置 freshness 已确认：
   `network-audit` 通过，DTS 中有 `ice-nic@10016000`；
   generated RTL 中有 `SimpleNICBridgeModule`；

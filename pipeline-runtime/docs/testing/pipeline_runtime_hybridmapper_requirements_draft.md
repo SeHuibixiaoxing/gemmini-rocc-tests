@@ -1,6 +1,6 @@
 # Pipeline Runtime 与 HybridMapper 协作需求草案
 
-更新时间：`2026-05-05 13:20 UTC`
+更新时间：`2026-05-05 17:10 UTC`
 
 本文从需求角度对齐 `pipeline-runtime` 与 `HybridMapper` 的协作关系。它不是最终设计定稿；
 当前目标是把多模型协同计算、SPM/DMA/Gemmini 资源使用和 runtime 行为边界说清楚，便于后续
@@ -153,3 +153,45 @@ gdbserver 在本项目里的价值不是替代日志，而是定位“卡死时 
 - 多模型共享 tensor 是否由 HybridMapper 显式导出 alias group，还是 runtime 自动识别。
 
 建议默认选择是：action 内资源独占且稳定；跨 action 共享必须由 HybridMapper 显式声明；runtime 不做隐式共享和隐式重绑定。
+
+## 8. 当前建议冻结的需求基线
+
+在用户进一步反馈前，建议先按以下基线推进实现和调试：
+
+- action 是资源所有权边界。当前可以先让一个 action 覆盖一个 segment；后续若要跨 segment/action
+  合并，必须由 HybridMapper 明确输出生命周期和共享规则。
+- manager 默认 action 独占。不同 action 之间不隐式共享同一 Gemmini/DMA manager；若要共享，artifact
+  必须声明 shared scope、允许的操作类型和 fence 顺序。
+- SPM 物理页默认 action 内稳定。weight、pipe slot、ring slot、double buffer slot、lazy tensor 的
+  物理页在 action prepare 阶段确定，action release 时统一释放。
+- 虚拟地址模型向 slot-stable 收敛。短期可以保留当前运行期 PTE 重绑以便先完成 F2/gdbserver bring-up；
+  中期应改成每个 slot 有稳定虚拟区间，stage/subbatch 只在指令上选择不同虚拟地址。
+- DMA/Gemmini overlap 默认关闭。只有在冲突表证明 manager set 与 SPM page set 不冲突，或者实现了
+  显式 shared scope 后，才允许同一 action 内开启 overlap。
+- DMA completion flag 短期保留。当前 blocking path 以 `hw_dma_fence()` 为主完成条件，completion flag
+  用作交叉观测；若以后恢复 poll-progress backend，再重新审查 Linux PA/lock/cache 一致性。
+- artifact 必须成为可验证合同。runtime 应能在不执行硬件指令时先完成 target、manager、SPM、tensor
+  bounds 和 stage 冲突校验。
+
+该基线的工程目标是先把“能调试”和“不会 silent wrong/hang”做好，再谈高性能 overlap 和跨 action
+缓存。它也方便 gdbserver 首轮结果分流：如果保守同步路径仍挂，就优先查固定 DMA、SPM xlate、Gemmini
+fence 或硬件；如果保守路径通过，再逐项打开 overlap、direct/bounce 优化和跨 action 复用。
+
+## 9. 与当前代码的差距清单
+
+当前代码已经具备的部分：
+
+- action 分配 stage 到 Gemmini/DMA manager 的映射；
+- action 分配 SPM page list、alias window 和 private xlate context；
+- `configure_action_spm_xlate()` 在 action bind 阶段对 action 使用的 Gemmini managers 安装 PTBR/range；
+- `spm_xlate_enable=1` 时强制 blocking debug，避免 page-granular DMA 与 async token retire 混用；
+- 2026-05-05 已补 artifact/SPM bounds、manager 数量域和 DMA manager ownership 的第一版校验。
+
+仍需改造的部分：
+
+- `stage_prepare_exec_views()` 仍可能在运行期反复 `bind_vpages + flush`，还没达到 slot-stable vaddr 设计；
+- Gemmini task manager list 还需要与 `exec->stage_mgr_ids[]` 做完整 fail-fast 校验；
+- DMA request 的 host/SPM range 校验需要覆盖 direct/bounce、SPM->host、host->SPM 和 SPM->SPM 所有入口；
+- 并行 stage 的 manager/page 冲突表还没有形成统一的可打印报告；
+- 多模型全局 scheduler 尚未实现，当前更像单模型/单 action 顺序执行主线；
+- no-DMA compute 二分测试还需要构造，用来把 DMA/completion/direct 与 Gemmini/SPM xlate 分开。

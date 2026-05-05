@@ -1,6 +1,6 @@
 # `问题.md` 解答草案
 
-更新时间：`2026-05-05 13:20 UTC`
+更新时间：`2026-05-05 17:08 UTC`
 
 本文逐条回答 [`问题.md`](问题.md) 中的问题。结论分为三类：
 
@@ -237,8 +237,24 @@ SPM xlate 配置从语义上是 manager 地址翻译状态，不是普通 Gemmin
 Gemmini/DMA 指令在同一 manager 上乱序。当前如果 xlate slot 与 Gemmini slot 重叠，必须保证 xlate
 发生在 action 执行前，并且后续 action 内不再变动。
 
+代码细节：`prt_rerocc.c` 当前把 `RR_MAX_CFGS - 1` 固定留给 SPM xlate：
+`PRT_RR_SPM_XLATE_CFG_ID = RR_MAX_CFGS - 1U`。普通 stage 的 cfg id 通过
+`rr_cfg_id_for_stage(stage_id, opcode_id)` 按 stage/opcode 分配，而 SPM xlate helper
+使用 reserved cfg id 临时 acquire scope，并在 release 时恢复 opcode 3 的绑定。也就是说，
+“单独 slot”不是说只给某一个 Gemmini manager 配页表，而是说 ReRoCC cfg 命名空间里必须留一个
+不会和普通 DMA/Gemmini 指令抢的控制槽。
+
+`configure_action_spm_xlate()` 会在 action bind 阶段遍历
+`action->acc_source.all_gemmini_mgr_ids`，对 action 会用到的每个 Gemmini manager 下发同一个
+PTBR/PTE count/range。它不是对所有硬件 manager 无条件广播；它只覆盖本 action 分配到的 manager。
+从需求角度这是合理的：未分配给 action 的 manager 不应被本 action 改翻译状态。
+
 需求判断：长期设计应把 xlate 配置提升到 action prepare 阶段，对 action 使用的所有 manager 安装同一
 稳定 page table/context。stage 执行期间不再发改变绑定的 xlate 指令。
+
+剩余风险：当前 `stage_prepare_exec_views()` 仍会在运行期 `bind_vpages + flush`，因此 action bind
+阶段安装的是稳定 PTBR/range，不代表每个 tensor/slot 的 vaddr->ppn 绑定已经长期稳定。最终改造仍应把
+每个 slot 的 PTE 在 action prepare 阶段全部写好，stage 期间只换虚拟地址或 slot index。
 
 ## 17. DMA 从 Tile A 到 Tile B 是否经过 Tile C
 
@@ -289,3 +305,24 @@ domain。`num_cores` 不再为了覆盖 12 个 SPM manager 被强行提升到 12
 4. 再决定是否减少或删除软件 bounce。
 
 在 F2 结果出来前，不应把 bounce 删除。
+
+## 21. 当前 cfg32 首轮调试的优先级结论
+
+结合 2026-05-05 的静态排查，当前 `cfg32_nic` workflow 在 `spm_xlate_enable=1` 时会被
+`runtime_init()` 强制降级到：
+
+- `sync_mode = PRT_SYNC_MODE_BLOCKING_DEBUG`
+- `dma_backend = PRT_DMA_BACKEND_BLOCKING_FENCE`
+- `gemmini_mode = PRT_GEMMINI_MODE_BLOCKING_FENCE`
+
+因此首轮 F2/gdbserver 卡死不应先按“DMA/Gemmini overlap 线程竞争”处理。更高优先级的排查顺序是：
+
+1. guest 是否有 IceNIC、IPv4 和 gdbserver attach；
+2. runtime 初始化是否打印 `cores=4 gemmini=12 dma=12 spm_mgrs=12 pages_per_acc=1024 page_bytes=1024`；
+3. 是否卡在 fixed-load DMA 的 `hw_dma_fence()` 或 `dma_token_fence_scope()`；
+4. 是否卡在 SPM xlate 的 reserved cfg acquire/fence/release；
+5. 是否卡在 Gemmini blocking fence；
+6. 若所有 worker 都在 pipe/ring wait，再回头查 pipeline dependency 和 stage buffer 状态。
+
+这条结论很重要：它把当前 gdbserver 首轮测试的目标从“证明最终高性能 overlap 设计正确”收敛为
+“在保守同步语义下定位 fixed-load DMA / SPM xlate / Gemmini fence / pipe wait 的真实卡点”。

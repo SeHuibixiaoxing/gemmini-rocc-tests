@@ -1,6 +1,6 @@
 # Pipeline Runtime 优化与修复措施草案
 
-更新时间：`2026-05-05 16:50 UTC`
+更新时间：`2026-05-05 17:12 UTC`
 
 本文把 [`问题.md`](问题.md) 中的优化点和风险点转成可执行措施。优先级按“正确性先于性能、可调试性先于复杂 overlap”排序。
 
@@ -110,6 +110,18 @@ dry-run 全部退出 0。这证明当前软件树至少具备可重建性和 art
 
 验收：同一 action 内同一 buffer slot 的 vpage->ppn 绑定不变；action release 后 allocator idle。
 
+分阶段落地建议：
+
+- 阶段 A：只加观测，不改地址语义。打印 action prepare 后的 slot -> vpage -> ppn 表，以及
+  `stage_prepare_exec_views()` 每次重绑的 slot/tensor/stage。用 gdbserver/F2 先确认当前卡点是否真的在 xlate。
+- 阶段 B：为每个 ring/double/fixed slot 预留稳定 vpage 区间，但仍保留运行期 flush；先证明 task/DMA
+  发出的虚拟地址切换正确。
+- 阶段 C：action prepare 阶段一次性写完所有 slot PTE；stage 期间禁止重绑，只允许读取/选择 slot vaddr。
+- 阶段 D：开启 overlap 前强制检查 slot 稳定绑定和 stage 冲突表。
+
+不要在当前 `cfg32_nic` bitstream 构建等待期间直接开始阶段 C 的大改。首要目标仍是先拿到可 attach 的
+F2 现场；若 backtrace 显示卡点就是 xlate bind/flush，再把阶段 A/B 作为下一轮软件改动。
+
 ## P1：DMA completion 策略
 
 短期：
@@ -145,6 +157,17 @@ dry-run 全部退出 0。这证明当前软件树至少具备可重建性和 art
 - no-DMA 通过：优先查 DMA/completion/host buffer/direct/bounce。
 - no-DMA 失败：优先查 Gemmini/SPM xlate/ReRoCC manager ownership。
 
+最小测试建议：
+
+- 首先在 host/CPU backend 下做“调度干跑”：保留 artifact 和 action alloc/bind 校验，跳过 model/input/golden，
+  只验证 no-DMA profile 能走完 runtime 初始化和 stage/task 构建。
+- 第二步做 baremetal/metasim 小负载：预置 input/weight 到 SPM，执行一个单 stage / 单 manager conv 或 pointwise，
+  禁用 fixed-load/export DMA。
+- 第三步才放到 F2：同一 AGFI 上分别跑 `force_direct=1` 的正常路径和 no-DMA compute 路径，比较 backtrace
+  与 breadcrumb。
+
+当前可以并行推进的是第一步 host/CPU 调度干跑；后两步依赖可用 target workload 或新的 F2 运行窗口。
+
 ## P2：HybridMapper artifact 合同化
 
 措施：
@@ -175,3 +198,14 @@ dry-run 全部退出 0。这证明当前软件树至少具备可重建性和 art
 4. 做 no-DMA compute 二分。
 5. 收敛 action 级 ownership 和 SPM 稳定绑定。
 6. 再打开 DMA/Gemmini overlap 和 direct path 性能优化。
+
+## 2026-05-05 当前执行状态
+
+- gdbserver SOP 已更新到 cfg32 NIC 路线，明确了 build freshness、HWDB checkpoint、首轮 attach 判据和
+  `gdbserver --once` 约束。
+- `12p4c128sbus32cfg + optimized DMA + current NIC` 主线 bitstream
+  `pairdummy-cfg32-nic-mainline-20260505T132956Z` 已启动，freshness gate 通过，当前仍在远端 Vivado 综合，
+  尚无 AGFI/AFI。
+- 软件侧 host build、artifact audit 和 CPU dry-run 已通过，作为等待 bitstream 时的可重建性基线。
+- 下一次关键 checkpoint 应发生在 bitstream 成功或失败时：成功则提交 AGFI/HWDB 状态；失败则提交失败证据、
+  Vivado report 和下一轮资源削减/观测策略。
