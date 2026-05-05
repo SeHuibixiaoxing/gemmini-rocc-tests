@@ -351,3 +351,65 @@ Active builds after launch:
 
 Next monitor target remains a 1200 second interval unless one build exits or
 prints an AGFI/AFI earlier.
+
+## 2026-05-05 08:07 UTC TIMING + PCIS2SLR + DDR-stat experiment prepared
+
+The user asked to keep an ordinary `TIMING` strategy build in parallel and to
+handle the currently visible critical paths explicitly.
+
+Earlier evidence explains the risk:
+
+- plain `TIMING` without PCIS changes already reproduced the bad hold pattern:
+  post-place WNS around `-3.581`, `Route 35-514`, and post-route/physopt around
+  `WNS=-3.187`, `WHS=-4.029`
+- plain `TIMING+PCIS` also reproduced `Route 35-514`, with visible post-route
+  timing around `WNS=-1.951`, `WHS=-3.731`
+- therefore a new plain `TIMING` build is expected to fail unless the structural
+  timing paths have changed enough; it is useful as a diagnostic/control, but
+  not the safest primary candidate
+
+The next ordinary `TIMING` control has two structural changes relative to the
+failed `TIMING+PCIS` build:
+
+- PCIS shell boundary now uses the two-stage SLR2 -> SLR1 register-slice wrapper
+  already launched in the active `TIMING_HOLDFIX+PCIS2SLR` build
+- DDR status request/response pipes are split into separate data/control
+  `lib_pipe` instances, matching the AWS `aws_v3_0_top` style more closely:
+  `addr`, `wdata`, and `rdata` use resetless data pipes, while `wr`, `rd`,
+  `ack`, and `int` remain reset-controlled
+
+The DDR stat split intentionally preserves the existing
+`NUM_CFG_STGS_CL_DDR_ATG` latency. It is meant to reduce reset/data fanout and
+avoid keeping the data bits on the same async-reset pipe as the control bits.
+This targets the route/physopt references to `SH_DDR`,
+`PIPE_DDR_STAT_ACK0`, `DDR_STAT_PIPE_DATA`, and related DDR-status/reset nets.
+
+Prepared FireSim configs:
+
+- ordinary TIMING:
+  `sims/firesim/deploy/config_build_f2_rocket_singlecore_nic_notrace_timingpcis2slrddrstat1bp_30mhz.yaml`
+- ordinary TIMING recipe:
+  `sims/firesim/deploy/config_build_recipes_f2_rocket_singlecore_nic_notrace_timingpcis2slrddrstat1bp_30mhz.yaml`
+- TIMING_HOLDFIX fallback:
+  `sims/firesim/deploy/config_build_f2_rocket_singlecore_nic_notrace_timingholdfixpcis2slrddrstat1bp_30mhz.yaml`
+- TIMING_HOLDFIX fallback recipe:
+  `sims/firesim/deploy/config_build_recipes_f2_rocket_singlecore_nic_notrace_timingholdfixpcis2slrddrstat1bp_30mhz.yaml`
+
+Static checks completed:
+
+- F2 `git diff --check` for `cl_firesim.sv` and the XDC file
+- FireSim `git diff --check` for the new YAML files
+- Python `yaml.safe_load` for all four new config files
+- Vivado 2024.2 `xvlog` parse of `axi_register_slice_bmstub.v` and the modified
+  `cl_firesim.sv`, using the current generated
+  `FireSimRocketNICNoTraceConfig + BaseF2Config` include directory
+
+Capacity plan:
+
+- account capacity is currently saturated by the manager plus three
+  `m8i.2xlarge` build hosts
+- the no-PCIS `TIMING_HOLDFIX` comparison is the least useful active build:
+  it has worse pre-route setup pressure than PCIS variants and is not testing
+  the current PCIS2SLR fix
+- reclaim that host first if no build naturally finishes before launch, then
+  start `TIMING+PCIS2SLR+DDRSTAT`
