@@ -1,6 +1,6 @@
 # Pipeline Runtime 与 HybridMapper 协作需求草案
 
-更新时间：`2026-05-05 17:10 UTC`
+更新时间：`2026-05-05 19:20 UTC`
 
 本文从需求角度对齐 `pipeline-runtime` 与 `HybridMapper` 的协作关系。它不是最终设计定稿；
 当前目标是把多模型协同计算、SPM/DMA/Gemmini 资源使用和 runtime 行为边界说清楚，便于后续
@@ -195,3 +195,23 @@ fence 或硬件；如果保守路径通过，再逐项打开 overlap、direct/bo
 - 并行 stage 的 manager/page 冲突表还没有形成统一的可打印报告；
 - 多模型全局 scheduler 尚未实现，当前更像单模型/单 action 顺序执行主线；
 - no-DMA compute 二分测试还需要构造，用来把 DMA/completion/direct 与 Gemmini/SPM xlate 分开。
+
+## 10. 本轮建议审阅结论
+
+为了让后续实现可以收敛，建议先把以下结论作为用户审阅入口：
+
+- `HybridMapper` 输出的是执行合同，不只是 mapping hint。runtime 不应在执行期重新推导资源布局。
+- action 是资源所有权边界。短期一个 action 可以对应一个 segment；跨 segment/action 合并必须由
+  artifact 明确声明 lifetime 与共享规则。
+- manager 默认 action/stage 独占。ReRoCC acquire/release 是底层路由协议，不应被上层理解成
+  “每条指令重新调度 manager”。
+- SPM 页和 alias window 应向 action-prepare 一次绑定收敛。当前运行期重绑只作为 bring-up 过渡。
+- DMA/Gemmini overlap 暂时不是默认目标。没有 manager/page 冲突证明前，保守 blocking path 是首个验证目标。
+- gdbserver 的首要任务是把卡死现场归类到 DMA fence、SPM xlate、Gemmini fence、pipe/ring wait 或软件调度，
+  再决定是否需要下一轮硬件观测。
+
+如果这些结论被确认，后续改进方案可以按三步走：
+
+1. 先补 fail-fast 校验和 GDB 可观察性，确保错误不会 silent hang。
+2. 再把 SPM 绑定从 stage 运行期迁移到 action prepare。
+3. 最后才逐项打开 overlap、forced-direct、跨 action weight cache 和多模型全局 scheduler。

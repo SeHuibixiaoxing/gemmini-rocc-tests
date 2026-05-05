@@ -1,6 +1,6 @@
 # Pipeline Runtime 问题答复与优化措施草案
 
-更新时间：`2026-05-05 17:55 UTC`
+更新时间：`2026-05-05 19:20 UTC`
 
 本文逐条回答 [`问题.md`](问题.md) 中的设计/风险/优化问题。结论基于当前仓库静态代码阅读、2026-05-05 已通过的 host build / artifact audit / CPU dry-run，以及仍在构建中的 `cfg32_nic` F2 bitstream。没有 F2 live GDB 现场前，本文只把“代码当前事实”和“建议改造方向”分开写。
 
@@ -327,3 +327,25 @@ bitstream 上 pipeline-runtime 仍卡住，优先用 gdbserver 判断具体停�
 completion flag、SPM xlate、Gemmini fence、pipe/ring wait 还是硬件/NIC，而不是先怀疑
 mapper 给了超过 12 manager 的 segment。仍未解决的是动态 overlap 场景的同 manager/page
 冲突证明；在 `spm_xlate_enable=1` 下，短期仍以 blocking debug 路线作为首个验证目标。
+
+## 21. 与当前 cfg32 NIC 构建的关系
+
+当前还没有新的 `12p4c128sbus32cfg + optimized DMA + current NIC` AGFI，因此本文的回答仍是
+静态结论和首轮 GDB 计划，不是 F2 通过结论。
+
+2026-05-05 19:14 UTC 的构建状态：
+
+- 主线 `cfg32_nic` 已进入 Vivado placement，尚无 AGFI/AFI。
+- no-TraceIO `cfg32_nic` fallback 已进入本地 GoldenGate 后段，已看到 `SimpleNICBridgeModule`，
+  但尚未完成 generated RTL。
+- 本地内存被 GoldenGate 大量占用，等待期间只做轻量静态排查，不启动重型仿真/编译。
+
+新 AGFI 生成后，首轮 remote GDB 不是为了立即证明模型正确，而是回答以下问题：
+
+- `gdbserver` 能否稳定 attach 到 `rerocc_pipeline_runtime-linux`；
+- 多线程栈是否能显示 stage worker 分布；
+- 卡点是否在 `dma_blocking_wait()`、`prt_gemmini_spm_xlate_flush()`、`prt_gemm_fence()`、
+  pipe/ring condition wait，还是 main thread 的 `pthread_join()`；
+- 现场变量里的 manager id、cfg id、tensor 地址、DMA token 和 SPM page 是否满足本文前述合同。
+
+只有当这些信息拿到后，才应决定下一步是软件修复、no-DMA 二分、SPM 绑定改造，还是下一轮硬件观测构建。

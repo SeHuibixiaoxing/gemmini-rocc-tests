@@ -1,6 +1,6 @@
 # Pipeline Runtime gdbserver Integration SOP
 
-更新时间：`2026-05-05 17:20 UTC`
+更新时间：`2026-05-05 19:20 UTC`
 
 ## 1. 目标
 
@@ -427,6 +427,13 @@ AGFI/AFI，尚不能更新 HWDB 或启动 cfg32 NIC gdbserver run。
 并伴随多个 parallel synth worker；日志已有多条 `synth_design completed successfully`，但还没有
 可用于判断资源余量的 utilization/place/timing report，也没有 AGFI/AFI。此时不应停止构建或更新
 HWDB；继续按 1200s 轮询等待 post-synth/place 结果。
+
+2026-05-05 19:14 UTC 复查：主线 `cfg32_nic` 构建已完成 `link_design` 和
+`opt_design`，并进入 `place_design -directive ExtraNetDelay_high -no_bufg_opt`。
+post-synth/post-opt 没有报 error；post-synth `cl_firesim` LUT 约 `96.96%`，
+`firesim_top` 约 `94.18%`，说明资源压力很高但尚未失败。no-TraceIO fallback 已经进入
+GoldenGate 后段，已确认实例化 `SimpleNICBridgeModule`，但此时尚未生成
+`FireSim-generated.sv`，也没有 AGFI/AFI。两条构建仍只能记为“进行中”，不能更新 HWDB。
 
 每次汇报 buildbitstream 已启动时，都要同时汇报：
 
