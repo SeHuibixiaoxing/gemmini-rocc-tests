@@ -86,6 +86,7 @@ for method in ${METHODS}; do
     "${PYTHON_BIN}" "${ARTIFACT_AUDITOR}" \
       --pipeline-yaml "${PIPELINE_RUNTIME_ARTIFACT_DIR}/pipeline_mapping.${TARGET_KEY}.${method}.yaml" \
       --hardware-yaml "${PIPELINE_RUNTIME_ARTIFACT_DIR}/hardware_target.${TARGET_KEY}.yaml" \
+      --model-yaml "${PIPELINE_RUNTIME_ARTIFACT_DIR}/model.layers.yaml" \
       --expect-target-key "${TARGET_KEY}"
   fi
   GOLDEN_PATH="${PIPELINE_RUNTIME_ARTIFACT_DIR}/golden.${TARGET_KEY}.${method}.bin"

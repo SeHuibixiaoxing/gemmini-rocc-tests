@@ -36,6 +36,14 @@
 `exec_base_vpage + local_spm_page_span` 不越过 action alias window。当前
 `bertmini/ours2/pairdummy-sbus128` artifact 通过该审计。
 
+`2026-05-05T150923Z` 又把静态审计扩展到三类更靠前的合同检查：
+`pages_per_acc * page_size_bytes == shared_spad_local_size_bytes`、
+每个 stage 的 `[execBaseVPage, execBaseVPage + localSpmPageSpan)` 不越过
+`segmentSpmPageSpan`、显式 `pAccIdxList` 不在同一 segment 内跨 stage
+重复使用同一个物理 manager。`ours2/gemini2/tangram2` 三套
+`12p4c128sbus32cfg` artifact 在 `--page-size-bytes 1024` 下通过；把
+`--page-size-bytes` 故意改成 `4096` 会按预期 fail-fast。
+
 `2026-05-05T142049Z` 本地 CPU backend 干跑进一步确认：这批 mapper artifact 的
 SPM page 粒度必须按 `1024` 字节解释。用 `--spm-page-bytes 4096` 会在
 `runtime_prepare_stage_spm_windows` 阶段立刻报出 stage 0 / tensor `1000001`

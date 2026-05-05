@@ -294,6 +294,10 @@ def audit_segment(
             f"(cfg {RR_SPM_XLATE_CFG_ID} reserved for spm_xlate)"
         )
 
+    segment_page_span = int(seg.get("segmentSpmPageSpan", 0) or 0)
+    if segment_page_span < 0:
+        raise RuntimeError(f"segment {seg_idx} has invalid segmentSpmPageSpan={segment_page_span}")
+
     if stages:
         first_stage = stages[0][0]
         last_stage = stages[-1][0]
@@ -351,6 +355,7 @@ def audit_segment(
     ring_size_per = to_int_map(seg.get("ring_buffer_size_per", {}))
 
     total_acc_util = 0
+    explicit_physical_acc_users: Dict[int, int] = {}
     for stage_idx, stage_group in enumerate(stages):
         if not isinstance(stage_group, list) or len(stage_group) != 1 or not isinstance(stage_group[0], dict):
             raise RuntimeError(f"segment {seg_idx} invalid stage group structure")
@@ -359,6 +364,30 @@ def audit_segment(
         total_acc_util += acc_util
         split_kind_coverage[split_kind] = split_kind_coverage.get(split_kind, 0) + 1
         op_type_coverage[op_type] = op_type_coverage.get(op_type, 0) + 1
+
+        exec_base_vpage = int(stage.get("execBaseVPage", 0) or 0)
+        local_page_span = int(stage.get("localSpmPageSpan", 0) or 0)
+        if exec_base_vpage < 0 or local_page_span < 0:
+            raise RuntimeError(
+                f"segment {seg_idx} stage {stage_idx} invalid execBaseVPage/localSpmPageSpan "
+                f"{exec_base_vpage}/{local_page_span}"
+            )
+        if segment_page_span and exec_base_vpage + local_page_span > segment_page_span:
+            raise RuntimeError(
+                f"segment {seg_idx} stage {stage_idx} SPM window "
+                f"[{exec_base_vpage},{exec_base_vpage + local_page_span}) exceeds "
+                f"segmentSpmPageSpan={segment_page_span}"
+            )
+
+        explicit_p_acc = to_int_list(stage.get("pAccIdxList", []), flatten_singleton_row=True)
+        for gm_local in explicit_p_acc:
+            prev_stage = explicit_physical_acc_users.get(gm_local)
+            if prev_stage is not None:
+                raise RuntimeError(
+                    f"segment {seg_idx} explicit physical manager {gm_local} is used by "
+                    f"both stage {prev_stage} and stage {stage_idx}"
+                )
+            explicit_physical_acc_users[gm_local] = stage_idx
     if target_num_gemmini and total_acc_util > target_num_gemmini:
         raise RuntimeError(
             f"segment {seg_idx} total accUtil={total_acc_util} exceeds target num_gemmini={target_num_gemmini}"
@@ -432,7 +461,13 @@ def audit_pipeline(
     hardware_doc: Dict[str, Any] | None,
     model_doc: Dict[str, Any] | None,
     expect_target_key: str | None,
+    page_size_bytes: int,
 ) -> None:
+    global PAGE_SIZE_BYTES
+    if page_size_bytes <= 0:
+        raise RuntimeError(f"invalid page size bytes={page_size_bytes}")
+    PAGE_SIZE_BYTES = page_size_bytes
+
     pipeline_target_key = str(pipeline_doc.get("target_key", "") or "")
     if expect_target_key and pipeline_target_key != expect_target_key:
         raise RuntimeError(f"pipeline target_key={pipeline_target_key} expected={expect_target_key}")
@@ -450,6 +485,14 @@ def audit_pipeline(
     op_coverage_total: Dict[str, int] = {}
     model_layers = build_model_layer_index(model_doc)
     target_doc = pipeline_doc.get("target", {}) if isinstance(pipeline_doc.get("target"), dict) else {}
+    if isinstance(target_doc, dict):
+        pages_per_acc = int(target_doc.get("pages_per_acc", 0) or 0)
+        local_spm_bytes = int(target_doc.get("shared_spad_local_size_bytes", 0) or 0)
+        if pages_per_acc and local_spm_bytes and pages_per_acc * PAGE_SIZE_BYTES != local_spm_bytes:
+            raise RuntimeError(
+                f"target pages_per_acc={pages_per_acc} * page_size={PAGE_SIZE_BYTES} "
+                f"!= shared_spad_local_size_bytes={local_spm_bytes}"
+            )
     segments = pipeline_doc.get("segments", []) or []
     for seg_idx, seg in enumerate(segments):
         entry_cov, binding_cov, split_cov, op_cov = audit_segment(seg_idx, seg, target_doc, model_layers)
@@ -471,6 +514,7 @@ def audit_pipeline(
         f"[artifact-audit] rr_stage_scope_budget={RR_STAGE_SCOPE_BUDGET} "
         f"reserved_cfg={RR_SPM_XLATE_CFG_ID}"
     )
+    print(f"[artifact-audit] page_size_bytes={PAGE_SIZE_BYTES}")
 
 
 def parse_args() -> argparse.Namespace:
@@ -479,6 +523,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--hardware-yaml", default="", help="optional hardware target yaml for target consistency")
     parser.add_argument("--model-yaml", default="", help="optional model.layers.yaml for op/tensor cross-checks")
     parser.add_argument("--expect-target-key", default="", help="optional expected target key")
+    parser.add_argument("--page-size-bytes", type=int, default=PAGE_SIZE_BYTES, help="SPM page size in bytes")
     return parser.parse_args()
 
 
@@ -490,7 +535,7 @@ def main() -> int:
     pipeline_doc = load_yaml(pipeline_yaml) or {}
     hardware_doc = load_yaml(hardware_yaml) if hardware_yaml else None
     model_doc = load_yaml(model_yaml) if model_yaml else None
-    audit_pipeline(pipeline_doc, hardware_doc, model_doc, args.expect_target_key or None)
+    audit_pipeline(pipeline_doc, hardware_doc, model_doc, args.expect_target_key or None, args.page_size_bytes)
     return 0
 
 
