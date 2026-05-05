@@ -93,6 +93,14 @@ static int dma_batch_scope_acquire(prt_runtime_t *rt, uint32_t stage_idx,
                                    uint32_t manager_id, uint32_t opcode_id,
                                    prt_rr_scope_t *scope);
 
+static inline void dma_cpu_fence_rw(void) {
+#if defined(__riscv)
+  __asm__ volatile("fence rw, rw" ::: "memory");
+#else
+  __asm__ volatile("" ::: "memory");
+#endif
+}
+
 static uint32_t dma_breadcrumb_flags_from_token(const prt_dma_token_t *tok, uint32_t extra_flags) {
   uint32_t flags = extra_flags;
   if (!tok) return flags;
@@ -449,7 +457,7 @@ static int dma_completion_flag_acquire(prt_runtime_t *rt, prt_dma_token_t *tok) 
   tok->completion_slot = slot;
   tok->completion_flag = &rt->dma_completion_flags[slot];
   *tok->completion_flag = 0U;
-  asm volatile("fence rw, rw" ::: "memory");
+  dma_cpu_fence_rw();
   tok->hw_done_flag = 0;
   tok->debug_done_flag_va = (uint64_t)(uintptr_t)tok->completion_flag;
   tok->debug_done_flag_pa = rt->dma_completion_flag_pas ? rt->dma_completion_flag_pas[slot] : 0ULL;
@@ -470,7 +478,7 @@ static void dma_completion_flag_release(prt_dma_token_t *tok) {
   if (!rt || tok->completion_slot == UINT32_MAX) return;
   if (tok->completion_flag) {
     *tok->completion_flag = 0U;
-    asm volatile("fence rw, rw" ::: "memory");
+    dma_cpu_fence_rw();
   }
   if (rt->dma_completion_flag_used && tok->completion_slot < rt->dma_completion_flag_count) {
     pthread_mutex_lock(&rt->dma_completion_lock);

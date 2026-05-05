@@ -36,6 +36,15 @@
 `exec_base_vpage + local_spm_page_span` 不越过 action alias window。当前
 `bertmini/ours2/pairdummy-sbus128` artifact 通过该审计。
 
+`2026-05-05T142049Z` 本地 CPU backend 干跑进一步确认：这批 mapper artifact 的
+SPM page 粒度必须按 `1024` 字节解释。用 `--spm-page-bytes 4096` 会在
+`runtime_prepare_stage_spm_windows` 阶段立刻报出 stage 0 / tensor `1000001`
+的 `localSpmTensorAddr=1024` 不在 slot 1 window 内；改为
+`--spm-page-bytes 1024` 后，同一组 `bertmini/ours2/pairdummy-sbus128`
+YAML、`--backend cpu`、`--batch 1`、跳过 model/input/golden 的干跑退出 0。
+因此该 fail-fast 对 workflow 配置错误有效，后续 FireSim wrapper 需要保持
+默认 `PRT_PAGE_SIZE_BYTES=1024`，不要把 `--spm-page-bytes` 覆盖成 4096。
+
 ## P0：修正页数和 allocator 模型
 
 当前状态：`2026-05-05` 已完成第一版软件修复。之前代码通过把 `num_cores` 提升到

@@ -64,6 +64,14 @@ static uint64_t monotonic_ms(void) {
   return prt_now_ns() / 1000000ULL;
 }
 
+static inline void runtime_cpu_fence_rw(void) {
+#if defined(__riscv)
+  __asm__ volatile("fence rw, rw" ::: "memory");
+#else
+  __asm__ volatile("" ::: "memory");
+#endif
+}
+
 static void prt_runtime_trigger_note_worker(uint32_t segment_idx,
                                             uint32_t global_stage_id,
                                             uint32_t local_stage_id,
@@ -931,7 +939,7 @@ static int prefault_and_lock_blob(const char *kind, const char *path, void *buf,
     touch[tail] = value;
     sink ^= value;
   }
-  asm volatile("fence rw, rw" ::: "memory");
+  runtime_cpu_fence_rw();
   (void)sink;
   PRT_PROGRESS_LOG("%s after-prefault path=%s ptr=%p size=%zu page_bytes=%zu mode=write-preserve",
                    tag, blob_path, buf, blob_size, step);
