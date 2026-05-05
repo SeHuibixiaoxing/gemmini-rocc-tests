@@ -31,17 +31,22 @@
 
 ## P0：修正页数和 allocator 模型
 
-当前风险：部分 idle check 或 allocator 逻辑仍按 `num_cores * pages_per_acc` 理解总页数。
-在 4 core / 12 manager 目标上这是错误的。
+当前状态：`2026-05-05` 已完成第一版软件修复。之前代码通过把 `num_cores` 提升到
+`num_gemmini_mgrs` 来让页池覆盖 12 个 manager，这会污染 CPU core 语义。现在页池、PTE sizing、
+allocation order、默认 xlate range 和 idle check 都改为使用独立的 SPM manager domain count。
 
 措施：
 
-- 引入统一 helper，例如 `prt_cfg_spm_manager_count(cfg)`。
-- pair manager mode 下返回 `num_gemmini_mgrs`。
-- 所有总页数、idle check、PPN window、range size 推导都走该 helper。
-- 初始化日志打印 `spm_mgr_count`、`pages_per_acc`、`page_bytes`、`local_size_bytes`。
+- 已引入 `prt_cfg_spm_manager_count(cfg)` 和 `prt_cfg_spm_total_pages(cfg)`。
+- SPM manager count 优先使用 `num_gemmini_mgrs`，仅在其为 0 时回退到 `num_cores`。
+- `page_used` 总页、idle check、SPM PTE chunk sizing、默认 xlate range 和 page allocation order 已走 helper。
+- 初始化日志已增加 `spm_mgrs`。
 
-验收：4 core / 12 manager 目标上总页数应为 `12 * 1024`，不是 `4 * 1024`。
+已完成的验证：helper 小测试确认 4 core / 12 manager / `pages_per_acc=1024` 得到 `spm_mgrs=12`
+和总页 `12288`。
+
+未完成的验证：新的 `cfg32_nic` AGFI 生成后，需要在 FPGA workload 初始化日志中确认
+`cores=4 gemmini=12 spm_mgrs=12`，并观察 action release 后 allocator idle check 不再漏检。
 
 ## P1：action 级资源所有权
 

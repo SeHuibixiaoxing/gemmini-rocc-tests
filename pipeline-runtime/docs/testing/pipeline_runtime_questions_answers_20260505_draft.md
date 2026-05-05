@@ -259,8 +259,15 @@ DMA prefetch/export 和 Gemmini compute overlap，可能需要同一 manager。�
 ## 19. 页数量应始终用 `num_gemmini_mgrs`
 
 同意。尤其在 4 CPU core、12 Gemmini manager 的目标上，按 `num_cores` 计算总页是错误模型。
-应使用 manager/SPM domain 数，pair manager 下通常是 `num_gemmini_mgrs`。现有
-`runtime_assert_page_allocator_idle` 仍按 `num_cores * pages_per_acc`，需要修。
+应使用 manager/SPM domain 数，pair manager 下通常是 `num_gemmini_mgrs`。
+
+当前代码状态：已在 `2026-05-05` 的 checkpoint 中修正为 `prt_cfg_spm_manager_count()` /
+`prt_cfg_spm_total_pages()`，并把 SPM page table sizing、`page_used` 分配、preferred/fallback page
+allocation order、默认 xlate range size 和 `runtime_assert_page_allocator_idle` 都切到 SPM manager
+domain。`num_cores` 不再为了覆盖 12 个 SPM manager 被强行提升到 12。
+
+限制：这还只是软件侧静态/编译语义修复，尚未在新的 `cfg32_nic` AGFI 上跑过 pipeline-runtime workload。
+后续 gdbserver run 需要确认初始化日志里 `cores=4`、`gemmini=12`、`spm_mgrs=12`、总页为 `12 * 1024`。
 
 ## 20. bounce/direct path 与 optimized DMA
 
