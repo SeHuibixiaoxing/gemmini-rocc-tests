@@ -3,6 +3,7 @@
 更新时间：`2026-05-05 17:20 UTC`
 
 本文把 [`问题.md`](问题.md) 中的优化点和风险点转成可执行措施。优先级按“正确性先于性能、可调试性先于复杂 overlap”排序。
+逐条问答版见 [`pipeline_runtime_questions_answers_20260505_draft.md`](pipeline_runtime_questions_answers_20260505_draft.md)。
 
 ## P0：先保证可调试
 

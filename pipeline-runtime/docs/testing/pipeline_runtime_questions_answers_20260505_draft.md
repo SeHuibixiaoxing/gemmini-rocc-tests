@@ -1,328 +1,310 @@
-# `问题.md` 解答草案
+# Pipeline Runtime 问题答复与优化措施草案
 
-更新时间：`2026-05-05 17:08 UTC`
+更新时间：`2026-05-05 17:55 UTC`
 
-本文逐条回答 [`问题.md`](问题.md) 中的问题。结论分为三类：
+本文逐条回答 [`问题.md`](问题.md) 中的设计/风险/优化问题。结论基于当前仓库静态代码阅读、2026-05-05 已通过的 host build / artifact audit / CPU dry-run，以及仍在构建中的 `cfg32_nic` F2 bitstream。没有 F2 live GDB 现场前，本文只把“代码当前事实”和“建议改造方向”分开写。
 
-- `当前实现`：代码现在大致如何工作。
-- `需求判断`：从 pipeline-runtime/HybridMapper 协作目标看应该怎样。
-- `风险/动作`：需要修或验证的点。
+## 1. Action 是否应长期持有 manager
 
-## 1. action 是否应长期持有 manager
+结论：需求上应该长期持有；当前代码已经在 action 层分配和绑定 manager，但底层指令 helper 仍会做短 scope acquire/release。
 
-当前实现：action 会在 `prt_action_alloc_acc` 中给每个 stage 分配 Gemmini/DMA manager，
-再在 `prt_action_bind_topology` 中写入 `exec->stage_acc_ids`、`exec->stage_dma_ids` 和
-`exec->stage_mgr_ids`。这说明 runtime 已经有 action/stage 级资源分配模型。
+当前事实：
 
-但指令提交层仍有大量 per-instruction scope 操作：Gemmini 路径在 conv/resadd helper 中
-`prt_rr_acquire_scope -> issue -> fence -> release`；DMA 路径在 submit/wait 中 acquire/release
-ReRoCC scope。也就是说，当前代码在“调度语义”上像 action 持有 manager，在“硬件 scope 使用”
-上仍像每条指令临时持有。
+- `prt_runtime_run()` 每个 segment 生成一个 action，顺序是 `prt_action_generate -> prt_action_alloc_acc -> prt_action_alloc_spm -> runtime_prepare_stage_spm_windows -> prt_action_bind_topology -> runtime_flush_spm_xlate`。
+- `prt_action_alloc_acc()` 检查每个 stage 的 `acc_util`、`vAccIdxList`、显式物理 manager 列表，并拒绝同一 segment 内 manager over-subscribe。
+- `prt_action_bind_topology()` 把每个 stage 的 Gemmini/DMA manager 写进 `exec->stage_mgr_ids[]` / `exec->stage_dma_ids[]`。
+- DMA 路径已经有 `dma_validate_stage_manager()`，会在 `prt_dma_submit()` 和 `dma_batch_scope_acquire()` 前验证 manager 属于当前 stage/action。
 
-需求判断：action 应长期持有 manager。per-instruction acquire/release 可以保留为底层硬件协议封装，
-但不应改变上层所有权。stage worker 只能使用 action 已分配的 manager；不同 action 不能在同一时刻
-使用同一 manager，除非 HybridMapper 显式声明共享。
+设计建议：
 
-风险/动作：需要梳理 DMA 与 Gemmini 同 stage 使用同一 manager 的路径。如果两者各自 acquire/release，
-可能出现一个 helper release 后另一个 helper 仍以为 manager 属于自己。短期应加 runtime 校验：
-每条 DMA/Gemmini 指令的 manager 必须在当前 action/stage 的分配集合内；长期应把 scope 生命周期提升到
-stage/action 或显式 batch scope。
+- 上层调度语义按 action/stage 拥有 manager，不按每条指令重新决定 manager。
+- ReRoCC scope acquire/release 仍可保留为底层路由协议，但它应消费 action/stage 的既定授权，而不是重新做调度。
+- DMA 与 Gemmini 如果共用 pair manager，默认同一 stage 内串行；要 overlap 必须先有显式 shared scope 和冲突表。
 
-## 2. 阻塞/非阻塞指令与 fence 时序
+## 2. 指令阻塞/非阻塞与 fence 关系
 
-当前实现里存在两类 Gemmini 路径：
+当前运行态在 `spm_xlate_enable=1` 时走保守同步路线：
 
-- sync/blocking 路径：issue 后立即 `prt_rr_fence_scope` + `gemmini_fence` + drain，然后 release。
-- async/overlap 路径：stage worker 先 `prt_gemm_conv_run`，在 overlap mode 下可执行
-  `stage_overlap_prefetch_entries`，之后再 `prt_gemm_fence`。
+- runtime 初始化会强制 `sync_mode = blocking_debug`、`dma_backend = blocking_fence`、`gemmini_mode = blocking_fence`。
+- DMA submit 后进入 `prt_dma_wait()`，RISC-V 路径会调用 `hw_dma_fence()`；当前这个 fence 等的是 DMA manager idle，不是 per-token id。
+- Gemmini blocking 路径是 `prt_gemm_conv_run()` 发任务，若 issue 路径没有自己 fence，再进入 `gemm_blocking_fence()`。
+- split conv / split resadd 在 RISC-V 路径里部分 issue helper 自带 fence，因此 `task_issue_already_fenced()` 会避免重复 fence。
+- ReRoCC release 已经在 `prt_rr_release_scope()` 后增加同 cfg 的 `RRCFG` readback，用于避开 release ack 窗口。
 
-DMA 也有 blocking fence 与 poll progress thread 两种 backend。blocking 路径在 wait 中调用
-`hw_dma_fence`，再根据 token scope 做 shared fence/release。poll 路径通过 pending token 和 completion
-flag 轮询推进。
+仍需注意：
 
-需求判断：issue/fence 分离只有在明确 overlap 边界时才成立。它要求：
+- CPU `fence rw,rw` 只保证当前 hart 的内存/指令顺序，不等价于 DMA 完成、Gemmini 完成或 ReRoCC 队列排空。
+- `rr_fence(cfg)` 保证该 ReRoCC cfg scope 上的路由命令完成。
+- `gemmini_fence()` 保证 Gemmini 内部命令队列完成。
+- `hw_dma_fence()` 当前保证 DMA manager idle；在 blocking path 下等价于这一个 outstanding token 完成，但不能支持同 manager 多 outstanding token。
 
-- issue 之后到 fence 之前，不得复用同一 manager 给其他互斥操作；
-- prefetch/export DMA 不得覆盖 Gemmini 尚未读完/写完的 SPM 区间；
-- stage worker 进入下一个 subbatch 前必须完成本 subbatch 的必要 fence；
-- ReRoCC release 后的 CSR readback workaround 仍要保留，不能把 release 当作天然同步点。
+## 3. 当前加速器分配和 SPM 分配是否对齐 MudnacSim
 
-风险/动作：当前代码已有不少 fence，但缺少统一时序表。建议给每个 op kind 标注：
-是否会 issue 非阻塞指令、谁负责 fence、是否允许 DMA overlap、overlap 访问的 buffer 集合是什么。
-没有这张表前，不应扩大 async/overlap 默认使用范围。
+部分对齐，且 2026-05-05 已修掉一个关键域错误。
 
-## 3. 加速器分配和 SPM 分配是否与 MudnacSim/HybridMapper 对齐
+当前 manager 分配：
 
-当前实现：HybridMapper target yaml 给出硬件容量，例如 12 Gemmini/12 DMA/每 manager 1MiB SPM。
-runtime 的 `prt_action_alloc_acc` 根据 stage 的 mapping 分配 manager；
-`prt_action_alloc_spm` 根据 segment buffer binding 分配页、alias window 和 xlate context。
-`PostProcess.resetLayerGroupSPMTensorAddr` 会按 layer group tensor lifetime 重新计算 SPM tensor address。
+- 优先使用 artifact 的 `physical_acc_ids`；没有显式物理 id 时按 `rr_cursor` 顺序分配。
+- `virtual_acc_ids` 必须存在且长度等于 `acc_util`，用于把 mapper 的虚拟槽映射到本 stage 内 slot。
+- pair-manager 模式下 DMA local id 与 Gemmini local id 对齐，`prt_cfg_dma_mgr_count()` 返回 `num_gemmini_mgrs`。
 
-需求判断：方向一致，但还没完全对齐。HybridMapper 侧已经在按 lifetime 和 SPM utilization 规划 tensor
-地址；runtime 侧应把这些地址作为 action 内稳定布局，而不是每轮 stage 重新解释成新的物理页绑定。
+当前 SPM 分配：
 
-风险/动作：
+- `prt_action_alloc_spm()` 读取 segment 的 `bufferBinding*` 合同，为 WEIGHT / PIPE / RING 分配页。
+- 分配页时按 all-bank interleave：`bank0:lp0, bank1:lp0, ..., bank0:lp1, ...`，这是为了匹配 MudnacSim / mapper 的 all-bank 语义。
+- 旧代码曾把页池容量绑到 `num_cores`，现在已通过 `prt_cfg_spm_manager_count()` 改成优先使用 `num_gemmini_mgrs`，避免 4 core / 12 manager 目标只分到 4 个 SPM manager 的页。
 
-- `pages_per_acc` 必须来自硬件 target，而不是默认值。
-- SPM 页数应按 `num_gemmini_mgrs`/pair manager domain 建模，而不是只按 CPU core 数。
-- 需要加 tensor address+size 不越界校验。
-- 需要把 HybridMapper 的 `spmTensorAddr/spmTensorUtil/lgSpmUtil` 与 runtime 的 buffer binding
-  建立一一对应校验。
+当前已验证：
 
-## 4. stage 并行与单 stage 多 Gemmini 并行
+- `bertmini` 的 `ours2/gemini2/tangram2` artifact 在 `--page-size-bytes 1024` 下通过静态审计。
+- 故意用 `4096` 会 fail-fast：`pages_per_acc * page_size != shared_spad_local_size_bytes`。
+- CPU backend dry-run 能在 `spm_mgrs=12`、`pages_per_acc=1024` 配置下通过初始化和 artifact 合同检查。
 
-当前实现：runtime 对每个 segment 创建多个 stage worker thread。每个 worker 根据自己的 entry/export
-pipe/ring buffer 状态推进。单 stage 多 Gemmini 通过 `task.tile_count`、`task.manager_ids[]` 和 split
-类型传给 Gemmini adapter；fence 时 `fence_task_managers` 会遍历 unique manager。
+## 4. Stage 并行与单 stage 多 manager 并行
 
-需求判断：
+当前 stage 并行粒度是 POSIX stage worker：
 
-- stage 并行依赖 pipe/ring buffer 的 full/ready 语义；
-- 单 stage 多 Gemmini 依赖 split 结果和 manager 列表；
-- 两者都必须以 action 的 manager/SPM 绑定为静态约束。
+- `build_topology_from_pipeline()` 之后，每个 stage 有一个 worker 线程。
+- stage 之间通过 pipe/ring buffer 的 ready/idle 状态同步。
+- 当前顶层一次只推进一个 active action；还不是多个模型/多个 action 同时运行。
 
-风险/动作：当前重点风险不是“没有线程并行”，而是并行线程是否会通过 DMA/Gemmini 访问同一 manager
-或同一 SPM 页。需要在 action bind 后生成一张冲突表：stage -> manager set、stage -> SPM page set、
-buffer -> producer/consumer。运行前若存在未声明共享的交集，应 fail-fast。
+单 stage 多 manager 并行：
 
-## 5. “issue 后立即 fence”和“issue/fence 分离”的区别
+- `acc_util` 和 `split_kind` 决定一个 stage 使用多少 Gemmini manager。
+- `prt_action_alloc_acc()` 把 stage 的多个 manager 写入 `assign->gemmini_mgr_ids[]`。
+- `prt_gemmini_adapter.c` 根据 `split_kind` 走 `run_conv_oc_split`、`run_conv_spatial_split` 或 resadd split。
 
-“issue 后立即 fence”是保守模式。它牺牲 overlap，但容易证明正确：提交 Gemmini/DMA 指令后马上等待
-该 manager 完成，再释放 scope。
+“issue 后立即 fence”和“issue/fence 分离”的区别：
 
-“issue/fence 分离”是 overlap 模式。它允许在 Gemmini 计算期间做下一步 DMA 或其他准备，但需要额外
-证明：
+- blocking 模式下，`gemm_blocking_conv_run()` 通常 issue 后立即 fence，便于调试和避免复杂 overlap。
+- 部分 split helper 内部已经为了分片正确性做 fence，`task_issue_already_fenced()` 用来避免外层重复 fence。
+- 真正的 issue/fence 分离适合 overlap，但必须有 manager/page 冲突证明；当前不应默认打开。
 
-- manager 未被其他互斥操作抢占；
-- 输入 SPM 页在 fence 前不会被覆盖；
-- 输出 SPM 页在 fence 前不会被消费者读取；
-- DMA completion/fence 与 Gemmini fence 的顺序满足数据依赖。
+## 5. `gemm_issue_conv_task` 切分是否校验
 
-当前需求下，默认应以保守模式作为正确性基线；overlap 模式只在通过冲突校验和 gdbserver/trace 验证后启用。
+当前有基础合法性校验，但还不是完整的 mapper split 覆盖证明。
 
-## 6. `gemm_issue_conv_task` 切分是否需要校验
+已有校验：
 
-当前实现有 task split、tile count 和 manager list，并有一些 stride/pointwise fallback 校验。但从现有代码形态看，
-runtime 仍较大程度信任 mapping/artifact 给出的 split 和 tensor 地址。`split_rects_even` 等 helper 能生成
-矩形切分，但缺少完整的 artifact-vs-runtime 校验闭环。
+- RISC-V 路径检查 `input/weights/output` 非空，batch/input/output/kernel/channel 维度为正。
+- action 分配阶段检查 `acc_util` 是 1/2/4/8/16/32，且不超过 manager 数。
+- artifact audit 检查 `pAccIdxList` 长度、重复、越界，检查 local SPM tensor address/page bounds。
 
-需求判断：不能只信 mapping 数值。runtime 至少要校验：
+缺口：
 
-- split 数量等于 stage 使用的 manager 数；
-- 每个 split 的 output tile 范围不重叠、不越界；
-- input/weight/output/bias 地址加 size 不越过对应 tensor SPM/host buffer；
-- groups/stride/padding/channel 等参数与 Gemmini helper 支持范围一致；
-- 多 manager 输出写入不同地址或显式 reduce，不允许隐式重叠。
+- 还需要把每个 split tile 的覆盖范围、输出区间、manager 数和 `tile_count` 做统一 fail-fast 报告。
+- 对 conv/resadd 的 host/SPM 指针范围，运行时还需要覆盖所有 direct/bounce/SPM->host/host->SPM 入口。
 
-## 7. CPU fence 的作用
+建议：
 
-CPU fence 只保证 CPU 视角的内存访问和指令顺序。例如 `asm volatile("fence rw, rw")` 可用于确保 CPU
-对 page table、completion flag、host buffer 的写入在后续设备操作前可见。
+- 在 `build_stage_conv_desc()` 后、`prt_gemm_conv_run()` 前加 `validate_gemmini_task_bounds()`。
+- 报告 stage/layer/tensor/manager/split/tile 覆盖，发现 overlap 或越界直接 fail-fast。
 
-它不等价于：
+## 6. CPU fence 的作用
 
-- DMA 完成；
-- Gemmini 完成；
-- ReRoCC manager queue 排空；
-- SPM xlate 硬件已经加载/使用新页表；
-- Linux 虚拟地址已经变成硬件可用物理地址。
+CPU fence 是本 hart 的顺序屏障，用于避免软件在发 custom 指令前后把普通内存访问乱序到危险位置。
 
-因此 CPU fence 只能作为“软件发布状态”的一部分。DMA/Gemmini/SPM xlate 仍需要各自的硬件 fence、
-CSR readback、completion 或 idle 状态确认。
+它不能替代：
 
-## 8. 单 action 虚拟地址区间与碎片风险
+- DMA completion：需要 `hw_dma_fence()` 或 completion/status。
+- Gemmini completion：需要 `gemmini_fence()` 或相关 helper 的内部 fence。
+- ReRoCC scope completion：需要 `rr_fence(cfg)`。
+- SPM xlate 生效：需要对对应 manager 发 `CFG/RANGE/FLUSH`，并等待 scope release/fence 完成。
 
-当前实现会为 action 分配 alias window，并在 action release 时 `munmap`/unbind/release。页分配通过
-`alloc_key_cursor` 跟踪多个 buffer slot，action release 时释放所有 alloc key。
+因此建议把文档和代码里的 “fence” 名字按层区分：`cpu_fence`、`rr_fence`、`gemmini_fence`、`dma_idle_fence`、`spm_xlate_flush`。
 
-这对“单个 segment/action 串行执行”有释放机制，但仍有两类风险：
+## 7. 单 action 的虚拟地址区间与碎片风险
 
-- 若 action 内动态为 stage 分配/释放 vpage，可能出现 action 内碎片或重绑定错误；
-- `runtime_assert_page_allocator_idle` 当前按 `num_cores * pages_per_acc` 统计总页，若 `num_cores`
-  小于实际 manager 数，会漏检或错检。
+当前已经是 action-private alias window：
 
-需求判断：单 action 的虚拟地址区间应在 action 开始前一次性规划；运行中只分配 tensor 到已规划 slot；
-action 结束后整体释放。不同 action 串行时应回到空 allocator 状态，不应累积碎片。
+- `prt_action_alloc_spm()` 用 `segment_spm_page_span` 计算 action 的 alias page count。
+- Linux 路径通过 `mmap(PROT_NONE)` 预留一段 action-private VA window。
+- action 内硬件 PTE index 按 `(vaddr - range_base)` 解释，所以现在 `alias_vpage_start = 0`。
+- action release 会 `disable_action_spm_xlate()`、`prt_spm_unbind_vpages_ctx()`、释放 PTE context、释放 SPM 页和 `munmap()` alias window。
 
-## 9. SPM page 绑定是否应每轮 stage 改变
+碎片风险：
 
-需求判断：不应每轮 stage 改变物理页绑定。double buffer、ring buffer、lazy fixed tensor 都应在 action
-开始前预留对应 slot。后续改变的是 DMA/Gemmini 指令上的虚拟地址或 slot index，而不是重新绑定物理页。
+- 对当前“单模型、不同 action/segment 串行执行”主线，action 结束释放所有页，`runtime_assert_page_allocator_idle()` 会在 segment 开始/结束检查页池，因此长期碎片风险较低。
+- 运行中仍有短期碎片可能，因为 `prt_alloc_tensor_pages()` 会按 preferred manager 再 fallback 分配，页池是 bitmap，不做 compaction。但 action 生命周期短，释放后回到空池。
 
-当前实现已经有 action-level `alias_base_va`、`alias_vpage_start`、`alias_page_count` 和 private xlate
-context，这是正确方向；但需要继续检查 `runtime_prepare_stage_spm_windows`、pipe/ring/fixed lazy 路径是否仍有
-按 stage 反复重绑定的行为。
+后续设计：
 
-## 10. `rerocc_coupleddma_set_dst` completion flag 能否去掉
+- 多模型并发时，不能只依赖“action 后清空”；需要全局 allocator、lifetime、共享 alias group 和冲突表。
 
-当前软件会给 DMA token 分配 completion flag，转换成物理地址后传给硬件 `set_dst`，等待路径会刷新该 flag，
-同时也会调用 `hw_dma_fence`。
+## 8. SPM page 不应每轮 stage 重绑
 
-completion flag 的问题是：Linux 下必须确保 flag 所在虚拟页已经 prefault/locked，并且传给硬件的是物理地址。
-如果 v2p、cache 一致性或页迁移出错，就会出现“硬件完成了但软件看不到”或“软件等错地址”的风险。
+需求判断：同意。长期设计应是 action prepare 阶段一次分配和绑定，运行阶段只移动指令上的虚拟地址/slot。
 
-需求判断：理想上可以用 DMA idle/fence 状态替代 memory flag 作为主完成条件，但前提是硬件能提供
-per-token 或至少 per-manager 的明确完成/错误状态。只等“模块 idle”在并发 DMA 时不够精确，除非 runtime
-保证同一 DMA manager 同时只有一个 outstanding token。
+当前代码状态：
 
-短期建议：保留 completion flag，同时把 `hw_dma_fence`/monitor 状态作为交叉验证。若要去掉 flag，先实现：
+- `prt_action_alloc_spm()` 已经为 weight/pipe/ring slot 提前分配物理页。
+- `configure_action_spm_xlate()` 已在 action bind 时对 action 用到的 Gemmini manager 安装 PTBR/range。
+- 但 `stage_prepare_exec_views()` 仍会在运行期根据 stage/tensor 准备视图、fixed-load DMA，并可能触发 stage 级 xlate flush；还没达到 slot-stable 的最终需求。
 
-- 单 manager outstanding 数量限制或 token id；
-- DMA idle/error/status CSR；
-- wait path 只依赖硬件状态的 baremetal/metasim/F2 回归；
-- Linux v2p 和 mlock 风险消除后再删除旧 flag path。
+建议分阶段：
 
-## 11. prefault + mlock 时机
+- 阶段 A：只加观测，打印 action prepare 后 slot -> vpage -> ppn 表，以及运行期每次 stage 视图准备。
+- 阶段 B：每个 ring/double/fixed slot 固定 VA 区间，仍保留 flush。
+- 阶段 C：action prepare 一次写完 PTE，stage 期间禁止重绑，只允许选择 slot vaddr。
 
-当前 `load_model_blob_file` 读入 model/input/golden blob 后调用 `prefault_and_lock_blob`：
-按 host page 写保留触碰每页，然后 `fence rw,rw`，再 `mlock`。SPM page table pool 也有 hugetlb/mmap
-相关逻辑。
+在新 `cfg32_nic` bitstream 还没跑通 GDB 前，不建议直接做阶段 C 大改。
 
-需求判断：所有会传给硬件的 host buffer、completion flag、SPM page table，都应在获取物理地址前完成：
+## 9. `rerocc_coupleddma_set_dst` 和 completion flag
 
-- 分配；
-- prefault；
-- mlock 或 hugetlb pinning；
-- v2p；
-- CPU fence；
-- 记录 VA/PA/size。
+当前不能直接抛弃 completion flag。短期应保留，但把它作为交叉观测，而不是唯一完成语义。
 
-如果 buffer 在 DMA submit 后才 prefault/lock，就已经太晚。
+硬件当前实现：
 
-## 12. `pages_per_acc * page_bytes != 1MiB` 风险
+- `FUNCT_DEST_INFO` 记录 `dstAddrReg` 和 `completionAddrReg`。
+- `FUNCT_SRC_INFO` 入队 `src/dst/len/completion`。
+- copy FSM 读源、写目的；最后进入 `sIssueFlag/sWaitFlag`，向 `curCompletionAddr` 发 TileLink Put 写 1。
+- `FUNCT_CHECK_COMPLETION` 在 `!dmaBusy` 且 response 可用时才 ready；软件 `hw_dma_fence()` 对应这个 funct。
 
-该风险成立。当前 P12 Sbus128 目标每 manager SPM 是 1MiB；如果 `page_bytes=1024`，则
-`pages_per_acc` 应为 1024。若错误使用 256，manager 间 PPN window 会错位。
+软件当前实现：
 
-风险/动作：初始化时强制校验：
+- completion flag 不再是临时栈地址，而是 runtime 级 completion pool。
+- pool 按 host page 对齐、prefault、`mlock()`，并逐 slot 通过 `/proc/self/pagemap` 转 PA。
+- submit 前写 0，wait 前后刷新 flag。
 
-```text
-pages_per_acc * page_size_bytes == shared_spad_local_size_bytes
-```
+关键判断：
 
-并且 page allocator、idle check、SPM paddr 计算都要使用 manager 数，而不是 CPU core 数。
+- 当前 blocking path 一次只允许同 manager 一个 outstanding token，因此 `hw_dma_fence()` 可以作为主完成条件。
+- completion flag 用来分流：如果 `hw_dma_fence()` 返回但 flag 为 0，优先查 flag PA/cache/TL Put；如果 fence 本身不返回，优先查 DMA FSM/TL/SPM xlate/ReRoCC scope。
+- 若未来支持同 DMA manager 多 outstanding token，必须引入 token id/status，不能继续用 manager idle 当 per-token completion。
 
-## 13. tensor 地址 + size 越界校验
+## 10. Prefault + mlock 时机
 
-需要加。建议位置：
+当前有三类锁页/固定 PA 处理：
 
-- artifact load 后：校验每个 tensor 的 declared byte size；
-- action alloc/bind 后：校验 buffer binding 的 `pages_per_slot * page_bytes` 覆盖 tensor 最大访问；
-- stage task build 后：校验 conv/resadd 的 input/weight/bias/output 地址和 shape 推导 size；
-- DMA submit 前：校验 `src/dst/bytes` 落在已注册 host buffer 或 SPM page range 内。
+- 早期 `main.c` 可执行 `mlockall()`，减少运行时 page fault，但这不是 DMA PA 合同本身。
+- 模型 blob / synthetic buffer 通过 `prefault_and_lock_blob()` 逐页触碰后 `mlock()`。
+- DMA completion pool 和 bounce buffer 通过 `dma_prefault_and_lock_buffer()` 逐页写触碰、`fence rw,rw`、`mlock()`，然后对 completion slot 做 VA->PA。
 
-越界应 fail-fast，不要等 Gemmini/DMA hang。
+风险：
 
-## 14. 去掉 DMA 的计算试验
+- `mlock()` 失败当前会报错或 warning，F2 workload 必须保留日志。
+- `/proc/self/pagemap` PA 只对当前已驻留页可靠，所以 prefault 必须在 v2p 前完成。
 
-有价值。目的不是替代最终路径，而是二分问题：
+## 11. `pages_per_acc * page_bytes` 的问题
 
-- no-DMA compute 能跑，说明 Gemmini/SPM xlate/manager 基本健康，问题偏 DMA/completion/bounce/direct；
-- no-DMA compute 也卡，说明问题可能在 Gemmini、SPM xlate、manager ownership 或 stage 调度。
+AI 建议是有效的，并且已经变成 fail-fast。
 
-建议先做最小 segment/stage，固定 input/weight 已在 SPM，禁用 export DMA，仅验证 Gemmini fence 和结果可读。
+当前 `12p4c128sbus32cfg` 的 mapper artifact 要按 `page_size_bytes=1024` 解释：
 
-## 15. DMA manager id 如何决定
+- `pages_per_acc=1024`
+- `shared_spad_local_size_bytes=1048576`
+- `1024 * 1024 = 1MiB`
 
-当前 pair manager 模式下 `prt_cfg_dma_manager_id` 返回 `gemmini_mgr_base_id + local_idx`，
-即 DMA manager 与 Gemmini manager 使用同一 local index/pair id。`assign_stage_manager_slot`
-中 `dm_local = gm_local`，所以 stage 的 DMA manager 与对应 Gemmini manager 成对绑定。
+如果误用 4096 字节页，软件 PPN 到硬件 manager local window 的映射会错位。当前 audit 和 runtime dry-run 都会提前报错。
 
-这符合 pair manager 设计，但也意味着同一 stage 内 DMA 与 Gemmini 更容易争同一个 manager scope。
-因此并发时必须有显式互斥或共享 scope 策略。
+## 12. Tensor 地址和 SPM 大小越界校验
 
-## 16. SPM xlate 指令为什么需要单独 slot
+第一版已经加上：
 
-SPM xlate 配置从语义上是 manager 地址翻译状态，不是普通 Gemmini compute。它需要明确作用域，避免和
-Gemmini/DMA 指令在同一 manager 上乱序。当前如果 xlate slot 与 Gemmini slot 重叠，必须保证 xlate
-发生在 action 执行前，并且后续 action 内不再变动。
+- 静态脚本 `audit_pipeline_runtime_artifact.py` 检查 `localSpmTensorAddr + bytes` 是否落在 `localSpmFirstVPage/localSpmPageCount` 和 stage window 内。
+- 运行时 `runtime_prepare_stage_spm_windows()` 做同类检查，并检查 `execBaseVPage + localSpmPageSpan` 不越过 action alias window。
 
-代码细节：`prt_rerocc.c` 当前把 `RR_MAX_CFGS - 1` 固定留给 SPM xlate：
-`PRT_RR_SPM_XLATE_CFG_ID = RR_MAX_CFGS - 1U`。普通 stage 的 cfg id 通过
-`rr_cfg_id_for_stage(stage_id, opcode_id)` 按 stage/opcode 分配，而 SPM xlate helper
-使用 reserved cfg id 临时 acquire scope，并在 release 时恢复 opcode 3 的绑定。也就是说，
-“单独 slot”不是说只给某一个 Gemmini manager 配页表，而是说 ReRoCC cfg 命名空间里必须留一个
-不会和普通 DMA/Gemmini 指令抢的控制槽。
+仍需补：
 
-`configure_action_spm_xlate()` 会在 action bind 阶段遍历
-`action->acc_source.all_gemmini_mgr_ids`，对 action 会用到的每个 Gemmini manager 下发同一个
-PTBR/PTE count/range。它不是对所有硬件 manager 无条件广播；它只覆盖本 action 分配到的 manager。
-从需求角度这是合理的：未分配给 action 的 manager 不应被本 action 改翻译状态。
+- DMA request src/dst range 校验要覆盖所有 copy 方向。
+- Gemmini task input/weight/bias/output range 校验要覆盖 split 后的子任务。
 
-需求判断：长期设计应把 xlate 配置提升到 action prepare 阶段，对 action 使用的所有 manager 安装同一
-稳定 page table/context。stage 执行期间不再发改变绑定的 xlate 指令。
+## 13. 去掉 DMA 的 compute 二分
 
-剩余风险：当前 `stage_prepare_exec_views()` 仍会在运行期 `bind_vpages + flush`，因此 action bind
-阶段安装的是稳定 PTBR/range，不代表每个 tensor/slot 的 vaddr->ppn 绑定已经长期稳定。最终改造仍应把
-每个 slot 的 PTE 在 action prepare 阶段全部写好，stage 期间只换虚拟地址或 slot index。
+当前没有现成 `--no-dma-compute` 开关。建议先不要在 bitstream 构建等待期改主线语义。
 
-## 17. DMA 从 Tile A 到 Tile B 是否经过 Tile C
+低风险路径：
 
-按当前理解，若 DMA manager 在 Tile C，搬运 Tile A 到 Tile B 会形成 A->C 和 C->B 两段 NoC 事务，
-数据经过 DMA 内部缓冲，不进入 shared scratchpad。它不是真正的 A->B 直接 NoC copy。
+- 先用 host/CPU backend 做调度干跑，保留 artifact、action、SPM、manager 合同检查。
+- 构造一个最小 baremetal/metasim compute-only 用例：预置 SPM，禁 fixed-load/export DMA，只做 Gemmini issue/fence。
+- F2 上等新 AGFI 和 GDB attach 可用后，再跑正常路径 vs no-DMA compute 对比。
 
-性能含义：DMA manager 放置会影响 NoC 流量和延迟。HybridMapper 如果要优化性能，应把 DMA manager
-位置纳入 cost model，而不是只看逻辑带宽。
+判据：
 
-## 18. DMA 和 Gemmini 并行需要同一 manager 的风险
+- no-DMA 通过，正常路径挂：优先查 DMA/completion/direct/bounce。
+- no-DMA 也挂：优先查 Gemmini/SPM xlate/ReRoCC manager ownership。
 
-这是当前最重要的未解决风险之一。pair manager 模式下 DMA/Gemmini local id 对齐，同一 stage 内如果
-DMA prefetch/export 和 Gemmini compute overlap，可能需要同一 manager。若两个路径各自 acquire/release/fence，
-就可能破坏彼此的顺序。
+## 14. 每次 DMA 的 manager id 如何决定
 
-建议短期默认禁止同一 manager 上 DMA/Gemmini overlap；只有在实现 shared scope 或明确串行化后再打开。
+当前由 action/stage 分配决定：
 
-当前状态：`2026-05-05T152012Z` 已加 DMA 侧 manager ownership guard。
-它不能自动证明 DMA/Gemmini overlap 安全，但能先防止 DMA 路径使用未分配给当前
-stage/action 的 manager。若后续 gdbserver 看到卡在 DMA fence，至少可以排除一类
-“传错 manager 后硬件一直等”的软件误用；剩余问题再看 completion、direct/bounce、
-ReRoCC scope 或硬件 DMA 本身。
+- `prt_action_alloc_acc()` 给每个 stage 生成 `assign->dma_mgr_ids[]`。
+- pair-manager 模式下 `dm_local = gm_local`，因此 DMA manager 与 Gemmini manager local id 对齐。
+- `prt_action_bind_topology()` 把每个 stage 的主 DMA manager 写到 `exec->stage_dma_ids[stage]`；pipebuf 的 `cmd_acc[0/1]` 也设为该 stage DMA id。
+- 多 tile stage 中，DMA guard 在 pair-manager 模式下允许本 stage 的 `stage_mgr_ids[]` 列表。
 
-## 19. 页数量应始终用 `num_gemmini_mgrs`
+建议：
 
-同意。尤其在 4 CPU core、12 Gemmini manager 的目标上，按 `num_cores` 计算总页是错误模型。
-应使用 manager/SPM domain 数，pair manager 下通常是 `num_gemmini_mgrs`。
+- 每个 DMA request 的 `src_acc/dst_acc` 应显式来自 `exec->stage_dma_ids` 或该 stage manager set。
+- 日志/GDB 中第一时间看 `tok->rr_manager_id`、`req->src_acc`、`req->dst_acc` 和 stage 的 bound manager list。
 
-当前代码状态：已在 `2026-05-05` 的 checkpoint 中修正为 `prt_cfg_spm_manager_count()` /
-`prt_cfg_spm_total_pages()`，并把 SPM page table sizing、`page_used` 分配、preferred/fallback page
-allocation order、默认 xlate range size 和 `runtime_assert_page_allocator_idle` 都切到 SPM manager
-domain。`num_cores` 不再为了覆盖 12 个 SPM manager 被强行提升到 12。
+## 15. SPM xlate 为什么需要单独 cfg slot
 
-限制：这还只是软件侧静态/编译语义修复，尚未在新的 `cfg32_nic` AGFI 上跑过 pipeline-runtime workload。
-后续 gdbserver run 需要确认初始化日志里 `cores=4`、`gemmini=12`、`spm_mgrs=12`、总页为 `12 * 1024`。
+这不是需求层面的“SPM xlate 独占一个计算 manager slot”，而是当前 ReRoCC 路由实现需要一个稳定 cfg id 来把 opcode 3 临时绑定到指定 Gemmini manager。
 
-## 20. bounce/direct path 与 optimized DMA
+当前事实：
 
-现有 bounce 是软件 path，不是硬件里一条叫 bounce 的通道。它通过 host bounce buffer 修正 mod64
-相位风险。optimized DMA 硬件的目标是让 misaligned direct path 能在不额外 copy 的前提下正确处理
-对齐读、内部重组、掩码写。
+- `prt_rerocc.c` 定义 `PRT_RR_SPM_XLATE_CFG_ID = RR_MAX_CFGS - 1`。
+- `prt_gemmini_spm_xlate_program/flush/range/cfg()` 会通过 `prt_spm_xlate_acquire_scope()` 临时获取该 cfg，保存 opcode 3 原绑定，发 xlate 指令，然后 release 并恢复。
+- `prt_action_bind_topology()` 会对 action 使用到的所有 Gemmini manager 逐个安装 PTBR/range。
 
-动作顺序应是：
+长期建议：
 
-1. baremetal/metasim 单元测试 misaligned direct；
-2. 构建含 optimized DMA 的 F2 bitstream；
-3. 用 forced direct path 验证；
-4. 再决定是否减少或删除软件 bounce。
+- 需求上 xlate 配置应发生在 action prepare/bind 阶段，对所有 action manager 一次写完。
+- stage 运行期不应反复占用 xlate cfg slot。
+- 如果以后多个 action 并发，必须避免 xlate cfg 与计算 cfg/opcode 竞争，或为 xlate 增加更明确的管理通道。
 
-在 F2 结果出来前，不应把 bounce 删除。
+## 16. DMA 从 Tile A 到 Tile B 是否经过 DMA 所在 Tile C
 
-## 21. 当前 cfg32 首轮调试的优先级结论
+当前硬件语义是 DMA manager C 发 TileLink 读 A、写 B。
 
-结合 2026-05-05 的静态排查，当前 `cfg32_nic` workflow 在 `spm_xlate_enable=1` 时会被
-`runtime_init()` 强制降级到：
+它不会把数据写进 C 的 shared scratchpad 再从 C 搬出去，但会经过 C 的 DMA 内部寄存器/数据窗口，因此 NoC/TL 事务形态是：
 
-- `sync_mode = PRT_SYNC_MODE_BLOCKING_DEBUG`
-- `dma_backend = PRT_DMA_BACKEND_BLOCKING_FENCE`
-- `gemmini_mode = PRT_GEMMINI_MODE_BLOCKING_FENCE`
+- C 发起对 A 的读；
+- C 收到读数据；
+- C 发起对 B 的写。
 
-因此首轮 F2/gdbserver 卡死不应先按“DMA/Gemmini overlap 线程竞争”处理。更高优先级的排查顺序是：
+所以性能模型上可以近似看成 A->C 和 C->B 两段流量。HybridMapper 的 cost model 后续应把 DMA manager 位置纳入考虑，避免不必要的绕路。
 
-1. guest 是否有 IceNIC、IPv4 和 gdbserver attach；
-2. runtime 初始化是否打印 `cores=4 gemmini=12 dma=12 spm_mgrs=12 pages_per_acc=1024 page_bytes=1024`；
-3. 是否卡在 fixed-load DMA 的 `hw_dma_fence()` 或 `dma_token_fence_scope()`；
-4. 是否卡在 SPM xlate 的 reserved cfg acquire/fence/release；
-5. 是否卡在 Gemmini blocking fence；
-6. 若所有 worker 都在 pipe/ring wait，再回头查 pipeline dependency 和 stage buffer 状态。
+## 17. DMA 和 Gemmini 并行同 manager 的风险
 
-这条结论很重要：它把当前 gdbserver 首轮测试的目标从“证明最终高性能 overlap 设计正确”收敛为
-“在保守同步语义下定位 fixed-load DMA / SPM xlate / Gemmini fence / pipe wait 的真实卡点”。
+当前仍是未解决风险点。现有 guard 能防止“用错 stage manager”，但不能证明同一 stage 内 DMA 和 Gemmini overlap 一定安全。
+
+建议默认策略：
+
+- blocking debug 模式下，同一 stage 内 DMA fixed-load、Gemmini compute、export DMA 串行。
+- 打开 overlap 前，必须给每个 stage 生成 manager set、SPM page set、buffer slot set 冲突表。
+- 如果 DMA/Gemmini 共用 pair manager，必须明确 scope 顺序：acquire -> issue -> fence -> release，不能两个 helper 独立抢同一 manager。
+
+## 18. Direct/bounce path 当前策略
+
+当前 `bounce path` 是 Linux runtime 软件策略，不是硬件独立路径。
+
+- 判定函数是 `bytes >= 64 && src_mod64 != dst_mod64`，除非设置 force-direct。
+- bounce 用 stage-local host buffer 调整 64B 相对偏移，再交给硬件 DMA。
+- 当前硬件 `GemminiCoupledDMA` 已支持非对齐 beat 的读/写重排和 partial put；但仍需要 baremetal/metasim/F2 回归确认所有 misaligned 组合。
+
+建议：
+
+- 在 gdbserver 可用前保留 bounce guardrail。
+- 新 AGFI 跑通后，再做 forced-direct A/B 测试和 misaligned perf/coverage 测试。
+
+## 19. 当前优先级
+
+P0：
+
+- 等 `cfg32_nic` 或 noTrace `cfg32_nic` bitstream 完成。
+- 更新 HWDB 后先验证 remote gdbserver attach。
+- 首轮 GDB 只判断卡点归类：DMA fence、completion flag、SPM xlate、Gemmini fence、pipe/ring wait、thread join。
+
+P1：
+
+- 补 Gemmini split/tile bounds 校验。
+- 补 DMA request 全方向 range 校验。
+- 输出 action manager/SPM/page 冲突表。
+
+P2：
+
+- 推进 slot-stable SPM 绑定。
+- 构造 no-DMA compute 二分 profile。
+- 在正确性稳定后再打开 DMA/Gemmini overlap、forced-direct 和跨 action weight cache。
