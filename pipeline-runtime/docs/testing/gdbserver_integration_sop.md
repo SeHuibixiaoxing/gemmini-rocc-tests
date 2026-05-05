@@ -799,6 +799,12 @@ continue
 `next`/`stepi` 进入调用附近；当前源码中的调用点在 `pipeline-runtime/src/prt_dma.c`
 约 `3481` 行。
 
+2026-05-05 18:55 UTC 后的 Makefile 默认会给 host 和 RISC-V
+`pipeline-runtime` binary 加 `-g3 -fno-omit-frame-pointer`，同时保留 `-O2`。
+重建后的 `rerocc_pipeline_runtime-linux` 已确认包含 `.debug_info` 和 `.debug_line`。
+因此新镜像重新 `image-closure`/`infrasetup` 后，remote GDB 应能使用源码行、类型信息和更多变量；
+但由于仍是 `-O2`，部分局部变量可能显示为 optimized out。
+
 如果停在 DMA wait，优先打印：
 
 ```gdb

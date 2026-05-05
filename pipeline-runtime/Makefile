@@ -1,5 +1,6 @@
 CC ?= gcc
 CFLAGS ?= -O2 -Wall -Wextra -Werror -std=c11 -D_POSIX_C_SOURCE=200809L
+PIPELINE_RUNTIME_DEBUG_CFLAGS ?= -g3 -fno-omit-frame-pointer
 CPPFLAGS ?= -D_GNU_SOURCE -Iinclude -I..
 PIPELINE_RUNTIME_PROGRESS ?= 0
 PIPELINE_RUNTIME_PROGRESS_RAW ?= 0
@@ -31,10 +32,10 @@ BIN := pipeline_runtime
 all: $(BIN)
 
 $(BIN): $(OBJ)
-	$(CC) $(CFLAGS) $(OBJ) $(LDFLAGS) $(LDLIBS) -o $@
+	$(CC) $(CFLAGS) $(PIPELINE_RUNTIME_DEBUG_CFLAGS) $(OBJ) $(LDFLAGS) $(LDLIBS) -o $@
 
 src/%.o: src/%.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) $(PIPELINE_RUNTIME_DEBUG_CFLAGS) -c $< -o $@
 
 clean:
 	rm -f $(OBJ) $(BIN)
