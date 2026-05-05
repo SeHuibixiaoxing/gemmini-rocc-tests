@@ -1,0 +1,52 @@
+225:[192.168.1.175] out: #       print "CRITICAL WARNING: Found $setupPaths negative setup slack paths and $holdPaths negative hold slack hold paths"
+10185:[192.168.1.175] out: INFO: [Place 30-746] Post Placement Timing Summary WNS=-3.581. For the most accurate timing information please run report_timing.
+10191:[192.168.1.175] out: INFO: [Place 46-19] Post Replication Timing Summary WNS=-3.581. For the most accurate timing information please run report_timing.
+10350:[192.168.1.175] out: INFO: [Physopt 32-619] Estimated Timing Summary | WNS=-3.581 | TNS=-4551.488 |
+10441:[192.168.1.175] out: INFO: [Physopt 32-619] Estimated Timing Summary | WNS=-3.581 | TNS=-4539.121 |
+10446:[192.168.1.175] out: INFO: [Physopt 32-619] Estimated Timing Summary | WNS=-3.581 | TNS=-4539.121 |
+10468:[192.168.1.175] out: INFO: [Physopt 32-619] Estimated Timing Summary | WNS=-3.579 | TNS=-4539.050 |
+10917:[192.168.1.175] out: INFO: [Physopt 32-619] Estimated Timing Summary | WNS=-3.579 | TNS=-4538.692 |
+10956:[192.168.1.175] out: INFO: [Physopt 32-619] Estimated Timing Summary | WNS=-3.579 | TNS=-4538.692 |
+10961:[192.168.1.175] out: INFO: [Physopt 32-619] Estimated Timing Summary | WNS=-3.579 | TNS=-4535.248 |
+10967:[192.168.1.175] out: INFO: [Physopt 32-619] Estimated Timing Summary | WNS=-3.579 | TNS=-4535.166 |
+10971:[192.168.1.175] out: INFO: [Physopt 32-619] Estimated Timing Summary | WNS=-3.579 | TNS=-4535.037 |
+10975:[192.168.1.175] out: INFO: [Physopt 32-619] Estimated Timing Summary | WNS=-3.579 | TNS=-4534.979 |
+10979:[192.168.1.175] out: INFO: [Physopt 32-619] Estimated Timing Summary | WNS=-3.579 | TNS=-4534.964 |
+10983:[192.168.1.175] out: INFO: [Physopt 32-619] Estimated Timing Summary | WNS=-3.579 | TNS=-4534.913 |
+10987:[192.168.1.175] out: INFO: [Physopt 32-619] Estimated Timing Summary | WNS=-3.579 | TNS=-4534.870 |
+10991:[192.168.1.175] out: INFO: [Physopt 32-619] Estimated Timing Summary | WNS=-3.579 | TNS=-4534.813 |
+10995:[192.168.1.175] out: INFO: [Physopt 32-619] Estimated Timing Summary | WNS=-3.579 | TNS=-4534.771 |
+11010:[192.168.1.175] out: INFO: [Physopt 32-619] Estimated Timing Summary | WNS=-3.579 | TNS=-4534.644 |
+11017:[192.168.1.175] out: INFO: [Physopt 32-619] Estimated Timing Summary | WNS=-3.579 | TNS=-4534.644 |
+11030:[192.168.1.175] out: INFO: [Physopt 32-619] Estimated Timing Summary | WNS=-3.579 | TNS=-4534.644 |
+11042:[192.168.1.175] out: INFO: [Physopt 32-668] Estimated Timing Summary | WNS=-3.579 | TNS=-4537.878 | WHS=-3.870 | THS=-6004.756 |
+11047:[192.168.1.175] out: INFO: [Physopt 32-668] Estimated Timing Summary | WNS=-3.579 | TNS=-4537.878 | WHS=-3.870 | THS=-5970.017 |
+11053:[192.168.1.175] out: INFO: [Physopt 32-669] Post Physical Optimization Timing Summary | WNS=-3.579 | TNS=-4537.878 | WHS=-3.870 | THS=-5970.017 |
+11193:[192.168.1.175] out: INFO: [Route 35-416] Intermediate Timing Summary | WNS=-3.474 | TNS=-3918.655| WHS=-2.833 | THS=-3852.695|
+11203:[192.168.1.175] out: INFO: [Route 35-416] Intermediate Timing Summary | WNS=-3.474 | TNS=-4492.825| WHS=-3.896 | THS=-6033.636|
+11328:[192.168.1.175] out: WARNING: [Route 35-514] Design has a large number of hold violators. This is likely a design or constraint issue. Router is turning off hold fixing.
+11337:[192.168.1.175] out: INFO: [Route 35-416] Intermediate Timing Summary | WNS=-10.014| TNS=-4807.318| WHS=-3.993 | THS=-3888.202|
+11348:[192.168.1.175] out: INFO: [Route 35-416] Intermediate Timing Summary | WNS=-3.518 | TNS=-4691.495| WHS=N/A    | THS=N/A    |
+11358:[192.168.1.175] out: INFO: [Route 35-416] Intermediate Timing Summary | WNS=-3.518 | TNS=-4690.495| WHS=N/A    | THS=N/A    |
+11370:[192.168.1.175] out: INFO: [Route 35-416] Intermediate Timing Summary | WNS=-3.517 | TNS=-4690.023| WHS=-3.993 | THS=-4049.281|
+11372:[192.168.1.175] out: INFO: [Route 35-416] Intermediate Timing Summary | WNS=-3.517 | TNS=-4690.023| WHS=-3.993 | THS=-4049.281|
+11467:[192.168.1.175] out: INFO: [Route 35-57] Estimated Timing Summary | WNS=-3.517 | TNS=-4684.276| WHS=-3.993 | THS=-4049.281|
+11481:[192.168.1.175] out: INFO: [Physopt 32-668] Current Timing Summary | WNS=-3.512 | TNS=-4673.553 | WHS=-3.991 | THS=-4042.413 |
+11488:[192.168.1.175] out: INFO: [Physopt 32-668] Current Timing Summary | WNS=-3.512 | TNS=-4673.553 | WHS=-3.991 | THS=-4042.413 |
+11514:[192.168.1.175] out: INFO: [Physopt 32-668] Current Timing Summary | WNS=-3.470 | TNS=-4654.226 | WHS=-3.991 | THS=-4041.924 |
+11520:[192.168.1.175] out: INFO: [Physopt 32-669] Post Physical Optimization Timing Summary | WNS=-3.470 | TNS=-4654.226 | WHS=-3.991 | THS=-4041.924 |
+11589:[192.168.1.175] out: AWS FPGA: (05:16:34): CRITICAL WARNING: Found {WRAPPER/RL_SHIM/PIPE_RST_OUT_N/pipe_reg[0][0]/C --> WRAPPER/CL/ddr_ready_pre_sync_meta_reg/CLR} negative setup slack paths and {WRAPPER/CL/ocl_fsim_ar_fire_count_reg[6]/C --> WRAPPER/RL_SHIM/PIPE_STATUS1/pipe_reg[0][22]/D} negative hold slack hold paths
+11593:[192.168.1.175] out: ##     write_checkpoint -force ${checkpoints_dir}/${CL}.${TAG}.post_route.VIOLATED.dcp
+11608:[192.168.1.175] out: INFO: [Common 17-1381] The checkpoint '/home/ubuntu/firesim-build/platforms/f2/aws-fpga-firesim-f2/hdk/cl/developer_designs/cl_f2-firesim-FireSim-FireSimRocketNICNoTraceConfig-BaseF2Config/build/checkpoints/cl_f2-firesim-FireSim-FireSimRocketNICNoTraceConfig-BaseF2Config.2026_05_05-040521.post_route.VIOLATED.dcp' has been generated.
+11631:[192.168.1.175] out: Detected a post-route DCP with timing failure for AFI creation. Design functionalities are NOT guranteed.
+11635:[192.168.1.175] out: AWS FPGA: 2026-05-05 05:16:56 - Build completes
+11638:[192.168.1.175] out: AWS FPGA: Build Time = 1:11:35.126270. 
+11692:AWS FPGA: (05:16:34): CRITICAL WARNING: Found {WRAPPER/RL_SHIM/PIPE_RST_OUT_N/pipe_reg[0][0]/C --> WRAPPER/CL/ddr_ready_pre_sync_meta_reg/CLR} negative setup slack paths and {WRAPPER/CL/ocl_fsim_ar_fire_count_reg[6]/C --> WRAPPER/RL_SHIM/PIPE_STATUS1/pipe_reg[0][22]/D} negative hold slack hold paths
+11696:##     write_checkpoint -force ${checkpoints_dir}/${CL}.${TAG}.post_route.VIOLATED.dcp
+11711:INFO: [Common 17-1381] The checkpoint '/home/ubuntu/firesim-build/platforms/f2/aws-fpga-firesim-f2/hdk/cl/developer_designs/cl_f2-firesim-FireSim-FireSimRocketNICNoTraceConfig-BaseF2Config/build/checkpoints/cl_f2-firesim-FireSim-FireSimRocketNICNoTraceConfig-BaseF2Config.2026_05_05-040521.post_route.VIOLATED.dcp' has been generated.
+11734:Detected a post-route DCP with timing failure for AFI creation. Design functionalities are NOT guranteed.
+11738:AWS FPGA: 2026-05-05 05:16:56 - Build completes
+11741:AWS FPGA: Build Time = 1:11:35.126270.
+11743:Resulting AGFI: agfi-0e111a637cf0834a3
+11744:Resulting AFI: afi-0fa6273c9f8c65423
+11909:Current state: available

@@ -1,0 +1,16 @@
+session_name=rocket-singlecore-nic-congestion1bp-build-20260505-0405
+started_utc=2026-05-05T04:03:43Z
+task_name=buildbitstream
+command=firesim buildbitstream -b config_build_f2_rocket_singlecore_nic_notrace_congestion1bp_30mhz.yaml -r config_build_recipes_f2_rocket_singlecore_nic_notrace_congestion1bp_30mhz.yaml
+tmux_attach=tmux attach -t rocket-singlecore-nic-congestion1bp-build-20260505-0405
+tmux_capture=tmux capture-pane -pt rocket-singlecore-nic-congestion1bp-build-20260505-0405
+pane_log=/home/ubuntu/chipyard/tmp/firesim-aws-f2/tmux/rocket-singlecore-nic-congestion1bp-build-20260505-0405.pane.log
+exit_code_file=/home/ubuntu/chipyard/tmp/firesim-aws-f2/tmux/rocket-singlecore-nic-congestion1bp-build-20260505-0405.exitcode
+command_file=/home/ubuntu/chipyard/tmp/firesim-aws-f2/tmux/rocket-singlecore-nic-congestion1bp-build-20260505-0405.command.sh
+deploy_dir=/home/ubuntu/chipyard/sims/firesim/deploy
+watchdog_enabled=false
+watchdog_timeout_seconds=10800
+watchdog_log=
+watchdog_pid_file=
+watchdog_triggered_file=
+propagated_firesim_env= 

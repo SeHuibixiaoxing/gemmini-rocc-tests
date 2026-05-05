@@ -1,0 +1,26 @@
+{
+    "FpgaImages": [
+        {
+            "FpgaImageId": "afi-0fa6273c9f8c65423",
+            "FpgaImageGlobalId": "agfi-0e111a637cf0834a3",
+            "Name": "firesim_rocket_singlecore_nic_notrace_congestion1bp_30mhz",
+            "Description": "firesim-deployquintuplet:f2-firesim-FireSim-FireSimRocketNICNoTraceConfig-BaseF2Config,firesim-deploytriplet:FireSim-FireSimRocketNICNoTraceConfig-BaseF2Config,firesim-commit:cf0a17328b54cbd2998928e02b9096820b51da03,firesim-deploymakefrag:../../../generators/firechip/chip/src/main/makefrag/firesim",
+            "ShellVersion": "0x10212415",
+            "PciId": {
+                "DeviceId": "0xf002",
+                "VendorId": "0x1d0f",
+                "SubsystemId": "0x1d51",
+                "SubsystemVendorId": "0xfedc"
+            },
+            "State": {
+                "Code": "available"
+            },
+            "CreateTime": "2026-05-05T05:17:03+00:00",
+            "UpdateTime": "2026-05-05T05:46:13+00:00",
+            "OwnerId": "930030326150",
+            "Tags": [],
+            "Public": false,
+            "DataRetentionSupport": false
+        }
+    ]
+}
