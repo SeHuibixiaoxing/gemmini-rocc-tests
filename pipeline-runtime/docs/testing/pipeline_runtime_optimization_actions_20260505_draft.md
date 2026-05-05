@@ -141,6 +141,12 @@ F2 现场；若 backtrace 显示卡点就是 xlate bind/flush，再把阶段 A/B
 
 - 若 F2/baremetal/metasim 均证明 idle/status 足够精确，再考虑删除 completion flag。
 
+2026-05-05 静态复核见
+[`dma_completion_static_note_20260505.md`](dma_completion_static_note_20260505.md)。
+当前 CoupledDMA 硬件的 `hw_dma_fence()` 实际是等待该 DMA manager idle，completion flag
+则是 copy FSM 结束后额外发出的 host PA TileLink Put。首轮 gdbserver 若卡在 DMA wait，要同时看
+`hw_dma_fence()` 是否返回和 `tok->hw_done_flag` 是否置位；二者给出的分流不同。
+
 ## P1：no-DMA compute 二分测试
 
 目的：把卡死从 DMA/completion/direct/bounce 与 Gemmini/SPM/manager 中拆开。
