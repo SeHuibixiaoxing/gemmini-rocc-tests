@@ -251,3 +251,52 @@ Interpretation:
   `SH_DDR` / `PIPE_DDR_STAT0` status/reset path pressure. That change should be
   launched only after the current `TIMING_HOLDFIX+PCIS` route verdict is known,
   to avoid burning build capacity on a speculative variant.
+
+## PCIS2SLR follow-up prepared
+
+After the 07:47 UTC checkpoint, the next timing experiment was prepared but not
+yet launched. The change extends the PCIS shell-boundary register-slice wrapper
+from one slice to two slices:
+
+- `CL_DMA_PCIS_SLV/AXI4_REG_SLC_PCIS_SLR2`
+- `CL_DMA_PCIS_SLV/AXI4_REG_SLC_PCIS_SLR1`
+
+Reasoning:
+
+- The single-slice PCIS experiment improved pre-route setup TNS, so the PCIS
+  boundary is a real contributor.
+- The ordinary `TIMING+PCIS` build still reproduced `Route 35-514`, so one SLR1
+  slice is not enough for the plain TIMING strategy.
+- The AWS `cl_dma_pcis_slv` example stages PCIS through `AXI4_REG_SLC_PCIS_SLR2`
+  and then `AXI4_REG_SLC_PCIS_SLR1`, while the previous FireSim experiment only
+  inserted the SLR1 slice. Matching the AWS staging pattern is less speculative
+  than changing 8BP logic or altering unrelated target RTL.
+- The new slice only adds AXI register-slice latency at the shell boundary. It
+  does not add hardware breakpoints and does not touch the 1BP debug module
+  behavior.
+
+Static checks completed:
+
+- `git diff --check` for the F2 RTL/XDC edits
+- `git diff --check` for the FireSim build YAML files
+- Python `yaml.safe_load` for the new build and build-recipes YAML
+- Vivado 2024.2 `xvlog` parse of `axi_register_slice_bmstub.v` and modified
+  `cl_firesim.sv`, using the current generated
+  `FireSimRocketNICNoTraceConfig + BaseF2Config` defines include directory
+
+Prepared build config:
+
+- build config:
+  `sims/firesim/deploy/config_build_f2_rocket_singlecore_nic_notrace_timingholdfixpcis2slr1bp_30mhz.yaml`
+- recipe:
+  `sims/firesim/deploy/config_build_recipes_f2_rocket_singlecore_nic_notrace_timingholdfixpcis2slr1bp_30mhz.yaml`
+- target: `FireSimRocketNICNoTraceConfig + BaseF2Config`
+- strategy: `TIMING_HOLDFIX`
+- frequency: 30 MHz
+
+Capacity plan:
+
+- The ordinary `TIMING+PCIS` build has already served its diagnostic purpose by
+  reproducing `Route 35-514`.
+- If no build host is free, reclaim `rocket-singlecore-nic-timingpcisreg1bp-build-20260505-0637`
+  / `i-0ba6729824eb22932` before launching the PCIS2SLR build.
