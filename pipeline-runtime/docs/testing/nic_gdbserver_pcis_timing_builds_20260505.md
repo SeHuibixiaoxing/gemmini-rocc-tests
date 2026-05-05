@@ -191,3 +191,63 @@ Interpretation:
   PCIS builds fail, the next static target should be those DDR-status/status
   pipeline paths, not 8BP logic.
 - Continue monitoring at the next 1200 second interval.
+
+## 2026-05-05 07:47 UTC monitor checkpoint
+
+No build had completed by this checkpoint, and no new AGFI/AFI was available.
+The same three build hosts remained running:
+
+- original TIMING_HOLDFIX: `i-093a29cdf23e009b0`, private IP
+  `192.168.1.36`
+- TIMING + PCIS: `i-0ba6729824eb22932`, private IP `192.168.3.248`
+- TIMING_HOLDFIX + PCIS: `i-069ea3337cb1e7d55`, private IP
+  `192.168.3.128`
+
+Build status:
+
+- `rocket-singlecore-nic-timingholdfix1bp-build-20260505-0517`
+  - still running in route
+  - still no `Route 35-514` hold-fix bailout seen
+  - route entered high-effort hold fixing:
+    `Route 35-444 Design has unmet hold violation, router is invoking high
+    effort hold fixing`
+  - latest visible intermediate timing:
+    `WNS=-2.049`, `TNS=-5286.672`, `WHS=-1.015`, `THS=-611.616`
+  - late phys_opt processing references `SH_DDR` and `PIPE_DDR_STAT0`, so DDR
+    status/reset-related paths remain part of the timing pressure
+- `rocket-singlecore-nic-timingpcisreg1bp-build-20260505-0637`
+  - reached route and reproduced the ordinary TIMING failure mode:
+    `Route 35-514 Design has a large number of hold violators. ... Router is
+    turning off hold fixing`
+  - route completed, then started post-route phys_opt at 2026-05-05 07:45 UTC
+  - visible route/post-route timing remains violated:
+    `WNS=-1.951`, `TNS=-2604.675`, `WHS=-3.731`, `THS=-2895.875`
+  - this build is not a good AGFI candidate unless later output unexpectedly
+    produces a clean routed checkpoint, which is unlikely after `Route 35-514`
+- `rocket-singlecore-nic-timingholdfixpcisreg1bp-build-20260505-0639`
+  - still running in route
+  - no `Route 35-514` observed yet
+  - repeated `Route 35-469` warnings continue
+  - post-phys_opt setup TNS remains materially better than the no-PCIS
+    comparison (`~ -2421` vs `~ -4238` before route), but route still reports
+    heavy hold pressure
+  - route congestion / failing-endpoint output still names
+    `WRAPPER/RL_SHIM/DMA_PCIS_AXI_REG_SLC/AXI_REGISTER_SLICE/...`, which means
+    the shell-boundary PCIS slice improved the situation but did not fully
+    remove PCIS/RL_SHIM timing pressure
+
+Interpretation:
+
+- The user-requested ordinary `TIMING` parallel experiment has now done its
+  diagnostic job: even with the PCIS shell-boundary register slice, plain
+  `TIMING` repeats the historical `Route 35-514` hold-fix bailout. This is the
+  same class of failure seen in earlier non-TIMING / bad-strategy attempts, so
+  it should not be the primary path to a gdbserver validation AGFI.
+- `TIMING_HOLDFIX+PCIS` remains the most useful active build because it keeps
+  hold fixing enabled while preserving the PCIS setup improvement.
+- If both `TIMING_HOLDFIX` builds fail, the next RTL-side timing experiment
+  should be chosen from the observed route references, not from 8BP logic:
+  either add another carefully placed PCIS/RL_SHIM boundary slice or reduce the
+  `SH_DDR` / `PIPE_DDR_STAT0` status/reset path pressure. That change should be
+  launched only after the current `TIMING_HOLDFIX+PCIS` route verdict is known,
+  to avoid burning build capacity on a speculative variant.
