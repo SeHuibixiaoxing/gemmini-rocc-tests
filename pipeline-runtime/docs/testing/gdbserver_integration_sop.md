@@ -1,6 +1,6 @@
 # Pipeline Runtime gdbserver Integration SOP
 
-更新时间：`2026-05-05 19:25 UTC`
+更新时间：`2026-05-05 19:33 UTC`
 
 ## 1. 目标
 
@@ -222,6 +222,13 @@ runner 还会轮询：
 
 因此，`network_target_audit_status=fail` 时应停止本轮 FPGA 测试；
 `network_target_audit_status=pass` 只说明硬件前提具备，仍要继续看 Linux driver、`S40network`、guest IPv4 和 `gdbserver` 是否真正起来。
+
+`PAIRDUMMY_NETWORK_AUDIT_TARGET_GLOB` 支持用 `:` 分隔多个候选 glob。当前
+`cfg32_nic` gdbserver workflow 默认同时接受主线
+`WithNIC_WithDefaultFireSimBridges_...Dummy16x16Sbus128` 和 no-TraceIO
+`FireSimGemminiReRoCCPairDummy16x16C4P12Sbus128NICNoTraceConfig` 生成目录。这样
+主线或 noTrace 任一新 AGFI 先完成时，运行前审计都检查实际 DTS 是否包含 IceNIC，
+而不会因为 target 名字不同被误拦。
 
 ### 5.6 cfg32 + NIC 构建状态
 

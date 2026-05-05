@@ -1,0 +1,24 @@
+{
+  "name" : "rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver",
+  "base" : "br-base.json",
+  "workdir" : ".",
+  "distro" : {
+    "name" : "br",
+    "opts" : {
+      "configs" : ["linux_gdbserver.kfrag"]
+    }
+  },
+  "host-init" : "host-init-fileonly-sync-pairdummy.sh",
+  "overlay" : "overlay",
+  "outputs" : [
+    "/root/pipeline-runtime-debug/bertmini-batch8.log",
+    "/root/pipeline-runtime-debug/bertmini-batch8.deep.log",
+    "/root/pipeline-runtime-debug/bertmini-batch8.audit.log",
+    "/root/pipeline-runtime-debug/bertmini-batch8.checkpoint.log",
+    "/root/pipeline-runtime-debug/bertmini-batch8.breadcrumb.bin",
+    "/root/pipeline-runtime-debug/bertmini-batch8.status",
+    "/root/pipeline-runtime-debug/bertmini-batch8.gdbserver.info",
+    "/root/pipeline-runtime-debug/bertmini-batch8.gdbserver.log"
+  ],
+  "run" : "run_rerocc_pipeline_runtime_bertmini_fileonly_sync_capture.sh --batch 8"
+}

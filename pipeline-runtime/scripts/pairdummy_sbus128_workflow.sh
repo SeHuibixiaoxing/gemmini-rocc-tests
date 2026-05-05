@@ -3,25 +3,37 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cy_dir="$(cd "${script_dir}/../../../../../.." && pwd)"
+fixed_env_script="${PAIRDUMMY_FIXED_ENV_SCRIPT:-${script_dir}/pairdummy_sbus128_fixed_env.sh}"
+workflow_name="${PAIRDUMMY_WORKFLOW_NAME:-$(basename "${BASH_SOURCE[0]}")}"
+workflow_tag="${PAIRDUMMY_WORKFLOW_TAG:-pairdummy-sbus128}"
 
 # shellcheck disable=SC1091
-source "${script_dir}/pairdummy_sbus128_fixed_env.sh"
+source "${fixed_env_script}"
 
-workload_json="generators/gemmini/software/gemmini-rocc-tests/rerocc-linux-tests-coupleddma/workload/rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy.json"
-runtime_cfg="/home/ubuntu/chipyard/sims/firesim/deploy/config_runtime_f2_gemmini_rerocc_pairmanager_dummy16x16_4c12p12_sbus128_linux_bertmini_pipeline_runtime_batch8_fileonly_sync.yaml"
-hwdb_cfg="/home/ubuntu/chipyard/sims/firesim/deploy/config_hwdb_f2_gemmini_rerocc_pairmanager_dummy16x16_4c12p12_sbus128_bertmini.yaml"
-build_recipes_cfg="/home/ubuntu/chipyard/sims/firesim-staging/sample_config_build_recipes.yaml"
+workload_json="${PAIRDUMMY_WORKLOAD_JSON:-generators/gemmini/software/gemmini-rocc-tests/rerocc-linux-tests-coupleddma/workload/rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy.json}"
+runtime_cfg="${PAIRDUMMY_RUNTIME_CFG:-/home/ubuntu/chipyard/sims/firesim/deploy/config_runtime_f2_gemmini_rerocc_pairmanager_dummy16x16_4c12p12_sbus128_linux_bertmini_pipeline_runtime_batch8_fileonly_sync.yaml}"
+hwdb_cfg="${PAIRDUMMY_HWDB_CFG:-/home/ubuntu/chipyard/sims/firesim/deploy/config_hwdb_f2_gemmini_rerocc_pairmanager_dummy16x16_4c12p12_sbus128_bertmini.yaml}"
+build_recipes_cfg="${PAIRDUMMY_BUILD_RECIPES_CFG:-/home/ubuntu/chipyard/sims/firesim-staging/sample_config_build_recipes.yaml}"
 host_entrypoint_src="/home/ubuntu/chipyard/software/firemarshal/boards/firechip/distros/br/overlay/firemarshal.sh"
 local_freshness_script="/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/verify_pairdummy_firemarshal_image_freshness.sh"
 remote_freshness_script="/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/verify_pairdummy_firesim_remote_image_freshness.sh"
+network_prepare_script="/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/prepare_firesim_networked_gdbserver.sh"
+network_audit_script="/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/audit_pairdummy_networked_gdbserver_target.sh"
+render_guest_env_script="/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/render_pairdummy_guest_env.sh"
+patch_guest_env_script="/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/apply_guest_env_to_image.sh"
 monitor_script="scripts/firesim-prt-host-watchdog.sh"
 firemarshal_state_dir="${cy_dir}/tmp/firemarshal-tmux"
 firesim_state_dir="${cy_dir}/tmp/firesim-aws-f2/tmux"
+effective_guest_env_dir="${cy_dir}/tmp/pipeline-runtime-effective-guest-env"
+workload_name="$(basename "${workload_json}" .json)"
+local_image_path="${cy_dir}/software/firemarshal/images/firechip/${workload_name}/${workload_name}.img"
+effective_guest_env_path="${effective_guest_env_dir}/${workload_name}.firemarshal.env"
 run_farm_tag="$(awk '/run_farm_tag:/ { print $2; exit }' "${runtime_cfg}")"
+runtime_topology="$(awk '/^[[:space:]]*topology:/ { print $2; exit }' "${runtime_cfg}")"
 
 usage() {
-  cat <<'EOF'
-Usage: pairdummy_sbus128_workflow.sh <command> [private-ip]
+  cat <<EOF
+Usage: ${workflow_name} <command> [private-ip]
 
 Canonical fixed workflow for the 12-pair sbus128 dummy-model pipeline-runtime path.
 This helper always uses:
@@ -41,6 +53,8 @@ Commands:
   launch                Launch the FireSim run farm
   infrasetup            Run FireSim infrasetup
   remote-freshness [ip] Verify remote image freshness over a private IP
+  network-audit         Audit whether the generated target actually exposes a guest NIC
+  network-prepare [ip]  Prepare SSHPort switch/tap0 for example_1config gdbserver attach
   run [ip]              Remote freshness, then runworkload with the host watchdog
   terminate             Force-terminate the run farm
   current-private-ip    Print the sole running private IP if exactly one exists
@@ -94,9 +108,25 @@ resolve_private_ip() {
   printf '%s\n' "${private_ips[0]}"
 }
 
+render_effective_guest_env() {
+  mkdir -p "${effective_guest_env_dir}"
+  "${render_guest_env_script}" "${effective_guest_env_path}"
+  export PAIRDUMMY_GUEST_ENV_OVERRIDE_PATH="${effective_guest_env_path}"
+}
+
+patch_local_image_guest_env() {
+  render_effective_guest_env
+  "${patch_guest_env_script}" "${local_image_path}" "${effective_guest_env_path}"
+}
+
+verify_local_freshness_effective() {
+  render_effective_guest_env
+  "${local_freshness_script}" "${workload_json}"
+}
+
 run_firemarshal() {
   local subcmd="$1"
-  local session="pairdummy-sbus128-${subcmd}-$(timestamp)"
+  local session="${workflow_tag}-${subcmd}-$(timestamp)"
   local exit_file="${firemarshal_state_dir}/${session}.exitcode"
   "${cy_dir}/scripts/firemarshal-tmux-run.sh" --session-name "${session}" "${subcmd}" "${workload_json}"
   wait_for_exit_code "${session}" "${exit_file}"
@@ -129,7 +159,7 @@ wait_for_exit_code() {
 
 run_firesim_sync() {
   local subcmd="$1"
-  local session="pairdummy-sbus128-${subcmd}-$(timestamp)"
+  local session="${workflow_tag}-${subcmd}-$(timestamp)"
   local exit_file="${firesim_state_dir}/${session}.exitcode"
   shift
   "${cy_dir}/scripts/firesim-tmux-run.sh" --session-name "${session}" "${subcmd}" \
@@ -142,7 +172,7 @@ run_firesim_sync() {
 
 run_firesim_async() {
   local subcmd="$1"
-  local session="pairdummy-sbus128-${subcmd}-$(timestamp)"
+  local session="${workflow_tag}-${subcmd}-$(timestamp)"
   shift
   "${cy_dir}/scripts/firesim-tmux-run.sh" --session-name "${session}" "${subcmd}" \
     -c "${runtime_cfg}" \
@@ -151,19 +181,61 @@ run_firesim_async() {
     "$@"
 }
 
+is_networked_gdbserver_topology() {
+  [[ "${PIPELINE_RUNTIME_GDBSERVER_ENABLE:-0}" != "0" && "${runtime_topology}" == "example_1config" ]]
+}
+
+maybe_prepare_networked_gdbserver() {
+  local private_ip="$1"
+  if ! is_networked_gdbserver_topology; then
+    return 0
+  fi
+  "${network_prepare_script}" "${private_ip}"
+}
+
+should_enforce_network_audit() {
+  [[ "${PAIRDUMMY_SKIP_NETWORK_GDBSERVER_TARGET_AUDIT:-0}" == "0" ]]
+}
+
+run_network_audit() {
+  "${network_audit_script}"
+}
+
+verify_networked_gdbserver_target_prereqs() {
+  if ! is_networked_gdbserver_topology; then
+    return 0
+  fi
+  if ! should_enforce_network_audit; then
+    echo "network_target_audit_status=skipped"
+    echo "network_target_audit_summary=skip-requested-by-PAIRDUMMY_SKIP_NETWORK_GDBSERVER_TARGET_AUDIT"
+    return 0
+  fi
+  "${network_audit_script}"
+}
+
 show_config() {
   cat <<EOF
+workflow_name=${workflow_name}
+workflow_tag=${workflow_tag}
 profile_id=${PIPELINE_RUNTIME_PROFILE_ID}
+fixed_env_script=${fixed_env_script}
 workload_json=${workload_json}
 runtime_cfg=${runtime_cfg}
 hwdb_cfg=${hwdb_cfg}
 build_recipes_cfg=${build_recipes_cfg}
+runtime_topology=${runtime_topology}
 host_entrypoint_src=${host_entrypoint_src}
 run_farm_tag=${run_farm_tag}
 local_freshness_script=${local_freshness_script}
 remote_freshness_script=${remote_freshness_script}
+network_prepare_script=${network_prepare_script}
+network_audit_script=${network_audit_script}
+network_prepare_mode=$([[ "${PIPELINE_RUNTIME_GDBSERVER_ENABLE:-0}" != "0" && "${runtime_topology}" == "example_1config" ]] && echo auto || echo disabled)
+network_target_audit_enforced=$([[ "${PIPELINE_RUNTIME_GDBSERVER_ENABLE:-0}" != "0" && "${runtime_topology}" == "example_1config" && "${PAIRDUMMY_SKIP_NETWORK_GDBSERVER_TARGET_AUDIT:-0}" == "0" ]] && echo yes || echo no)
+network_target_audit_skip=${PAIRDUMMY_SKIP_NETWORK_GDBSERVER_TARGET_AUDIT:-0}
 guest_entrypoint=/firemarshal.sh
 note=do-not-infer-entrypoint-from-workload-overlay-root-firemarshal.sh
+firesim_live_idle_timeout_seconds=${FIRESIM_RUNWORKLOAD_LIVE_IDLE_TIMEOUT_SECONDS:-}
 methods=${METHODS}
 dummy_gemmini_mode=${DUMMY_GEMMINI_MODE}
 skip_model_bin_load=${PIPELINE_RUNTIME_SKIP_MODEL_BIN_LOAD}
@@ -182,10 +254,22 @@ guest_deep_log_enable=${PIPELINE_RUNTIME_GUEST_DEEP_LOG_ENABLE}
 checkpoint_log_enable=${PIPELINE_RUNTIME_CHECKPOINT_LOG_ENABLE}
 disable_mapping_cache=${PIPELINE_RUNTIME_DISABLE_MAPPING_CACHE}
 dma_export_probe_enable=${PIPELINE_RUNTIME_DMA_EXPORT_PROBE_ENABLE}
+dma_force_direct_enable=${PIPELINE_RUNTIME_DMA_FORCE_DIRECT_ENABLE:-0}
 dma_export_probe_token_start=${PIPELINE_RUNTIME_DMA_EXPORT_PROBE_TOKEN_START}
 dma_export_probe_token_end=${PIPELINE_RUNTIME_DMA_EXPORT_PROBE_TOKEN_END}
 dma_export_page_start=${PIPELINE_RUNTIME_DMA_EXPORT_PAGE_START:-}
 dma_export_page_end=${PIPELINE_RUNTIME_DMA_EXPORT_PAGE_END:-}
+gdbserver_enable=${PIPELINE_RUNTIME_GDBSERVER_ENABLE:-0}
+gdbserver_bind_addr=${PIPELINE_RUNTIME_GDBSERVER_BIND_ADDR:-0.0.0.0}
+gdbserver_port=${PIPELINE_RUNTIME_GDBSERVER_PORT:-2345}
+gdbserver_info_path=${PIPELINE_RUNTIME_GDBSERVER_INFO_PATH:-/root/pipeline-runtime-debug/bertmini-batch8.gdbserver.info}
+gdbserver_log_path=${PIPELINE_RUNTIME_GDBSERVER_LOG_PATH:-/root/pipeline-runtime-debug/bertmini-batch8.gdbserver.log}
+gdbserver_console_announce=${PIPELINE_RUNTIME_GDBSERVER_CONSOLE_ANNOUNCE:-1}
+local_gdb_enable=${PIPELINE_RUNTIME_LOCAL_GDB_ENABLE:-0}
+local_gdb_info_path=${PIPELINE_RUNTIME_LOCAL_GDB_INFO_PATH:-/root/pipeline-runtime-debug/local-gdb.info}
+local_gdb_log_path=${PIPELINE_RUNTIME_LOCAL_GDB_LOG_PATH:-/root/pipeline-runtime-debug/local-gdb.log}
+local_gdb_timeout_secs=${PIPELINE_RUNTIME_LOCAL_GDB_TIMEOUT_SECS:-900}
+local_gdb_continue_after_main=${PIPELINE_RUNTIME_LOCAL_GDB_CONTINUE_AFTER_MAIN:-1}
 dma_fixed_load_probe_enable=${PIPELINE_RUNTIME_DMA_FIXED_LOAD_PROBE_ENABLE}
 dma_fixed_load_probe_stage_id=${PIPELINE_RUNTIME_DMA_FIXED_LOAD_PROBE_STAGE_ID:-0}
 dma_fixed_load_probe_tensor_id=${PIPELINE_RUNTIME_DMA_FIXED_LOAD_PROBE_TENSOR_ID:-1000001}
@@ -273,6 +357,7 @@ debug_preflight() {
   echo "debug_preflight_breadcrumb_enable=${PIPELINE_RUNTIME_BREADCRUMB_ENABLE}"
   echo "debug_preflight_guest_deep_log_enable=${PIPELINE_RUNTIME_GUEST_DEEP_LOG_ENABLE}"
   echo "debug_preflight_dma_export_probe_enable=${PIPELINE_RUNTIME_DMA_EXPORT_PROBE_ENABLE}"
+  echo "debug_preflight_dma_force_direct_enable=${PIPELINE_RUNTIME_DMA_FORCE_DIRECT_ENABLE:-0}"
   echo "debug_preflight_dma_fixed_load_probe_enable=${PIPELINE_RUNTIME_DMA_FIXED_LOAD_PROBE_ENABLE}"
   echo "debug_preflight_dma_fixed_load_monitor_probe_enable=${PIPELINE_RUNTIME_DMA_FIXED_LOAD_MONITOR_PROBE_ENABLE}"
   if [[ "${#notes[@]}" -eq 0 ]]; then
@@ -311,7 +396,8 @@ case "${command_name}" in
     run_firemarshal clean
     run_firemarshal build
     run_firemarshal install
-    "${local_freshness_script}" "${workload_json}"
+    patch_local_image_guest_env
+    verify_local_freshness_effective
     ;;
   marshal-clean)
     run_firemarshal clean
@@ -323,21 +409,37 @@ case "${command_name}" in
     run_firemarshal install
     ;;
   local-freshness)
-    "${local_freshness_script}" "${workload_json}"
+    verify_local_freshness_effective
     ;;
   launch)
+    verify_networked_gdbserver_target_prereqs
     run_firesim_sync launchrunfarm
     ;;
   infrasetup)
+    verify_networked_gdbserver_target_prereqs
+    patch_local_image_guest_env
+    verify_local_freshness_effective
     run_firesim_sync infrasetup
     ;;
   remote-freshness)
+    verify_local_freshness_effective
     private_ip="$(resolve_private_ip "${1:-}")"
     "${remote_freshness_script}" "${workload_json}" "${private_ip}"
     ;;
+  network-audit)
+    run_network_audit
+    ;;
+  network-prepare)
+    verify_networked_gdbserver_target_prereqs
+    private_ip="$(resolve_private_ip "${1:-}")"
+    maybe_prepare_networked_gdbserver "${private_ip}"
+    ;;
   run)
+    verify_networked_gdbserver_target_prereqs
+    verify_local_freshness_effective
     private_ip="$(resolve_private_ip "${1:-}")"
     "${remote_freshness_script}" "${workload_json}" "${private_ip}"
+    maybe_prepare_networked_gdbserver "${private_ip}"
     export FIRESIM_RUNWORKLOAD_MONITOR_SCRIPT="${monitor_script}"
     run_firesim_async runworkload
     ;;
