@@ -762,7 +762,6 @@ break stage_prepare_exec_views
 break prt_dma_submit
 break prt_dma_wait
 break dma_blocking_wait
-break hw_dma_fence
 break prt_gemmini_spm_xlate_program
 break prt_gemmini_spm_xlate_flush
 break prt_rr_release_scope
@@ -783,11 +782,22 @@ break prt_runtime_run
 break prt_action_bind_topology
 break stage_prepare_exec_views
 break dma_blocking_wait
-break hw_dma_fence
 break prt_gemmini_spm_xlate_program
 break prt_gemmini_spm_xlate_flush
 continue
 ```
+
+2026-05-05 符号复核结果：当前
+`build/rerocc-linux-tests/rerocc_pipeline_runtime-linux` ELF 中可按名字 break 的首轮符号包括
+`prt_runtime_run`、`prt_action_bind_topology`、`stage_prepare_exec_views`、
+`prt_dma_submit`、`prt_dma_wait`、`dma_blocking_wait`、
+`prt_gemmini_spm_xlate_program`、`prt_gemmini_spm_xlate_flush`、
+`prt_rr_release_scope`、`prt_gemm_conv_run` 和 `prt_gemm_fence`。
+`hw_dma_fence` 当前是 `prt_dma.c` 中的 `static inline`，ELF 没有稳定函数符号；
+首轮不要用 `break hw_dma_fence` 消耗 `gdbserver --once` 会话。若需要贴近
+`hw_dma_fence()` 调用点，先停在 `dma_blocking_wait`，再在 GDB 中用源码行或
+`next`/`stepi` 进入调用附近；当前源码中的调用点在 `pipeline-runtime/src/prt_dma.c`
+约 `3481` 行。
 
 如果停在 DMA wait，优先打印：
 
