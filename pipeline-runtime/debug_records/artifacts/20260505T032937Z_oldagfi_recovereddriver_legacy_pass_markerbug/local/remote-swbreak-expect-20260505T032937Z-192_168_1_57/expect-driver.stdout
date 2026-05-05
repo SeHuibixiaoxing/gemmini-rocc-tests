@@ -1,0 +1,226 @@
+spawn /home/ubuntu/chipyard/.conda-env/riscv-tools/bin/riscv64-unknown-linux-gnu-gdb /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/workloads/rocket-singlecore-nic-gdbserver-smoke/overlay/root/gdbserver-smoke/gdbserver-smoke
+GNU gdb (GDB) 14.1
+Copyright (C) 2023 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.
+Type "show copying" and "show warranty" for details.
+This GDB was configured as "--host=x86_64-pc-linux-gnu --target=riscv64-unknown-linux-gnu".
+Type "show configuration" for configuration details.
+For bug reporting instructions, please see:
+<https://www.gnu.org/software/gdb/bugs/>.
+Find the GDB manual and other documentation resources online at:
+    <http://www.gnu.org/software/gdb/documentation/>.
+
+For help, type "help".
+Type "apropos word" to search for commands related to "word"...
+Reading symbols from /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/workloads/rocket-singlecore-nic-gdbserver-smoke/overlay/root/gdbserver-smoke/gdbserver-smoke...
+[?2004h(gdb) set pagination off
+[?2004l[?2004h(gdb) set confirm off
+[?2004l[?2004h(gdb) set print thread-events off
+[?2004l[?2004h(gdb) set debuginfod enabled off
+[?2004l[?2004h(gdb) set auto-load safe-path /
+[?2004l[?2004h(gdb) set remotetimeout 180
+[?2004l[?2004h(gdb) target remote :32345
+[?2004lRemote debugging using :32345
+0x0000000000010438 in _start ()
+[?2004h(gdb) GDB_MARK_CONNECTED
+break main
+[?2004lBreakpoint 1 at 0x106a4: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/workloads/rocket-singlecore-nic-gdbserver-smoke/gdbserver-smoke.c, line 51.
+[?2004h(gdb) break smoke_iteration_hook
+[?2004lBreakpoint 2 at 0x10598: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/workloads/rocket-singlecore-nic-gdbserver-smoke/gdbserver-smoke.c, line 29.
+[?2004h(gdb) break smoke_worker_heartbeat
+[?2004lBreakpoint 3 at 0x105e8: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/workloads/rocket-singlecore-nic-gdbserver-smoke/gdbserver-smoke.c, line 33.
+[?2004h(gdb) info breakpoints
+[?2004lNum     Type           Disp Enb Address            What
+1       breakpoint     keep y   0x00000000000106a4 in main 
+                                                   at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/workloads/rocket-singlecore-nic-gdbserver-smoke/gdbserver-smoke.c:51
+2       breakpoint     keep y   0x0000000000010598 in smoke_iteration_hook 
+                                                   at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/workloads/rocket-singlecore-nic-gdbserver-smoke/gdbserver-smoke.c:29
+3       breakpoint     keep y   0x00000000000105e8 in smoke_worker_heartbeat 
+                                                   at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/workloads/rocket-singlecore-nic-gdbserver-smoke/gdbserver-smoke.c:33
+[?2004h(gdb) continue
+[?2004lContinuing.
+
+Breakpoint 1, main ()
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/workloads/rocket-singlecore-nic-gdbserver-smoke/gdbserver-smoke.c:51
+51	  puts("gdbserver-smoke: begin");
+[?2004h[?2004l[?2004h(gdb) GDB_MARK_HIT_MAIN
+bt
+[?2004l#0  main ()
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/workloads/rocket-singlecore-nic-gdbserver-smoke/gdbserver-smoke.c:51
+[?2004h(gdb) info registers pc sp ra a0 a1
+[?2004lpc             0x106a4	0x106a4 <main+8>
+sp             0x3ffffffb00	0x3ffffffb00
+ra             0x108a8	0x108a8 <__libc_start_call_main+54>
+a0             0x1	1
+a1             0x3ffffffcf8	274877906168
+[?2004h(gdb) x/12i $pc
+[?2004l=> 0x106a4 <main+8>:	lui	a5,0x58
+   0x106a8 <main+12>:	addi	a0,a5,-1248
+   0x106ac <main+16>:	jal	0x14a9a <puts>
+   0x106b0 <main+20>:	lui	a5,0x89
+   0x106b4 <main+24>:	ld	a5,1464(a5)
+   0x106b8 <main+28>:	mv	a0,a5
+   0x106ba <main+30>:	jal	0x1496c <fflush>
+   0x106be <main+34>:	sw	zero,-20(s0)
+   0x106c2 <main+38>:	j	0x10726 <main+138>
+   0x106c4 <main+40>:	addi	a4,s0,-72
+   0x106c8 <main+44>:	lw	a5,-20(s0)
+   0x106cc <main+48>:	slli	a5,a5,0x3
+[?2004h(gdb) print smoke_counter
+[?2004l$1 = 0
+[?2004h(gdb) print/x smoke_memory_probe[0]
+[?2004l$2 = 0x11110000
+[?2004h(gdb) set variable smoke_memory_probe[7] = 0xabcdef
+[?2004l[?2004h(gdb) print/x smoke_memory_probe[7]
+[?2004l$3 = 0xabcdef
+[?2004h(gdb) next
+[?2004l52	  fflush(stdout);
+[?2004h[?2004l[?2004h(gdb) GDB_MARK_NEXT_DONE
+disable 1
+[?2004l[?2004h(gdb) continue
+[?2004lContinuing.
+[Switching to Thread 116.118]
+
+Thread 2 "gdbserver-smoke" hit Breakpoint 3, smoke_worker_heartbeat (
+    worker_id=1)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/workloads/rocket-singlecore-nic-gdbserver-smoke/gdbserver-smoke.c:33
+33	  smoke_worker_counters[worker_id] += worker_id + 1;
+[?2004h[?2004l[?2004h(gdb) GDB_MARK_HIT_MULTI_SOFTWARE_BREAK
+bt
+[?2004l#0  smoke_worker_heartbeat (worker_id=1)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/workloads/rocket-singlecore-nic-gdbserver-smoke/gdbserver-smoke.c:33
+#1  0x000000000001067e in smoke_worker_main (arg=0x1)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/workloads/rocket-singlecore-nic-gdbserver-smoke/gdbserver-smoke.c:41
+#2  0x0000000000018cc2 in start_thread ()
+#3  0x00000000000229dc in __thread_start_clone3 ()
+[?2004h(gdb) info args
+[?2004lworker_id = 1
+[?2004h(gdb) info threads
+[?2004l  Id   Target Id                        Frame 
+  1    Thread 116.116 "gdbserver-smoke" 0x00000000000229c8 in clone3 ()
+* 2    Thread 116.118 "gdbserver-smoke" smoke_worker_heartbeat (worker_id=1)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/workloads/rocket-singlecore-nic-gdbserver-smoke/gdbserver-smoke.c:33
+  3    Thread 116.117 "gdbserver-smoke" smoke_worker_heartbeat (worker_id=0)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/workloads/rocket-singlecore-nic-gdbserver-smoke/gdbserver-smoke.c:33
+[?2004h(gdb) thread apply all bt
+[?2004l
+Thread 3 (Thread 116.117 "gdbserver-smoke"):
+#0  smoke_worker_heartbeat (worker_id=0) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/workloads/rocket-singlecore-nic-gdbserver-smoke/gdbserver-smoke.c:33
+#1  0x000000000001067e in smoke_worker_main (arg=0x0) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/workloads/rocket-singlecore-nic-gdbserver-smoke/gdbserver-smoke.c:41
+#2  0x0000000000018cc2 in start_thread ()
+#3  0x00000000000229dc in __thread_start_clone3 ()
+
+Thread 2 (Thread 116.118 "gdbserver-smoke"):
+#0  smoke_worker_heartbeat (worker_id=1) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/workloads/rocket-singlecore-nic-gdbserver-smoke/gdbserver-smoke.c:33
+#1  0x000000000001067e in smoke_worker_main (arg=0x1) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/workloads/rocket-singlecore-nic-gdbserver-smoke/gdbserver-smoke.c:41
+#2  0x0000000000018cc2 in start_thread ()
+#3  0x00000000000229dc in __thread_start_clone3 ()
+
+Thread 1 (Thread 116.116 "gdbserver-smoke"):
+#0  0x00000000000229c8 in clone3 ()
+#1  0x00000000000228e6 in __clone3_internal ()
+#2  0x0000000000022964 in __clone_internal ()
+#3  0x0000000000018ab2 in create_thread ()
+#4  0x00000000000192ee in pthread_create ()
+#5  0x00000000000106e4 in main () at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/workloads/rocket-singlecore-nic-gdbserver-smoke/gdbserver-smoke.c:55
+[?2004h(gdb) disable 3
+[?2004l[?2004h(gdb) continue
+[?2004lContinuing.
+[Switching to Thread 116.116]
+
+Thread 1 "gdbserver-smoke" hit Breakpoint 2, smoke_iteration_hook (iteration=0)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/workloads/rocket-singlecore-nic-gdbserver-smoke/gdbserver-smoke.c:29
+29	  smoke_memory_probe[iteration & 7] ^= (unsigned long)(0x1000 + iteration);
+[?2004h[?2004l[?2004h(gdb) GDB_MARK_HIT_ITERATION_BREAK
+bt
+[?2004l#0  smoke_iteration_hook (iteration=0)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/workloads/rocket-singlecore-nic-gdbserver-smoke/gdbserver-smoke.c:29
+#1  0x0000000000010770 in main ()
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/workloads/rocket-singlecore-nic-gdbserver-smoke/gdbserver-smoke.c:66
+[?2004h(gdb) info args
+[?2004literation = 0
+[?2004h(gdb) info registers pc sp
+[?2004lpc             0x10598	0x10598 <smoke_iteration_hook+12>
+sp             0x3ffffffae0	0x3ffffffae0
+[?2004h(gdb) disable 2
+[?2004l[?2004h(gdb) GDB_MARK_INTERRUPT_BEGIN
+continue
+[?2004lContinuing.
+^C
+Thread 1 "gdbserver-smoke" received signal SIGINT, Interrupt.
+0x0000000000045870 in clock_nanosleep ()
+[?2004h[?2004l[?2004h(gdb) GDB_MARK_INTERRUPT_DONE
+info threads
+[?2004l  Id   Target Id                        Frame 
+* 1    Thread 116.116 "gdbserver-smoke" 0x0000000000045870 in clock_nanosleep
+    ()
+  2    Thread 116.118 "gdbserver-smoke" 0x0000000000045870 in clock_nanosleep
+    ()
+  3    Thread 116.117 "gdbserver-smoke" 0x0000000000045870 in clock_nanosleep
+    ()
+  4    Thread 116.119 "gdbserver-smoke" 0x0000000000045870 in clock_nanosleep
+    ()
+  5    Thread 116.120 "gdbserver-smoke" 0x0000000000045870 in clock_nanosleep
+    ()
+[?2004h(gdb) thread apply all bt
+[?2004l
+Thread 5 (Thread 116.120 "gdbserver-smoke"):
+#0  0x0000000000045870 in clock_nanosleep ()
+#1  0x000000000003c2a4 in nanosleep ()
+#2  0x0000000000022896 in usleep ()
+#3  0x0000000000010688 in smoke_worker_main (arg=0x3) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/workloads/rocket-singlecore-nic-gdbserver-smoke/gdbserver-smoke.c:42
+#4  0x0000000000018cc2 in start_thread ()
+#5  0x00000000000229dc in __thread_start_clone3 ()
+
+Thread 4 (Thread 116.119 "gdbserver-smoke"):
+#0  0x0000000000045870 in clock_nanosleep ()
+#1  0x000000000003c2a4 in nanosleep ()
+#2  0x0000000000022896 in usleep ()
+#3  0x0000000000010688 in smoke_worker_main (arg=0x2) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/workloads/rocket-singlecore-nic-gdbserver-smoke/gdbserver-smoke.c:42
+#4  0x0000000000018cc2 in start_thread ()
+#5  0x00000000000229dc in __thread_start_clone3 ()
+
+Thread 3 (Thread 116.117 "gdbserver-smoke"):
+#0  0x0000000000045870 in clock_nanosleep ()
+#1  0x000000000003c2a4 in nanosleep ()
+#2  0x0000000000022896 in usleep ()
+#3  0x0000000000010688 in smoke_worker_main (arg=0x0) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/workloads/rocket-singlecore-nic-gdbserver-smoke/gdbserver-smoke.c:42
+#4  0x0000000000018cc2 in start_thread ()
+#5  0x00000000000229dc in __thread_start_clone3 ()
+
+Thread 2 (Thread 116.118 "gdbserver-smoke"):
+#0  0x0000000000045870 in clock_nanosleep ()
+#1  0x000000000003c2a4 in nanosleep ()
+#2  0x0000000000022896 in usleep ()
+#3  0x0000000000010688 in smoke_worker_main (arg=0x1) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/workloads/rocket-singlecore-nic-gdbserver-smoke/gdbserver-smoke.c:42
+#4  0x0000000000018cc2 in start_thread ()
+#5  0x00000000000229dc in __thread_start_clone3 ()
+
+Thread 1 (Thread 116.116 "gdbserver-smoke"):
+#0  0x0000000000045870 in clock_nanosleep ()
+#1  0x000000000003c2a4 in nanosleep ()
+#2  0x0000000000021e88 in sleep ()
+#3  0x0000000000010776 in main () at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/workloads/rocket-singlecore-nic-gdbserver-smoke/gdbserver-smoke.c:67
+[?2004h(gdb) info registers pc sp ra
+[?2004lpc             0x45870	0x45870 <clock_nanosleep+80>
+sp             0x3ffffffa90	0x3ffffffa90
+ra             0x4585e	0x4585e <clock_nanosleep+62>
+[?2004h(gdb) x/8i $pc
+[?2004l=> 0x45870 <clock_nanosleep+80>:	mv	s0,a0
+   0x45872 <clock_nanosleep+82>:	mv	a0,a5
+   0x45874 <clock_nanosleep+84>:	
+    jal	0x39ee4 <__pthread_disable_asynccancel>
+   0x45878 <clock_nanosleep+88>:	ld	ra,40(sp)
+   0x4587a <clock_nanosleep+90>:	negw	a0,s0
+   0x4587e <clock_nanosleep+94>:	ld	s0,32(sp)
+   0x45880 <clock_nanosleep+96>:	addi	sp,sp,48
+   0x45882 <clock_nanosleep+98>:	ret
+[?2004h(gdb) detach
+[?2004lDetaching from program: /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/workloads/rocket-singlecore-nic-gdbserver-smoke/overlay/root/gdbserver-smoke/gdbserver-smoke, process 116
+Ending remote debugging.
+[Inferior 1 (process 116) detached]
+[?2004h(gdb) GDB_MARK_DETACH_OK
+quit
+[?2004l
