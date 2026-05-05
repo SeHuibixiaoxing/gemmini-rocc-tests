@@ -1,6 +1,6 @@
 # Pipeline Runtime gdbserver Integration SOP
 
-更新时间：`2026-05-05 13:20 UTC`
+更新时间：`2026-05-05 16:35 UTC`
 
 ## 1. 目标
 
@@ -1056,9 +1056,18 @@ cp /home/ubuntu/chipyard/tmp/firesim-aws-f2/tmux/rocket-singlecore-nic-gdbserver
   之前的 target-to-host payload corruption 已由 IceNet driver 的 Linux DMA API 修复解释并实测消失
 - `pairdummy` 主线过去的关键误区是复用了不含 IceNIC 的旧 AGFI；
   这不是 `gdbserver` 方法本身失败，而是 target 没有 guest 可见 NIC
-- 2026-04-30 的 `cfg32 + WithNIC` pairdummy build 已经静态确认吃到了：
-  `ice-nic@10016000`、`SimpleNICBridgeModule`、NIC debug CSR 和 DMA 非对齐拷贝优化
-- 下一步等该 AGFI 完成后，优先验证：
+- 2026-05-05 已重新启动 `12p4c128sbus32cfg + optimized DMA + current NIC`
+  主线构建：
+  `pairdummy-cfg32-nic-mainline-20260505T132956Z`。
+  当前仍在本地 GoldenGate 阶段，尚未产生新 AGFI；对应 pane log 是
+  `/home/ubuntu/chipyard/tmp/firesim-aws-f2/tmux/pairdummy-cfg32-nic-mainline-20260505T132956Z.pane.log`。
+- 该构建的前置 freshness 已确认：
+  `network-audit` 通过，DTS 中有 `ice-nic@10016000`；
+  generated RTL 中有 `SimpleNICBridgeModule`；
+  generated RTL 中也能看到 optimized DMA marker
+  `bytes_written_per_beat`。
+  这只能证明构建输入方向正确，不能替代最终 AGFI 上的 FPGA 验证。
+- 下一步等新 AGFI 完成并更新 cfg32 NIC HWDB 后，优先验证：
   1. guest `dmesg` 中 IceNet driver 是否加载，并打印 `IceNet DMA API mappings enabled`
   2. `S40network` 是否 `OK`
   3. `[gdbserver]` announcement 是否给出非空 `guest_ipv4`
