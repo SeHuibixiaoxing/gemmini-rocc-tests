@@ -505,6 +505,13 @@ generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdumm
 generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdummy_sbus128_gdbserver_workflow.sh image-closure
 ```
 
+`12p4c128sbus32cfg + NIC` 专用路径必须使用 cfg32 wrapper：
+
+```bash
+generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdummy_sbus128_gdbserver_cfg32_nic_workflow.sh show
+generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdummy_sbus128_gdbserver_cfg32_nic_workflow.sh image-closure
+```
+
 构镜完成后，可做本地 freshness：
 
 ```bash
@@ -525,9 +532,21 @@ generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdumm
 generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdummy_sbus128_gdbserver_workflow.sh run
 ```
 
+`cfg32_nic` bitstream 验证对应命令：
+
+```bash
+generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdummy_sbus128_gdbserver_cfg32_nic_workflow.sh launch
+generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdummy_sbus128_gdbserver_cfg32_nic_workflow.sh infrasetup
+generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdummy_sbus128_gdbserver_cfg32_nic_workflow.sh run
+```
+
 说明：
 
 - `launch` / `infrasetup` / `run` 现在都会先做静态 NIC 审计。
+- 对 `cfg32_nic`，构建成功后必须先把
+  `config_hwdb_f2_gemmini_rerocc_pairmanager_dummy16x16_4c12p12_sbus128_bertmini_cfg32_nic.yaml`
+  更新到新 AGFI 和匹配的 `driver_tar`，并提交该状态；当前旧 HWDB 指向
+  `agfi-02e18c6f7a7a95096`，只能作为历史记录，不能作为新 bitstream 验收输入。
 - 如果它们在本地直接报
   `network_target_audit_status=fail`，
   不要继续耗费 FPGA 机时；这代表当前 bitstream 不满足 guest TCP `gdbserver` 的基本前提。
@@ -537,6 +556,13 @@ generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdumm
 ```bash
 generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdummy_sbus128_gdbserver_workflow.sh network-audit
 generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdummy_sbus128_gdbserver_workflow.sh network-prepare
+```
+
+`cfg32_nic` 单独验证：
+
+```bash
+generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdummy_sbus128_gdbserver_cfg32_nic_workflow.sh network-audit
+generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdummy_sbus128_gdbserver_cfg32_nic_workflow.sh network-prepare
 ```
 
 ### 6.3 取 run host private IP
