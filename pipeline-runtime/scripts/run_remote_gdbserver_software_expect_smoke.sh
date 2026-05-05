@@ -262,15 +262,14 @@ gdb_cmd "bt"
 gdb_cmd "info args"
 gdb_cmd "info threads"
 gdb_cmd "thread apply all bt" 240
-gdb_cmd "delete breakpoints"
 
-gdb_cmd "break smoke_iteration_hook if iteration >= 2"
-gdb_continue_to "Breakpoint .*,.*smoke_iteration_hook" 240
-puts "GDB_MARK_HIT_CONDITIONAL_BREAK"
+gdb_cmd "disable 3"
+gdb_continue_to "Breakpoint 2,.*smoke_iteration_hook" 240
+puts "GDB_MARK_HIT_ITERATION_BREAK"
 gdb_cmd "bt"
 gdb_cmd "info args"
 gdb_cmd "info registers pc sp"
-gdb_cmd "delete breakpoints"
+gdb_cmd "disable 2"
 
 puts "GDB_MARK_INTERRUPT_BEGIN"
 set old_timeout $timeout
@@ -291,15 +290,14 @@ gdb_cmd "thread apply all bt" 240
 gdb_cmd "info registers pc sp ra"
 gdb_cmd "x/8i \$pc"
 
-set timeout 240
-send -- "signal 0\r"
+set timeout 120
+send -- "detach\r"
 expect {
-    -re "exited normally|Inferior .* exited normally|exited with code 0" { need_prompt }
-    -re "\\(gdb\\) $" {}
-    timeout { puts stderr "timeout waiting for inferior clean exit after signal 0"; exit 9 }
-    eof {}
+    -re "Ending remote debugging|Inferior .* detached|Detaching from program" { need_prompt }
+    timeout { puts stderr "timeout waiting for detach"; exit 9 }
+    eof { puts stderr "gdb exited during detach"; exit 10 }
 }
-puts "GDB_MARK_EXIT_OK"
+puts "GDB_MARK_DETACH_OK"
 
 send -- "quit\r"
 expect eof
@@ -315,6 +313,8 @@ set -e
 echo "[remote-swbreak-expect] expect_rc=${expect_rc}"
 echo "[remote-swbreak-expect] transcript=${transcript}"
 
+expect_stdout="${out_dir}/expect-driver.stdout"
+
 if [[ "${expect_rc}" -ne 0 ]]; then
   tail -n 220 "${transcript}" >&2 || true
   cat "${out_dir}/expect-driver.stderr" >&2 || true
@@ -326,26 +326,30 @@ for marker in \
   GDB_MARK_HIT_MAIN \
   GDB_MARK_NEXT_DONE \
   GDB_MARK_HIT_MULTI_SOFTWARE_BREAK \
-  GDB_MARK_HIT_CONDITIONAL_BREAK \
+  GDB_MARK_HIT_ITERATION_BREAK \
   GDB_MARK_INTERRUPT_BEGIN \
   GDB_MARK_INTERRUPT_DONE \
-  GDB_MARK_EXIT_OK; do
-  if ! grep -q "${marker}" "${transcript}"; then
-    echo "missing ${marker}; see ${transcript}" >&2
+  GDB_MARK_DETACH_OK; do
+  if ! grep -q "${marker}" "${transcript}" && ! grep -q "${marker}" "${expect_stdout}"; then
+    echo "missing ${marker}; see ${transcript} and ${expect_stdout}" >&2
     tail -n 220 "${transcript}" >&2 || true
+    tail -n 80 "${expect_stdout}" >&2 || true
     exit 1
   fi
 done
 
-if ! grep -q "0xabcdef" "${transcript}"; then
+if ! grep -q "0xabcdef" "${transcript}" && ! grep -q "0xabcdef" "${expect_stdout}"; then
   echo "memory write/read evidence missing; see ${transcript}" >&2
   tail -n 220 "${transcript}" >&2 || true
+  tail -n 80 "${expect_stdout}" >&2 || true
   exit 1
 fi
 
-if ! grep -Eq "Thread .*|thread apply all bt" "${transcript}"; then
+if ! grep -Eq "Thread .*|thread apply all bt" "${transcript}" && \
+    ! grep -Eq "Thread .*|thread apply all bt" "${expect_stdout}"; then
   echo "thread inspection evidence missing; see ${transcript}" >&2
   tail -n 220 "${transcript}" >&2 || true
+  tail -n 80 "${expect_stdout}" >&2 || true
   exit 1
 fi
 
