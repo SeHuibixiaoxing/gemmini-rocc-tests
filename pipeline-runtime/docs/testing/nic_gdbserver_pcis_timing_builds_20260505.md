@@ -592,3 +592,54 @@ the simpler single-slice AGFI already passed the functional gate. Keep
 monitoring it for AFI final state and cleanup, but do not spend a new F2
 validation slot on it unless a later question specifically needs the two-slice
 comparison.
+
+## 2026-05-05 11:44 UTC PCIS2SLR diagnostic final state
+
+The parallel `TIMING_HOLDFIX+PCIS2SLR` diagnostic build reached AWS
+`available` and the FireSim build tmux wrapper exited cleanly:
+
+- build:
+  `firesim_rocket_singlecore_nic_notrace_timingholdfixpcis2slr1bp_30mhz`
+- AGFI: `agfi-01af7469744b1e7c4`
+- AFI: `afi-0317b18a21a253b28`
+- AWS AFI state: `available`
+- AWS AFI `UpdateTime`: `2026-05-05T11:37:52+00:00`
+- FireSim build exit code: `0`
+- result path:
+  `sims/firesim/deploy/results-build/2026-05-05--07-59-03-firesim_rocket_singlecore_nic_notrace_timingholdfixpcis2slr1bp_30mhz/`
+- built HWDB entry:
+  `sims/firesim/deploy/built-hwdb-entries/firesim_rocket_singlecore_nic_notrace_timingholdfixpcis2slr1bp_30mhz`
+- build log:
+  `sims/firesim/deploy/logs/2026-05-05--07-59-03-buildbitstream-NUNSGEEMP95ZLBGM.log`
+- cleanup: no active `m8i.2xlarge` build hosts or `f2.*` run hosts were visible
+  in the post-build EC2 query
+
+Static timing interpretation:
+
+- The build fixed hold at route/physopt (`WHS=0.010`, `THS=0.000`) but made
+  setup much worse than the validated single-slice candidate.
+- Final visible timing was `WNS=-4.622`, `TNS=-13302.783`.
+- The top setup paths were dominated by `AXI4_REG_SLC_PCIS_SLR2`, for example
+  `m_payload_i_reg[352]/C`, `m_payload_i_reg[449]/C`, and `s_ready_i_reg/C`.
+- The top path data delay was `11.058ns`, with `10.884ns` of route delay
+  (`98.426%` route). Several following paths showed the same pattern:
+  roughly `97-99%` route delay.
+- The generated XDC placed `AXI4_REG_SLC_PCIS_SLR2` into `pblock_CL_SLR2` and
+  `AXI4_REG_SLC_PCIS_SLR1` into `pblock_CL_SLR1`, so this experiment forced an
+  extra wide PCIS pipeline stage across SLR2 -> SLR1 before the existing
+  `RL_SHIM/DMA_PCIS_AXI_REG_SLC` path.
+- By contrast, the validated single-slice candidate had worst visible WNS
+  `-2.661`, with the first path on `PIPE_DDR_STAT_ACK0` and later PCIS SLR1
+  paths around `-2.574`.
+
+Conclusion:
+
+- `agfi-01af7469744b1e7c4` is a useful negative timing/control artifact, not a
+  better functional-validation candidate.
+- Do not spend a new F2 `gdbserver` validation slot on this AGFI for the current
+  1BP recovery objective.
+- If timing cleanup continues later, the next PCIS direction should not be
+  "add another SLR-split register slice" as implemented here. The route-heavy
+  SLR2 paths point instead to shell-boundary placement/constraint work or to
+  reducing the width/fanout of the PCIS handoff. That is separate from the
+  already-recovered 1BP GDB functionality and unrelated to 8BP logic.
