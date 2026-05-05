@@ -413,3 +413,55 @@ Capacity plan:
   the current PCIS2SLR fix
 - reclaim that host first if no build naturally finishes before launch, then
   start `TIMING+PCIS2SLR+DDRSTAT`
+
+## Build-time reduction and no-AGFI triage policy
+
+The slow part of this loop is not Verilog generation or driver compilation; it
+is Vivado implementation. The highest-leverage acceleration is therefore to
+avoid low-information full builds and to stop doomed builds early.
+
+Useful bitstream-build acceleration levers:
+
+- Keep parallel builds only when they answer different questions. Do not spend
+  capacity on several variants that are all expected to fail in the same way.
+- Treat ordinary `TIMING` builds as diagnostic until proven otherwise. If a
+  `TIMING` build prints `Route 35-514`, the old failure mode has repeated:
+  the router disabled hold fixing because of too many hold violators. In this
+  project's recent history, waiting for the rest of that run has not produced a
+  good AGFI, so the build host should normally be reclaimed after collecting the
+  relevant route/timing evidence.
+- Use `TIMING_HOLDFIX` for serious candidate builds when hold pressure is the
+  blocker. It is slower, but it directly targets the observed hold-fix bailout.
+- Consider a larger build instance only for a high-confidence final candidate.
+  The current `m8i.2xlarge` choice allows three parallel build hosts under the
+  observed 32 vCPU account limit. A larger instance may reduce single-build
+  latency but will reduce parallelism and will not make Vivado route scale
+  linearly.
+- Lower-frequency builds can separate logic-function failure from timing
+  closure failure, but they are not a replacement for the final 30 MHz target.
+- The F2 scripts write intermediate DCPs, and `step_user.tcl` can reopen
+  checkpoints for implementation phases. That is useful for manual diagnosis
+  when only strategy/XDC/post-place choices changed. It is not a clean
+  replacement for a FireSim manager build when RTL changed or when a final AGFI
+  is required.
+
+Useful no-bitstream work:
+
+- Keep using old AGFI controls for software/runtime changes. The old AGFI plus
+  recovered driver already passed the current remote gdbserver software
+  breakpoint matrix, so it is the fastest way to check switch, driver, rootfs,
+  SSH tunnel, and expect-harness regressions.
+- Use static diffs against the known-good state and `main` for FireSim configs,
+  HWDB freshness, generated RTL shape, driver bundle hashes, and 1BP-vs-8BP
+  separation.
+- Run cheap structural checks before every build: YAML parse, `git diff --check`,
+  Vivado `xvlog`, pblock cell-name checks, and generated RTL/interface width
+  checks.
+- Mine existing failed DCPs/reports for `report_timing`,
+  `report_high_fanout_nets`, `report_qor_suggestions`, pblock membership, and
+  reset/fanout evidence. This can guide the next RTL/XDC change without waiting
+  for a new AGFI.
+- Prefer small local tests for `ShmemPort`/`SSHPort` packet handling,
+  checksum/flit packing, SimpleNIC bridge token protocol, PCIS wrapper
+  handshake, and DDR stat pipe latency. Full Linux metasim is too slow for this
+  loop and does not exercise the same F2 shell/SLR/timing implementation paths.
