@@ -308,3 +308,22 @@ P2：
 - 推进 slot-stable SPM 绑定。
 - 构造 no-DMA compute 二分 profile。
 - 在正确性稳定后再打开 DMA/Gemmini overlap、forced-direct 和跨 action weight cache。
+
+## 20. Stage resource 静态微测试补充
+
+2026-05-05 18:12 UTC 追加了一轮等待 bitstream 期间的软件/静态合同验证：
+
+- `pipeline-runtime` clean rebuild 通过。
+- `ours2/gemini2/tangram2` artifact audit 和 `--hw-validate-only` 全部通过。
+- 对三组 `bertmini` mapping 逐 segment 汇总 `accUtil`，最大值均为 12，没有超过
+  当前 12 Gemmini / 12 DMA pair-manager 目标。
+- 没有发现 explicit `pAccIdxList` 重复；没有超过当前普通 stage RR cfg budget 15
+  且 cfg 31 继续保留给 SPM xlate。
+- 最大 segment SPM 页跨度：`ours2=2060`、`gemini2=1734`、`tangram2=2061`，都低于
+  `12 * 1024` 页的全局目标容量。
+
+解释：当前 artifact 层面没有明显的 segment-level manager over-subscription。若新 F2
+bitstream 上 pipeline-runtime 仍卡住，优先用 gdbserver 判断具体停在 DMA fence、
+completion flag、SPM xlate、Gemmini fence、pipe/ring wait 还是硬件/NIC，而不是先怀疑
+mapper 给了超过 12 manager 的 segment。仍未解决的是动态 overlap 场景的同 manager/page
+冲突证明；在 `spm_xlate_enable=1` 下，短期仍以 blocking debug 路线作为首个验证目标。
