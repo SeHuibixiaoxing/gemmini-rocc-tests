@@ -465,3 +465,45 @@ Useful no-bitstream work:
   checksum/flit packing, SimpleNIC bridge token protocol, PCIS wrapper
   handshake, and DDR stat pipe latency. Full Linux metasim is too slow for this
   loop and does not exercise the same F2 shell/SLR/timing implementation paths.
+
+## 2026-05-05 10:43 UTC AGFI checkpoint
+
+`TIMING_HOLDFIX+single PCIS shell slice` completed and produced an available
+AGFI:
+
+- build:
+  `firesim_rocket_singlecore_nic_notrace_timingholdfixpcisreg1bp_30mhz`
+- AGFI: `agfi-03d9518415ec82449`
+- AFI: `afi-0bf1f9a2bdacaab09`
+- result path:
+  `sims/firesim/deploy/results-build/2026-05-05--06-39-45-firesim_rocket_singlecore_nic_notrace_timingholdfixpcisreg1bp_30mhz/`
+- status: AWS AFI `available`; FireSim build exit code `0`
+- timing: `post_route.VIOLATED.dcp`, worst visible post-route slack `-2.661ns`
+- first route path:
+  `PIPE_DDR_STAT_ACK0/pipe_reg[7][23]/C -> DDR_STAT_PIPE_DATA/pipe_reg[0][23]/D`
+- `Route 35-514`: not observed
+- `Route 35-469`: observed repeatedly
+
+The ordinary `TIMING+PCIS2SLR+DDRSTAT` diagnostic/control also produced an
+available AGFI:
+
+- AGFI: `agfi-0329dc5d584f9299b`
+- AFI: `afi-00cc53d113b8e8e39`
+- result path:
+  `sims/firesim/deploy/results-build/2026-05-05--08-10-29-firesim_rocket_singlecore_nic_notrace_timingpcis2slrddrstat1bp_30mhz/`
+- route printed `Route 35-514`, so this remains a lower-trust diagnostic AGFI
+  rather than the main validation candidate
+
+Prepared validation HWDB:
+
+```text
+sims/firesim/deploy/config_hwdb_f2_rocket_singlecore_nic_notrace_30mhz_agfi03d951_timingholdfixpcisreg1bp_driver.yaml
+```
+
+The HWDB key intentionally remains `firesim_rocket_singlecore_nic_notrace_30mhz`
+so existing clean 1BP runtime configs can be reused without a `default_hw_config`
+rename. It points to the 0639 AGFI and to a driver bundle built from the 0639
+`FireSim-f2`.
+
+Next gate: run the old-AGFI-equivalent clean remote `gdbserver`
+software-breakpoint smoke against `agfi-03d9518415ec82449`.
