@@ -300,3 +300,54 @@ Capacity plan:
   reproducing `Route 35-514`.
 - If no build host is free, reclaim `rocket-singlecore-nic-timingpcisreg1bp-build-20260505-0637`
   / `i-0ba6729824eb22932` before launching the PCIS2SLR build.
+
+## 2026-05-05 07:59 UTC PCIS2SLR launch checkpoint
+
+The ordinary `TIMING+PCIS` comparison build was reclaimed to free capacity:
+
+- tmux session: `rocket-singlecore-nic-timingpcisreg1bp-build-20260505-0637`
+- build host: `i-0ba6729824eb22932`
+- private IP before termination: `192.168.3.248`
+- reason: it had already reproduced `Route 35-514`, with visible violated
+  route/post-route timing around `WNS=-1.951`, `WHS=-3.731`
+- termination command:
+  `aws ec2 terminate-instances --instance-ids i-0ba6729824eb22932`
+- termination confirmed by `aws ec2 wait instance-terminated`
+- resulting tmux exit code: `1`, expected because the build host was terminated
+  intentionally
+
+The PCIS2SLR build was then launched:
+
+- tmux session:
+  `rocket-singlecore-nic-timingholdfixpcis2slr1bp-build-20260505-0758`
+- command:
+  `scripts/firesim-tmux-run.sh --session-name rocket-singlecore-nic-timingholdfixpcis2slr1bp-build-20260505-0758 buildbitstream -b config_build_f2_rocket_singlecore_nic_notrace_timingholdfixpcis2slr1bp_30mhz.yaml -r config_build_recipes_f2_rocket_singlecore_nic_notrace_timingholdfixpcis2slr1bp_30mhz.yaml`
+- build config:
+  `sims/firesim/deploy/config_build_f2_rocket_singlecore_nic_notrace_timingholdfixpcis2slr1bp_30mhz.yaml`
+- recipe:
+  `sims/firesim/deploy/config_build_recipes_f2_rocket_singlecore_nic_notrace_timingholdfixpcis2slr1bp_30mhz.yaml`
+- build strategy: `TIMING_HOLDFIX`
+- build host: `i-0b6c74e8e317c86d0`
+- private IP: `192.168.3.88`
+
+Launch status:
+
+- local `replace-rtl` started successfully and copied the modified
+  `cl_firesim` collateral into the config-specific F2 developer design
+- no PCIS2SLR route/timing result yet
+- no PCIS2SLR AGFI/AFI yet
+
+Active builds after launch:
+
+- `rocket-singlecore-nic-timingholdfix1bp-build-20260505-0517`
+  - no-PCIS TIMING_HOLDFIX comparison
+  - host `i-093a29cdf23e009b0`, private IP `192.168.1.36`
+- `rocket-singlecore-nic-timingholdfixpcisreg1bp-build-20260505-0639`
+  - single-slice PCIS TIMING_HOLDFIX comparison
+  - host `i-069ea3337cb1e7d55`, private IP `192.168.3.128`
+- `rocket-singlecore-nic-timingholdfixpcis2slr1bp-build-20260505-0758`
+  - two-slice PCIS TIMING_HOLDFIX experiment
+  - host `i-0b6c74e8e317c86d0`, private IP `192.168.3.88`
+
+Next monitor target remains a 1200 second interval unless one build exits or
+prints an AGFI/AFI earlier.
