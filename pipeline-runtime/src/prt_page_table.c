@@ -575,7 +575,7 @@ static size_t runtime_pt_chunk_bytes(const prt_runtime_t *rt) {
   size_t min_bytes = host_page_bytes;
 
   if (rt) {
-    uint64_t total_pages = (uint64_t)rt->cfg.num_cores * (uint64_t)rt->cfg.pages_per_acc;
+    uint64_t total_pages = prt_cfg_spm_total_pages(&rt->cfg);
     if (total_pages > (uint64_t)PRT_SPM_XLATE_HW_MAX_PTES) {
       total_pages = (uint64_t)PRT_SPM_XLATE_HW_MAX_PTES;
     }
@@ -1091,6 +1091,7 @@ static void build_fallback_order(uint32_t num_cores, const uint32_t *preferred, 
 
 static void alloc_pages_from_order(prt_runtime_t *rt, prt_tensor_alloc_t *slot,
                                    uint32_t need_pages, const uint32_t *order, uint32_t order_n) {
+  const uint32_t spm_mgr_count = rt ? prt_cfg_spm_manager_count(&rt->cfg) : 0U;
   if (!rt || !slot || !order || order_n == 0 || need_pages == 0) return;
   // Keep a stable bank order for every local-page layer so the resulting page
   // list matches the fixed all-bank interleave contract used by MudnacSim and
@@ -1099,7 +1100,7 @@ static void alloc_pages_from_order(prt_runtime_t *rt, prt_tensor_alloc_t *slot,
     for (uint32_t i = 0; i < order_n && slot->pages.size < need_pages; ++i) {
       uint32_t acc = order[i];
       uint32_t idx;
-      if (acc >= rt->cfg.num_cores) continue;
+      if (acc >= spm_mgr_count) continue;
       idx = acc * rt->cfg.pages_per_acc + lp;
       if (rt->page_used[idx]) continue;
       rt->page_used[idx] = 1;
@@ -1141,11 +1142,13 @@ static void record_spm_fault(prt_spm_xlate_ctx_t *ctx, uint64_t vaddr, uint32_t 
 }
 
 int prt_page_table_init(prt_runtime_t *rt) {
+  const uint64_t total_pages64 = rt ? prt_cfg_spm_total_pages(&rt->cfg) : 0ULL;
   uint32_t total_pages;
   if (!rt) return PRT_ERR_INVAL;
   pthread_mutex_init(&rt->page_lock, NULL);
 
-  total_pages = rt->cfg.num_cores * rt->cfg.pages_per_acc;
+  if (total_pages64 == 0ULL || total_pages64 > UINT32_MAX) return PRT_ERR_INVAL;
+  total_pages = (uint32_t)total_pages64;
   rt->page_used = (uint8_t *)calloc(total_pages, sizeof(uint8_t));
   if (!rt->page_used) return PRT_ERR_NOMEM;
 
@@ -1157,8 +1160,9 @@ int prt_page_table_init(prt_runtime_t *rt) {
   rt->spm_pt_chunk_count = 0;
   rt->spm_pt_chunk_cap = 0;
   rt->spm_pt_hugepage_bytes = runtime_pt_chunk_bytes(rt);
-  PRT_PROGRESS_LOG("spm-pt pool init chunk_bytes=%llu total_pages=%u host_page=%llu",
+  PRT_PROGRESS_LOG("spm-pt pool init chunk_bytes=%llu spm_mgrs=%u total_pages=%u host_page=%llu",
                    (unsigned long long)rt->spm_pt_hugepage_bytes,
+                   prt_cfg_spm_manager_count(&rt->cfg),
                    total_pages,
                    (unsigned long long)prt_host_page_size_bytes());
 
@@ -1343,8 +1347,11 @@ int prt_alloc_tensor_pages(prt_runtime_t *rt, uint32_t tensor_id, size_t bytes,
   uint32_t all_order_n = 0;
   prt_tensor_alloc_t *slot;
   uint32_t page_bytes;
+  uint32_t spm_mgr_count;
 
   if (!rt || !out || bytes == 0) return PRT_ERR_INVAL;
+  spm_mgr_count = prt_cfg_spm_manager_count(&rt->cfg);
+  if (spm_mgr_count == 0U || spm_mgr_count > PRT_MAX_CORES) return PRT_ERR_INVAL;
 
   page_bytes = rt_page_bytes(rt);
   need_pages = (uint32_t)((bytes + page_bytes - 1U) / page_bytes);
@@ -1377,7 +1384,7 @@ int prt_alloc_tensor_pages(prt_runtime_t *rt, uint32_t tensor_id, size_t bytes,
   if (preferred_accs && preferred_cnt > 0) {
     for (uint32_t i = 0; i < preferred_cnt && pref_order_n < PRT_MAX_CORES; ++i) {
       uint32_t acc = preferred_accs[i];
-      if (acc >= rt->cfg.num_cores) continue;
+      if (acc >= spm_mgr_count) continue;
       if (append_unique_u32(pref_order, &pref_order_n, PRT_MAX_CORES, acc) != PRT_OK) {
         pthread_mutex_unlock(&rt->page_lock);
         return PRT_ERR_INVAL;
@@ -1388,11 +1395,11 @@ int prt_alloc_tensor_pages(prt_runtime_t *rt, uint32_t tensor_id, size_t bytes,
   if (pref_order_n > 0) {
     alloc_pages_from_order(rt, slot, need_pages, pref_order, pref_order_n);
     if (slot->pages.size < need_pages) {
-      build_fallback_order(rt->cfg.num_cores, pref_order, pref_order_n, fallback_order, &fallback_order_n);
+      build_fallback_order(spm_mgr_count, pref_order, pref_order_n, fallback_order, &fallback_order_n);
       alloc_pages_from_order(rt, slot, need_pages, fallback_order, fallback_order_n);
     }
   } else {
-    build_all_core_order(rt->cfg.num_cores, all_order, &all_order_n);
+    build_all_core_order(spm_mgr_count, all_order, &all_order_n);
     alloc_pages_from_order(rt, slot, need_pages, all_order, all_order_n);
   }
 

@@ -454,6 +454,17 @@ static inline uint32_t prt_cfg_dma_mgr_count(const prt_runtime_cfg_t *cfg) {
   return cfg->num_dma_mgrs;
 }
 
+static inline uint32_t prt_cfg_spm_manager_count(const prt_runtime_cfg_t *cfg) {
+  if (!cfg) return 0U;
+  if (cfg->num_gemmini_mgrs != 0U) return cfg->num_gemmini_mgrs;
+  return cfg->num_cores;
+}
+
+static inline uint64_t prt_cfg_spm_total_pages(const prt_runtime_cfg_t *cfg) {
+  if (!cfg) return 0ULL;
+  return (uint64_t)prt_cfg_spm_manager_count(cfg) * (uint64_t)cfg->pages_per_acc;
+}
+
 static inline uint32_t prt_cfg_gemmini_manager_id(const prt_runtime_cfg_t *cfg,
                                                   uint32_t local_idx) {
   if (!cfg) return 0U;

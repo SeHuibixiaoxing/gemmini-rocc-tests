@@ -110,7 +110,7 @@ typedef struct prt_runtime_s {
   size_t dma_completion_flag_alloc_bytes;
 
   pthread_mutex_t page_lock;
-  uint8_t *page_used; // bitmap-like array [num_cores * pages_per_acc]
+  uint8_t *page_used; // bitmap-like array [spm_manager_count * pages_per_acc]
 
   prt_tensor_alloc_t *tensor_allocs;
   uint32_t tensor_alloc_count;

@@ -4373,6 +4373,7 @@ static void *stage_worker_main(void *arg) {
 
 int prt_runtime_init(const prt_runtime_cfg_t *cfg, prt_runtime_t *rt) {
   prt_log_gate_cfg_t deep_log_cfg;
+  uint32_t spm_mgr_count;
   int rc;
   if (!cfg || !rt) return PRT_ERR_INVAL;
   memset(rt, 0, sizeof(*rt));
@@ -4400,11 +4401,13 @@ int prt_runtime_init(const prt_runtime_cfg_t *cfg, prt_runtime_t *rt) {
       return PRT_ERR_INVAL;
     }
   }
-  if (rt->cfg.num_cores < rt->cfg.num_gemmini_mgrs) {
-    rt->cfg.num_cores = rt->cfg.num_gemmini_mgrs;
-  }
   if (rt->cfg.page_size_bytes == 0) rt->cfg.page_size_bytes = PRT_PAGE_SIZE_BYTES;
   if (rt->cfg.pages_per_acc == 0) rt->cfg.pages_per_acc = 256;
+  spm_mgr_count = prt_cfg_spm_manager_count(&rt->cfg);
+  if (spm_mgr_count == 0U || spm_mgr_count > PRT_MAX_CORES) {
+    fprintf(stderr, "runtime_init: invalid spm manager count=%u\n", spm_mgr_count);
+    return PRT_ERR_INVAL;
+  }
   if (rt->cfg.spm_page_shift == 0) {
     uint32_t p = rt->cfg.page_size_bytes;
     uint32_t shift = 0;
@@ -4416,7 +4419,7 @@ int prt_runtime_init(const prt_runtime_cfg_t *cfg, prt_runtime_t *rt) {
   }
   if (rt->cfg.spm_xlate_enable > 1U) rt->cfg.spm_xlate_enable = 1U;
   if (rt->cfg.spm_xlate_range_size == 0) {
-    uint64_t max_pages = (uint64_t)rt->cfg.num_cores * (uint64_t)rt->cfg.pages_per_acc;
+    uint64_t max_pages = prt_cfg_spm_total_pages(&rt->cfg);
     rt->cfg.spm_xlate_range_size = max_pages * (uint64_t)rt->cfg.page_size_bytes * 8ULL;
   }
   if (rt->cfg.watchdog_timeout_ms == 0) rt->cfg.watchdog_timeout_ms = 5000;
@@ -4455,7 +4458,7 @@ int prt_runtime_init(const prt_runtime_cfg_t *cfg, prt_runtime_t *rt) {
                         0ULL, 0ULL, 0ULL, 0ULL, __LINE__);
   }
 
-  PRT_PROGRESS_LOG("init begin backend=%u cores=%u gemmini=%u dma=%u pair=%u gemmini_base=%u dma_base=%u pages_per_acc=%u page_bytes=%u spm_xlate=%u range_base=0x%llx range_size=%llu",
+  PRT_PROGRESS_LOG("init begin backend=%u cores=%u gemmini=%u dma=%u pair=%u gemmini_base=%u dma_base=%u spm_mgrs=%u pages_per_acc=%u page_bytes=%u spm_xlate=%u range_base=0x%llx range_size=%llu",
                    (uint32_t)rt->cfg.backend,
                    rt->cfg.num_cores,
                    rt->cfg.num_gemmini_mgrs,
@@ -4463,6 +4466,7 @@ int prt_runtime_init(const prt_runtime_cfg_t *cfg, prt_runtime_t *rt) {
                    rt->cfg.pair_manager_mode,
                    rt->cfg.gemmini_mgr_base_id,
                    rt->cfg.dma_mgr_base_id,
+                   spm_mgr_count,
                    rt->cfg.pages_per_acc,
                    rt->cfg.page_size_bytes,
                    rt->cfg.spm_xlate_enable,
@@ -4607,11 +4611,13 @@ static void runtime_release_topology(prt_runtime_t *rt) {
 }
 
 static int runtime_assert_page_allocator_idle(prt_runtime_t *rt, const char *where) {
+  const uint64_t total_pages64 = rt ? prt_cfg_spm_total_pages(&rt->cfg) : 0ULL;
   uint32_t total_pages;
   uint32_t used_pages = 0;
   if (!rt || !rt->page_used) return PRT_ERR_INVAL;
 
-  total_pages = rt->cfg.num_cores * rt->cfg.pages_per_acc;
+  if (total_pages64 == 0ULL || total_pages64 > UINT32_MAX) return PRT_ERR_INVAL;
+  total_pages = (uint32_t)total_pages64;
   pthread_mutex_lock(&rt->page_lock);
   for (uint32_t i = 0; i < total_pages; ++i) {
     if (rt->page_used[i]) used_pages += 1;
