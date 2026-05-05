@@ -756,11 +756,55 @@ continue
 如果要直接停在某个函数：
 
 ```gdb
-break prt_schedule_action_submit
-break prt_dma_submit_tokenized
-break prt_rr_release_and_fence
+break prt_runtime_run
+break prt_action_bind_topology
+break stage_prepare_exec_views
+break prt_dma_submit
+break prt_dma_wait
+break dma_blocking_wait
+break hw_dma_fence
+break prt_gemmini_spm_xlate_program
+break prt_gemmini_spm_xlate_flush
+break prt_rr_release_scope
+break prt_gemm_conv_run
+break prt_gemm_fence
 continue
 ```
+
+说明：上面函数名对应当前 `2026-05-05` 源码。不要沿用旧文档里的
+`prt_schedule_action_submit`、`prt_dma_submit_tokenized`、
+`prt_rr_release_and_fence` 作为首轮断点；这些名字不再是当前主线可直接
+break 的符号。
+
+首轮 `cfg32_nic` 推荐最小断点集：
+
+```gdb
+break prt_runtime_run
+break prt_action_bind_topology
+break stage_prepare_exec_views
+break dma_blocking_wait
+break hw_dma_fence
+break prt_gemmini_spm_xlate_program
+break prt_gemmini_spm_xlate_flush
+continue
+```
+
+如果停在 DMA wait，优先打印：
+
+```gdb
+p *tok
+p tok->debug_src_addr
+p tok->debug_dst_addr
+p tok->debug_bytes
+p tok->debug_done_flag_pa
+p tok->hw_done_flag
+p tok->rr_manager_id
+p tok->rr_cfg_id
+```
+
+如果停在 SPM xlate，优先看 `manager_id`、`ptbr_pa`、`pte_count`、
+`range_base`、`range_size`，并确认是否在 `prt_rr_release_scope` 或
+`rr_fence(scope->cfg_id)` 附近等待。
 
 控制语义：
 
