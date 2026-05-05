@@ -29,6 +29,8 @@
 
 - workflow：
   [`pairdummy_sbus128_gdbserver_workflow.sh`](/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdummy_sbus128_gdbserver_workflow.sh)
+- first-triage helper：
+  [`run_pairdummy_cfg32_gdbserver_first_triage.sh`](/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/run_pairdummy_cfg32_gdbserver_first_triage.sh)
 - runtime config：
   [`config_runtime_f2_gemmini_rerocc_pairmanager_dummy16x16_4c12p12_sbus128_linux_bertmini_pipeline_runtime_batch8_fileonly_sync_gdbserver.yaml`](/home/ubuntu/chipyard/sims/firesim/deploy/config_runtime_f2_gemmini_rerocc_pairmanager_dummy16x16_4c12p12_sbus128_linux_bertmini_pipeline_runtime_batch8_fileonly_sync_gdbserver.yaml)
 - workload：
@@ -732,6 +734,27 @@ kill <old-ssh-pid>
 ```bash
 /home/ubuntu/chipyard/.conda-env/riscv-tools/bin/riscv64-unknown-linux-gnu-gdb \
   /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/build/rerocc-linux-tests/rerocc_pipeline_runtime-linux
+```
+
+或者直接用一键 triage helper：
+
+```bash
+generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/run_pairdummy_cfg32_gdbserver_first_triage.sh \
+  <run-host-private-ip> <guest-ip-or-endpoint> [local-port]
+```
+
+它会自动：
+
+- 检查当前 host-side `rerocc_pipeline_runtime-linux` 是否带 debug info
+- 建立 `ssh -L` tunnel
+- 用已核实存在的断点集启动 cross-gdb
+- 默认在断点集后 `continue`
+
+如果只想停在初始现场而不继续，让：
+
+```bash
+PRT_GDB_CONTINUE=0 generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/run_pairdummy_cfg32_gdbserver_first_triage.sh \
+  <run-host-private-ip> <guest-ip-or-endpoint> [local-port]
 ```
 
 进入 gdb 后：
