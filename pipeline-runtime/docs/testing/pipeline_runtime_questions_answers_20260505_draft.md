@@ -1,6 +1,6 @@
 # Pipeline Runtime 问题答复与优化措施草案
 
-更新时间：`2026-05-05 19:20 UTC`
+更新时间：`2026-05-05 21:55 UTC`
 
 本文逐条回答 [`问题.md`](问题.md) 中的设计/风险/优化问题。结论基于当前仓库静态代码阅读、2026-05-05 已通过的 host build / artifact audit / CPU dry-run，以及仍在构建中的 `cfg32_nic` F2 bitstream。没有 F2 live GDB 现场前，本文只把“代码当前事实”和“建议改造方向”分开写。
 
@@ -333,12 +333,17 @@ mapper 给了超过 12 manager 的 segment。仍未解决的是动态 overlap �
 当前还没有新的 `12p4c128sbus32cfg + optimized DMA + current NIC` AGFI，因此本文的回答仍是
 静态结论和首轮 GDB 计划，不是 F2 通过结论。
 
-2026-05-05 19:14 UTC 的构建状态：
+2026-05-05 21:55 UTC 的构建状态：
 
-- 主线 `cfg32_nic` 已进入 Vivado placement，尚无 AGFI/AFI。
-- no-TraceIO `cfg32_nic` fallback 已进入本地 GoldenGate 后段，已看到 `SimpleNICBridgeModule`，
-  但尚未完成 generated RTL。
-- 本地内存被 GoldenGate 大量占用，等待期间只做轻量静态排查，不启动重型仿真/编译。
+- 主线 `cfg32_nic` 已失败于 Vivado `Phase 3 Detail Placement`，没有 AGFI/AFI。
+  失败点是 CL pblock capacity：可用 `26405` 个 CLBs，未放置实例需要 `29960` 个 CLBs。
+  该轮 post-synth `cl_firesim` 总 LUT 约 `96.96%`。
+- no-TraceIO `cfg32_nic` fallback 已完成 generated RTL 和 post-synth/post-opt，仍在远端
+  Vivado placement。该轮已确认保留 `SimpleNICBridgeModule`、`IceNIC`、1BP、
+  cfg32 和 optimized DMA marker，去掉 TraceIO；post-synth `cl_firesim` 总 LUT 约
+  `89.67%`。
+- 因此，当前等待 noTrace TIMING 构建是合理路线：它回答“去掉 TraceIO 后当前 NIC/cfg32/DMA
+  目标是否能进到 AGFI”，而不是改变 runtime 语义或 gdbserver 软件路径。
 
 新 AGFI 生成后，首轮 remote GDB 不是为了立即证明模型正确，而是回答以下问题：
 

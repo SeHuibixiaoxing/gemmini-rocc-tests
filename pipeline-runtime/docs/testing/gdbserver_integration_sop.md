@@ -1,6 +1,6 @@
 # Pipeline Runtime gdbserver Integration SOP
 
-更新时间：`2026-05-05 19:33 UTC`
+更新时间：`2026-05-05 21:55 UTC`
 
 ## 1. 目标
 
@@ -450,6 +450,23 @@ Vivado build host `i-0ecf73dad2a8ae8d0` / `192.168.0.213`。该轮远端 log 是
 `rerocc-mgr@2b000`；4 个 CPU 的 `hardware-exec-breakpoint-count` 均为 `1`；
 generated RTL 中 `TracerVBridge`、`TraceIO`、`TracePort` 计数为 0。该轮仍未产生
 AGFI/AFI，仍不能更新 HWDB。
+
+2026-05-05 21:46 UTC 复查：主线 cfg32 NIC 构建
+`pairdummy-cfg32-nic-mainline-20260505T132956Z` 已失败，没有产生 AGFI/AFI。
+失败不是 runworkload、rootfs 或 gdbserver 问题，而是 Vivado placement 问题：
+`Phase 3 Detail Placement` 报 `Place 30-487`，CL pblock 中可用 `26405`
+个 CLBs，而未放置实例需要 `29960` 个 CLBs，随后 `Place 30-99` /
+`Common 17-69` 结束构建。该轮 post-synth `cl_firesim` 总 LUT 约 `96.96%`。
+详细记录见
+[`20260505T214600Z.md`](/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/20260505T214600Z.md)。
+
+2026-05-05 21:49 UTC 复查：no-TraceIO fallback 仍在远端 Vivado placement，
+最新阶段是 `Phase 1.3 Build Placer Netlist Model`，仍没有 AGFI/AFI。它的
+post-synth `cl_firesim` 总 LUT 约 `89.67%`，`firesim_top` 约 `86.89%`，
+比主线释放了约 7 个百分点的总 LUT 压力；因此当前继续等待 noTrace TIMING
+构建是合理路线。该轮 post-opt timing 仍有 `SH_DDR/SYNC_RST` 到
+`mmcm_clkout0` 的 async recovery slack，例如 `-1.284 ns`，但当前是否可用的
+第一判断仍是 placement/route 能否完成并生成 AGFI。
 
 每次汇报 buildbitstream 已启动时，都要同时汇报：
 
@@ -1226,23 +1243,17 @@ cp /home/ubuntu/chipyard/tmp/firesim-aws-f2/tmux/rocket-singlecore-nic-gdbserver
   之前的 target-to-host payload corruption 已由 IceNet driver 的 Linux DMA API 修复解释并实测消失
 - `pairdummy` 主线过去的关键误区是复用了不含 IceNIC 的旧 AGFI；
   这不是 `gdbserver` 方法本身失败，而是 target 没有 guest 可见 NIC
-- 2026-05-05 已重新启动 `12p4c128sbus32cfg + optimized DMA + current NIC`
-  主线构建：
-  `pairdummy-cfg32-nic-mainline-20260505T132956Z`。
-  当前已经进入远端 Vivado customer CL 综合阶段，尚未产生新 AGFI；对应 pane log 是
-  `/home/ubuntu/chipyard/tmp/firesim-aws-f2/tmux/pairdummy-cfg32-nic-mainline-20260505T132956Z.pane.log`。
-  build host 是 `i-0479b74dd4de8e428`，private IP `192.168.0.60`。
-- 2026-05-05 另已并行启动 no-TraceIO 资源削减构建：
-  `pairdummy-cfg32-nic-notrace-20260505T171453Z`。当前已完成 Chisel/FIRRTL 目标生成，
-  生成目录为
-  `/home/ubuntu/chipyard/sims/firesim-staging/generated-src/firechip.chip.FireSim.FireSimGemminiReRoCCPairDummy16x16C4P12Sbus128NICNoTraceConfig`，
-  并进入 GoldenGate 阶段；尚未产生新 AGFI。
-- 主线构建的前置 freshness 已确认：
-  `network-audit` 通过，DTS 中有 `ice-nic@10016000`；
-  generated RTL 中有 `SimpleNICBridgeModule`；
-  generated RTL 中也能看到 optimized DMA marker
-  `bytes_written_per_beat`。
-  这只能证明构建输入方向正确，不能替代最终 AGFI 上的 FPGA 验证。
+- 2026-05-05 已启动的 `12p4c128sbus32cfg + optimized DMA + current NIC`
+  主线构建 `pairdummy-cfg32-nic-mainline-20260505T132956Z` 已失败于 Vivado
+  detail placement。该轮 freshness 通过、确实含 `ice-nic@10016000`、
+  `SimpleNICBridgeModule` 和 optimized DMA marker，但 post-synth 总 LUT 约
+  `96.96%`，最终 CL pblock 可用 CLB 不足；没有 AGFI/AFI，不能用于 HWDB 更新或
+  gdbserver 验收。
+- 2026-05-05 并行启动的 no-TraceIO 资源削减构建
+  `pairdummy-cfg32-nic-notrace-20260505T171453Z` 是当前唯一活动 cfg32 NIC
+  AGFI 候选。它保留 NIC、1BP、cfg32 和 optimized DMA marker，去掉 TraceIO，
+  post-synth 总 LUT 约 `89.67%`；截至 `2026-05-05 21:49 UTC`，它仍在
+  Vivado placement，没有产生 AGFI/AFI。
 - 下一步等新 AGFI 完成并更新 cfg32 NIC HWDB 后，优先验证：
   1. guest `dmesg` 中 IceNet driver 是否加载，并打印 `IceNet DMA API mappings enabled`
   2. `S40network` 是否 `OK`
