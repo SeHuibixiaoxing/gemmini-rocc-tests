@@ -507,3 +507,88 @@ rename. It points to the 0639 AGFI and to a driver bundle built from the 0639
 
 Next gate: run the old-AGFI-equivalent clean remote `gdbserver`
 software-breakpoint smoke against `agfi-03d9518415ec82449`.
+
+## 2026-05-05 11:10 UTC functional gate passed
+
+The old-AGFI-equivalent remote `gdbserver` software-breakpoint expect matrix
+passed on the current `TIMING_HOLDFIX+single PCIS shell slice` AGFI:
+
+- AGFI: `agfi-03d9518415ec82449`
+- AFI: `afi-0bf1f9a2bdacaab09`
+- runtime:
+  `sims/firesim/deploy/config_runtime_f2_rocket_singlecore_nic_gdbserver_smoke_notrace_clean1bp_recovereddriver_30mhz.yaml`
+- HWDB:
+  `sims/firesim/deploy/config_hwdb_f2_rocket_singlecore_nic_notrace_30mhz_agfi03d951_timingholdfixpcisreg1bp_driver.yaml`
+- driver sha256:
+  `0f9f80c40b0676e6c152ce6e3649f549c0ea9434248a0333c1a6f177295c6ff7`
+- run host: `i-0dae9e74e4f870c32`, private IP `192.168.1.197`
+- artifact root:
+  `pipeline-runtime/debug_records/artifacts/20260505T111031Z_agfi03d951_current1bp_gdb_pass/`
+- debug record: `pipeline-runtime/debug_records/20260505T111031Z.md`
+
+Host-side command:
+
+```sh
+GDBSERVER_SMOKE_STATIC_NEIGH_MAC=00:12:6d:00:00:02 \
+GDBSERVER_SMOKE_EXPECT_TIMEOUT=240 \
+bash generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/run_remote_gdbserver_software_expect_smoke.sh \
+  192.168.1.197 32345
+```
+
+Result:
+
+```text
+[remote-swbreak-expect] expect_rc=0
+[remote-swbreak-expect] PASS
+```
+
+This covers the requested old known-good capability set: `target remote`,
+multiple software breakpoints, `continue`, `next`, `info threads`,
+`thread apply all bt`, register reads, disassembly, variable and memory
+read/write, thread switching, Ctrl-C interrupt/recovery, and `detach`.
+
+Operational notes:
+
+- No `nc`/`telnet` pre-probe was used; `gdbserver --once` must reserve the
+  first TCP connection for GDB.
+- The useful guest readiness marker was `phase=prelaunch` plus `guest_ipv4`;
+  the historical passing artifact also did not require a later
+  `phase=listening` marker.
+- The run farm was terminated after live evidence copy. A later active-F2 EC2
+  query showed no running/pending/stopping/shutting-down F2 instances.
+
+Interpretation:
+
+- The main 1BP recovery target is met for the remote software-breakpoint
+  `gdbserver` smoke matrix.
+- Remaining routed timing violations still matter for risk tracking, but the
+  functional regression that blocked current 1BP GDB usage is no longer
+  reproduced on `agfi-03d9518415ec82449`.
+- No further 8BP work is needed for this objective.
+
+## 2026-05-05 11:20 UTC PCIS2SLR diagnostic state
+
+The parallel `TIMING_HOLDFIX+PCIS2SLR` diagnostic/control build completed route
+and produced AGFI identifiers, but AWS AFI creation was still pending at the
+11:20 UTC monitor:
+
+- build:
+  `firesim_rocket_singlecore_nic_notrace_timingholdfixpcis2slr1bp_30mhz`
+- AGFI: `agfi-01af7469744b1e7c4`
+- AFI: `afi-0317b18a21a253b28`
+- AWS AFI state: `pending`
+- build host: `i-0b6c74e8e317c86d0`, private IP `192.168.3.88`
+- tmux session:
+  `rocket-singlecore-nic-timingholdfixpcis2slr1bp-build-20260505-0758`
+- timing: `post_route.VIOLATED.dcp`
+- visible setup WNS: about `-4.622ns`
+- visible hold WHS: about `0.010ns`
+- first visible setup path crossed from
+  `CL_DMA_PCIS_SLV/AXI4_REG_SLC_PCIS_SLR2` to
+  `RL_SHIM/DMA_PCIS_AXI_REG_SLC`
+
+This build is no longer on the critical path for the 1BP GDB recovery, because
+the simpler single-slice AGFI already passed the functional gate. Keep
+monitoring it for AFI final state and cleanup, but do not spend a new F2
+validation slot on it unless a later question specifically needs the two-slice
+comparison.

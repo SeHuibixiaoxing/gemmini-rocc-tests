@@ -1,0 +1,16 @@
+session_name=rocket-singlecore-nic-gdbserver-launchrunfarm-20260505-104655
+started_utc=2026-05-05T10:46:55Z
+task_name=launchrunfarm
+command=firesim launchrunfarm -c /home/ubuntu/chipyard/sims/firesim/deploy/config_runtime_f2_rocket_singlecore_nic_gdbserver_smoke_notrace_clean1bp_recovereddriver_30mhz.yaml -a /home/ubuntu/chipyard/tmp/firesim-aws-f2/hwdb/config_hwdb_f2_rocket_singlecore_nic_notrace_30mhz_agfi03d951_timingholdfixpcisreg1bp_driver.yaml -r /home/ubuntu/chipyard/sims/firesim/deploy/config_build_recipes_f2_rocket_singlecore_nic_notrace_30mhz.yaml
+tmux_attach=tmux attach -t rocket-singlecore-nic-gdbserver-launchrunfarm-20260505-104655
+tmux_capture=tmux capture-pane -pt rocket-singlecore-nic-gdbserver-launchrunfarm-20260505-104655
+pane_log=/home/ubuntu/chipyard/tmp/firesim-aws-f2/tmux/rocket-singlecore-nic-gdbserver-launchrunfarm-20260505-104655.pane.log
+exit_code_file=/home/ubuntu/chipyard/tmp/firesim-aws-f2/tmux/rocket-singlecore-nic-gdbserver-launchrunfarm-20260505-104655.exitcode
+command_file=/home/ubuntu/chipyard/tmp/firesim-aws-f2/tmux/rocket-singlecore-nic-gdbserver-launchrunfarm-20260505-104655.command.sh
+deploy_dir=/home/ubuntu/chipyard/sims/firesim/deploy
+watchdog_enabled=false
+watchdog_timeout_seconds=10800
+watchdog_log=
+watchdog_pid_file=
+watchdog_triggered_file=
+propagated_firesim_env= 
