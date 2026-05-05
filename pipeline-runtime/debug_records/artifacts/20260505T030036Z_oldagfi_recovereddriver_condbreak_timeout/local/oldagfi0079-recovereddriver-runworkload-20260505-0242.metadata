@@ -1,0 +1,16 @@
+session_name=oldagfi0079-recovereddriver-runworkload-20260505-0242
+started_utc=2026-05-05T02:44:48Z
+task_name=runworkload
+command=firesim runworkload -c config_runtime_f2_rocket_singlecore_nic_gdbserver_smoke_notrace_clean1bp_recovereddriver_30mhz.yaml -a config_hwdb_f2_rocket_singlecore_nic_notrace_30mhz_agfi0079_recovered_driver.yaml -r config_build_recipes_f2_rocket_singlecore_nic_notrace_30mhz.yaml
+tmux_attach=tmux attach -t oldagfi0079-recovereddriver-runworkload-20260505-0242
+tmux_capture=tmux capture-pane -pt oldagfi0079-recovereddriver-runworkload-20260505-0242
+pane_log=/home/ubuntu/chipyard/tmp/firesim-aws-f2/tmux/oldagfi0079-recovereddriver-runworkload-20260505-0242.pane.log
+exit_code_file=/home/ubuntu/chipyard/tmp/firesim-aws-f2/tmux/oldagfi0079-recovereddriver-runworkload-20260505-0242.exitcode
+command_file=/home/ubuntu/chipyard/tmp/firesim-aws-f2/tmux/oldagfi0079-recovereddriver-runworkload-20260505-0242.command.sh
+deploy_dir=/home/ubuntu/chipyard/sims/firesim/deploy
+watchdog_enabled=true
+watchdog_timeout_seconds=10800
+watchdog_log=/home/ubuntu/chipyard/tmp/firesim-aws-f2/tmux/oldagfi0079-recovereddriver-runworkload-20260505-0242.watchdog.log
+watchdog_pid_file=/home/ubuntu/chipyard/tmp/firesim-aws-f2/tmux/oldagfi0079-recovereddriver-runworkload-20260505-0242.watchdog.pid
+watchdog_triggered_file=/home/ubuntu/chipyard/tmp/firesim-aws-f2/tmux/oldagfi0079-recovereddriver-runworkload-20260505-0242.watchdog.triggered
+propagated_firesim_env= 
