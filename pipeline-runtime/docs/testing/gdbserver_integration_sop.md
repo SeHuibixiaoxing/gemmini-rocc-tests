@@ -1,6 +1,6 @@
 # Pipeline Runtime gdbserver Integration SOP
 
-更新时间：`2026-05-05 17:05 UTC`
+更新时间：`2026-05-05 17:20 UTC`
 
 ## 1. 目标
 
@@ -238,6 +238,25 @@ runner 还会轮询：
 
 - manager log：
   `/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-01--02-36-56-buildbitstream-M0F3Z2HY8GA258HG.log`
+
+2026-05-05 当前并行跑两条构建：
+
+- 主线 cfg32 NIC：
+  `pairdummy-cfg32-nic-mainline-20260505T132956Z`，使用
+  `WithNIC_WithDefaultFireSimBridges_WithFireSimConfigTweaks_chipyard.GemminiLearningConfigSpadReRoCCGlobalNoC4C2x2P12x4x3CoupledDMAPairManagerDummy16x16Sbus128`
+  + `FRFCFS16GBQuadRank_BaseF2Config`，`TIMING`，`20MHz`。该路线保留 TraceIO/TracerV
+  相关桥接输入，目标是验证最接近当前主线的 bitstream。
+- no-TraceIO 资源削减 cfg32 NIC：
+  `pairdummy-cfg32-nic-notrace-20260505T171453Z`，使用
+  `FireSimGemminiReRoCCPairDummy16x16C4P12Sbus128NICNoTraceConfig`
+  + `FRFCFS16GBQuadRank_BaseF2Config`，`TIMING`，`20MHz`。该路线保留 NIC、blockdev、
+  FASED 和默认 FireSim bridge 组合，但通过 `chipyard.config.WithNoTraceIO`
+  去掉 target TraceIO，目的是降低 F2 placement 压力。
+
+两个构建都不是最终验证本身；只有新 AGFI 写入 cfg32 NIC HWDB、重新
+`infrasetup` 并跑过 remote `gdbserver` attach 后，才能把对应硬件记为通过。
+如果主线失败而 no-TraceIO 成功，优先用 no-TraceIO AGFI 打通 gdbserver，因为当前调试目标是
+user-space pipeline-runtime hang，不依赖 TraceIO。
 - build result：
   `/home/ubuntu/chipyard/sims/firesim/deploy/results-build/2026-05-01--02-36-56-firesim_gemmini_rerocc_pairmanager_dummy16x16_4c12p12_sbus128_cfg32_nic/`
 - failure：
@@ -1107,7 +1126,12 @@ cp /home/ubuntu/chipyard/tmp/firesim-aws-f2/tmux/rocket-singlecore-nic-gdbserver
   当前已经进入远端 Vivado customer CL 综合阶段，尚未产生新 AGFI；对应 pane log 是
   `/home/ubuntu/chipyard/tmp/firesim-aws-f2/tmux/pairdummy-cfg32-nic-mainline-20260505T132956Z.pane.log`。
   build host 是 `i-0479b74dd4de8e428`，private IP `192.168.0.60`。
-- 该构建的前置 freshness 已确认：
+- 2026-05-05 另已并行启动 no-TraceIO 资源削减构建：
+  `pairdummy-cfg32-nic-notrace-20260505T171453Z`。当前已完成 Chisel/FIRRTL 目标生成，
+  生成目录为
+  `/home/ubuntu/chipyard/sims/firesim-staging/generated-src/firechip.chip.FireSim.FireSimGemminiReRoCCPairDummy16x16C4P12Sbus128NICNoTraceConfig`，
+  并进入 GoldenGate 阶段；尚未产生新 AGFI。
+- 主线构建的前置 freshness 已确认：
   `network-audit` 通过，DTS 中有 `ice-nic@10016000`；
   generated RTL 中有 `SimpleNICBridgeModule`；
   generated RTL 中也能看到 optimized DMA marker

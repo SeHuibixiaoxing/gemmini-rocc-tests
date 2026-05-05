@@ -1,6 +1,6 @@
 # Pipeline Runtime 优化与修复措施草案
 
-更新时间：`2026-05-05 17:12 UTC`
+更新时间：`2026-05-05 17:20 UTC`
 
 本文把 [`问题.md`](问题.md) 中的优化点和风险点转成可执行措施。优先级按“正确性先于性能、可调试性先于复杂 overlap”排序。
 
@@ -206,6 +206,10 @@ F2 现场；若 backtrace 显示卡点就是 xlate bind/flush，再把阶段 A/B
 - `12p4c128sbus32cfg + optimized DMA + current NIC` 主线 bitstream
   `pairdummy-cfg32-nic-mainline-20260505T132956Z` 已启动，freshness gate 通过，当前仍在远端 Vivado 综合，
   尚无 AGFI/AFI。
+- no-TraceIO 资源削减 bitstream
+  `pairdummy-cfg32-nic-notrace-20260505T171453Z` 已启动，用来降低 2026-05-01 placement 失败暴露出的
+  F2 容量压力；该构建已完成 cfg32 NIC no-TraceIO Chisel/FIRRTL 生成并进入 GoldenGate，后续生成
+  `FireSim-generated.sv` 后要再次检查 NIC、optimized DMA marker 和 TracerV 缺失情况。
 - 软件侧 host build、artifact audit 和 CPU dry-run 已通过，作为等待 bitstream 时的可重建性基线。
 - 下一次关键 checkpoint 应发生在 bitstream 成功或失败时：成功则提交 AGFI/HWDB 状态；失败则提交失败证据、
   Vivado report 和下一轮资源削减/观测策略。
