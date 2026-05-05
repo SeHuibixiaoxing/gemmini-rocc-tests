@@ -1,6 +1,6 @@
 # Pipeline Runtime gdbserver Integration SOP
 
-更新时间：`2026-05-05 19:20 UTC`
+更新时间：`2026-05-05 19:25 UTC`
 
 ## 1. 目标
 
@@ -434,6 +434,15 @@ post-synth/post-opt 没有报 error；post-synth `cl_firesim` LUT 约 `96.96%`�
 `firesim_top` 约 `94.18%`，说明资源压力很高但尚未失败。no-TraceIO fallback 已经进入
 GoldenGate 后段，已确认实例化 `SimpleNICBridgeModule`，但此时尚未生成
 `FireSim-generated.sv`，也没有 AGFI/AFI。两条构建仍只能记为“进行中”，不能更新 HWDB。
+
+2026-05-05 19:22 UTC 复查：no-TraceIO fallback 已完成本地 generated RTL 并启动远端
+Vivado build host `i-0ecf73dad2a8ae8d0` / `192.168.0.213`。该轮远端 log 是
+`2026_05_05-191909.vivado.log`。本地 freshness 已确认：
+`FireSim-generated.sv` 约 `158 MiB`，含 `SimpleNICBridgeModule`、`IceNIC`、
+`bytes_written_per_beat` 和 `write_shift`；DTS 含 `ice-nic@10016000` 和
+`rerocc-mgr@2b000`；4 个 CPU 的 `hardware-exec-breakpoint-count` 均为 `1`；
+generated RTL 中 `TracerVBridge`、`TraceIO`、`TracePort` 计数为 0。该轮仍未产生
+AGFI/AFI，仍不能更新 HWDB。
 
 每次汇报 buildbitstream 已启动时，都要同时汇报：
 
