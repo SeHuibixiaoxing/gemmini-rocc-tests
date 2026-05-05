@@ -3313,16 +3313,75 @@ static int build_topology_from_pipeline(prt_runtime_t *rt) {
 
 static int runtime_prepare_stage_spm_windows(prt_runtime_t *rt) {
   prt_action_exec_t *exec;
+  const prt_schedule_action_t *action;
   uint32_t page_bytes;
   if (!rt) return PRT_ERR_INVAL;
   exec = prt_runtime_current_exec(rt);
   if (!exec) return PRT_ERR_STATE;
+  action = prt_runtime_current_action(rt);
   page_bytes = rt->cfg.page_size_bytes ? rt->cfg.page_size_bytes : PRT_PAGE_SIZE_BYTES;
   for (uint32_t stage_id = 0; stage_id < exec->stage_thread_count; ++stage_id) {
     const prt_stage_map_t *stage = runtime_stage_map(rt, stage_id);
     uint32_t span;
     if (!stage) return PRT_ERR_STATE;
     span = stage->local_spm_page_span;
+    if (stage->local_spm_tensor_count > PRT_MAX_LAYER_TENSORS) {
+      fprintf(stderr,
+              "prepare_stage_spm_windows: stage=%u local_spm_tensor_count=%u exceeds max=%u\n",
+              stage_id, stage->local_spm_tensor_count, (uint32_t)PRT_MAX_LAYER_TENSORS);
+      return PRT_ERR_PARSE;
+    }
+    if (action && span > 0U) {
+      const uint64_t exec_end_vpage =
+        (uint64_t)stage->exec_base_vpage + (uint64_t)span;
+      if (exec_end_vpage > (uint64_t)action->alias_page_count) {
+        fprintf(stderr,
+                "prepare_stage_spm_windows: stage=%u exec_vpage range [%u,%llu) exceeds action alias pages=%u\n",
+                stage_id, stage->exec_base_vpage,
+                (unsigned long long)exec_end_vpage,
+                action->alias_page_count);
+        return PRT_ERR_PARSE;
+      }
+    }
+    for (uint32_t slot = 0; slot < stage->local_spm_tensor_count; ++slot) {
+      const uint32_t page_count = stage->local_spm_page_count[slot];
+      uint32_t local_bytes = stage->local_spm_tensor_bytes[slot];
+      const uint64_t tensor_addr = (uint64_t)stage->local_spm_tensor_addr[slot];
+      const uint64_t first_vpage = (uint64_t)stage->local_spm_first_vpage[slot];
+      const uint64_t stage_window_bytes = (uint64_t)span * (uint64_t)page_bytes;
+      const uint64_t slot_start = first_vpage * (uint64_t)page_bytes;
+      const uint64_t slot_end = (first_vpage + (uint64_t)page_count) * (uint64_t)page_bytes;
+      uint64_t tensor_end;
+      if (page_count == 0U && local_bytes == 0U) continue;
+      if (page_count == 0U) {
+        fprintf(stderr,
+                "prepare_stage_spm_windows: stage=%u slot=%u tensor=%u has bytes=%u but pages=0\n",
+                stage_id, slot,
+                slot < stage->tensor_id_count ? stage->tensor_ids[slot] : UINT32_MAX,
+                local_bytes);
+        return PRT_ERR_PARSE;
+      }
+      if (local_bytes == 0U) local_bytes = page_count * page_bytes;
+      tensor_end = tensor_addr + (uint64_t)local_bytes;
+      if (tensor_end < tensor_addr ||
+          first_vpage + (uint64_t)page_count > (uint64_t)span ||
+          tensor_end > stage_window_bytes ||
+          tensor_addr < slot_start ||
+          tensor_end > slot_end) {
+        fprintf(stderr,
+                "prepare_stage_spm_windows: stage=%u slot=%u tensor=%u addr=%llu bytes=%u end=%llu vpage=%llu pages=%u span=%u window_bytes=%llu slot_bytes=[%llu,%llu)\n",
+                stage_id, slot,
+                slot < stage->tensor_id_count ? stage->tensor_ids[slot] : UINT32_MAX,
+                (unsigned long long)tensor_addr, local_bytes,
+                (unsigned long long)tensor_end,
+                (unsigned long long)first_vpage,
+                page_count, span,
+                (unsigned long long)stage_window_bytes,
+                (unsigned long long)slot_start,
+                (unsigned long long)slot_end);
+        return PRT_ERR_PARSE;
+      }
+    }
     memset(exec->stage_fixed_lazy_loaded[stage_id], 0, sizeof(exec->stage_fixed_lazy_loaded[stage_id]));
     exec->stage_spm_rebase_vpage[stage_id] = 0;
     exec->stage_spm_window_pages[stage_id] = span;

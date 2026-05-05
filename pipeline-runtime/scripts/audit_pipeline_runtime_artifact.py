@@ -50,7 +50,7 @@ except ModuleNotFoundError:  # pragma: no cover
 
 
 PAGE_SIZE_BYTES = 1024
-RR_MAX_CFGS = 16
+RR_MAX_CFGS = 32
 RR_SPM_XLATE_CFG_ID = RR_MAX_CFGS - 1
 RR_STAGE_SCOPE_BUDGET = (RR_MAX_CFGS - 2) // 2
 SUPPORTED_OP_TYPES = {"conv", "resadd"}
@@ -200,6 +200,37 @@ def validate_stage_contract(
         raise RuntimeError(
             f"segment {seg_idx} stage {stage_idx} localSpmPageSpan={page_span} required>={required_span}"
         )
+    window_bytes = page_span * PAGE_SIZE_BYTES
+    for slot, tensor_id in enumerate(tensor_ids):
+        tensor_addr = int(local_addr[slot])
+        tensor_pages = int(local_pages[slot])
+        tensor_bytes = int(local_bytes[slot]) if int(local_bytes[slot]) > 0 else tensor_pages * PAGE_SIZE_BYTES
+        first_vpage = int(local_vpage[slot])
+        slot_start = first_vpage * PAGE_SIZE_BYTES
+        slot_end = (first_vpage + tensor_pages) * PAGE_SIZE_BYTES
+        tensor_end = tensor_addr + tensor_bytes
+        if tensor_pages == 0 and tensor_bytes == 0:
+            continue
+        if tensor_pages <= 0:
+            raise RuntimeError(
+                f"segment {seg_idx} stage {stage_idx} tensor {tensor_id} has bytes={tensor_bytes} but page_count=0"
+            )
+        if tensor_end > window_bytes:
+            raise RuntimeError(
+                f"segment {seg_idx} stage {stage_idx} tensor {tensor_id} local range "
+                f"[{tensor_addr},{tensor_end}) exceeds stage window bytes={window_bytes}"
+            )
+        if first_vpage + tensor_pages > page_span:
+            raise RuntimeError(
+                f"segment {seg_idx} stage {stage_idx} tensor {tensor_id} vpage range "
+                f"[{first_vpage},{first_vpage + tensor_pages}) exceeds localSpmPageSpan={page_span}"
+            )
+        if tensor_addr < slot_start or tensor_end > slot_end:
+            raise RuntimeError(
+                f"segment {seg_idx} stage {stage_idx} tensor {tensor_id} byte range "
+                f"[{tensor_addr},{tensor_end}) is outside allocated vpage bytes "
+                f"[{slot_start},{slot_end})"
+            )
 
     entry_ids = to_int_list(stage.get("entryTensorIdList", []))
     export_ids = to_int_list(stage.get("exportTensorIdList", []))

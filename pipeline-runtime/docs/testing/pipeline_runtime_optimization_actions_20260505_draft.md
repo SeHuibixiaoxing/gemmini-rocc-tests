@@ -29,6 +29,13 @@
 
 建议先把这些校验做成默认开启；性能稳定后再考虑 release build 降低日志。
 
+当前状态：`2026-05-05T140859Z` 已补第一版 SPM tensor bounds 校验。
+`audit_pipeline_runtime_artifact.py` 会静态检查 `localSpmTensorAddr + bytes`
+是否落在对应 `localSpmFirstVPage/localSpmPageCount` 和 stage window 内；
+`runtime_prepare_stage_spm_windows` 会在运行前做同样校验，并检查 stage
+`exec_base_vpage + local_spm_page_span` 不越过 action alias window。当前
+`bertmini/ours2/pairdummy-sbus128` artifact 通过该审计。
+
 ## P0：修正页数和 allocator 模型
 
 当前状态：`2026-05-05` 已完成第一版软件修复。之前代码通过把 `num_cores` 提升到
