@@ -506,3 +506,61 @@ Interpretation:
   the post-place timing/congestion report.
 - Keep monitoring under the current `TIMING` strategy; do not change RTL before
   this build either reaches post-place or fails placement.
+
+## Placement Progress Monitor - 2026-05-06 20:33 UTC
+
+Remote host `192.168.1.129` remains active.
+
+Process/resource snapshot:
+
+- parent Vivado elapsed time: about `3h00m`
+- parent Vivado CPU: about `155%`
+- parent Vivado memory: about `73.9%`
+- newest formal report remains the `19:26 UTC` post-opt timing report
+- no post-place report exists yet
+
+Placement has moved through global place phase 1 and into physical synthesis in
+the placer:
+
+```text
+Phase 2.5 Global Place Phase1
+Phase 2.5 Global Place Phase1 | Checksum: 140fd93af
+Phase 2.6 Global Place Phase2
+Phase 2.6.1 UpdateTiming Before Physical Synthesis
+Phase 2.6.2 Physical Synthesis In Placer
+```
+
+The placer physical-synthesis pass performed large LUT combining and some
+high-fanout replication:
+
+```text
+LUT Combining: optimized 61132 nets or LUTs, removed 61058 cells
+Very High Fanout: optimized 5 nets, created 38 new cells
+```
+
+The visible very-high-fanout messages include both shell and NIC/stream-side
+nets:
+
+- DDR ECC / calibration nets in `SH_DDR`
+- `CPUManagedStreamEngine_0/SIMPLENICBRIDGEMODULE_0_from_cpu_stream_incomingQueueIO_q/enq_ptr_value_reg[...]`
+- `CL_DMA_PCIS_SLV/AXI4_REG_SLC_PCIS_SLR2/.../S_READY`
+- `CL_DMA_PCIS_SLV/AXI4_REG_SLC_PCIS_SLR1/.../S_READY`
+- `dwidth_adapt_64bits_512bits_0/.../s_ready_i_reg_0`
+
+At this checkpoint:
+
+- no `Place 46-14` warning has appeared
+- no `Place 30-487` error has appeared
+- no post-place checkpoint/report exists
+- route has not started
+- no route failure marker can be drawn yet
+
+Interpretation:
+
+- The absence of `Place 46-14` is still encouraging, but placement is not done.
+- The high-fanout messages confirm that SimpleNIC/CPU-managed stream queue
+  pointers are a real physical-implementation pressure source even in the 8p
+  build. They are still not a proven route blocker by themselves.
+- Because the 8p build has substantially lower top-level LUT/FF/DSP than the
+  12p builds, continue monitoring to post-place before considering any queue
+  depth or RTL change.

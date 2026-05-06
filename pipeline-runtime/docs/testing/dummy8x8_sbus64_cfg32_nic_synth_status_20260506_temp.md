@@ -651,3 +651,61 @@ Interpretation:
 - If the overlap sequence plateaus above zero or ends with `Route 35-2`, collect
   `report_route_status`, failed-signal names, and any post-route DCP/report
   files before changing RTL.
+
+## Route Progress Monitor - 2026-05-06 20:33 UTC
+
+Remote host `192.168.1.77` remains active.
+
+Process/resource snapshot:
+
+- parent Vivado elapsed time: about `5h56m`
+- parent Vivado CPU: about `239%`
+- parent Vivado memory: about `73.2%`
+- newest formal report remains the `19:20 UTC` post-phys-opt timing report
+- no post-route report exists yet
+
+The route is still active in `Phase 5.1 Global Iteration 0`. The overlap count
+is now falling quickly:
+
+```text
+Phase 5 Rip-up And Reroute
+Phase 5.1 Global Iteration 0
+ Number of Nodes with overlaps = 572508
+WARNING: [Route 35-514] Design has a large number of hold violators. This is likely a design or constraint issue. Router is turning off hold fixing.
+ Number of Nodes with overlaps = 66814
+ Number of Nodes with overlaps = 10470
+ Number of Nodes with overlaps = 2793
+```
+
+The new `Route 35-514` warning is important. It means ordinary `TIMING`
+routing saw enough hold pressure to bail out of hold fixing:
+
+```text
+set_param route.enableHoldExpnBailout 0
+```
+
+would be the TIMING_HOLDFIX-style mitigation, but this build was intentionally
+kept on the current `TIMING` strategy per the active experiment.
+
+Current hard-failure state:
+
+- no `Route 35-162`
+- no final `Route 35-2`
+- no final failed-routing signal count
+- no post-route timing or route-status report
+- no implementation `ERROR`
+
+Interpretation:
+
+- Route congestion is not yet terminal because the node-overlap sequence is
+  converging from `572508` to `2793`.
+- The build has now reproduced the hold-bailout warning that made earlier
+  ordinary `TIMING` experiments lower trust.
+- If this build creates an AGFI, classify it as a diagnostic/lower-trust
+  candidate unless live workload testing proves otherwise. Timing violations
+  alone did not invalidate the old working AGFIs, but hold-fixing bailout is a
+  materially stronger risk marker than setup WNS alone.
+- Do not terminate yet: this build is still answering whether the 12p
+  dummy8x8/sbus64 resource reduction can legally route under the requested
+  `TIMING` strategy, and AWS capacity is not currently being reclaimed for a
+  higher-value build.
