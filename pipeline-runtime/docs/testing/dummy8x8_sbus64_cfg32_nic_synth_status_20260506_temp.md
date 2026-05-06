@@ -289,3 +289,57 @@ Interpretation:
   failure.
 - The build remains worth monitoring into actual route before drawing the final
   pass/fail conclusion.
+
+## Detail Placement Monitor - 2026-05-06 18:19 UTC
+
+Remote host `192.168.1.77` remains active.
+
+Process/resource snapshot:
+
+- parent Vivado elapsed time: about `3h42m`
+- parent Vivado CPU: about `164%`
+- parent Vivado memory: about `73.2%` of the `z1d.3xlarge`
+- Vivado log modified at `2026-05-06 18:18:11 UTC`
+- Vivado log size: about `1.75 MB`
+
+The run has now advanced beyond global placement and into detail placement:
+
+```text
+Phase 2.6 Global Place Phase2
+Phase 2 Global Placement
+Phase 3 Detail Placement
+Phase 3.1 Commit Multi Column Macros
+Phase 3.2 Commit Most Macros & LUTRAMs
+Phase 3.3 Small Shape DP
+Phase 3.3.1 Small Shape Clustering
+Phase 3.3.2 Slice Area Swap
+Phase 3.3.2.1 Slice Area Swap Initial
+```
+
+The latest completed sub-stage in the log is:
+
+```text
+Phase 3.3.2 Slice Area Swap | Checksum: 1dae053dd
+Time (s): cpu = 03:19:55 ; elapsed = 01:34:49 . Memory (MB): peak = 71894.383 ; gain = 207.180 ; free physical = 22455 ; free virtual = 33598
+```
+
+At this checkpoint, the previous noTrace route-failure markers have still not
+reappeared:
+
+- no `Place 30-487`
+- no `Place 46-14`
+- no `Route 35-445`
+- no `Route 35-162`
+- no `Route 35-2`
+- no failed-routing signal count
+- no node-overlap count
+
+Interpretation:
+
+- This is a real progress marker relative to the earlier 17:57 snapshot:
+  placement is no longer only in global placement / physical synthesis.
+- The build still has not proven routability; the old failure class occurred
+  later, during route.
+- The current resource reduction remains promising enough to continue, but not
+  sufficient evidence for pass probability until route begins and either clears
+  or emits congestion diagnostics.

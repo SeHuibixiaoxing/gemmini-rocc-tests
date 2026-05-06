@@ -203,3 +203,43 @@ State at this checkpoint:
 Interpretation: this 8-pair experiment is still too early for resource
 comparison. The next useful milestone is formal `*.post_synth_utilization.rpt`
 creation.
+
+## Remote Synthesis Monitor - 2026-05-06 18:19 UTC
+
+Remote host `192.168.1.129` remains active.
+
+Process/resource snapshot:
+
+- parent Vivado elapsed time: about `46 min`
+- parent Vivado CPU: about `102%`
+- parent Vivado memory: about `73.7%` of the `z1d.3xlarge`
+- seven `parallel_synth_helper` worker Vivado tasks are still running
+- Vivado log modified at `2026-05-06 18:12:58 UTC`
+- Vivado log size: about `869 KB`
+
+The reports directory is still empty, so no formal post-synthesis utilization
+can be parsed yet.
+
+Latest visible synthesis stage:
+
+```text
+Start Part Resource Summary
+Finished Part Resource Summary
+Start Cross Boundary and Area Optimization
+```
+
+The tail includes trimming messages for generated Gemmini/DMA command fields,
+for example `command_p/stages_*_dram_addr_reg`,
+`command_p/stages_*_spad_addr_reg`, and related fields. These are synthesis
+trims of unconnected or width-reduced internal registers, not implementation
+failure markers.
+
+Interpretation:
+
+- The 8-pair build has progressed deeper into top-level synthesis, but has not
+  reached the formal resource-reporting milestone.
+- No placement or route conclusion can be drawn yet.
+- The next required action remains waiting for
+  `*.post_synth_utilization.rpt`, then comparing total LUT, logic LUT, LUTRAM,
+  FF, RAMB36/18, URAM, and DSP against the failed 12-pair dummy16x16/sbus128
+  baseline and the active 12-pair dummy8x8/sbus64 build.
