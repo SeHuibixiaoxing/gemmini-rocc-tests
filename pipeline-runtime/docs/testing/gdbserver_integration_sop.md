@@ -498,6 +498,11 @@ placement 推进到 pre-route physical optimization 之后；仍未进入可见 
 `post_phys_opt.dcp` 和 `post_phy_opt_timing.rpt` 已出现；Vivado 仍在跑，仍未产生
 AGFI/AFI。继续等待 route 完成、bitstream 和 AFI creation。
 
+2026-05-06 01:29 UTC 复查：no-TraceIO fallback route 继续推进，已完成
+`Phase 2 Router Initialization`、`Phase 3 Global Routing` 和
+`Phase 4 Initial Routing` / `Phase 4.1 Initial Net Routing Pass`。没有新的 route
+report/checkpoint、bitstream、AGFI 或 AFI；Vivado 仍在跑。继续按 1200s 等待。
+
 每次汇报 buildbitstream 已启动时，都要同时汇报：
 
 - tmux session 名称；

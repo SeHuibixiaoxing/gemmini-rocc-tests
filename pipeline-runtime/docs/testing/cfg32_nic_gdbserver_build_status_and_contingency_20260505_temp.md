@@ -38,8 +38,9 @@ noTrace cfg32 NIC fallback:
   `2026-05-06 00:19 UTC`; pre-route `phys_opt_design -directive
   AggressiveExplore` reached post-phy_opt checkpoint/report writing as of
   `2026-05-06 00:49 UTC`; `route_design -tns_cleanup -directive Explore
-  -timing_summary` started as of `2026-05-06 00:53 UTC` and was still running at
-  the `2026-05-06 01:09 UTC` poll.
+  -timing_summary` started as of `2026-05-06 00:53 UTC`; by the
+  `2026-05-06 01:29 UTC` poll it had completed router initialization, global
+  routing, and the initial net routing pass, but route was still running.
 - Post-synth `cl_firesim` utilization: total LUT `89.67%`, logic LUT
   `78.72%`, LUTRAM `23.63%`.
 
