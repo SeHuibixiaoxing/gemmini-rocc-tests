@@ -1004,3 +1004,35 @@ Interpretation:
 - The build is still not at the AFI-packaging gate; continue monitoring until
   the post-route phys-opt checkpoint/report and `Developer_CL.tar`/`to_aws`
   status are known.
+
+## 1200s Window Monitor - 2026-05-06 22:11 UTC
+
+Remote host `192.168.1.77` is still running the 12p dummy8x8/sbus64 build.
+
+At `22:11:01 UTC`:
+
+- post-route `phys_opt_design -directive AggressiveExplore` remains active
+- the visible stage is `Phase 2 Critical Path Optimization`
+- no `*.post_route_phys_opt.dcp` exists yet
+- no `*.post_route_phys_opt_timing.rpt` exists yet
+- no `Developer_CL.tar`, `to_aws`, manifest, AGFI, or AFI exists yet
+
+Visible post-route phys-opt timing state:
+
+```text
+INFO: [Physopt 32-668] Current Timing Summary | WNS=-3.339 | TNS=-7383.538 | WHS=-3.672 | THS=-5363.670 |
+WARNING: [Physopt 32-745] Physical Optimization has determined that the magnitude of the negative slack is too large and it is highly unlikely that slack will be improved.
+Phase 2 Critical Path Optimization
+INFO: [Physopt 32-953] Path group WNS did not improve. Path group: WRAPPER/CL/clk_main_a0. Processed net: WRAPPER/CL/CL_DMA_PCIS_SLV/AXI4_REG_SLC_PCIS_SLR2/inst/ar.ar_pipe/M_PAYLOAD_DATA[73].
+WARNING: [Physopt 32-894] Found a constraint with the -through option on pin WRAPPER/CL/sh_cl_dma_pcis_arlen[4] or the net immediately connecting to the pin. This constraint will block optimizations for this and all downstream leaf pins.
+```
+
+Interpretation:
+
+- This is still a live build, not a packaging failure.
+- Post-route phys-opt is unlikely to fix the main setup/hold issue; Vivado says
+  the negative slack magnitude is too large, and a `-through` constraint on
+  `sh_cl_dma_pcis_arlen[4]` is blocking some downstream optimization.
+- This does not change the validation plan. If the flow packages a violated
+  DCP, keep it as a low-trust gdbserver candidate and test it live before
+  drawing functional conclusions.

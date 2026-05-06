@@ -798,3 +798,61 @@ Interpretation:
 - Continue through the first global iterations. The decisive near-term signal is
   whether overlap counts converge toward zero and whether `Route 35-514` appears
   later.
+
+## 1200s Window Monitor - 2026-05-06 22:11 UTC
+
+Remote host `192.168.1.129` is still running the 8p dummy16x16/sbus128 build.
+
+At `22:11:01 UTC`, route has reached rip-up and reroute:
+
+```text
+Phase 4 Initial Routing | Checksum: 1f99ff4dc
+INFO: [Route 35-449] Initial Estimated Congestion
+INFO: [Route 35-581] Estimated Timing congestion is level 5 (32x32). Congestion levels of 5 and greater may impact timing closure.
+INFO: [Route 35-580] Design has 1951 pins with tight setup and hold constraints.
+
+The top 5 pins with tight setup and hold constraints:
+WRAPPER/RL_SHIM/DMA_PCIS_AXI_REG_SLC/AXI_REGISTER_SLICE/inst/r.r_pipe/m_payload_i_reg[188]/D
+WRAPPER/RL_SHIM/DMA_PCIS_AXI_REG_SLC/AXI_REGISTER_SLICE/inst/r.r_pipe/m_payload_i_reg[90]/D
+WRAPPER/RL_SHIM/DMA_PCIS_AXI_REG_SLC/AXI_REGISTER_SLICE/inst/r.r_pipe/m_payload_i_reg[189]/D
+WRAPPER/RL_SHIM/DMA_PCIS_AXI_REG_SLC/AXI_REGISTER_SLICE/inst/r.r_pipe/m_payload_i_reg[253]/D
+WRAPPER/RL_SHIM/DMA_PCIS_AXI_REG_SLC/AXI_REGISTER_SLICE/inst/r.r_pipe/m_payload_i_reg[469]/D
+
+Phase 5 Rip-up And Reroute
+Phase 5.1 Global Iteration 0
+```
+
+Router-init status immediately before global routing:
+
+```text
+Router Utilization Summary
+  Global Vertical Routing Utilization    = 0 %
+  Global Horizontal Routing Utilization  = 0 %
+  Number of Failed Nets               = 1197312
+  Number of Unrouted Nets             = 810881
+  Number of Partially Routed Nets     = 386431
+  Number of Node Overlaps             = 0
+```
+
+That failed-net count is the expected pre-routing/incomplete-routing status at
+the end of router initialization, not the final route verdict.
+
+Current hard-failure state:
+
+- no `Route 35-514`
+- no `Route 35-162`
+- no final route failed-net count
+- no route finalize result
+- no `to_aws`
+- no AGFI/AFI
+
+Interpretation:
+
+- The 8p build has now reached the same meaningful route phase that the 12p
+  dummy8x8/sbus64 build eventually survived.
+- Congestion and tight setup/hold pins are again shell/PCIS dominated. The top
+  tight pins are `RL_SHIM/DMA_PCIS_AXI_REG_SLC` `r_pipe` payload registers, not
+  Gemmini array or target NoC pins.
+- The next useful signal is overlap convergence during `Phase 5.1 Global
+  Iteration 0` and later global iterations. Until then, do not treat the large
+  pre-routing failed-net count as failure.
