@@ -102,3 +102,53 @@ The build is therefore past synthesis, but not yet past the previous failing cla
 ## Cleanup Note
 
 No directory cleanup was performed. Earlier read-only checks identified old generated-src directories that could release about 21 GB, but cleanup was not run because the user required explicit confirmation before any cleanup action.
+
+## Formal Post-Synthesis Update - 2026-05-06 16:25 UTC
+
+The formal post-synthesis utilization report is now available on the remote
+build host:
+
+```text
+/home/ubuntu/firesim-build/platforms/f2/aws-fpga-firesim-f2/hdk/cl/developer_designs/cl_f2-firesim-FireSim-FireSimGemminiReRoCCPairDummy8x8C4P12Sbus64NICNoTraceConfig-FRFCFS16GBQuadRank_BaseF2Config/build/reports/26_05_06-161045.post_synth_utilization.rpt
+```
+
+Top `cl_firesim` row from that report:
+
+| Metric | Formal post-synth value |
+|---|---:|
+| Total LUT | 1,044,525 |
+| Logic LUT | 925,213 |
+| LUTRAM | 118,586 |
+| SRL | 726 |
+| FF | 551,796 |
+| RAMB36 | 44 |
+| RAMB18 | 164 |
+| URAM | 8 |
+| DSP | 1,995 |
+
+Formal delta versus the failed 12-pair dummy16x16/sbus128/cfg32/NIC/noTrace
+baseline:
+
+| Metric | Baseline | 12p dummy8x8/sbus64 | Delta | Delta % |
+|---|---:|---:|---:|---:|
+| Total LUT | 1,169,035 | 1,044,525 | -124,510 | -10.65% |
+| Logic LUT | 1,026,303 | 925,213 | -101,090 | -9.85% |
+| LUTRAM | 142,006 | 118,586 | -23,420 | -16.49% |
+| FF | 618,967 | 551,796 | -67,171 | -10.85% |
+| RAMB36 | 44 | 44 | 0 | 0.00% |
+| RAMB18 | 68 | 164 | +96 | +141.18% |
+| URAM | 8 | 8 | 0 | 0.00% |
+| DSP | 2,079 | 1,995 | -84 | -4.04% |
+
+Interpretation update:
+
+- The formal report confirms the earlier provisional conclusion: reducing the
+  dummy mesh to 8x8 and cutting sbus/NoC width to 64 bits helps, but only by
+  about 10-11% for top-level LUT/FF.
+- The small top-level reduction is consistent with large fixed costs outside
+  the Gemmini mesh datapath: 12 pair managers, ReRoCC/NoC, FireSim bridges, NIC,
+  memory/shell integration, and target/platform glue.
+- RAMB18 usage increased substantially, so this is not a monotonic resource
+  win.
+- The build has progressed past synthesis and into shell `link_design`, but
+  placement/routing success is still unproven at this update.
