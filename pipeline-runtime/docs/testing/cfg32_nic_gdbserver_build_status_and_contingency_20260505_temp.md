@@ -46,6 +46,10 @@ TraceIO. It has now crossed the mainline build's exact detail-placement failure
 boundary and completed placement, but it is still not a usable AGFI until
 route, bitstream generation, and AFI creation complete. The next risk is route
 closure under the post-place congestion warning and `WNS=-3.250` timing summary.
+The first post-place timing read shows the worst paths are shell/static to
+`CL_DMA_PCIS_SLV` SLR2 PCIS paths dominated by routing, not deep Gemmini/DMA
+logic. See:
+[`cfg32_nic_notrace_post_place_timing_20260506.md`](cfg32_nic_notrace_post_place_timing_20260506.md).
 
 ## If noTrace succeeds
 
