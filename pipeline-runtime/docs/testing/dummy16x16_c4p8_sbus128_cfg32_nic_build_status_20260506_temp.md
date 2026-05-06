@@ -564,3 +564,53 @@ Interpretation:
 - Because the 8p build has substantially lower top-level LUT/FF/DSP than the
   12p builds, continue monitoring to post-place before considering any queue
   depth or RTL change.
+
+## Placement Progress Monitor - 2026-05-06 20:55 UTC
+
+Remote host `192.168.1.129` remains active.
+
+Process/resource snapshot:
+
+- parent Vivado elapsed time: about `3h21m`
+- parent Vivado CPU: about `172%`
+- parent Vivado memory: about `73.9%`
+- newest formal report remains the `19:26 UTC` post-opt timing report
+- no post-place report exists yet
+
+Placement has completed global placement and detail placement, and has entered
+post-placement optimization / cleanup:
+
+```text
+Phase 2.6 Global Place Phase2
+Phase 2 Global Placement
+Phase 3 Detail Placement
+Phase 3.1 Commit Multi Column Macros
+Phase 3.2 Commit Most Macros & LUTRAMs
+Phase 3.3 Small Shape DP
+Phase 3.4 Re-assign LUT pins
+Phase 3.5 Pipeline Register Optimization
+Phase 3.6 Fast Optimization
+Phase 3 Detail Placement
+Phase 4 Post Placement Optimization and Clean-Up
+Phase 4.1 Post Commit Optimization
+INFO: [Place 46-20] Placer is running with the ExtraNetDelay_high directive. Post Placement Optimization may take longer to complete with ExtraNetDelay_high compared to other directives.
+```
+
+At this checkpoint:
+
+- no `Place 46-14` high-congestion warning has appeared
+- no `Place 30-487` placement failure has appeared
+- no post-place checkpoint/report exists yet
+- route has not started
+- no AGFI/AFI
+
+Interpretation:
+
+- This is the strongest placement evidence so far for the 8p candidate: it has
+  reached post-placement cleanup without the high-congestion `Place 46-14`
+  warning seen in the 12p dummy8x8/sbus64 run.
+- The absence of `Place 46-14` is encouraging but not sufficient. The decisive
+  next artifacts are the post-place report and the route entry/route congestion
+  signals.
+- Continue monitoring under `TIMING`; no RTL or queue-depth change is justified
+  before post-place or route evidence appears.

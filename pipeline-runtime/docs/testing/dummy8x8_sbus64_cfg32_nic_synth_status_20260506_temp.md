@@ -709,3 +709,55 @@ Interpretation:
   dummy8x8/sbus64 resource reduction can legally route under the requested
   `TIMING` strategy, and AWS capacity is not currently being reclaimed for a
   higher-value build.
+
+## Route Progress Monitor - 2026-05-06 20:55 UTC
+
+Remote host `192.168.1.77` remains active.
+
+Process/resource snapshot:
+
+- parent Vivado elapsed time: about `6h18m`
+- parent Vivado CPU: about `240%`
+- parent Vivado memory: about `73.1%`
+- newest formal report remains the `19:20 UTC` post-phys-opt timing report
+- no post-route report exists yet
+
+Route remains in `Phase 5.1 Global Iteration 0`. The node-overlap sequence is
+continuing to converge:
+
+```text
+Number of Nodes with overlaps = 572508
+WARNING: [Route 35-514] Design has a large number of hold violators. This is likely a design or constraint issue. Router is turning off hold fixing.
+Number of Nodes with overlaps = 66814
+Number of Nodes with overlaps = 10470
+Number of Nodes with overlaps = 2793
+Number of Nodes with overlaps = 1065
+Number of Nodes with overlaps = 434
+Number of Nodes with overlaps = 224
+Number of Nodes with overlaps = 161
+Number of Nodes with overlaps = 119
+Number of Nodes with overlaps = 66
+Number of Nodes with overlaps = 49
+Number of Nodes with overlaps = 41
+```
+
+Current hard-failure state:
+
+- no `Route 35-162`
+- no final `Route 35-2`
+- no final failed-routing signal count
+- no post-route timing or route-status report
+- no AGFI/AFI
+
+Interpretation:
+
+- The 12p dummy8x8/sbus64 build is still alive and route convergence is much
+  better than the earlier failed 12p dummy16x16/sbus128 noTrace run at the same
+  rough stage.
+- The remaining `41` overlaps may still resolve, so this is not a legal-route
+  failure yet.
+- `Route 35-514` remains the main caveat. A legal route from this build would
+  still be a lower-trust candidate because ordinary `TIMING` disabled hold
+  fixing.
+- Continue monitoring to the route verdict. Do not change RTL based on this
+  partial route state.
