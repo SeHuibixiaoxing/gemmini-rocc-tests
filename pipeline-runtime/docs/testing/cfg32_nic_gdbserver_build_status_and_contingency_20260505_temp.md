@@ -34,14 +34,18 @@ noTrace cfg32 NIC fallback:
 - Platform: `FRFCFS16GBQuadRank_BaseF2Config`
 - Strategy/frequency: `TIMING`, `20MHz`
 - Current result: still running, no AGFI/AFI yet.
-- Current observed phase: Vivado global placement.
+- Current observed phase: passed Vivado `Phase 3 Detail Placement`, now in
+  `Phase 4 Post Placement Optimization and Clean-Up` as of
+  `2026-05-06 00:08 UTC`.
 - Post-synth `cl_firesim` utilization: total LUT `89.67%`, logic LUT
   `78.72%`, LUTRAM `23.63%`.
 
 The noTrace build leaves `DigitalTop` essentially unchanged and removes
 TraceIO-related FireSim top-level pressure. That is why it is the current best
 candidate: the user-space pipeline-runtime gdbserver workflow does not need
-TraceIO.
+TraceIO. It has now crossed the mainline build's exact detail-placement failure
+boundary, but it is still not a usable AGFI until route, bitstream generation,
+and AFI creation complete.
 
 ## If noTrace succeeds
 

@@ -1,6 +1,6 @@
 # Pipeline Runtime gdbserver Integration SOP
 
-更新时间：`2026-05-05 21:55 UTC`
+更新时间：`2026-05-06 00:12 UTC`
 
 ## 1. 目标
 
@@ -467,6 +467,13 @@ post-synth `cl_firesim` 总 LUT 约 `89.67%`，`firesim_top` 约 `86.89%`，
 构建是合理路线。该轮 post-opt timing 仍有 `SH_DDR/SYNC_RST` 到
 `mmcm_clkout0` 的 async recovery slack，例如 `-1.284 ns`，但当前是否可用的
 第一判断仍是 placement/route 能否完成并生成 AGFI。
+
+2026-05-06 00:08 UTC 复查：no-TraceIO fallback 已完成
+`Phase 3 Detail Placement`，进入
+`Phase 4 Post Placement Optimization and Clean-Up` /
+`Phase 4.1.1.2 Post Placement Timing Optimization`。这跨过了主线 cfg32
+NIC 构建失败的同一 detail placement 边界；截至该 poll 仍没有 AGFI/AFI，也还没有
+post-place checkpoint/report。继续等待 post-place、route、bitstream 和 AFI creation。
 
 每次汇报 buildbitstream 已启动时，都要同时汇报：
 
@@ -1252,8 +1259,9 @@ cp /home/ubuntu/chipyard/tmp/firesim-aws-f2/tmux/rocket-singlecore-nic-gdbserver
 - 2026-05-05 并行启动的 no-TraceIO 资源削减构建
   `pairdummy-cfg32-nic-notrace-20260505T171453Z` 是当前唯一活动 cfg32 NIC
   AGFI 候选。它保留 NIC、1BP、cfg32 和 optimized DMA marker，去掉 TraceIO，
-  post-synth 总 LUT 约 `89.67%`；截至 `2026-05-05 21:49 UTC`，它仍在
-  Vivado placement，没有产生 AGFI/AFI。
+  post-synth 总 LUT 约 `89.67%`；截至 `2026-05-06 00:08 UTC`，它已通过
+  Vivado detail placement 并进入 Phase 4 post-placement optimization，但还没有
+  产生 AGFI/AFI。
 - 下一步等新 AGFI 完成并更新 cfg32 NIC HWDB 后，优先验证：
   1. guest `dmesg` 中 IceNet driver 是否加载，并打印 `IceNet DMA API mappings enabled`
   2. `S40network` 是否 `OK`
