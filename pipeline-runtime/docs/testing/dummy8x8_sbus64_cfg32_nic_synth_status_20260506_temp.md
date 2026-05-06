@@ -522,3 +522,78 @@ Interpretation:
 - If it fails, the first artifact to extract is the exact route failure class
   and conflicted-net list, because the resource reductions changed the design
   enough that failure names may differ from the 12p dummy16x16/sbus128 baseline.
+
+## Route Progress Monitor - 2026-05-06 19:49 UTC
+
+Remote host `192.168.1.77` remains active.
+
+Process/resource snapshot:
+
+- parent Vivado elapsed time: about `5h12m`
+- parent Vivado CPU: about `207%`
+- parent Vivado memory: about `73.3%`
+- newest formal report remains the `19:20 UTC` post-phys-opt timing report
+- route has not completed and no post-route report exists yet
+
+The route stage progressed beyond initialization and initial routing:
+
+```text
+Phase 2.4 Update Timing
+INFO: [Route 35-416] Intermediate Timing Summary | WNS=-3.124 | TNS=-4725.087| WHS=-2.493 | THS=-4396.102|
+WARNING: [Route 35-41] Unusually high hold violations were detected on a large number of pins. This may result in high router runtime.
+Phase 2.5.1 Update Timing
+INFO: [Route 35-416] Intermediate Timing Summary | WNS=-3.124 | TNS=-5118.811| WHS=-3.642 | THS=-6584.831|
+Router Utilization Summary
+  Number of Failed Nets               = 1398331
+  Number of Unrouted Nets             = 946558
+  Number of Partially Routed Nets     = 451773
+  Number of Node Overlaps             = 0
+Phase 3 Global Routing
+Phase 4 Initial Routing
+INFO: [Route 35-449] Initial Estimated Congestion
+INFO: [Route 35-580] Design has 1949 pins with tight setup and hold constraints.
+Phase 5 Rip-up And Reroute
+Phase 5.1 Global Iteration 0
+```
+
+The `Failed Nets` count above is from the early router utilization summary
+before rip-up/reroute; it is not the final `Route 35-2` failed-routing result.
+At this checkpoint, the previous hard-failure signatures still have not
+appeared:
+
+- no `Route 35-445`
+- no `Route 35-162`
+- no final `Route 35-2`
+- no final failed-routing signal count
+- no node-overlap failure
+- no implementation `ERROR`
+
+Initial estimated congestion is materially milder than the earlier failed
+12p dummy16x16/sbus128 route result:
+
+| Direction | Global | Long | Short |
+|---|---:|---:|---:|
+| NORTH | `4x4`, `0.43%` | `4x4`, `0.71%` | `8x8`, `1.95%` |
+| SOUTH | `4x4`, `0.32%` | `4x4`, `0.71%` | `8x8`, `1.07%` |
+| EAST | `8x8`, `0.73%` | `8x8`, `0.75%` | `16x16`, `2.90%` |
+| WEST | `8x8`, `1.11%` | `16x16`, `1.67%` | `8x8`, `3.32%` |
+
+The tight setup/hold list points at shell/DMA PCIS register-slice pins rather
+than target-side Gemmini logic:
+
+```text
+WRAPPER/RL_SHIM/DMA_PCIS_AXI_REG_SLC/AXI_REGISTER_SLICE/inst/r.r_pipe/m_payload_i_reg[253]/D
+WRAPPER/RL_SHIM/DMA_PCIS_AXI_REG_SLC/AXI_REGISTER_SLICE/inst/r.r_pipe/m_payload_i_reg[188]/D
+WRAPPER/RL_SHIM/DMA_PCIS_AXI_REG_SLC/AXI_REGISTER_SLICE/inst/r.r_pipe/m_payload_i_reg[89]/D
+WRAPPER/RL_SHIM/DMA_PCIS_AXI_REG_SLC/AXI_REGISTER_SLICE/inst/r.r_pipe/m_payload_i_reg[189]/D
+WRAPPER/RL_SHIM/DMA_PCIS_AXI_REG_SLC/AXI_REGISTER_SLICE/inst/r.r_pipe/m_payload_i_reg[439]/D
+```
+
+Interpretation:
+
+- The 12p dummy8x8/sbus64 build is still alive in the decisive route stage.
+- The main new risk signal is high hold-pressure / runtime risk, not a
+  confirmed routing failure.
+- Current route evidence is more shell/PCIS dominated than SimpleNIC-queue
+  dominated. That weakens the case for changing SimpleNIC queue depth before
+  this route either finishes or emits a concrete final failure marker.

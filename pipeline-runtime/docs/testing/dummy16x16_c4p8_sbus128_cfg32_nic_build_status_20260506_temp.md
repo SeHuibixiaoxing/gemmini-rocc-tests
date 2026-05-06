@@ -405,3 +405,56 @@ Interpretation:
   an obvious Gemmini or pair-manager datapath path. This matches the earlier
   12p observations and means the immediate pass/fail signal remains routing
   congestion, not the post-opt DDR reset slack itself.
+
+## Placement Progress Monitor - 2026-05-06 19:49 UTC
+
+Remote host `192.168.1.129` remains active.
+
+Process/resource snapshot:
+
+- parent Vivado elapsed time: about `2h15m`
+- parent Vivado CPU: about `135%`
+- parent Vivado memory: about `73.8%`
+- newest formal report remains the `19:26 UTC` post-opt timing report
+- no post-place report exists yet
+
+The build is still in placement and has progressed through placement
+initialization into global placement / floorplanning:
+
+```text
+Phase 1 Placer Initialization
+Phase 1.2 IO Placement/ Clock Placement/ Build Placer Device
+Phase 1.3 Build Placer Netlist Model
+Phase 1.4 Constrain Clocks/Macros
+Phase 2 Global Placement
+Phase 2.1 Floorplanning
+Phase 2.1.1 Partition Driven Placement
+Phase 2.1.1.1 PBP: Partition Driven Placement
+Phase 2.1.1.2 PBP: Clock Region Placement
+```
+
+New non-fatal placement/floorplan message:
+
+```text
+WARNING: [Constraints 18-5648] For reconfigurable module WRAPPER/CL, the top/bottom edges of its PBLOCK pblock_CL are aligned with clock regions. With this type of floorplan, it has limited routability at PBLOCK top/bottom edges due to routing containment requirement.
+```
+
+This is a shell/pblock floorplanning constraint message. Vivado then inferred
+PROHIBIT on the listed edge sites. It is not equivalent to the `Place 46-14`
+high-congestion warning and is not a route failure.
+
+At this checkpoint:
+
+- no `Place 46-14` warning has appeared
+- no `Place 30-487` error has appeared
+- no post-place checkpoint/report exists yet
+- no route stage has started yet
+- no route failure marker can be drawn yet
+
+Interpretation:
+
+- The 8p dummy16x16/sbus128 build is still the stronger resource-reduction
+  candidate, but it has not reached the decisive placement/route evidence yet.
+- The absence of `Place 46-14` at this point is mildly positive, but placement
+  is still too early to compare directly against the 12p dummy8x8/sbus64 run.
+- Continue monitoring without changing hardware sources or build strategy.
