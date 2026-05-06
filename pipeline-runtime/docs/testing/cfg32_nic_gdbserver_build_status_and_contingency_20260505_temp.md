@@ -35,7 +35,9 @@ noTrace cfg32 NIC fallback:
 - Strategy/frequency: `TIMING`, `20MHz`
 - Current result: still running, no AGFI/AFI yet.
 - Current observed phase: Vivado `place_design completed successfully` as of
-  `2026-05-06 00:19 UTC`; post-place checkpoint/report writing was underway.
+  `2026-05-06 00:19 UTC`; pre-route `phys_opt_design -directive
+  AggressiveExplore` reached post-phy_opt checkpoint/report writing as of
+  `2026-05-06 00:49 UTC`.
 - Post-synth `cl_firesim` utilization: total LUT `89.67%`, logic LUT
   `78.72%`, LUTRAM `23.63%`.
 

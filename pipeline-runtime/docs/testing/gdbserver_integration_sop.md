@@ -485,6 +485,13 @@ post-place checkpoint/report。继续等待 post-place、route、bitstream 和 A
 route/timing closure；仍未产生 AGFI/AFI，仍不能更新 HWDB 或启动 cfg32 NIC
 gdbserver run。
 
+2026-05-06 00:49 UTC 复查：no-TraceIO fallback 已执行 pre-route
+`phys_opt_design -directive AggressiveExplore`，完成多个
+`Single Cell Placement Optimization` / `Multi Cell Placement Optimization`
+阶段，并进入 `Writing post-phy_opt design checkpoint and report`。这说明构建已从
+placement 推进到 pre-route physical optimization 之后；仍未进入可见 route
+完成、bitstream 或 AFI creation，仍不能更新 HWDB 或启动 runfarm。
+
 每次汇报 buildbitstream 已启动时，都要同时汇报：
 
 - tmux session 名称；
