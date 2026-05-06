@@ -189,3 +189,28 @@ The run has therefore advanced beyond synthesis and into placement. The previous
 failure, so this checkpoint still does not prove that the reduced-resource
 configuration can complete, but no equivalent placement or routing error has
 appeared yet.
+
+## Key Path Audit - 2026-05-06 17:35 UTC
+
+The current post-opt timing report still points at the same shell-side DDR
+clock/reset crossings that showed up in the failing 12-pair baseline.
+
+Representative worst path:
+
+- source: `WRAPPER/CL/SH_DDR/SYNC_RST/pipe_reg[3][0]/C`
+- path group: `**async_default**`
+- path type: recovery
+- slack: `-1.284ns`
+- data path delay: `0.585ns`
+- logic levels: `1` (`LUT2=1`)
+
+Another repeated offender is the DDR UI clock reset path:
+
+- source: `WRAPPER/CL/SH_DDR/genblk1.IS_DDR_PRESENT.DDR4_0/inst/div_clk_rst_r1_reg/C`
+- path group: `WRAPPER/CL/clk_main_a0`
+- slack: `-0.978ns`
+
+This matters because it means the current timing pain is not obviously coming
+from the Gemmini pair-manager reductions. The target changes are still useful
+for resource pressure, but the worst slack remains concentrated in shell DDR
+reset infrastructure and not in the ReRoCC datapath.

@@ -120,6 +120,21 @@ Interpretation: the manager-side job had launched the remote host and was still
 preparing/synchronizing the AWS F2 collateral. The actual Vivado synthesis stage
 had not started on this host at that checkpoint.
 
+## Remote Synthesis Update - 2026-05-06 17:35 UTC
+
+By 17:35 UTC the remote host had entered Vivado synthesis.
+
+Observed process tree on `192.168.1.129`:
+
+- `build-bitstream.sh --strategy TIMING`
+- `aws_build_dcp_from_cl.py --mode small_shell`
+- `vivado -mode batch -source build_all.tcl -log 2026_05_06-173316.vivado.log`
+- `parallel_synth_helper`
+- `synth_design -top clk_wiz_0_firesim -part xcvu47p-fsvh2892-2-e -mode out_of_context`
+
+This confirms the 8-pair build is now beyond host boot and collateral sync and
+has started actual Vivado work on the remote F2 instance.
+
 The existing 12-pair dummy8x8/sbus64 build remains active in a separate tmux
 session:
 
