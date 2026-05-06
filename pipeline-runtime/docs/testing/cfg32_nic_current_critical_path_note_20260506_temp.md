@@ -117,3 +117,25 @@ Implication:
   validation candidate, not as a timing-clean result.
 - The next decision point remains empirical: whether either flow reaches AWS
   packaging and then passes gdbserver/pipeline-runtime tests.
+
+## 23:17 UTC Update
+
+The 8p dummy16x16/sbus128 candidate has made material route progress:
+
+- overlap converged to zero after `Route 35-514`
+- route reached `Phase 7 Route finalize`
+- routed-net verification completed successfully
+- the current visible stage is `Phase 13 Post Router Timing / Phase 13.1 Update
+  Timing`
+- no route-completed line, DCP/tarball, `to_aws`, AFI, or AGFI exists yet
+
+The 12p dummy8x8/sbus64 candidate remains in post-route phys-opt `Phase 2
+Critical Path Optimization` with no post-route phys-opt checkpoint/report or AWS
+packaging collateral yet.
+
+Implication:
+
+- The 8p build is now the more promising cfg32 candidate for reaching a routed
+  DCP, despite still being low-trust due to `Route 35-514`.
+- The 12p build should still be kept alive, but it is spending substantial time
+  in post-route phys-opt without reaching packaging.

@@ -1118,3 +1118,33 @@ Interpretation:
 - This is not yet a reason to cancel or modify RTL; the decisive gate is still
   whether the flow writes the post-route phys-opt checkpoint/report and packages
   the design.
+
+## 1200s Window Monitor - 2026-05-06 23:17 UTC
+
+Remote host `192.168.1.77` is still running the 12p dummy8x8/sbus64 build.
+
+At `23:17:57 UTC`:
+
+- Vivado is still alive.
+- post-route `phys_opt_design -directive AggressiveExplore` remains in
+  `Phase 2 Critical Path Optimization`.
+- no `*.post_route_phys_opt.dcp` exists yet.
+- no `*.post_route_phys_opt_timing.rpt` exists yet.
+- no `Developer_CL.tar`, `to_aws`, manifest, AFI, or AGFI exists yet.
+
+The newest visible work continues to be on shell/DDR-stat `mmcm_clkout0` paths,
+not the main PCIS setup group:
+
+```text
+INFO: [Physopt 32-952] Improved path group WNS = -1.866. Path group: mmcm_clkout0.
+INFO: [Physopt 32-952] Improved path group WNS = -1.858. Path group: mmcm_clkout0.
+INFO: [Physopt 32-952] Improved path group WNS = -1.845. Path group: mmcm_clkout0.
+```
+
+Interpretation:
+
+- No new packaging gate has been reached.
+- The build remains alive, but post-route phys-opt is taking a long time and has
+  not changed the earlier low-trust `Route 35-514` caveat.
+- Continue monitoring; the next useful event is either post-route phys-opt
+  checkpoint/report creation or a Vivado/tool failure.

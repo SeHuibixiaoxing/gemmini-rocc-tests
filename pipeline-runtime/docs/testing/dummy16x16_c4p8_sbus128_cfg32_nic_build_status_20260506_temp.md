@@ -927,3 +927,58 @@ Interpretation:
 - Keep the build alive. If it reaches packaging, treat the AFI/AGFI as a
   low-trust functional candidate and validate with gdbserver before drawing a
   hardware/software conclusion.
+
+## 1200s Window Monitor - 2026-05-06 23:17 UTC
+
+Remote host `192.168.1.129` is still running the 8p dummy16x16/sbus128 build.
+
+At `23:17:57 UTC`, route has progressed beyond overlap convergence and into
+post-router timing:
+
+```text
+Phase 7 Route finalize
+Phase 8 Verifying routed nets
+Verification completed successfully
+Phase 9 Depositing Routes
+Phase 10 Leaf Clock Prog Delay Opt
+Phase 11 Resolve XTalk
+Phase 12 Post Process Routing
+Phase 13 Post Router Timing
+Phase 13.1 Update Timing
+```
+
+The overlap trend reached zero:
+
+```text
+403829 -> 30645 -> 3297 -> 595 -> 208 -> 95 -> 50 -> 25 -> 14 -> 9 -> 2 -> 0
+```
+
+There were later small overlap bursts during subsequent global iterations, but
+they also converged back to zero:
+
+```text
+742 -> 49 -> 4 -> 0
+135 -> 24 -> 4 -> 1 -> 0
+```
+
+Current hard-output state:
+
+- `Route 35-514` remains present.
+- no `Route 35-162` has appeared.
+- no `Route 35-2` final route failure has appeared.
+- no `INFO: [Route 35-16] Router Completed Successfully` line exists yet.
+- no `route_design completed successfully` line exists yet.
+- no `post_route.dcp`, `post_route_timing.rpt`, `Developer_CL.tar`, `to_aws`,
+  manifest, AFI, or AGFI exists yet.
+
+Interpretation:
+
+- This is a meaningful improvement over the 22:55 checkpoint: the route has
+  reached post-router timing instead of being stuck in the first reroute
+  iteration.
+- It is still not a completed build. The next decisive signal is whether
+  post-router timing and route event processing finish with `Router Completed
+  Successfully`, and then whether the AWS flow writes DCP/tarball packaging
+  collateral.
+- If packaging occurs, the same low-trust caveat applies because `Route 35-514`
+  disabled hold fixing.
