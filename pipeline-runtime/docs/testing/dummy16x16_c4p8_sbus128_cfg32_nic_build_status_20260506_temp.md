@@ -458,3 +458,51 @@ Interpretation:
 - The absence of `Place 46-14` at this point is mildly positive, but placement
   is still too early to compare directly against the 12p dummy8x8/sbus64 run.
 - Continue monitoring without changing hardware sources or build strategy.
+
+## Placement Progress Monitor - 2026-05-06 20:11 UTC
+
+Remote host `192.168.1.129` remains active.
+
+Process/resource snapshot:
+
+- parent Vivado elapsed time: about `2h37m`
+- parent Vivado CPU: about `147%`
+- parent Vivado memory: about `73.9%`
+- newest formal report remains the `19:26 UTC` post-opt timing report
+- no post-place report exists yet
+
+Placement has progressed farther, but has not reached the decisive checkpoint:
+
+```text
+Phase 2.1.1.4 PBP: Compute Congestion
+Phase 2.1.1.5 PBP: Macro Placement
+Phase 2.1.1.6 PBP: UpdateTiming
+Phase 2.1.1.7 PBP: Add part constraints
+Phase 2.2 Physical Synthesis After Floorplan
+Phase 2.3 Update Timing before SLR Path Opt
+Phase 2.4 Post-Processing in Floorplanning
+Phase 2.5 Global Place Phase1
+```
+
+The post-floorplan physical synthesis pass replicated a small set of target and
+bridge nets, including reset-chain nets, `globalNoCDomain` router nets, mbus
+AXI queue nets, and ReadyValid bridge nets. This is normal placement/physopt
+activity and is not itself a failure marker.
+
+At this checkpoint:
+
+- no `Place 46-14` warning has appeared
+- no `Place 30-487` error has appeared
+- no post-place checkpoint/report exists
+- route has not started
+- no route failure marker can be drawn yet
+
+Interpretation:
+
+- The 8p build remains the more promising candidate because its post-synth
+  resource count is materially below both 12p runs.
+- It is still too early to claim that 8p has solved routability. The next
+  useful evidence is whether placement completes without `Place 46-14`, then
+  the post-place timing/congestion report.
+- Keep monitoring under the current `TIMING` strategy; do not change RTL before
+  this build either reaches post-place or fails placement.

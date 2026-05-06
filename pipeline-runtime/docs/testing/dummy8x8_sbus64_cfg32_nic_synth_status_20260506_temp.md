@@ -597,3 +597,57 @@ Interpretation:
 - Current route evidence is more shell/PCIS dominated than SimpleNIC-queue
   dominated. That weakens the case for changing SimpleNIC queue depth before
   this route either finishes or emits a concrete final failure marker.
+
+## Route Progress Monitor - 2026-05-06 20:11 UTC
+
+Remote host `192.168.1.77` remains active.
+
+Process/resource snapshot:
+
+- parent Vivado elapsed time: about `5h34m`
+- parent Vivado CPU: about `232%`
+- parent Vivado memory: about `73.3%`
+- newest formal report remains the `19:20 UTC` post-phys-opt timing report
+- no post-route report exists yet
+
+The route is still in `Phase 5.1 Global Iteration 0`. The new route signal is:
+
+```text
+Phase 5 Rip-up And Reroute
+Phase 5.1 Global Iteration 0
+ Number of Nodes with overlaps = 572508
+```
+
+At this checkpoint, this is still an in-progress rip-up/reroute overlap count,
+not the final route-status verdict. The hard failure signatures have still not
+appeared:
+
+- no `Route 35-162`
+- no final `Route 35-2`
+- no final failed-routing signal count
+- no post-route timing or route-status report
+- no implementation `ERROR`
+
+Comparison with the earlier failed 12p dummy16x16/sbus128 noTrace build:
+
+```text
+2026-05-06 01:48:08  Number of Nodes with overlaps = 1814681
+2026-05-06 02:15:12  Number of Nodes with overlaps = 576771
+...
+2026-05-06 08:55:57  Number of Nodes with overlaps = 6503
+2026-05-06 09:25:23  CRITICAL WARNING: [Route 35-162] 5774 signals failed to route due to routing congestion.
+2026-05-06 09:25:29  ERROR: [Route 35-2] Design is not legally routed. There are 5975 node overlaps.
+```
+
+Interpretation:
+
+- `572508` overlaps is a serious congestion/routing-risk signal.
+- It is lower than the failed 12p dummy16x16/sbus128 build's first visible
+  Phase 5.1 overlap count, and roughly comparable to that failed build's second
+  overlap checkpoint.
+- Therefore it should not be treated as a terminal failure yet. The only
+  defensible next action is to keep monitoring until route either converges,
+  reports `Route 35-162` / `Route 35-2`, or produces post-route artifacts.
+- If the overlap sequence plateaus above zero or ends with `Route 35-2`, collect
+  `report_route_status`, failed-signal names, and any post-route DCP/report
+  files before changing RTL.
