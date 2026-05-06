@@ -242,3 +242,50 @@ Interpretation:
 - That makes the current retry worth continuing, but it also means another
   large LUT/FF reduction should not be expected without changing the bridge or
   repetition structure itself.
+
+## Placement/Physopt Monitor - 2026-05-06 17:57 UTC
+
+Remote host `192.168.1.77` is still running the TIMING Vivado job. The active
+Vivado process has accumulated more than 5 hours of CPU time and remains alive.
+
+Latest log/report state:
+
+- Vivado log:
+  `/home/ubuntu/firesim-build/platforms/f2/aws-fpga-firesim-f2/hdk/cl/developer_designs/cl_f2-firesim-FireSim-FireSimGemminiReRoCCPairDummy8x8C4P12Sbus64NICNoTraceConfig-FRFCFS16GBQuadRank_BaseF2Config/build/scripts/2026_05_06-143630.vivado.log`
+- log modified at: `2026-05-06 17:53:35 UTC`
+- log size: about `1.75 MB`
+- line count: `12319`
+- newest report remains the post-opt timing report from `16:42 UTC`
+- no route report or final DCP/AGFI completion evidence exists yet
+
+The current tail of the Vivado log ends at:
+
+```text
+Phase 2.6.2 Physical Synthesis In Placer | Checksum: 25cf3a1b3
+Time (s): cpu = 02:17:41 ; elapsed = 01:10:13 . Memory (MB): peak = 71894.383 ; gain = 207.180 ; free physical = 22519 ; free virtual = 33658
+```
+
+Additional grep markers in the same log show later placer sub-steps such as
+`Phase 3 Retarget`, `Phase 4 Constant propagation`, and `PBP: Compute
+Congestion`, but the final emitted tail still returns to the physical-synthesis
+summary above. Treat this as an active placer/physopt checkpoint, not as route
+entry.
+
+Important non-fatal messages seen during this stage:
+
+- many `Physopt 32-1132` very-high-fanout messages
+- repeated names under
+  `CPUManagedStreamEngine_0/SIMPLENICBRIDGEMODULE_0_from_cpu_stream_incomingQueueIO_q/enq_ptr_value_reg[...]`
+- Vivado says timing constraints prevent optimizing all loads on these nets
+- a small set of shell/PCIS/DDR ready/control nets was replicated by physopt
+
+Interpretation:
+
+- The previous failed build's route-stage signatures have still not reappeared:
+  no `Route 35-162`, no `Route 35-2`, no failed-routing count, and no node
+  overlap count.
+- The NIC bridge queue pointer fanout is a real placement/timing pressure point,
+  but at this checkpoint it is still an optimization warning, not a routing
+  failure.
+- The build remains worth monitoring into actual route before drawing the final
+  pass/fail conclusion.

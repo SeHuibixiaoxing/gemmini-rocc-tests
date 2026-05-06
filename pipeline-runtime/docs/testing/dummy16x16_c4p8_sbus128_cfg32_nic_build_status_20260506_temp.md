@@ -167,3 +167,39 @@ Primary resource metrics:
 
 Also check whether the 8-pair build still triggers the same style of downstream
 placement/routing resource failure seen in the 12-pair baseline.
+
+## Remote Synthesis Monitor - 2026-05-06 17:57 UTC
+
+Remote host `192.168.1.129` is still actively running the TIMING Vivado job.
+
+Observed active process tree:
+
+- `build-bitstream.sh --strategy TIMING`
+- `aws_build_dcp_from_cl.py --mode small_shell`
+- `vivado -mode batch -source build_all.tcl -log 2026_05_06-173316.vivado.log`
+- one parent Vivado plus multiple `parallel_synth_helper` worker processes
+
+The log has not yet reached the main top-level synthesis completion point.
+Several small/OOC synthesis subtasks have completed successfully, but the
+latest tail is still in the main `synth_design` stream around FireSim bridge,
+NIC, and generated target RTL modules.
+
+Latest known remote log:
+
+```text
+/home/ubuntu/firesim-build/platforms/f2/aws-fpga-firesim-f2/hdk/cl/developer_designs/cl_f2-firesim-FireSim-FireSimGemminiReRoCCPairDummy16x16C4P8Sbus128NICNoTraceConfig-FRFCFS16GBQuadRank_BaseF2Config/build/scripts/2026_05_06-173316.vivado.log
+```
+
+State at this checkpoint:
+
+- Vivado log size: about `795 KB`
+- log modified at: `2026-05-06 17:56:58 UTC`
+- reports directory exists but remains empty
+- no post-synthesis utilization report exists yet
+- no `Place 46-14`, `Route 35-445`, `Route 35-162`, `Route 35-2`, or failed
+  routing marker can apply yet because implementation has not reached placement
+  or route
+
+Interpretation: this 8-pair experiment is still too early for resource
+comparison. The next useful milestone is formal `*.post_synth_utilization.rpt`
+creation.
