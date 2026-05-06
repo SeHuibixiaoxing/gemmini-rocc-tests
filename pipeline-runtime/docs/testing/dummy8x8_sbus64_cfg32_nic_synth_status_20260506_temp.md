@@ -761,3 +761,66 @@ Interpretation:
   fixing.
 - Continue monitoring to the route verdict. Do not change RTL based on this
   partial route state.
+
+## Route Progress Monitor - 2026-05-06 21:16/21:20 UTC
+
+Remote host `192.168.1.77` remains active.
+
+Process/resource snapshot at `21:16 UTC`:
+
+- parent Vivado elapsed time: about `6h39m`
+- parent Vivado CPU: about `240%`
+- parent Vivado memory: about `73.3%`
+- newest formal report remains the `19:20 UTC` post-phys-opt timing report
+- no post-route report exists yet
+
+Route has progressed through multiple global iterations. Iteration 0 and
+Iteration 1 both reached zero overlaps; Iteration 2 also reached zero by the
+21:20 UTC spot check:
+
+```text
+Phase 5.1 Global Iteration 0
+...
+Number of Nodes with overlaps = 0
+INFO: [Route 35-416] Intermediate Timing Summary | WNS=-3.359 | TNS=-7869.989| WHS=-3.690 | THS=-5545.297|
+
+Phase 5.2 Global Iteration 1
+Number of Nodes with overlaps = 145
+...
+Number of Nodes with overlaps = 0
+INFO: [Route 35-416] Intermediate Timing Summary | WNS=-3.371 | TNS=-7844.015| WHS=N/A    | THS=N/A    |
+
+Phase 5.3 Global Iteration 2
+Number of Nodes with overlaps = 656
+Number of Nodes with overlaps = 126
+Number of Nodes with overlaps = 29
+Number of Nodes with overlaps = 6
+Number of Nodes with overlaps = 1
+Number of Nodes with overlaps = 0
+```
+
+Additional route congestion signal:
+
+```text
+INFO: [Route 35-443] CLB routing congestion detected. Several CLBs have high routing utilization, which can impact timing closure. Congested CLBs and Nets are dumped in: iter_100_CongestedCLBsAndNets.txt
+```
+
+Current hard-failure state:
+
+- no `Route 35-162`
+- no final `Route 35-2`
+- no final failed-routing signal count
+- no `route_design completed`
+- no post-route timing or route-status report
+- no AGFI/AFI
+
+Interpretation:
+
+- The 12p dummy8x8/sbus64 route is no longer showing a persistent overlap
+  blocker in the visible global iterations.
+- This makes legal route increasingly plausible, but the build is not complete
+  until Vivado exits `route_design` and writes post-route artifacts.
+- The candidate remains lower trust because `Route 35-514` disabled hold fixing
+  earlier in the route and intermediate hold/setup summaries remain poor.
+- If this build reaches AFI creation, validate it only after recording final
+  route status, final timing, AGFI/AFI IDs, and the exact driver bundle path.

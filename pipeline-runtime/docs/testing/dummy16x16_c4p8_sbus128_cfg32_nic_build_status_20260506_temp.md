@@ -614,3 +614,80 @@ Interpretation:
   signals.
 - Continue monitoring under `TIMING`; no RTL or queue-depth change is justified
   before post-place or route evidence appears.
+
+## Post-Place / Phys-Opt Entry Update - 2026-05-06 21:16/21:20 UTC
+
+Remote host `192.168.1.129` remains active.
+
+Process/resource snapshot at `21:16 UTC`:
+
+- parent Vivado elapsed time: about `3h42m`
+- parent Vivado CPU: about `173%`
+- parent Vivado memory: about `73.9%`
+
+Placement completed successfully:
+
+```text
+315 Infos, 3 Warnings, 0 Critical Warnings and 0 Errors encountered.
+place_design completed successfully
+place_design: Time (s): cpu = 03:52:30 ; elapsed = 01:47:04
+AWS FPGA: (21:13:44): Writing post-place design checkpoint and report
+INFO: [Common 17-1381] The checkpoint '...post_place.dcp' has been generated.
+```
+
+Formal post-place timing report:
+
+```text
+/home/ubuntu/firesim-build/platforms/f2/aws-fpga-firesim-f2/hdk/cl/developer_designs/cl_f2-firesim-FireSim-FireSimGemminiReRoCCPairDummy16x16C4P8Sbus128NICNoTraceConfig-FRFCFS16GBQuadRank_BaseF2Config/build/reports/cl_f2-firesim-FireSim-FireSimGemminiReRoCCPairDummy16x16C4P8Sbus128NICNoTraceConfig-FRFCFS16GBQuadRank_BaseF2Config.2026_05_06-173316.post_place_timing.rpt
+```
+
+The build then entered pre-route physical optimization:
+
+```text
+AWS FPGA: (21:18:16): Start physical-optimizing customer design ...
+AWS FPGA: phys_opt command: phys_opt_design -directive AggressiveExplore
+Command: phys_opt_design -directive AggressiveExplore
+```
+
+Post-placement estimated congestion:
+
+| Scope | North | South | East | West |
+|---|---|---|---|---|
+| Overall global | `4x4` | `1x1` | `4x4` | `16x16` |
+| Overall long | `16x16` | `4x4` | `1x1` | `8x8` |
+| Overall short | `16x16` | `8x8` | `32x32` | `32x32` |
+| SLR0 short | `4x4` | `2x2` | `32x32` | `32x32` |
+| SLR1 short | `4x4` | `2x2` | `8x8` | `8x8` |
+| SLR2 short | `16x16` | `8x8` | `16x16` | `16x16` |
+
+Worst visible post-place timing path:
+
+| Field | Value |
+|---|---|
+| Slack | `-3.310ns` |
+| Destination | `WRAPPER/CL/CL_DMA_PCIS_SLV/AXI4_REG_SLC_PCIS_SLR2/inst/ar.ar_pipe/m_payload_i_reg[22]/D` |
+| Path group | `WRAPPER/CL/clk_main_a0` |
+| Data path delay | `3.131ns`, `96.423%` route |
+| Crossing | `SLR Crossing[1->2]` |
+| Clock net | `aclk`, fanout about `15400` |
+
+At this checkpoint:
+
+- no `Place 46-14` high-congestion warning appeared
+- no `Place 30-487` placement failure appeared
+- post-place DCP and timing report exist
+- pre-route `phys_opt_design -directive AggressiveExplore` is active
+- route has not started
+- no AGFI/AFI
+
+Interpretation:
+
+- The 8p dummy16x16/sbus128 candidate has passed the placement gate that killed
+  the larger 12p cfg32 NIC mainline build and avoided the high-congestion
+  `Place 46-14` warning seen by the 12p dummy8x8/sbus64 run.
+- Post-place congestion is still nontrivial, especially short congestion in
+  SLR0 and the west/east directions, so route is still a real risk.
+- The worst timing path is again shell/PCIS SLR2 dominated, not a target-side
+  Gemmini datapath path. This matches the 12p observations.
+- Continue monitoring through phys-opt and route before changing RTL or queue
+  depth.
