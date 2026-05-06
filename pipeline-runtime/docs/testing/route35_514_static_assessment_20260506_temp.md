@@ -98,6 +98,39 @@ hold fixing longer. The tradeoff is runtime and Vivado crash risk; previous
 records show `TIMING_HOLDFIX` can avoid early `Route 35-514`, but it may run
 much longer and has also hit post-route tool instability in some experiments.
 
+## PCIS/Floorplan Inheritance Check
+
+The active cfg32 builds do include the current PCIS2SLR staging/floorplan
+collateral. The remote `small_shell_cl_pnr_user.xdc` files for both active
+builds map:
+
+```text
+WRAPPER/CL/CL_DMA_PCIS_SLV/AXI4_REG_SLC_PCIS_SLR2 -> pblock_CL_SLR2
+WRAPPER/CL/CL_DMA_PCIS_SLV/AXI4_REG_SLC_PCIS_SLR1 -> pblock_CL_SLR1
+```
+
+The local F2 RTL also contains both shell-boundary register-slice instances:
+
+```text
+AXI4_REG_SLC_PCIS_SLR2
+AXI4_REG_SLC_PCIS_SLR1
+```
+
+Therefore the current `Route 35-514` is not explained by accidentally omitting
+the PCIS2SLR slice experiment. The more accurate interpretation is that PCIS2SLR
+staging helps setup/routing pressure but does not eliminate the broader
+PCIS/RL_SHIM/Shell hold-pressure class under ordinary `TIMING`.
+
+The generated XDC still contains an inherited reference to
+`WRAPPER/CL/CL_DMA_PCIS_SLV/AXI4_CROSSBAR`, while the FireSim F2 design comments
+state that this module does not exist in FireSim's DMA architecture. The
+grandchild `pblock_CL_SLR1_XBAR` block is commented out, which avoids one empty
+pblock mapping, but the SLR1 module-mapping list still mentions the nonexistent
+crossbar. This produces warnings in related logs, but it is not new and was
+present in earlier timing experiments. It should be cleaned eventually for
+signal hygiene, but the current top timing and tight-pin evidence points at the
+real PCIS/RL_SHIM register-slice paths, not this stale XDC name by itself.
+
 ## Interpretation
 
 `Route 35-514` is a real risk marker, not a harmless warning. It means the route
