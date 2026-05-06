@@ -1,6 +1,6 @@
 # Pipeline Runtime gdbserver Integration SOP
 
-更新时间：`2026-05-06 00:12 UTC`
+更新时间：`2026-05-06 00:20 UTC`
 
 ## 1. 目标
 
@@ -474,6 +474,14 @@ post-synth `cl_firesim` 总 LUT 约 `89.67%`，`firesim_top` 约 `86.89%`，
 `Phase 4.1.1.2 Post Placement Timing Optimization`。这跨过了主线 cfg32
 NIC 构建失败的同一 detail placement 边界；截至该 poll 仍没有 AGFI/AFI，也还没有
 post-place checkpoint/report。继续等待 post-place、route、bitstream 和 AFI creation。
+
+2026-05-06 00:19 UTC 复查：no-TraceIO fallback 的远端 Vivado 日志已经出现
+`place_design completed successfully`，随后开始写 post-place checkpoint/report。
+该轮 placement 阶段 `0 Critical Warnings and 0 Errors`，但 Vivado 同时提示设计
+`highly congested and may have difficulty routing`，post-placement timing summary
+为 `WNS=-3.250`。因此当前判断是：placement capacity blocker 已解除，下一风险是
+route/timing closure；仍未产生 AGFI/AFI，仍不能更新 HWDB 或启动 cfg32 NIC
+gdbserver run。
 
 每次汇报 buildbitstream 已启动时，都要同时汇报：
 
