@@ -31,6 +31,8 @@
   [`pairdummy_sbus128_gdbserver_workflow.sh`](/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdummy_sbus128_gdbserver_workflow.sh)
 - first-triage helper：
   [`run_pairdummy_cfg32_gdbserver_first_triage.sh`](/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/run_pairdummy_cfg32_gdbserver_first_triage.sh)
+- batch/expect triage helper：
+  [`run_pairdummy_cfg32_gdbserver_expect_triage.sh`](/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/run_pairdummy_cfg32_gdbserver_expect_triage.sh)
 - runtime config：
   [`config_runtime_f2_gemmini_rerocc_pairmanager_dummy16x16_4c12p12_sbus128_linux_bertmini_pipeline_runtime_batch8_fileonly_sync_gdbserver.yaml`](/home/ubuntu/chipyard/sims/firesim/deploy/config_runtime_f2_gemmini_rerocc_pairmanager_dummy16x16_4c12p12_sbus128_linux_bertmini_pipeline_runtime_batch8_fileonly_sync_gdbserver.yaml)
 - workload：
@@ -791,7 +793,31 @@ kill <old-ssh-pid>
   /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/build/rerocc-linux-tests/rerocc_pipeline_runtime-linux
 ```
 
-或者直接用一键 triage helper：
+或者先用可复现的 batch/expect triage helper 留证据：
+
+```bash
+generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/run_pairdummy_cfg32_gdbserver_expect_triage.sh \
+  <run-host-private-ip> <guest-ip-or-endpoint> [local-port]
+```
+
+它会自动：
+
+- 检查 host-side `rerocc_pipeline_runtime-linux` 是否带 debug info
+- 建立 `ssh -L` tunnel
+- 用真实 GDB 执行第一条 `target remote` TCP 连接
+- 记录初始 `info threads` / `thread apply all bt` / registers / disassembly
+- 设置当前已核实的 pipeline-runtime 软件断点集
+- `continue` 到第一个断点并记录栈、线程、寄存器和反汇编
+- 禁用断点后用 `Ctrl-C` 抢回控制并记录现场
+- `detach`
+
+输出目录形如：
+
+```text
+tmp/firesim-aws-f2/gdbserver-tests/pairdummy-cfg32-expect-*
+```
+
+如果明确需要交互式 GDB，再用一键 interactive triage helper：
 
 ```bash
 generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/run_pairdummy_cfg32_gdbserver_first_triage.sh \
