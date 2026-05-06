@@ -214,3 +214,31 @@ This matters because it means the current timing pain is not obviously coming
 from the Gemmini pair-manager reductions. The target changes are still useful
 for resource pressure, but the worst slack remains concentrated in shell DDR
 reset infrastructure and not in the ReRoCC datapath.
+
+## Resource Hotspot Comparison - 2026-05-06 17:37 UTC
+
+The hierarchical utilization table explains why the LUT/FF drop is modest.
+Several fixed-cost blocks barely move, while only the top-level shell/target
+container shows a noticeable reduction.
+
+| Block | 12p dummy16x16/sbus128 | 12p dummy8x8/sbus64 | Delta |
+|---|---:|---:|---:|
+| `firesim_top` total LUT | 1,132,791 | 1,008,281 | -11.0% |
+| `ChipTop` total LUT | 1,071,502 | 946,952 | -11.6% |
+| `DigitalTop` total LUT | 1,071,502 | 946,952 | -11.6% |
+| `ReRoCCManagerTile` total LUT | 40,386 | 38,443 | -4.8% |
+| `GemminiCoupledDMAPairWrapper` total LUT | 36,851 | 35,178 | -4.5% |
+| `CPUManagedStreamEngine_0` total LUT | 32,252 | 32,252 | ~0% |
+| `SimpleNICBridgeModule_0` total LUT | 1,565 | 1,565 | ~0% |
+| `IceNIC` total LUT | 4,711 | 4,712 | ~0% |
+
+Interpretation:
+
+- The sbus/mesh reduction helps the shell container, but not enough to remove
+  the large fixed costs from NIC, FireSim bridge logic, DDR infrastructure, and
+  the 12 repeated ReRoCC manager tiles.
+- Most of the remaining pressure is therefore in shared infrastructure and
+  replication overhead rather than in the Gemmini array itself.
+- That makes the current retry worth continuing, but it also means another
+  large LUT/FF reduction should not be expected without changing the bridge or
+  repetition structure itself.
