@@ -396,3 +396,76 @@ Interpretation:
 - If route later fails, compare the new failure names against the old noTrace
   failure list before changing RTL; a different failure surface would imply a
   different next experiment.
+
+## Post-Place Monitor - 2026-05-06 19:03 UTC
+
+Remote host `192.168.1.77` remains active.
+
+New reports:
+
+```text
+/home/ubuntu/firesim-build/platforms/f2/aws-fpga-firesim-f2/hdk/cl/developer_designs/cl_f2-firesim-FireSim-FireSimGemminiReRoCCPairDummy8x8C4P12Sbus64NICNoTraceConfig-FRFCFS16GBQuadRank_BaseF2Config/build/reports/cl_f2-firesim-FireSim-FireSimGemminiReRoCCPairDummy8x8C4P12Sbus64NICNoTraceConfig-FRFCFS16GBQuadRank_BaseF2Config.2026_05_06-143630.post_place_timing.rpt
+```
+
+Placement completed:
+
+```text
+place_design completed successfully
+256 Infos, 4 Warnings, 0 Critical Warnings and 0 Errors encountered.
+```
+
+However, the placer emitted the same warning class that appeared in the failed
+12-pair dummy16x16/sbus128 noTrace route attempt:
+
+```text
+WARNING: [Place 46-14] The placer has determined that this design is highly congested and may have difficulty routing.
+```
+
+The post-placement estimated congestion table is milder than a route failure,
+but still shows broad regions:
+
+| Scope | Notable estimated congestion |
+|---|---|
+| Overall | west global `16x16`; east/west short `64x64` |
+| SLR0 | west short `16x16` |
+| SLR1 | west long `8x8`; west short `32x32` |
+| SLR2 | west global `16x16`; east/west short `64x64` |
+
+The post-place timing report's worst visible path is again shell-boundary /
+PCIS-SLR related:
+
+| Field | Value |
+|---|---|
+| Slack | `-3.248ns` |
+| Path group | `WRAPPER/CL/clk_main_a0` |
+| Path type | setup |
+| Destination | `WRAPPER/CL/CL_DMA_PCIS_SLV/AXI4_REG_SLC_PCIS_SLR2/inst/ar.ar_pipe/skid_buffer_reg[22]/D` |
+| Data path delay | `3.077ns`, `97.498%` route |
+| Crossing | `SLR Crossing[1->2]` |
+
+Current implementation stage:
+
+```text
+AWS FPGA: (18:53:02): Start physical-optimizing customer design ...
+AWS FPGA: phys_opt command: phys_opt_design -directive AggressiveExplore
+Starting Physical Synthesis Task
+```
+
+At this checkpoint:
+
+- `Place 46-14` has appeared, so a similar congestion warning is present.
+- `Place 30-487` has not appeared.
+- `Route 35-445`, `Route 35-162`, `Route 35-2`, failed-routing counts, and
+  node-overlap counts have not appeared.
+- The build has not yet entered the decisive route stage.
+
+Interpretation:
+
+- The 12p dummy8x8/sbus64 resource reduction was enough to pass placement and
+  produce a post-place checkpoint, but not enough to remove Vivado's high
+  congestion warning.
+- Because the old failure occurred during route after a similar congestion
+  warning, this build remains at material route risk.
+- The current 8p dummy16x16/sbus128 post-synth result is a stronger resource
+  reduction than this 12p dummy8x8/sbus64 experiment and should be monitored as
+  the more promising routability candidate.

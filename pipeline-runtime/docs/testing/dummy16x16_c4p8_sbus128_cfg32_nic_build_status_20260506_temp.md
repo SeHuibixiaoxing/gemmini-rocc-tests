@@ -273,3 +273,82 @@ Interpretation:
 - It has not reached the post-synthesis utilization report milestone.
 - The BRAM optional-output-register advisories are timing-quality warnings, not
   route or resource failure markers.
+
+## Formal Post-Synthesis Update - 2026-05-06 19:03 UTC
+
+The formal post-synthesis utilization report is now available on remote host
+`192.168.1.129`:
+
+```text
+/home/ubuntu/firesim-build/platforms/f2/aws-fpga-firesim-f2/hdk/cl/developer_designs/cl_f2-firesim-FireSim-FireSimGemminiReRoCCPairDummy16x16C4P8Sbus128NICNoTraceConfig-FRFCFS16GBQuadRank_BaseF2Config/build/reports/26_05_06-185956.post_synth_utilization.rpt
+```
+
+Top `cl_firesim` row:
+
+| Metric | 8p dummy16x16/sbus128 |
+|---|---:|
+| Total LUT | 923,410 |
+| Logic LUT | 801,010 |
+| LUTRAM | 121,694 |
+| SRL | 706 |
+| FF | 482,665 |
+| RAMB36 | 44 |
+| RAMB18 | 68 |
+| URAM | 8 |
+| DSP | 1,407 |
+
+Formal delta versus the failed 12-pair dummy16x16/sbus128/cfg32/NIC/noTrace
+baseline:
+
+| Metric | Failed 12p dummy16x16/sbus128 | 8p dummy16x16/sbus128 | Delta | Delta % |
+|---|---:|---:|---:|---:|
+| Total LUT | 1,169,035 | 923,410 | -245,625 | -21.01% |
+| Logic LUT | 1,026,303 | 801,010 | -225,293 | -21.95% |
+| LUTRAM | 142,006 | 121,694 | -20,312 | -14.30% |
+| FF | 618,967 | 482,665 | -136,302 | -22.02% |
+| RAMB36 | 44 | 44 | 0 | 0.00% |
+| RAMB18 | 68 | 68 | 0 | 0.00% |
+| URAM | 8 | 8 | 0 | 0.00% |
+| DSP | 2,079 | 1,407 | -672 | -32.32% |
+
+Formal delta versus the active 12-pair dummy8x8/sbus64/cfg32/NIC/noTrace
+experiment:
+
+| Metric | 12p dummy8x8/sbus64 | 8p dummy16x16/sbus128 | Delta | Delta % |
+|---|---:|---:|---:|---:|
+| Total LUT | 1,044,525 | 923,410 | -121,115 | -11.60% |
+| Logic LUT | 925,213 | 801,010 | -124,203 | -13.42% |
+| LUTRAM | 118,586 | 121,694 | +3,108 | +2.62% |
+| FF | 551,796 | 482,665 | -69,131 | -12.53% |
+| RAMB36 | 44 | 44 | 0 | 0.00% |
+| RAMB18 | 164 | 68 | -96 | -58.54% |
+| URAM | 8 | 8 | 0 | 0.00% |
+| DSP | 1,995 | 1,407 | -588 | -29.47% |
+
+Selected hierarchical rows:
+
+| Block | Total LUT | FF | Notes |
+|---|---:|---:|---|
+| `firesim_top` | 887,166 | 439,340 | Shell plus target container. |
+| `ChipTop` | 825,899 | 417,095 | Target-side chip. |
+| `DigitalTop` | 825,899 | 417,095 | Same target-side hierarchy. |
+| `CPUManagedStreamEngine_0` | 32,252 | 641 | Still fixed-cost NIC stream engine. |
+| `SimpleNICBridgeModule_0` | 1,565 | 1,892 | Still essentially unchanged. |
+| `IceNIC` | 4,710 | 2,618 | Still essentially unchanged. |
+| One `ReRoCCManagerTile` | about 40,300 | about 23,300 | Eight copies remain. |
+| One `GemminiCoupledDMAPairWrapper` | about 36,770 | about 20,448 | Per-pair cost is close to the failed 12p design. |
+
+Interpretation:
+
+- Dropping from 12 pairs to 8 removes far more pressure than only reducing
+  Gemmini dummy mesh size and sbus width. The 8p build is about `21%` lower in
+  top-level LUT and `22%` lower in FF than the failed 12p dummy16x16/sbus128
+  baseline.
+- The fixed NIC/stream-engine costs do not shrink. This matches the earlier
+  fanout analysis: `CPUManagedStreamEngine_0`, `SimpleNICBridgeModule_0`, and
+  `IceNIC` are mostly independent of pair count.
+- The per-pair wrapper cost remains close to the failed 12p design. The win is
+  primarily fewer replicated pair managers and less surrounding NoC/target
+  pressure, not a cheaper individual pair.
+- The 8p build is not yet proven routable. It has just crossed the formal
+  synthesis resource milestone and is continuing into implementation.
