@@ -925,3 +925,48 @@ Interpretation:
 - The next decisive signal is whether the AWS flow accepts the routed DCP and
   emits `to_aws` collateral plus AFI registration, or exits after DFX/timing
   checks because of the critical timing warning.
+
+## Route Success / Post-Route Phys-Opt Entry - 2026-05-06 21:49 UTC
+
+Remote host `192.168.1.77` confirmed that the route task completed
+successfully after DFX DRC:
+
+```text
+INFO: [Constraints 18-12545] INFO: DFX DRC finished with 0 Errors
+Phase 16 Post-Route Event Processing | Checksum: 1d5269ad6
+INFO: [Route 35-16] Router Completed Successfully
+Ending Routing Task | Checksum: 1d5269ad6
+
+Routing Is Done.
+54 Infos, 5 Warnings, 1 Critical Warnings and 0 Errors encountered.
+route_design completed successfully
+route_design: Time (s): cpu = 09:04:00 ; elapsed = 02:27:52
+```
+
+The flow immediately entered the explicit post-route physical optimization
+stage configured by the TIMING strategy:
+
+```text
+AWS FPGA: (21:48:42): Start post-route physical-optimizing customer design ...
+AWS FPGA: post-route phys_opt command: phys_opt_design -directive AggressiveExplore
+Command: phys_opt_design -directive AggressiveExplore
+INFO: [Vivado_Tcl 4-241] Physical synthesis in post route mode
+```
+
+At `21:49:33 UTC`:
+
+- `aws_build_dcp_from_cl.py` and Vivado were still running
+- no `build/to_aws` collateral was visible
+- no AGFI/AFI was visible
+
+Interpretation:
+
+- The reduced 12p dummy8x8/sbus64/cfg32/NIC/noTrace design is now a legal-route
+  build, despite bad timing.
+- The next hard gate is whether post-route phys-opt and the AWS packaging stage
+  complete far enough to generate `SH_CL_routed.dcp`/manifest collateral and
+  submit AFI creation.
+- If AFI creation occurs, record it as a low-trust but valuable candidate:
+  timing is violated and ordinary TIMING had earlier disabled hold fixing, but
+  the build may still be useful for the same live gdbserver validation that
+  made the older timing-violating AGFI acceptable.
