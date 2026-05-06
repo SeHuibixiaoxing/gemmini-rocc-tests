@@ -888,3 +888,40 @@ Interpretation:
 - The earlier `Route 35-514` caveat still matters: a produced AFI from this run
   should be recorded as a legal-route, low-trust candidate until gdbserver and
   pipeline-runtime workloads are tested.
+
+## Route-Design Completion Monitor - 2026-05-06 21:47 UTC
+
+Remote host `192.168.1.77` advanced past post-route physical synthesis and
+route finalization. `route_design` itself has now ended:
+
+```text
+INFO: [Physopt 32-669] Post Physical Optimization Timing Summary | WNS=-3.339 | TNS=-7383.538 | WHS=-3.672 | THS=-5363.670 |
+Phase 14 Physical Synthesis in Router | Checksum: 208faa888
+Phase 15 Route finalize | Checksum: 208faa888
+CRITICAL WARNING: [Route 35-39] The design did not meet timing requirements. Please run report_timing_summary for detailed reports.
+INFO: [Route 35-253] TNS is the sum of the worst slack violation on every endpoint in the design.
+Total Elapsed time in route_design: 8610.96 secs
+
+Phase 16 Post-Route Event Processing
+INFO: [Constraints 18-12546] INFO: Running DFX DRC before completing route_design
+```
+
+At `21:47:16 UTC`:
+
+- no new post-route timing/report file was visible yet in `build/reports`
+- no `build/to_aws` collateral was visible yet
+- no AGFI/AFI was visible yet
+- Vivado was still running after route, apparently in post-route event/DFX DRC
+  handling
+
+Interpretation:
+
+- This is a second positive implementation milestone: the design did not die in
+  post-route physopt and `route_design` reached its completion path.
+- The build still does not meet timing, with final visible post-route physopt
+  around `WNS=-3.339`, `WHS=-3.672`. That is a live-validation risk, not an
+  immediate build-stop condition, because older gdbserver-capable F2 artifacts
+  also had timing violations.
+- The next decisive signal is whether the AWS flow accepts the routed DCP and
+  emits `to_aws` collateral plus AFI registration, or exits after DFX/timing
+  checks because of the critical timing warning.
