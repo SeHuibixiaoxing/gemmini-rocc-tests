@@ -131,6 +131,29 @@ present in earlier timing experiments. It should be cleaned eventually for
 signal hygiene, but the current top timing and tight-pin evidence points at the
 real PCIS/RL_SHIM register-slice paths, not this stale XDC name by itself.
 
+## Tight-Pin Comparison
+
+The active builds' `tight_setup_hold_pins.txt` files are close to the old
+passing AGFI in both size and dominant prefix.
+
+| Build | `tight_setup_hold_pins.txt` lines | `RL_SHIM/DMA_PCIS_AXI_REG_SLC/AXI_REGISTER_SLICE` count |
+|---|---:|---:|
+| Old passing single-core 1BP NIC AGFI | 2002 | 1801 |
+| 12p dummy8x8/sbus64/cfg32/NIC | 1953 | 1837 |
+| 8p dummy16x16/sbus128/cfg32/NIC | 1955 | 1837 |
+
+The top pins in both active builds are still `r_pipe/m_payload_i_reg[...]`
+endpoints under:
+
+```text
+WRAPPER/RL_SHIM/DMA_PCIS_AXI_REG_SLC/AXI_REGISTER_SLICE
+```
+
+This reinforces the earlier conclusion from `20260505T085605Z`: the
+PCIS/RL_SHIM tight-pin class is a real timing-pressure indicator, but not a
+standalone explanation for functional gdbserver failure. A passing AGFI already
+had the same class and nearly the same count.
+
 ## Interpretation
 
 `Route 35-514` is a real risk marker, not a harmless warning. It means the route
