@@ -970,3 +970,37 @@ Interpretation:
   timing is violated and ordinary TIMING had earlier disabled hold fixing, but
   the build may still be useful for the same live gdbserver validation that
   made the older timing-violating AGFI acceptable.
+
+## Post-Route Phys-Opt Progress - 2026-05-06 21:56 UTC
+
+Remote host `192.168.1.77` remains active in post-route physical optimization.
+
+At `21:56:27 UTC`:
+
+- `phys_opt_design -directive AggressiveExplore` is running in post-route mode
+- DRC inside post-route phys-opt finished with `0 Errors`
+- the current visible phase is `Phase 1 Physical Synthesis Initialization`
+- no `*.post_route_phys_opt.dcp` exists yet
+- no post-route phys-opt timing report exists yet
+- no `build/to_aws` collateral exists yet
+- no AGFI/AFI exists yet
+
+Visible log excerpt:
+
+```text
+AWS FPGA: (21:48:42): Start post-route physical-optimizing customer design ...
+AWS FPGA: post-route phys_opt command: phys_opt_design -directive AggressiveExplore
+INFO: [Vivado_Tcl 4-241] Physical synthesis in post route mode
+INFO: [DRC 23-27] Running DRC with 8 threads
+INFO: [Vivado_Tcl 4-198] DRC finished with 0 Errors
+Starting Physical Synthesis Task
+Phase 1 Physical Synthesis Initialization
+INFO: [Physopt 32-721] Multithreading enabled for phys_opt_design using a maximum of 8 CPUs
+```
+
+Interpretation:
+
+- No new failure has appeared after the route-success checkpoint.
+- The build is still not at the AFI-packaging gate; continue monitoring until
+  the post-route phys-opt checkpoint/report and `Developer_CL.tar`/`to_aws`
+  status are known.

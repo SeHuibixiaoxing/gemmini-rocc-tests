@@ -758,3 +758,43 @@ Interpretation:
 - Timing is still negative and PCIS/DDR shell paths dominate the visible
   critical paths, so a legal route or AGFI will still require live gdbserver
   and pipeline-runtime validation.
+
+## Early Route Timing Monitor - 2026-05-06 21:56 UTC
+
+Remote host `192.168.1.129` remains active.
+
+At `21:56:27 UTC`, route has moved through clock routing and timing update:
+
+```text
+Phase 2.3 Global Clock Net Routing
+ Number of Nodes with overlaps = 0
+Phase 2.3 Global Clock Net Routing | Checksum: 1e3900f36
+
+Phase 2.4 Update Timing
+INFO: [Route 35-416] Intermediate Timing Summary | WNS=-3.124 | TNS=-4683.236| WHS=-2.451 | THS=-4195.351|
+
+WARNING: [Route 35-41] Unusually high hold violations were detected on a large number of pins. This may result in high router runtime.
+
+Phase 2.5 Update Timing for Bus Skew
+INFO: [Route 35-416] Intermediate Timing Summary | WNS=-3.124 | TNS=-5079.614| WHS=-3.645 | THS=-6366.301|
+```
+
+Current hard-failure state:
+
+- no `Route 35-514` yet
+- no `Route 35-162`
+- no final failed-net count
+- no global route overlap failure
+- no `to_aws`
+- no AGFI/AFI
+
+Interpretation:
+
+- The 8p candidate is showing the same basic hold-pressure signature as the
+  12p dummy8x8/sbus64 build did earlier: a large number of hold violators
+  before global route, but not yet the hard `Route 35-514` hold-fix bailout.
+- This likely means route runtime can be long, not that the build has already
+  failed.
+- Continue through the first global iterations. The decisive near-term signal is
+  whether overlap counts converge toward zero and whether `Route 35-514` appears
+  later.
