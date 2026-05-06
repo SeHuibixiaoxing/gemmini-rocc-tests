@@ -492,6 +492,12 @@ gdbserver run。
 placement 推进到 pre-route physical optimization 之后；仍未进入可见 route
 完成、bitstream 或 AFI creation，仍不能更新 HWDB 或启动 runfarm。
 
+2026-05-06 01:09 UTC 复查：no-TraceIO fallback 已进入
+`route_design -tns_cleanup -directive Explore -timing_summary`，并完成
+`Phase 2.2 Pre Route Cleanup` 与 `Phase 2.3 Global Clock Net Routing`。此时
+`post_phys_opt.dcp` 和 `post_phy_opt_timing.rpt` 已出现；Vivado 仍在跑，仍未产生
+AGFI/AFI。继续等待 route 完成、bitstream 和 AFI creation。
+
 每次汇报 buildbitstream 已启动时，都要同时汇报：
 
 - tmux session 名称；
