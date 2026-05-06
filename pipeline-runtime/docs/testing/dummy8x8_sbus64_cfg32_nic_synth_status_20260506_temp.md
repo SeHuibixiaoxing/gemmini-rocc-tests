@@ -152,3 +152,40 @@ Interpretation update:
   win.
 - The build has progressed past synthesis and into shell `link_design`, but
   placement/routing success is still unproven at this update.
+
+## Placement Progress Update - 2026-05-06 17:31 UTC
+
+The remote Vivado process is still alive on build host `192.168.1.77`.
+
+Observed process:
+
+```text
+vivado -mode batch -source build_all.tcl -log 2026_05_06-143630.vivado.log
+  -tclargs SSI_SpreadLogic_high AggressiveExplore AggressiveExplore A1 B0 C0 H2
+```
+
+Current implementation stage in the Vivado log:
+
+```text
+Phase 2 Global Placement
+Phase 2.5 Global Place Phase1
+```
+
+Recent successful sub-stages:
+
+- `Phase 1 Placer Initialization`
+- `Phase 2.1 Floorplanning`
+- `Phase 2.2 Physical Synthesis After Floorplan`
+- `Phase 2.3 Update Timing before SLR Path Opt`
+- `Phase 2.4 Post-Processing in Floorplanning`
+
+Memory at this point:
+
+- Vivado peak memory: about `71.7 GB`
+- root filesystem on build host: `193G`, `63G` used, `130G` free
+
+The run has therefore advanced beyond synthesis and into placement. The previous
+12-pair dummy16x16/sbus128 failure mode was a later implementation/routing
+failure, so this checkpoint still does not prove that the reduced-resource
+configuration can complete, but no equivalent placement or routing error has
+appeared yet.

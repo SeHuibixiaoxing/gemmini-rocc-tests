@@ -93,9 +93,32 @@ At launch checkpoint, the job reached local FireSim RTL generation:
 
 - `make ... replace-rtl`
 - SBT assembly/loading started
-- no AWS build host had been allocated yet for this 8-pair job
 - no AGFI/AFI exists yet
 - no synthesis utilization report exists yet
+
+## Remote Build Update - 2026-05-06 17:31 UTC
+
+The local FireSim generation/driver phase completed far enough to allocate the
+remote F2 build host.
+
+Remote build host:
+
+- instance: `i-0b9776ce1493c06c9`
+- instance type: `z1d.3xlarge`
+- private IP: `192.168.1.129`
+- build tag: `pairdummy16x16c4p8sbus128cfg32nicntbf`
+- launched: `2026-05-06T17:30:34Z`
+
+At `2026-05-06T17:31:55Z`, SSH inspection showed the instance booted and idle
+from the remote side:
+
+- root filesystem: `193G`, `61G` used, `133G` free
+- no `vivado`, `build-bitstream`, or `aws_build` process was visible yet
+- `/home/ubuntu/firesim-build/.../developer_designs` did not exist yet
+
+Interpretation: the manager-side job had launched the remote host and was still
+preparing/synchronizing the AWS F2 collateral. The actual Vivado synthesis stage
+had not started on this host at that checkpoint.
 
 The existing 12-pair dummy8x8/sbus64 build remains active in a separate tmux
 session:
