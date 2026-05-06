@@ -352,3 +352,56 @@ Interpretation:
   pressure, not a cheaper individual pair.
 - The 8p build is not yet proven routable. It has just crossed the formal
   synthesis resource milestone and is continuing into implementation.
+
+## Post-Opt / Placement Entry Update - 2026-05-06 19:28 UTC
+
+Remote host `192.168.1.129` remains active.
+
+Process/resource snapshot:
+
+- parent Vivado elapsed time: about `1h55m`
+- parent Vivado CPU: about `125%`
+- parent Vivado memory: about `73.7%`
+- newest report:
+  `cl_f2-firesim-FireSim-FireSimGemminiReRoCCPairDummy16x16C4P8Sbus128NICNoTraceConfig-FRFCFS16GBQuadRank_BaseF2Config.2026_05_06-173316.post_opt_timing.rpt`
+
+The build has now completed `opt_design` and entered placement:
+
+```text
+opt_design completed successfully
+AWS FPGA: (19:26:40): Start placing customer design ...
+AWS FPGA: place command: place_design -directive ExtraNetDelay_high -no_bufg_opt
+Command: place_design -directive ExtraNetDelay_high -no_bufg_opt
+INFO: [Place 30-611] Multithreading enabled for place_design using a maximum of 8 CPUs
+```
+
+No placement congestion conclusion is available yet at this checkpoint:
+
+- no `Place 46-14` warning has appeared so far
+- no `Place 30-487` error has appeared
+- no route stage has started yet
+- no `Route 35-445`, `Route 35-162`, `Route 35-2`, failed-routing signal
+  count, or node-overlap failure has appeared
+
+The post-opt timing report still points at the same shell-side DDR
+reset/clock-domain paths seen in the other cfg32 NIC builds:
+
+| Field | Value |
+|---|---|
+| Worst visible slack | `-1.284ns` |
+| Source | `WRAPPER/CL/SH_DDR/SYNC_RST/pipe_reg[3][0]/C` |
+| Path group | `**async_default**` |
+| Path type | recovery |
+| Data path delay | `0.585ns`, `80.342%` route |
+| Repeated DDR reset path | `WRAPPER/CL/SH_DDR/genblk1.IS_DDR_PRESENT.DDR4_0/inst/div_clk_rst_r1_reg/C` |
+
+Interpretation:
+
+- The 8p build has crossed the second useful implementation milestone:
+  `post_synth` and `post_opt` both completed.
+- It is still too early to decide routability because placement has only just
+  started.
+- The timing pain remains dominated by AWS shell DDR reset/clock paths, not by
+  an obvious Gemmini or pair-manager datapath path. This matches the earlier
+  12p observations and means the immediate pass/fail signal remains routing
+  congestion, not the post-opt DDR reset slack itself.

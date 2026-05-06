@@ -469,3 +469,56 @@ Interpretation:
 - The current 8p dummy16x16/sbus128 post-synth result is a stronger resource
   reduction than this 12p dummy8x8/sbus64 experiment and should be monitored as
   the more promising routability candidate.
+
+## Route Entry Monitor - 2026-05-06 19:28 UTC
+
+Remote host `192.168.1.77` remains active.
+
+Process/resource snapshot:
+
+- parent Vivado elapsed time: about `4h51m`
+- parent Vivado CPU: about `186%`
+- parent Vivado memory: about `73.2%`
+- newest reports remain:
+  - post-place timing report from `18:53 UTC`
+  - post-phys-opt timing report from `19:20 UTC`
+
+The build completed physical optimization and entered route:
+
+```text
+phys_opt_design completed successfully
+AWS FPGA: (19:20:50): Start routing customer design ...
+AWS FPGA: route command: route_design -tns_cleanup -directive Explore -timing_summary
+Command: route_design -tns_cleanup -directive Explore -timing_summary
+INFO: [Route 35-270] Using Router directive 'Explore'.
+INFO: [Route 35-375] Restored and blocked 360 bleed over nodes.
+Phase 2.3 Global Clock Net Routing
+Number of Nodes with overlaps = 0
+Phase 2.4 Update Timing
+```
+
+At this checkpoint, route is still in an early phase and has not failed:
+
+- no `Route 35-445`
+- no `Route 35-162`
+- no `Route 35-2`
+- no failed-routing signal count
+- no node-overlap failure
+- no implementation `ERROR`
+
+The important negative evidence is the line `Number of Nodes with overlaps = 0`
+at global clock net routing. That does not prove final route success, but it
+means the previous failed build's large node-overlap count has not appeared in
+the early route phases.
+
+Interpretation:
+
+- The 12p dummy8x8/sbus64 experiment is now in the decisive stage. It has
+  passed synthesis, placement, and physical optimization under the TIMING
+  strategy.
+- The earlier `Place 46-14` warning still makes the build risky. The correct
+  next action is to keep monitoring route rather than changing RTL before
+  `route_design` either completes or emits concrete failed-net diagnostics.
+- If it fails, the first artifact to extract is the exact route failure class
+  and conflicted-net list, because the resource reductions changed the design
+  enough that failure names may differ from the 12p dummy16x16/sbus128 baseline.
