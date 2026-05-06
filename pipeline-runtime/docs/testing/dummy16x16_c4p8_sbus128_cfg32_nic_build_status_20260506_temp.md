@@ -856,3 +856,35 @@ Interpretation:
 - The next useful signal is overlap convergence during `Phase 5.1 Global
   Iteration 0` and later global iterations. Until then, do not treat the large
   pre-routing failed-net count as failure.
+
+## 1200s Window Monitor - 2026-05-06 22:32 UTC
+
+Remote host `192.168.1.129` is still running the 8p dummy16x16/sbus128 build.
+
+At `22:32:41 UTC`, `Phase 5.1 Global Iteration 0` has started printing overlap
+progress:
+
+```text
+Phase 5 Rip-up And Reroute
+
+Phase 5.1 Global Iteration 0
+ Number of Nodes with overlaps = 403829
+```
+
+Current hard-failure state:
+
+- no `Route 35-514`
+- no `Route 35-162`
+- no final route failed-net count
+- no route finalize result
+- no `to_aws`
+- no AGFI/AFI
+
+Interpretation:
+
+- This is early global-iteration state, not a failure verdict.
+- The initial overlap count is high, but the comparable 12p dummy8x8/sbus64
+  build also began global iteration with large overlap counts and later reached
+  zero. The key signal is the trend over subsequent iteration prints.
+- Continue monitoring for overlap convergence and the possible appearance of
+  `Route 35-514`.

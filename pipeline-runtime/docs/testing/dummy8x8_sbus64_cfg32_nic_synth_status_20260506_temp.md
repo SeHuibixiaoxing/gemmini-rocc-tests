@@ -1036,3 +1036,38 @@ Interpretation:
 - This does not change the validation plan. If the flow packages a violated
   DCP, keep it as a low-trust gdbserver candidate and test it live before
   drawing functional conclusions.
+
+## 1200s Window Monitor - 2026-05-06 22:32 UTC
+
+Remote host `192.168.1.77` is still running the 12p dummy8x8/sbus64 build.
+
+At `22:32:41 UTC`:
+
+- post-route `phys_opt_design -directive AggressiveExplore` remains active
+- the visible stage remains `Phase 2 Critical Path Optimization`
+- no `*.post_route_phys_opt.dcp` exists yet
+- no `*.post_route_phys_opt_timing.rpt` exists yet
+- no `Developer_CL.tar`, `to_aws`, manifest, AGFI, or AFI exists yet
+
+The visible post-route phys-opt work has not moved the main PCIS setup group:
+
+```text
+INFO: [Physopt 32-668] Current Timing Summary | WNS=-3.339 | TNS=-7383.538 | WHS=-3.672 | THS=-5363.670 |
+INFO: [Physopt 32-953] Path group WNS did not improve. Path group: WRAPPER/CL/clk_main_a0. Processed net: WRAPPER/CL/CL_DMA_PCIS_SLV/AXI4_REG_SLC_PCIS_SLR2/inst/ar.ar_pipe/M_PAYLOAD_DATA[73].
+```
+
+Some DDR-stat paths in `mmcm_clkout0` improved slightly:
+
+```text
+INFO: [Physopt 32-952] Improved path group WNS = -1.913. Path group: mmcm_clkout0. Processed net: WRAPPER/CL/SH_DDR/ddr_stat.CCF_XSDB_REQ/ram_reg[1][1].
+INFO: [Physopt 32-952] Improved path group WNS = -1.906. Path group: mmcm_clkout0. Processed net: WRAPPER/CL/SH_DDR/ddr_stat.CCF_XSDB_REQ/ram_reg[1][24].
+INFO: [Physopt 32-952] Improved path group WNS = -1.897. Path group: mmcm_clkout0. Processed net: WRAPPER/CL/SH_DDR/ddr_stat.CCF_XSDB_REQ/ram_reg[0][20].
+```
+
+Interpretation:
+
+- No packaging/AFI gate has been reached yet.
+- Post-route phys-opt is spending time on shell/DDR-stat paths and has not
+  fixed the PCIS setup/hold path family.
+- Continue monitoring; do not change RTL while the build is still capable of
+  producing a violated but testable DCP/tarball.
