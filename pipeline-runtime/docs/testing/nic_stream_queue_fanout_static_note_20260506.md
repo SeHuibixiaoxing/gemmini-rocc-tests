@@ -166,3 +166,50 @@ If either build routes successfully, reducing SimpleNIC queue depth may be
 unnecessary. If both fail with route congestion, a debug-only NIC stream
 queue-depth override is a high-value next experiment because it targets a fixed
 pressure block that the Gemmini/sbus reductions do not reduce.
+
+## Current-vs-Main Static Audit - 2026-05-06 19:32 UTC
+
+I compared the active local sources against local `main` while the two TIMING
+builds were still running.
+
+The current `SimpleNICBridge.scala` differs heavily from `main`:
+
+```text
+goldengateimplementations/src/main/scala/SimpleNICBridge.scala | 1426 +++++++++++++++++++-
+```
+
+That diff is not one uniform "debug only" change. It contains several
+categories with different rollback risk:
+
+| Change class | Examples | Rollback risk |
+|---|---|---|
+| Functional stream fixes | `BigTokenToNICTokenAdapter` latches a 512-bit big token before emitting 7 64-bit tokens; `NICTokenToBigTokenAdapter` can flush on `data_out.last`; `pcieOutQ` decouples target-to-host packing from PCIE stream backpressure; host IO is channelized instead of one monolithic `HostPort` bundle. | High. These changes are tied to the 1bp recovery history and should not be removed just to reduce resources. |
+| Deadlock/corruption fixes in CPU-managed stream | `StreamWidthAdapter` wide-to-narrow path uses `wide_data`/`wide_valid`; to-host dequeue is gated by `readRequestActive = grant && axi4.ar.valid` so queue occupancy is not hidden from the host driver. | High. Historical records show the ungated prefetch variant can deadlock because the host polls queue count before issuing reads. |
+| Observability | Many counters/snapshots/CR attachments, `minobs_build_marker = 0x05040003`, last-word captures, progress/blockage masks. | Medium. These can be reduced for a low-observability build, but they are not the first resource lever unless route fails narrowly and the candidate is otherwise close. |
+
+The static audit therefore does not support reverting the whole
+`SimpleNICBridge.scala` diff to `main`. The current bridge behavior is part of
+the 1bp recovery path, and the mainline version was already identified in
+earlier records as having token drift / lockstep risks for this workload.
+
+The resource evidence also argues against treating SimpleNIC observability as
+the main congestion lever:
+
+- In the formal post-synth reports, `SimpleNICBridgeModule_0` is only about
+  `1,565` LUT and `1,892` FF in the 8p build.
+- `CPUManagedStreamEngine_0` is about `32,252` LUT and is unchanged by Gemmini
+  mesh/sbus reductions.
+- The placer high-fanout message names the CPU-managed incoming queue pointer,
+  not one of the added SimpleNIC debug counters.
+
+Practical implication:
+
+1. Keep the functional 1bp stream fixes intact for the active line.
+2. If route fails, first consider a debug-only SimpleNIC stream queue-depth
+   override because it directly targets the large fixed FIFO block and pointer
+   fanout.
+3. A low-observability SimpleNIC rebuild is still a reasonable second
+   experiment, but it should preserve `readRequestActive`, `wide_valid`,
+   `pcieOutQ`, channelized host IO, and the conservative from-host payload
+   buffering. Removing those would mix a resource experiment with a functional
+   regression risk.
