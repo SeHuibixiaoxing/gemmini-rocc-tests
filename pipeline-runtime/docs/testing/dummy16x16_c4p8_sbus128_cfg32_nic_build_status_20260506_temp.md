@@ -243,3 +243,33 @@ Interpretation:
   `*.post_synth_utilization.rpt`, then comparing total LUT, logic LUT, LUTRAM,
   FF, RAMB36/18, URAM, and DSP against the failed 12-pair dummy16x16/sbus128
   baseline and the active 12-pair dummy8x8/sbus64 build.
+
+## Remote Synthesis Monitor - 2026-05-06 18:41 UTC
+
+Remote host `192.168.1.129` remains active.
+
+Process/resource snapshot:
+
+- parent Vivado elapsed time: about `1h08m`
+- parent Vivado CPU: about `102%`
+- parent Vivado memory: about `73.7%`
+- multiple synthesis worker Vivado processes remain active
+- no file exists yet in the build `reports/` directory
+
+Latest visible synthesis stage has moved into retiming and memory/timing
+advisories:
+
+```text
+INFO: [Synth 8-5816] Retiming module ...
+INFO: [Common 17-14] Message 'Synth 8-5816' appears 100 times ...
+INFO: [Synth 8-7052] The timing for the instance
+FASEDMemoryTimingModel_*/readEgress/multiQueue/ram_data_reg
+(implemented as a Block RAM) might be sub-optimal ...
+```
+
+Interpretation:
+
+- The 8-pair build is still in top-level synthesis.
+- It has not reached the post-synthesis utilization report milestone.
+- The BRAM optional-output-register advisories are timing-quality warnings, not
+  route or resource failure markers.

@@ -343,3 +343,56 @@ Interpretation:
 - The current resource reduction remains promising enough to continue, but not
   sufficient evidence for pass probability until route begins and either clears
   or emits congestion diagnostics.
+
+## Post-Placement Optimization Monitor - 2026-05-06 18:41 UTC
+
+Remote host `192.168.1.77` remains active.
+
+Process/resource snapshot:
+
+- parent Vivado elapsed time: about `4h05m`
+- parent Vivado CPU: about `171%`
+- parent Vivado memory: about `73.2%`
+
+The run has advanced further than the 18:19 checkpoint:
+
+```text
+Phase 3.3 Small Shape DP
+Phase 3.4 Re-assign LUT pins
+Phase 3.5 Pipeline Register Optimization
+Phase 3.6 Fast Optimization
+Phase 3 Detail Placement
+Phase 4 Post Placement Optimization and Clean-Up
+Phase 4.1 Post Commit Optimization
+Phase 4.1.1 Post Placement Optimization
+Phase 4.1.1.1 BUFG Replication
+Phase 4.1.1.2 Post Placement Timing Optimization
+```
+
+Latest completed timing line:
+
+```text
+Phase 4.1.1.1 BUFG Replication | Checksum: 23a7d6ad4
+Time (s): cpu = 04:04:29 ; elapsed = 01:47:17 . Memory (MB): peak = 71894.383 ; gain = 207.180 ; free physical = 22435 ; free virtual = 33579
+```
+
+At this checkpoint, the previous failure signatures still have not appeared:
+
+- no `Place 30-487`
+- no `Place 46-14`
+- no `Route 35-445`
+- no `Route 35-162`
+- no `Route 35-2`
+- no failed-routing signal count
+- no node-overlap count
+
+Interpretation:
+
+- This build has now cleared detail placement and reached post-placement timing
+  optimization, which is a stronger progress signal than the earlier global
+  placement checkpoint.
+- It still has not entered the decisive route stage, so it is not yet a
+  successful bitstream candidate.
+- If route later fails, compare the new failure names against the old noTrace
+  failure list before changing RTL; a different failure surface would imply a
+  different next experiment.
