@@ -824,3 +824,67 @@ Interpretation:
   earlier in the route and intermediate hold/setup summaries remain poor.
 - If this build reaches AFI creation, validate it only after recording final
   route status, final timing, AGFI/AFI IDs, and the exact driver bundle path.
+
+## Post-Route Phys-Opt Monitor - 2026-05-06 21:44/21:45 UTC
+
+Remote host `192.168.1.77` is still active.
+
+Active process snapshot at `21:44:58 UTC`:
+
+- `aws_build_dcp_from_cl.py` is still running for
+  `cl_f2-firesim-FireSim-FireSimGemminiReRoCCPairDummy8x8C4P12Sbus64NICNoTraceConfig-FRFCFS16GBQuadRank_BaseF2Config`
+- Vivado command line still uses the `TIMING` strategy arguments:
+  `SSI_SpreadLogic_high AggressiveExplore AggressiveExplore A1 B0 C0 H2`
+- no `build/to_aws` files are present yet
+- no AGFI/AFI string has appeared in the build tree
+
+The build has now completed the main routing task's legal-route checks:
+
+```text
+Phase 7 Route finalize
+  Number of Failed Nets               = 0
+  Number of Unrouted Nets             = 0
+  Number of Partially Routed Nets     = 0
+  Number of Node Overlaps             = 0
+
+Phase 8 Verifying routed nets
+ Verification completed successfully
+```
+
+Post-router timing and current post-route phys-opt status:
+
+```text
+INFO: [Route 35-57] Estimated Timing Summary | WNS=-3.370 | TNS=-7406.882| WHS=-3.690 | THS=-5399.642|
+WARNING: [Route 35-328] Router estimated timing not met.
+...
+INFO: [Physopt 32-668] Current Timing Summary | WNS=-3.368 | TNS=-7384.860 | WHS=-3.672 | THS=-5363.670 |
+WARNING: [Physopt 32-745] Physical Optimization has determined that the magnitude of the negative slack is too large and it is highly unlikely that slack will be improved.
+```
+
+Latest formal artifacts at this checkpoint:
+
+```text
+build/reports/...2026_05_06-143630.post_phy_opt_timing.rpt
+build/reports/...2026_05_06-143630.post_place_timing.rpt
+build/reports/...2026_05_06-143630.post_opt_timing.rpt
+build/reports/26_05_06-161045.post_synth_utilization.rpt
+build/checkpoints/...2026_05_06-143630.post_phys_opt.dcp
+build/checkpoints/...2026_05_06-143630.post_place.dcp
+build/checkpoints/...2026_05_06-143630.post_opt.dcp
+build/checkpoints/...2026_05_06-143630.post_link.dcp
+build/checkpoints/...2026_05_06-143630.post_synth.dcp
+```
+
+Interpretation:
+
+- The immediate routing legality question is now answered positively for this
+  12p dummy8x8/sbus64 variant: it has `0` failed nets and routed-net
+  verification succeeded.
+- This is not yet an AGFI-producing success. Vivado is still in post-route
+  physical optimization and has not produced `to_aws` collateral.
+- Timing is still badly negative. Since the older gdbserver-capable bitstream
+  also had timing problems, this does not by itself prove functional failure,
+  but it lowers confidence and makes live validation mandatory.
+- The earlier `Route 35-514` caveat still matters: a produced AFI from this run
+  should be recorded as a legal-route, low-trust candidate until gdbserver and
+  pipeline-runtime workloads are tested.

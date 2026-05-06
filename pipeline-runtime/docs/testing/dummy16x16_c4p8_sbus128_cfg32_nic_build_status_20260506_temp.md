@@ -691,3 +691,70 @@ Interpretation:
   Gemmini datapath path. This matches the 12p observations.
 - Continue monitoring through phys-opt and route before changing RTL or queue
   depth.
+
+## Route Entry Monitor - 2026-05-06 21:44/21:45 UTC
+
+Remote host `192.168.1.129` is still active.
+
+Active process snapshot at `21:44:58 UTC`:
+
+- `aws_build_dcp_from_cl.py` is still running for
+  `cl_f2-firesim-FireSim-FireSimGemminiReRoCCPairDummy16x16C4P8Sbus128NICNoTraceConfig-FRFCFS16GBQuadRank_BaseF2Config`
+- Vivado command line still uses the `TIMING` strategy arguments:
+  `SSI_SpreadLogic_high AggressiveExplore AggressiveExplore A1 B0 C0 H2`
+- no `build/to_aws` files are present yet
+- no AGFI/AFI string has appeared in the build tree
+
+Pre-route physical optimization completed successfully:
+
+```text
+571 Infos, 100 Warnings, 0 Critical Warnings and 0 Errors encountered.
+phys_opt_design completed successfully
+phys_opt_design: Time (s): cpu = 00:41:02 ; elapsed = 00:21:11
+AWS FPGA: (21:39:27): Writing post-phy_opt design checkpoint and report
+INFO: [Common 17-1381] The checkpoint '...2026_05_06-173316.post_phys_opt.dcp' has been generated.
+```
+
+Post-phys-opt timing remained negative:
+
+```text
+INFO: [Physopt 32-669] Post Physical Optimization Timing Summary | WNS=-3.242 | TNS=-5091.150 | WHS=-3.640 | THS=-6357.279 |
+```
+
+The build entered route at `21:42:50 UTC`:
+
+```text
+AWS FPGA: (21:42:50): Start routing customer design cl_f2-firesim-FireSim-FireSimGemminiReRoCCPairDummy16x16C4P8Sbus128NICNoTraceConfig-FRFCFS16GBQuadRank_BaseF2Config
+AWS FPGA: route command: route_design -tns_cleanup -directive Explore -timing_summary
+Command: route_design -tns_cleanup -directive Explore -timing_summary
+Starting Routing Task
+INFO: [Route 35-270] Using Router directive 'Explore'.
+```
+
+Latest formal artifacts at this checkpoint:
+
+```text
+build/reports/...2026_05_06-173316.post_phy_opt_timing.rpt
+build/reports/...2026_05_06-173316.post_place_timing.rpt
+build/reports/...2026_05_06-173316.post_opt_timing.rpt
+build/reports/26_05_06-185956.post_synth_utilization.rpt
+build/checkpoints/...2026_05_06-173316.post_phys_opt.dcp
+build/checkpoints/...2026_05_06-173316.post_place.dcp
+build/checkpoints/...2026_05_06-173316.post_opt.dcp
+build/checkpoints/...2026_05_06-173316.post_link.dcp
+build/checkpoints/...2026_05_06-173316.post_synth.dcp
+```
+
+Interpretation:
+
+- The 8p dummy16x16/sbus128 candidate has now passed synthesis, opt,
+  placement, and pre-route phys-opt without placement-capacity failure.
+- It remains the higher-confidence candidate relative to 12p because it is
+  materially smaller and did not show the earlier `Place 46-14` congestion
+  warning.
+- Route is still a real risk. The first useful next signal is whether global
+  route iterations converge to zero overlaps without `Route 35-162`, final
+  failed nets, or a `Place 30-487`-style placement/route failure.
+- Timing is still negative and PCIS/DDR shell paths dominate the visible
+  critical paths, so a legal route or AGFI will still require live gdbserver
+  and pipeline-runtime validation.
