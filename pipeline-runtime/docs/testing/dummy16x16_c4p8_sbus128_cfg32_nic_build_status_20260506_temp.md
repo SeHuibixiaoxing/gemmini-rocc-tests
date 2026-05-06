@@ -1039,6 +1039,15 @@ The failing boundary nets were concentrated in:
 - `WRAPPER/RL_SHIM/DMA_PCIS_AXI_REG_SLC/AXI_REGISTER_SLICE/inst/w.w_pipe/Q[...]`
 - `WRAPPER/RL_SHIM/DDR_STAT_PIPE_DATA/Q[...]`
 
+Visible `Constraints 18-4430` family counts from the pane log:
+
+| Net family | Count |
+|---|---:|
+| `DMA_PCIS w` | 121 |
+| `DMA_PCIS ar` | 24 |
+| `DDR_STAT_PIPE_DATA` | 9 |
+| `DMA_PCIS r` | 3 |
+
 Interpretation:
 
 - The build did not fail because overlap failed to converge. It reached route

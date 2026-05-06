@@ -161,6 +161,13 @@ Affected net families include:
 - `RL_SHIM/DMA_PCIS_AXI_REG_SLC` `ar`, `r`, and `w` pipe nets
 - `RL_SHIM/DDR_STAT_PIPE_DATA`
 
+Visible error-family counts in the tmux pane log were:
+
+- `DMA_PCIS w`: 121
+- `DMA_PCIS ar`: 24
+- `DDR_STAT_PIPE_DATA`: 9
+- `DMA_PCIS r`: 3
+
 The 8p host `i-0b9776ce1493c06c9` was terminated by FireSim after the failed
 build. There is no AFI/AGFI to validate.
 
