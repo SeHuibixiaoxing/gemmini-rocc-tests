@@ -1071,3 +1071,50 @@ Interpretation:
   fixed the PCIS setup/hold path family.
 - Continue monitoring; do not change RTL while the build is still capable of
   producing a violated but testable DCP/tarball.
+
+## 1200s Window Monitor - 2026-05-06 22:55 UTC
+
+Remote host `192.168.1.77` is still running the 12p dummy8x8/sbus64 build.
+
+At `22:55:44 UTC`:
+
+- `vivado -mode batch -source build_all.tcl -log 2026_05_06-143630.vivado.log`
+  is still alive.
+- post-route `phys_opt_design -directive AggressiveExplore` remains in
+  `Phase 2 Critical Path Optimization`.
+- no `*.post_route_phys_opt.dcp` exists yet.
+- no `*.post_route_phys_opt_timing.rpt` exists yet.
+- no `Developer_CL.tar`, `to_aws`, manifest, AGFI, or AFI exists yet.
+
+The run had previously reached a legal route result:
+
+```text
+INFO: [Route 35-16] Router Completed Successfully
+route_design completed successfully
+```
+
+But this was a timing-violating route with hold-fix bailout:
+
+```text
+WARNING: [Route 35-514] Design has a large number of hold violators. This is likely a design or constraint issue. Router is turning off hold fixing.
+CRITICAL WARNING: [Route 35-39] The design did not meet timing requirements.
+```
+
+Post-route phys-opt has not improved the main PCIS setup group. The newest
+visible progress is still on shell/DDR-stat `mmcm_clkout0` paths:
+
+```text
+INFO: [Physopt 32-952] Improved path group WNS = -1.895. Path group: mmcm_clkout0.
+INFO: [Physopt 32-952] Improved path group WNS = -1.878. Path group: mmcm_clkout0.
+INFO: [Physopt 32-952] Improved path group WNS = -1.869. Path group: mmcm_clkout0.
+```
+
+Interpretation:
+
+- The candidate remains alive and still may produce AWS packaging collateral.
+- If it does produce an AFI/AGFI, it must be treated as low-trust until live
+  gdbserver/pipeline-runtime validation because route completed only after
+  `Route 35-514` disabled hold fixing.
+- This is not yet a reason to cancel or modify RTL; the decisive gate is still
+  whether the flow writes the post-route phys-opt checkpoint/report and packages
+  the design.

@@ -888,3 +888,42 @@ Interpretation:
   zero. The key signal is the trend over subsequent iteration prints.
 - Continue monitoring for overlap convergence and the possible appearance of
   `Route 35-514`.
+
+## 1200s Window Monitor - 2026-05-06 22:55 UTC
+
+Remote host `192.168.1.129` is still running the 8p dummy16x16/sbus128 build.
+
+At `22:55:44 UTC`, route is still active in `Phase 5.1 Global Iteration 0`.
+The important new signal is that overlap count is sharply converging:
+
+```text
+Number of Nodes with overlaps = 403829
+WARNING: [Route 35-514] Design has a large number of hold violators. This is likely a design or constraint issue. Router is turning off hold fixing.
+Number of Nodes with overlaps = 30645
+Number of Nodes with overlaps = 3297
+Number of Nodes with overlaps = 595
+Number of Nodes with overlaps = 208
+Number of Nodes with overlaps = 95
+Number of Nodes with overlaps = 50
+Number of Nodes with overlaps = 25
+Number of Nodes with overlaps = 14
+```
+
+Current hard-output state:
+
+- `Route 35-514` has appeared.
+- no `Route 35-162` has appeared.
+- no `Route 35-2` final route failure has appeared.
+- no route-finalize verdict exists yet.
+- no `post_route.dcp`, `post_route_timing.rpt`, `Developer_CL.tar`, `to_aws`,
+  manifest, AGFI, or AFI exists yet.
+
+Interpretation:
+
+- This is not a clean route. Hold fixing has been disabled, matching the same
+  important caveat seen in the 12p dummy8x8/sbus64 build.
+- It is also not a failed route yet. The overlap trend is materially better than
+  the initial `403829` count and is close to zero.
+- Keep the build alive. If it reaches packaging, treat the AFI/AGFI as a
+  low-trust functional candidate and validate with gdbserver before drawing a
+  hardware/software conclusion.

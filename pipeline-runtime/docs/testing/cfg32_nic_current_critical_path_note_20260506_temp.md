@@ -86,3 +86,34 @@ payload/skid-buffer registers, with route-delay share about `93%` to `97%`.
 - Do not make another RTL/config change before these two route/AFI outcomes are
   known. The current critical-path evidence is structural and should not be
   overfit before live bitstream evidence exists.
+
+## 22:55 UTC Update
+
+The two active builds now share the same main caveat: the router has emitted
+`Route 35-514` and disabled hold fixing.
+
+12p dummy8x8/sbus64:
+
+- route completed successfully after `Route 35-514`
+- route timing remained violated (`WNS` around `-3.339ns`, `WHS` around
+  `-3.672ns` before post-route phys-opt)
+- post-route phys-opt is still running
+- no post-route phys-opt checkpoint/report, `Developer_CL.tar`, `to_aws`, AGFI,
+  or AFI exists yet
+
+8p dummy16x16/sbus128:
+
+- route is still in `Phase 5.1 Global Iteration 0`
+- `Route 35-514` has appeared
+- overlap count is converging strongly:
+  `403829 -> 30645 -> 3297 -> 595 -> 208 -> 95 -> 50 -> 25 -> 14`
+- no route-finalize verdict, `to_aws`, AGFI, or AFI exists yet
+
+Implication:
+
+- Reducing pair count and/or sbus width helped routability/resource pressure,
+  but it did not remove the shell/PCIS hold-pressure class.
+- A generated AFI from either build should be considered usable only as a live
+  validation candidate, not as a timing-clean result.
+- The next decision point remains empirical: whether either flow reaches AWS
+  packaging and then passes gdbserver/pipeline-runtime tests.
