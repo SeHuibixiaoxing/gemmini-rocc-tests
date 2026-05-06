@@ -982,3 +982,79 @@ Interpretation:
   collateral.
 - If packaging occurs, the same low-trust caveat applies because `Route 35-514`
   disabled hold fixing.
+
+## Final Failure - 2026-05-06 23:36 UTC
+
+The 8p dummy16x16/sbus128 build failed after reaching routed-net verification
+and post-route event processing.
+
+Result directory:
+
+```text
+sims/firesim/deploy/results-build/2026-05-06--16-16-14-firesim_gemmini_rerocc_pairmanager_dummy16x16_4c8p8_sbus128_cfg32_nic_notrace/
+```
+
+Manager log:
+
+```text
+sims/firesim/deploy/logs/2026-05-06--16-16-14-buildbitstream-0YYB4ZP3MWHAOIUU.log
+```
+
+tmux pane log:
+
+```text
+tmp/firesim-aws-f2/tmux/pairdummy16x16-c4p8-sbus128-cfg32-nic-notrace-20260506T161612.pane.log
+```
+
+Exit code:
+
+```text
+tmp/firesim-aws-f2/tmux/pairdummy16x16-c4p8-sbus128-cfg32-nic-notrace-20260506T161612.exitcode = 1
+```
+
+EC2 state:
+
+- build host: `i-0b9776ce1493c06c9`
+- private IP while running: `192.168.1.129`
+- final state: `terminated`
+- state reason: `Client.UserInitiatedShutdown`
+- FireSim terminated the build host after the failed build.
+
+Failure signature:
+
+```text
+ERROR: [Constraints 18-4430] On the boundary net WRAPPER/RL_SHIM/DMA_PCIS_AXI_REG_SLC/AXI_REGISTER_SLICE/inst/w.w_pipe/Q[335], the routing branch ... does not contain PartPin LOC.
+INFO: [Common 17-14] Message 'Constraints 18-4430' appears 100 times and further instances of the messages will be disabled.
+INFO: [Route 35-17] Router encountered errors. Please check the log file for details
+route_design failed
+ERROR: [Common 17-39] 'route_design' failed due to earlier errors.
+ERROR: Did not find the post-route DCP file ...
+FireSim FPGA Build Failed
+```
+
+The failing boundary nets were concentrated in:
+
+- `WRAPPER/RL_SHIM/DMA_PCIS_AXI_REG_SLC/AXI_REGISTER_SLICE/inst/ar.ar_pipe/Q[...]`
+- `WRAPPER/RL_SHIM/DMA_PCIS_AXI_REG_SLC/AXI_REGISTER_SLICE/inst/r.r_pipe/...`
+- `WRAPPER/RL_SHIM/DMA_PCIS_AXI_REG_SLC/AXI_REGISTER_SLICE/inst/w.w_pipe/Q[...]`
+- `WRAPPER/RL_SHIM/DDR_STAT_PIPE_DATA/Q[...]`
+
+Interpretation:
+
+- The build did not fail because overlap failed to converge. It reached route
+  finalize, verified routed nets, deposited routes, and entered post-route
+  processing.
+- The hard failure was DFX/partition legality: static-to-reconfigurable boundary
+  routing branches lacked required PartPin LOCs.
+- No `post_route.dcp`, `Developer_CL.tar`, `to_aws`, AFI, or AGFI was produced.
+- This makes the 8p dummy16x16/sbus128 cfg32 candidate unusable for
+  gdbserver/pipeline-runtime validation.
+
+Implication for next hardware experiments:
+
+- Reducing from 12 pairs to 8 pairs made route convergence easier, but did not
+  eliminate the PCIS/RL_SHIM boundary legality class.
+- A future 8p retry should not simply repeat the same ordinary `TIMING` build.
+  It needs a targeted boundary/floorplan fix or a strategy/constraint change
+  that addresses the `RL_SHIM/DMA_PCIS_AXI_REG_SLC` and `DDR_STAT_PIPE_DATA`
+  boundary nets.

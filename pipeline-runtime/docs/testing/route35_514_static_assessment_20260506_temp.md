@@ -182,3 +182,24 @@ The decision rule for the current builds is:
 The blocker is not static interpretation of `Route 35-514`. The blocker is
 whether either active cfg32 NIC build reaches AWS packaging and produces an
 AGFI that can be validated under gdbserver.
+
+## 8p C4P8 Failure Update
+
+The 8p dummy16x16/sbus128/cfg32/NIC build later failed after route overlap
+converged and after routed-net verification. The final blocker was not
+`Route 35-514` by itself. It was DFX boundary legality:
+
+```text
+ERROR: [Constraints 18-4430] ... boundary net WRAPPER/RL_SHIM/DMA_PCIS_AXI_REG_SLC/AXI_REGISTER_SLICE/... does not contain PartPin LOC.
+INFO: [Route 35-17] Router encountered errors.
+route_design failed
+```
+
+This refines the assessment:
+
+- `Route 35-514` remains a low-trust warning, but the 8p build's hard failure
+  was `Constraints 18-4430`.
+- The net families named by the DFX error match the same PCIS/RL_SHIM boundary
+  region highlighted by tight-pin and critical-path evidence.
+- A future retry should focus on DFX-legal placement/routing for
+  `RL_SHIM/DMA_PCIS_AXI_REG_SLC` and `RL_SHIM/DDR_STAT_PIPE_DATA` boundary nets.

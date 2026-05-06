@@ -139,3 +139,37 @@ Implication:
   DCP, despite still being low-trust due to `Route 35-514`.
 - The 12p build should still be kept alive, but it is spending substantial time
   in post-route phys-opt without reaching packaging.
+
+## 23:36 UTC Update
+
+The 8p dummy16x16/sbus128 candidate has failed.
+
+The failure occurred after overlap convergence and after routed-net
+verification. The decisive error was not an ordinary congestion overlap failure;
+it was DFX boundary legality:
+
+```text
+ERROR: [Constraints 18-4430] On the boundary net WRAPPER/RL_SHIM/DMA_PCIS_AXI_REG_SLC/AXI_REGISTER_SLICE/... the routing branch ... does not contain PartPin LOC.
+INFO: [Common 17-14] Message 'Constraints 18-4430' appears 100 times and further instances of the messages will be disabled.
+INFO: [Route 35-17] Router encountered errors.
+route_design failed
+ERROR: Did not find the post-route DCP file ...
+```
+
+Affected net families include:
+
+- `RL_SHIM/DMA_PCIS_AXI_REG_SLC` `ar`, `r`, and `w` pipe nets
+- `RL_SHIM/DDR_STAT_PIPE_DATA`
+
+The 8p host `i-0b9776ce1493c06c9` was terminated by FireSim after the failed
+build. There is no AFI/AGFI to validate.
+
+Current implication:
+
+- The 8p experiment proved that reduced pair count can route to zero overlaps,
+  but it exposed a DFX boundary legality problem at the same PCIS/RL_SHIM shell
+  boundary.
+- The remaining active candidate is the 12p dummy8x8/sbus64 build on
+  `192.168.1.77`, still in post-route phys-opt with no packaging collateral.
+- Any next retry should target boundary legality/placement of the
+  `DMA_PCIS_AXI_REG_SLC` and DDR-stat boundary nets, not only resource count.
