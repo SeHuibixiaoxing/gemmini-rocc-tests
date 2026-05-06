@@ -503,6 +503,13 @@ AGFI/AFI。继续等待 route 完成、bitstream 和 AFI creation。
 `Phase 4 Initial Routing` / `Phase 4.1 Initial Net Routing Pass`。没有新的 route
 report/checkpoint、bitstream、AGFI 或 AFI；Vivado 仍在跑。继续按 1200s 等待。
 
+2026-05-06 09:34 UTC 复查：no-TraceIO fallback 最终失败于
+`route_design -tns_cleanup -directive Explore -timing_summary`。失败不是 timing-only；
+Vivado 报 `ERROR: [Route 35-2] Design is not legally routed. There are 5975 node
+overlaps`，随后 `ERROR: [Constraints 18-1000] Routing results verification
+failed due to partially-conflicted nets`。没有 post-route DCP、bitstream、AFI 或
+AGFI。该构建不能用于 gdbserver；cfg32 NIC HWDB 不应更新。
+
 每次汇报 buildbitstream 已启动时，都要同时汇报：
 
 - tmux session 名称；

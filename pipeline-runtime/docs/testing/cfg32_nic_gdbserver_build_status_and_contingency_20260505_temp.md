@@ -12,6 +12,37 @@ the cfg32 workload image still passes `debug-preflight` and `local-freshness`.
 The current blocker is obtaining a fresh cfg32 NIC AGFI that matches the current
 hardware source closely enough to debug pipeline-runtime hangs.
 
+## Historical 12p NIC AGFIs
+
+There have been successful 12-pair NIC bitstream builds before this round:
+
+- `agfi-0b9490626efd2b861` / `afi-06a9540775fb04a5e`, created
+  `2026-04-21T22:35:28Z`, available `2026-04-22T00:13:15Z`.
+- `agfi-02e18c6f7a7a95096` / `afi-03ae6bee93f249537`, created
+  `2026-04-24T07:27:40Z`, available `2026-04-24T09:08:12Z`.
+
+Both images are named
+`firesim_gemmini_rerocc_pairmanager_dummy16x16_4c12p12_sbus128_nic` in AWS and
+use:
+
+```text
+WithNIC_WithDefaultFireSimBridges_WithFireSimConfigTweaks_chipyard.GemminiLearningConfigSpadReRoCCGlobalNoC4C2x2P12x4x3CoupledDMAPairManagerDummy16x16Sbus128
+```
+
+The local `cfg32_nic` HWDB later aliased `agfi-02e18c6f7a7a95096`, but this is
+not evidence that the current post-NIC-debug/noTrace source tree can still close
+the exact same design. On `2026-04-27`, the `agfi-02e18c6f7a7a95096` local-GDB
+attempt failed before Linux with the old SimpleNIC host-driver
+`ERR MISMATCH! on writing tokens in...` path; that run was blocked by stale or
+incompatible driver collateral, not by pipeline-runtime user code.
+
+Therefore:
+
+- old 12p+NIC F2 implementation closure is proven;
+- current 12p+cfg32+NIC implementation closure is not proven;
+- no historical 12p+NIC run has demonstrated the single-core old-AGFI remote
+  gdbserver capability set.
+
 ## Builds
 
 Mainline cfg32 NIC:
@@ -33,14 +64,18 @@ noTrace cfg32 NIC fallback:
 - Target: `FireSimGemminiReRoCCPairDummy16x16C4P12Sbus128NICNoTraceConfig`
 - Platform: `FRFCFS16GBQuadRank_BaseF2Config`
 - Strategy/frequency: `TIMING`, `20MHz`
-- Current result: still running, no AGFI/AFI yet.
+- Current result: failed, no AGFI/AFI.
 - Current observed phase: Vivado `place_design completed successfully` as of
   `2026-05-06 00:19 UTC`; pre-route `phys_opt_design -directive
   AggressiveExplore` reached post-phy_opt checkpoint/report writing as of
   `2026-05-06 00:49 UTC`; `route_design -tns_cleanup -directive Explore
   -timing_summary` started as of `2026-05-06 00:53 UTC`; by the
   `2026-05-06 01:29 UTC` poll it had completed router initialization, global
-  routing, and the initial net routing pass, but route was still running.
+  routing, and the initial net routing pass. It later failed route verification
+  at `2026-05-06 09:34 UTC`.
+- Failure: `Route 35-2`, design not legally routed, `5975 node overlaps`, plus
+  `Constraints 18-1000` partially-conflicted nets. No post-route DCP, bitstream,
+  AFI, or AGFI was produced.
 - Post-synth `cl_firesim` utilization: total LUT `89.67%`, logic LUT
   `78.72%`, LUTRAM `23.63%`.
 
@@ -48,15 +83,35 @@ The noTrace build leaves `DigitalTop` essentially unchanged and removes
 TraceIO-related FireSim top-level pressure. That is why it is the current best
 candidate: the user-space pipeline-runtime gdbserver workflow does not need
 TraceIO. It has now crossed the mainline build's exact detail-placement failure
-boundary and completed placement, but it is still not a usable AGFI until
-route, bitstream generation, and AFI creation complete. The next risk is route
-closure under the post-place congestion warning and `WNS=-3.250` timing summary.
+boundary and completed placement, but it did not route. The final blocker is
+now routing congestion/legalization in the dense noTrace cfg32 NIC image, not
+HWDB, rootfs, gdbserver, or workload setup.
 The first post-place timing read shows the worst paths are shell/static to
 `CL_DMA_PCIS_SLV` SLR2 PCIS paths dominated by routing, not deep Gemmini/DMA
 logic. See:
 [`cfg32_nic_notrace_post_place_timing_20260506.md`](cfg32_nic_notrace_post_place_timing_20260506.md).
 
-## If noTrace succeeds
+## Scale decision
+
+For the immediate objective, which is getting a usable remote-gdbserver target
+for pipeline-runtime hang debugging, a smaller debug target is now the higher
+confidence path. The latest mainline image exceeded detail-placement CLB
+capacity, and the noTrace image still failed route legality with `5975` node
+overlaps. That is a broad routability/resource problem, not a software or
+gdbserver setup problem.
+
+Keep exact `12p4c128sbus32cfg` as a final-validation target, but do not block
+gdbserver bring-up on it. A practical next split is:
+
+1. Build a resource-reduced cfg32 NIC debug image that preserves the same
+   software-visible NIC, cfg32 register ABI, DMA path, and ReRoCC/pair-manager
+   programming model, but reduces manager/pair count enough to close quickly.
+2. In parallel, only if capacity permits, run one carefully chosen exact-12p
+   implementation experiment after reviewing route/congestion reports. Do not
+   spend multiple serial bitstream turns on strategy-only retries unless a
+   report shows a narrow physical bottleneck.
+
+## If noTrace succeeds in a future rebuild
 
 1. Extract AGFI/AFI and result directory from FireSim build logs.
 2. Update:
@@ -94,7 +149,31 @@ generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/run_pair
 
 Do not use `nc`, `telnet`, or port scanners against `gdbserver --once`.
 
-## If noTrace fails
+## Current noTrace failure
+
+The completed noTrace attempt failed in route. See:
+
+```text
+pipeline-runtime/debug_records/20260506T095500Z.md
+```
+
+The key failure is:
+
+```text
+ERROR: [Route 35-2] Design is not legally routed. There are 5975 node overlaps.
+ERROR: [Constraints 18-1000] Routing results verification failed due to partially-conflicted nets
+route_design failed
+```
+
+Do not update:
+
+```text
+sims/firesim/deploy/config_hwdb_f2_gemmini_rerocc_pairmanager_dummy16x16_4c12p12_sbus128_bertmini_cfg32_nic.yaml
+```
+
+for this failed build.
+
+## If a future noTrace/resource-reduced build fails
 
 Do not immediately launch another bitstream. First collect:
 
