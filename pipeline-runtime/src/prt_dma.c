@@ -2456,8 +2456,6 @@ static int dma_blocking_wait_poll_doneflag(prt_dma_token_t *tok, uint64_t timeou
                        (unsigned long long)tok->debug_done_flag_pa);
       tok->status = PRT_ERR_TIMEOUT;
       tok->done = 1;
-      tok->rr_scope_valid = 0;
-      tok->rr_scope_external = 0;
       return PRT_ERR_TIMEOUT;
     }
     polls += 1U;

@@ -1947,6 +1947,7 @@ static int copy_tensor_pages_to_model_aliases(prt_runtime_t *rt, uint32_t tensor
                                               const prt_page_list_t *pages, size_t src_size,
                                               uint32_t manager_id, uint32_t stage_id) {
   int copied_any = 0;
+  int first_error = PRT_OK;
   const uint32_t max_targets = rt ? rt->model.num_layers * 2U : 0U;
   uint64_t *seen_addrs = NULL;
   size_t *seen_sizes = NULL;
@@ -1987,7 +1988,10 @@ static int copy_tensor_pages_to_model_aliases(prt_runtime_t *rt, uint32_t tensor
                                                            manager_id, stage_id, seen_count - 1U,
                                                            layer->index, j,
                                                            "address", j, dst_addr);
-          if (rc != PRT_OK) goto out;
+          if (rc != PRT_OK) {
+            first_error = rc;
+            goto out;
+          }
           copied_any = 1;
         }
       }
@@ -2011,7 +2015,10 @@ static int copy_tensor_pages_to_model_aliases(prt_runtime_t *rt, uint32_t tensor
                                                            manager_id, stage_id, seen_count - 1U,
                                                            layer->index, j,
                                                            "address2", j, dst_addr);
-          if (rc != PRT_OK) goto out;
+          if (rc != PRT_OK) {
+            first_error = rc;
+            goto out;
+          }
           copied_any = 1;
         }
       }
@@ -2020,6 +2027,7 @@ static int copy_tensor_pages_to_model_aliases(prt_runtime_t *rt, uint32_t tensor
 out:
   free(seen_addrs);
   free(seen_sizes);
+  if (first_error != PRT_OK) return first_error;
   return copied_any ? PRT_OK : PRT_ERR_NOT_READY;
 }
 #endif
