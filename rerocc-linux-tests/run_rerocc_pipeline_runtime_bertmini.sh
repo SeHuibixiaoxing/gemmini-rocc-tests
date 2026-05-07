@@ -214,44 +214,39 @@ guest_ipv4_for_dev() {
 }
 
 select_gdbserver_net_dev() {
-  if [ -n "${GDBSERVER_NET_DEV}" ] && \
-     [ -d "/sys/class/net/${GDBSERVER_NET_DEV}" ] && \
-     [ -r "/sys/class/net/${GDBSERVER_NET_DEV}/type" ] && \
-     [ -r "/sys/class/net/${GDBSERVER_NET_DEV}/address" ] && \
-     [ -e "/sys/class/net/${GDBSERVER_NET_DEV}/device" ] && \
-     [ "$(cat "/sys/class/net/${GDBSERVER_NET_DEV}/type" 2>/dev/null)" = "1" ] && \
-     [ "$(cat "/sys/class/net/${GDBSERVER_NET_DEV}/address" 2>/dev/null)" != "00:00:00:00:00:00" ]; then
+  is_gdbserver_net_dev() {
+    net_dev="$1"
+    if [ "${net_dev}" = "lo" ]; then
+      return 1
+    fi
+    if [ ! -d "/sys/class/net/${net_dev}" ] || \
+       [ ! -r "/sys/class/net/${net_dev}/type" ] || \
+       [ ! -r "/sys/class/net/${net_dev}/address" ]; then
+      return 1
+    fi
+    if [ "$(cat "/sys/class/net/${net_dev}/type" 2>/dev/null)" != "1" ]; then
+      return 1
+    fi
+    if [ "$(cat "/sys/class/net/${net_dev}/address" 2>/dev/null)" = "00:00:00:00:00:00" ]; then
+      return 1
+    fi
+    return 0
+  }
+
+  if [ -n "${GDBSERVER_NET_DEV}" ] && is_gdbserver_net_dev "${GDBSERVER_NET_DEV}"; then
     printf '%s\n' "${GDBSERVER_NET_DEV}"
     return 0
   fi
-  if [ -d /sys/class/net/eth0 ] && \
-     [ -r /sys/class/net/eth0/type ] && \
-     [ -r /sys/class/net/eth0/address ] && \
-     [ -e /sys/class/net/eth0/device ] && \
-     [ "$(cat /sys/class/net/eth0/type 2>/dev/null)" = "1" ] && \
-     [ "$(cat /sys/class/net/eth0/address 2>/dev/null)" != "00:00:00:00:00:00" ]; then
+  if is_gdbserver_net_dev eth0; then
     printf '%s\n' eth0
     return 0
   fi
   for net_path in /sys/class/net/*; do
     net_dev="$(basename "${net_path}")"
-    if [ "${net_dev}" = "lo" ]; then
-      continue
+    if is_gdbserver_net_dev "${net_dev}"; then
+      printf '%s\n' "${net_dev}"
+      return 0
     fi
-    if [ ! -e "${net_path}/device" ]; then
-      continue
-    fi
-    if [ ! -r "${net_path}/type" ] || [ ! -r "${net_path}/address" ]; then
-      continue
-    fi
-    if [ "$(cat "${net_path}/type" 2>/dev/null)" != "1" ]; then
-      continue
-    fi
-    if [ "$(cat "${net_path}/address" 2>/dev/null)" = "00:00:00:00:00:00" ]; then
-      continue
-    fi
-    printf '%s\n' "${net_dev}"
-    return 0
   done
   return 0
 }

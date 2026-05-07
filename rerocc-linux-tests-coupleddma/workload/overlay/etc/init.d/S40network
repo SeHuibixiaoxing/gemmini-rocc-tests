@@ -1,0 +1,70 @@
+#!/bin/sh
+#
+# Start the network....
+#
+
+# Debian ifupdown needs the /run/network lock directory
+mkdir -p /run/network
+
+is_firesim_ethernet_ifname() {
+  ifname="$1"
+  if test "${ifname}" = "lo" ; then
+    return 1
+  fi
+  if ! test -r "/sys/class/net/${ifname}/address" || \
+     ! test -r "/sys/class/net/${ifname}/type" ; then
+    return 1
+  fi
+  if test "$(cat "/sys/class/net/${ifname}/type" 2>/dev/null)" != "1" ; then
+    return 1
+  fi
+  if test "$(cat "/sys/class/net/${ifname}/address" 2>/dev/null)" = "00:00:00:00:00:00" ; then
+    return 1
+  fi
+  return 0
+}
+
+select_firesim_ifname() {
+  if is_firesim_ethernet_ifname eth0 ; then
+    printf '%s\n' eth0
+    return 0
+  fi
+
+  for net_path in /sys/class/net/* ; do
+    ifname="$(basename "${net_path}")"
+    if is_firesim_ethernet_ifname "${ifname}" ; then
+      printf '%s\n' "${ifname}"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+case "$1" in
+  start)
+	printf "Starting network: "
+	/sbin/ifup -a
+	ifname="$(select_firesim_ifname || true)"
+	if test -n "${ifname}" && test -r "/sys/class/net/${ifname}/address" ; then
+		/sbin/ip link set dev "$ifname" up &&
+		IFS=: read -r _ _ _ _ machigh maclow < "/sys/class/net/${ifname}/address" &&
+		/sbin/ip addr add "172.16.$((16#$machigh)).$((16#$maclow))/16" dev "$ifname"
+	fi
+	[ $? = 0 ] && echo "OK" || echo "FAIL"
+	;;
+  stop)
+	printf "Stopping network: "
+	/sbin/ifdown -a
+	[ $? = 0 ] && echo "OK" || echo "FAIL"
+	;;
+  restart|reload)
+	"$0" stop
+	"$0" start
+	;;
+  *)
+	echo "Usage: $0 {start|stop|restart}"
+	exit 1
+esac
+
+exit $?
