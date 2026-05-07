@@ -18,6 +18,10 @@ Environment:
   PRT_GDB_TARGET_BIN    Host-side RISC-V ELF with symbols.
   PRT_GDB_EXPECT_TIMEOUT Default expect timeout in seconds. Default: 240.
   PRT_GDB_OUT_ROOT      Output root. Default: tmp/firesim-aws-f2/gdbserver-tests.
+  PRT_GDB_TAP_DEV       Run-host tap device. Default: tap0.
+  PRT_GDB_STATIC_NEIGH_MAC
+                         If non-empty, install a permanent run-host neighbor
+                         entry for the guest before opening the SSH tunnel.
 EOF
 }
 
@@ -51,6 +55,8 @@ ssh_key="${FIRESIM_SSH_KEY:-/home/ubuntu/firesim.pem}"
 ssh_user="${FIRESIM_SSH_USER:-ubuntu}"
 expect_timeout="${PRT_GDB_EXPECT_TIMEOUT:-240}"
 out_root="${PRT_GDB_OUT_ROOT:-${cy_dir}/tmp/firesim-aws-f2/gdbserver-tests}"
+tap_dev="${PRT_GDB_TAP_DEV:-tap0}"
+static_neigh_mac="${PRT_GDB_STATIC_NEIGH_MAC:-}"
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 out_dir="${out_root}/pairdummy-cfg32-expect-${stamp}-${run_host_ip//./_}-${guest_ip//./_}"
 tunnel_log="${out_dir}/ssh-tunnel.log"
@@ -76,6 +82,15 @@ if [[ ! -f "${ssh_key}" ]]; then
   exit 1
 fi
 
+ssh_base=(
+  ssh
+  -i "${ssh_key}"
+  -o StrictHostKeyChecking=no
+  -o UserKnownHostsFile=/dev/null
+  -o ConnectTimeout=10
+  "${ssh_user}@${run_host_ip}"
+)
+
 if command -v readelf >/dev/null 2>&1; then
   if ! readelf -S "${target_bin}" | grep -q '\.debug_info'; then
     echo "warning: target ELF has no .debug_info: ${target_bin}" >&2
@@ -86,6 +101,13 @@ if pgrep -af "ssh .*${local_port}:${guest_ip}:${guest_port}" >/dev/null 2>&1; th
   echo "refusing duplicate tunnel on local port ${local_port} to ${guest_ip}:${guest_port}" >&2
   pgrep -af "ssh .*${local_port}:${guest_ip}:${guest_port}" >&2 || true
   exit 1
+fi
+
+if [[ -n "${static_neigh_mac}" ]]; then
+  echo "[pairdummy-gdb-expect] static_neigh=${guest_ip} ${static_neigh_mac} dev ${tap_dev}"
+  "${ssh_base[@]}" \
+    "sudo ip neigh replace '${guest_ip}' lladdr '${static_neigh_mac}' dev '${tap_dev}' nud permanent && ip neigh show dev '${tap_dev}'" \
+    >"${out_dir}/static-neigh.log" 2>&1
 fi
 
 ssh -N \

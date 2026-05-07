@@ -1327,3 +1327,42 @@ cp /home/ubuntu/chipyard/tmp/firesim-aws-f2/tmux/rocket-singlecore-nic-gdbserver
   3. `[gdbserver]` announcement 是否给出非空 `guest_ipv4`
   4. SSH tunnel + `target remote :32345` 是否能断到 `rerocc_pipeline_runtime-linux`
   5. 若 workload 不返回，先保留 runfarm 并手动搬回完整现场，再终止远端实例
+
+## 12. 2026-05-07 cfg32 NIC no-TraceIO 复跑结论
+
+`agfi-077451484fe3b63c3` / `afi-07989ce9ce725a690` 的
+`dummy8x8 4c12p12 sbus64 cfg32 NIC noTrace` bitstream 已经在 remote
+`gdbserver` cfg32 triage 中通过。关键条件是 runtime 必须保留旧 1BP 成功链路的
+SimpleNIC plusargs：
+
+```text
++simplenic-relaxed-required-bytes=1
++simplenic-empty-switch-poll-interval=1024
++simplenic-token-debug=0
++cpu-managed-stream-debug=0
++heartbeat-polling-interval=100000000
+```
+
+对应 runtime：
+
+`sims/firesim/deploy/config_runtime_f2_gemmini_rerocc_pairmanager_dummy8x8_4c12p12_sbus64_linux_bertmini_pipeline_runtime_batch8_fileonly_sync_gdbserver_cfg32_nic_notrace.yaml`
+
+建议 cfg32 triage 命令固定带静态邻居，避免 ARP 分支掩盖 RSP 结果：
+
+```sh
+PRT_GDB_STATIC_NEIGH_MAC=00:12:6d:00:00:02 \
+generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/run_pairdummy_cfg32_gdbserver_expect_triage.sh \
+  <run-host-private-ip> 172.16.0.2:2345 32345
+```
+
+这个静态邻居动作不会连接 `2345`，不会消耗 `gdbserver --once` 的唯一客户端。
+仍然禁止使用 `nc`、telnet 或其它端口探测作为第一 TCP 客户端。
+
+本次通过的记录：
+
+`pipeline-runtime/debug_records/20260507T055420Z_dummy8x8_sbus64_gdbserver_plusargs_pass.md`
+
+本次 cfg32 triage 覆盖了 `target remote`、多软件断点、`continue`、线程列表、
+全线程 backtrace、寄存器、反汇编、Ctrl-C 抢回控制和 `detach`。它还没有覆盖旧
+single-core smoke 中的 `next` 以及变量 / 内存写读；下一步要扩展 cfg32 expect
+脚本后用同一 AGFI 再跑一次 gdbserver-only 验收。
