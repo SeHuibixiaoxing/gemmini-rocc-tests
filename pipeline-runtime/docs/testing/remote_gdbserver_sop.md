@@ -1,6 +1,6 @@
 # Remote gdbserver SOP
 
-Updated: `2026-05-06`
+Updated: `2026-05-07`
 
 This SOP is for host-side `gdb` connecting to guest Linux `gdbserver` through
 FireSim NIC networking. It complements `local_gdb_debug_sop.md`, which is the
@@ -234,6 +234,42 @@ quit
 
 Only treat detach as pass if the guest side has a known completion path or the
 run is intentionally live-inspected and then manually terminated.
+
+## Stack Sampling Without Breakpoints
+
+For `pipeline-runtime` hangs, do not assume the first tool must be a breakpoint.
+A direct current-stack sample is often better:
+
+1. Connect with GDB as the first TCP client to `gdbserver --once`.
+2. Do not set business breakpoints.
+3. Collect `info threads`, `thread apply all bt`, registers, and `$pc`
+   disassembly at attach.
+4. `continue` for a fixed interval.
+5. Send Ctrl-C and collect the same thread/stack/register/PC snapshot.
+6. Repeat until the target completes or Ctrl-C no longer regains control.
+
+Current helper:
+
+```bash
+PRT_GDB_STATIC_NEIGH_MAC=00:12:6d:00:00:02 \
+PRT_GDB_SAMPLE_COUNT=4 \
+PRT_GDB_SAMPLE_SECONDS=75 \
+generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/run_pairdummy_cfg32_gdbserver_stack_sample.sh \
+  <run-host-private-ip> 172.16.0.2:2345 32345
+```
+
+Interpretation rule:
+
+- GDB stack is the last successfully interrupted user-space snapshot.
+- Guest text logs can lag behind actual execution because they are written to
+  the rootfs image and sync periodically.
+- Breadcrumb is usually the lowest-disturbance frontier. If breadcrumb and text
+  logs disagree, record both and use the breadcrumb to choose the next narrow
+  probe.
+
+If Ctrl-C times out, keep that as evidence. The inferior may be in a custom
+instruction, fence, MMIO transaction, or other hardware wait that cannot be
+interrupted by the normal `gdbserver` signal path.
 
 ## Result Collection
 

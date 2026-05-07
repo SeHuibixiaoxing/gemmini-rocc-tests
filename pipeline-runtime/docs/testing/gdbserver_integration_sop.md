@@ -1,6 +1,6 @@
 # Pipeline Runtime gdbserver Integration SOP
 
-更新时间：`2026-05-07 07:25 UTC`
+更新时间：`2026-05-07 09:25 UTC`
 
 ## 1. 目标
 
@@ -102,6 +102,43 @@ remote-gdbserver 操作矩阵：
 变量读写、内存读写、`break prt_main_entry`、`continue`、`next`、多个
 software breakpoint、Ctrl-C 抢回控制和 `detach`。运行前仍然不要用
 `nc`/telnet 探测端口；`gdbserver --once` 的第一条 TCP 连接必须来自 GDB。
+
+### 3.1 无断点调用栈采样
+
+`pipeline-runtime` 卡死定位不要求只能靠 breakpoint。对于未知卡点，优先使用
+无业务断点的 stack sampling：
+
+1. 等 UART 出现 `[gdbserver] phase=listening`。
+2. 不用 `nc`、telnet、端口扫描或 TCP 探测；第一条连接仍必须是 GDB。
+3. host 侧建立 SSH tunnel 后，让 cross-gdb `target remote`。
+4. 先采集初始 `info threads`、`thread apply all bt`、寄存器和 `$pc` 反汇编。
+5. `continue` 运行固定时间，再用 Ctrl-C interrupt。
+6. 每次停住后采集 `info threads`、`thread apply all bt`、寄存器和 `$pc` 反汇编。
+7. 如果 Ctrl-C 超时无法重新拿回 GDB prompt，把它记录为有效证据：目标可能已经在
+   custom instruction、fence、MMIO 或其它不可中断硬件等待路径中。
+
+当前 helper：
+
+- [`run_pairdummy_cfg32_gdbserver_stack_sample.sh`](/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/run_pairdummy_cfg32_gdbserver_stack_sample.sh)
+
+典型命令：
+
+```bash
+PRT_GDB_STATIC_NEIGH_MAC=00:12:6d:00:00:02 \
+PRT_GDB_SAMPLE_COUNT=4 \
+PRT_GDB_SAMPLE_SECONDS=75 \
+generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/run_pairdummy_cfg32_gdbserver_stack_sample.sh \
+  <run-host-private-ip> 172.16.0.2:2345 32345
+```
+
+解释采样结果时要分清三类观测源：
+
+- GDB 栈：最后一次成功 interrupt 时的用户态线程现场。
+- guest 磁盘日志：只说明已经落盘/同步到 rootfs image 的最后日志，可能落后于实际执行点。
+- breadcrumb：mmap 文件中的低扰动 frontier，通常比文本日志更接近最后执行边界。
+
+若三者不完全一致，不要直接合并成一个精确 PC；先以 breadcrumb frontier 和最后一次
+GDB 栈共同缩小代码窗口，再决定是否需要下一轮更窄的 page/token 级探针。
 
 ## 4. 关键约束
 
