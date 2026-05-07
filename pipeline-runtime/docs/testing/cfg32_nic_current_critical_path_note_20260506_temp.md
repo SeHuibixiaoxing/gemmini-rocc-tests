@@ -180,3 +180,29 @@ Current implication:
   `192.168.1.77`, still in post-route phys-opt with no packaging collateral.
 - Any next retry should target boundary legality/placement of the
   `DMA_PCIS_AXI_REG_SLC` and DDR-stat boundary nets, not only resource count.
+
+## 2026-05-07 00:01 UTC Update
+
+The 12p dummy8x8/sbus64 candidate remains alive in post-route phys-opt
+`Phase 2 Critical Path Optimization`.
+
+Current status:
+
+- no post-route phys-opt checkpoint/report
+- no `Developer_CL.tar`
+- no `to_aws`
+- no AFI/AGFI
+- Vivado still running on `192.168.1.77`
+
+The latest visible improvements are still in `mmcm_clkout0` DDR-stat paths,
+with WNS reaching about `-1.820ns` there. The main PCIS group remains around
+`WNS=-3.339ns`, `WHS=-3.672ns`.
+
+Implication:
+
+- No new hardware decision is available yet.
+- The 12p build should keep running until it produces a checkpoint/packaging
+  result or fails.
+- If it fails with the same `Constraints 18-4430` DFX PartPin pattern as 8p,
+  the next RTL/config experiment should be a targeted boundary/floorplan fix,
+  not another blind resource reduction.

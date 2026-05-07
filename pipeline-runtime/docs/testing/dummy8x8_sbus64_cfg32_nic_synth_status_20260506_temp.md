@@ -1148,3 +1148,40 @@ Interpretation:
   not changed the earlier low-trust `Route 35-514` caveat.
 - Continue monitoring; the next useful event is either post-route phys-opt
   checkpoint/report creation or a Vivado/tool failure.
+
+## 1200s Window Monitor - 2026-05-07 00:01 UTC
+
+Remote host `192.168.1.77` is still running the 12p dummy8x8/sbus64 build.
+
+At `00:01:54 UTC`:
+
+- Vivado is still alive.
+- post-route `phys_opt_design -directive AggressiveExplore` remains in
+  `Phase 2 Critical Path Optimization`.
+- no `*.post_route_phys_opt.dcp` exists yet.
+- no `*.post_route_phys_opt_timing.rpt` exists yet.
+- no `Developer_CL.tar`, `to_aws`, manifest, AFI, or AGFI exists yet.
+
+The main PCIS setup group remains unchanged from the earlier post-route state:
+
+```text
+INFO: [Physopt 32-668] Current Timing Summary | WNS=-3.339 | TNS=-7383.538 | WHS=-3.672 | THS=-5363.670 |
+```
+
+The visible progress is still in the shell/DDR-stat `mmcm_clkout0` group:
+
+```text
+INFO: [Physopt 32-952] Improved path group WNS = -1.842. Path group: mmcm_clkout0.
+INFO: [Physopt 32-952] Improved path group WNS = -1.830. Path group: mmcm_clkout0.
+INFO: [Physopt 32-952] Improved path group WNS = -1.820. Path group: mmcm_clkout0.
+```
+
+Interpretation:
+
+- The build remains live, but it still has not reached the checkpoint/report or
+  packaging gate.
+- Post-route phys-opt is improving secondary shell DDR-stat paths while leaving
+  the main PCIS/RL_SHIM setup/hold issue intact.
+- Because the 8p dummy16x16/sbus128 build has now failed with DFX PartPin errors
+  and no AFI/AGFI, this 12p dummy8x8/sbus64 build is the only remaining active
+  hardware candidate.
