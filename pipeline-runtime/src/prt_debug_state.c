@@ -185,6 +185,26 @@ static uint32_t prt_gdb_marker_site_from_env(void) {
       strcmp(value, "after-build-stage-task") == 0) {
     return PRT_GDB_MARKER_SITE_WORKER_AFTER_BUILD_STAGE_TASK;
   }
+  if (strcmp(value, "dma-submitwait-after-wait") == 0 ||
+      strcmp(value, "submitwait-after-wait") == 0) {
+    return PRT_GDB_MARKER_SITE_DMA_SUBMITWAIT_AFTER_WAIT;
+  }
+  if (strcmp(value, "dma-submitwait-after-cleanup") == 0 ||
+      strcmp(value, "submitwait-after-cleanup") == 0) {
+    return PRT_GDB_MARKER_SITE_DMA_SUBMITWAIT_AFTER_CLEANUP;
+  }
+  if (strcmp(value, "dma-fixed-load-submitwait-begin") == 0 ||
+      strcmp(value, "fixed-load-submitwait-begin") == 0) {
+    return PRT_GDB_MARKER_SITE_DMA_FIXED_LOAD_SUBMITWAIT_BEGIN;
+  }
+  if (strcmp(value, "dma-fixed-load-submitwait-end") == 0 ||
+      strcmp(value, "fixed-load-submitwait-end") == 0) {
+    return PRT_GDB_MARKER_SITE_DMA_FIXED_LOAD_SUBMITWAIT_END;
+  }
+  if (strcmp(value, "dma-fixed-load-page-accounted") == 0 ||
+      strcmp(value, "fixed-load-page-accounted") == 0) {
+    return PRT_GDB_MARKER_SITE_DMA_FIXED_LOAD_PAGE_ACCOUNTED;
+  }
   if (strcmp(value, "artifact-mapping-parse-done") == 0 ||
       strcmp(value, "mapping-parse-done") == 0) {
     return PRT_GDB_MARKER_SITE_ARTIFACT_MAPPING_PARSE_DONE;

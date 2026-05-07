@@ -7,15 +7,18 @@ Usage: run_pairdummy_cfg32_gdbserver_segment0_token2_frontier.sh <run-host-priva
 
 Attach to a pairdummy cfg32 gdbserver run and narrow the segment0/stage0
 entry-DMA frontier immediately after tensor0 token1. The helper starts from the
-initial segment-begin marker, waits for token1 wait-return, then uses temporary
-software breakpoints to cross the token1 return/cleanup/page-loop path before
-waiting for token2 wait-enter and wait-return.
+initial segment-begin marker, waits for token1 wait-return, then walks the
+submit/wait cleanup and fixed-load page/chunk markers before waiting for later
+token returns.
 
 The guest image should be built with at least:
 
   PIPELINE_RUNTIME_GDB_MARKER_ENABLE=1
   PIPELINE_RUNTIME_GDB_MARKER_SITE=segment-begin
   PIPELINE_RUNTIME_GDB_MARKER_SEGMENT=0
+
+The runtime image must include the dma-submitwait-* and
+dma-fixed-load-submitwait-* marker sites.
 
 This helper does not probe the gdbserver port; the first TCP client remains GDB.
 EOF
@@ -58,60 +61,49 @@ bt
 info threads
 info registers pc sp ra
 
-printf "\n--- token2 frontier: after dma_gdb_marker_wait_return returns ---\n"
-tbreak /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3832
+printf "\n--- token2 frontier: submitwait after wait token1 ---\n"
+set variable g_prt_gdb_marker_filter.site_id = 25
+set variable g_prt_gdb_marker_filter.token_id = 1
+set variable g_prt_gdb_marker_filter.page_idx = 4294967295
 continue
+print g_prt_gdb_marker_state
 bt
 info threads
 info registers pc sp ra
-info args
-info locals
 
-printf "\n--- token2 frontier: after prt_dma_wait returns to submit_wait ---\n"
-tbreak /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2092
+printf "\n--- token2 frontier: submitwait after cleanup token1 ---\n"
+set variable g_prt_gdb_marker_filter.site_id = 26
+set variable g_prt_gdb_marker_filter.token_id = 1
 continue
+print g_prt_gdb_marker_state
 bt
 info threads
 info registers pc sp ra
-frame 1
-info args
-info locals
 
-printf "\n--- token2 frontier: before token cleanup breadcrumb ---\n"
-tbreak /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2124
+printf "\n--- token2 frontier: fixed-load submitwait returned to page loop ---\n"
+set variable g_prt_gdb_marker_filter.site_id = 28
+set variable g_prt_gdb_marker_filter.token_id = 4294967295
 continue
+print g_prt_gdb_marker_state
 bt
 info threads
 info registers pc sp ra
-info args
-info locals
 
-printf "\n--- token2 frontier: back in fixed-load page loop after submitwait ---\n"
-tbreak /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:814
+printf "\n--- token2 frontier: fixed-load chunk/page accounted ---\n"
+set variable g_prt_gdb_marker_filter.site_id = 29
 continue
+print g_prt_gdb_marker_state
 bt
 info threads
 info registers pc sp ra
-info args
-info locals
 
-printf "\n--- token2 frontier: page0 accounting complete ---\n"
-tbreak /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:840
+printf "\n--- token2 frontier: next fixed-load submitwait begin ---\n"
+set variable g_prt_gdb_marker_filter.site_id = 27
 continue
+print g_prt_gdb_marker_state
 bt
 info threads
 info registers pc sp ra
-info args
-info locals
-
-printf "\n--- token2 frontier: next page submitwait call ---\n"
-tbreak /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:813
-continue
-bt
-info threads
-info registers pc sp ra
-info args
-info locals
 
 printf "\n--- token2 frontier: token2 wait-enter stage0 tensor0 ---\n"
 set variable g_prt_gdb_marker_filter.site_id = 12
@@ -151,6 +143,22 @@ info registers pc sp ra
 
 printf "\n--- token2 frontier: token16 wait-return stage0 tensor0 ---\n"
 set variable g_prt_gdb_marker_filter.token_id = 16
+continue
+print g_prt_gdb_marker_state
+bt
+info threads
+info registers pc sp ra
+
+printf "\n--- token2 frontier: token24 wait-return stage0 tensor0 ---\n"
+set variable g_prt_gdb_marker_filter.token_id = 24
+continue
+print g_prt_gdb_marker_state
+bt
+info threads
+info registers pc sp ra
+
+printf "\n--- token2 frontier: token32 wait-return stage0 tensor0 ---\n"
+set variable g_prt_gdb_marker_filter.token_id = 32
 continue
 print g_prt_gdb_marker_state
 bt

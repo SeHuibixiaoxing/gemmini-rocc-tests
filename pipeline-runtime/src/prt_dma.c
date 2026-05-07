@@ -352,6 +352,31 @@ static void dma_trigger_wait(const prt_dma_token_t *tok,
                    rc);
 }
 
+static void dma_gdb_marker_token(uint32_t site_id, const prt_dma_token_t *tok,
+                                 int rc, uint32_t line) {
+  if (!tok) return;
+  prt_gdb_marker_note(site_id,
+                      PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE, tok->stage_idx,
+                      PRT_DEBUG_U32_NONE, tok->rr_manager_id, tok->tensor_id,
+                      tok->debug_page_idx, tok->id, rc,
+                      tok->debug_src_addr, tok->debug_dst_addr, line);
+}
+
+static void dma_gdb_marker_fixed_load_page(uint32_t site_id,
+                                           uint32_t stage_idx,
+                                           uint32_t manager_id,
+                                           uint32_t tensor_id,
+                                           uint32_t page_idx,
+                                           int rc,
+                                           uint64_t aux0,
+                                           uint64_t aux1,
+                                           uint32_t line) {
+  prt_gdb_marker_note(site_id,
+                      PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE, stage_idx,
+                      PRT_DEBUG_U32_NONE, manager_id, tensor_id, page_idx,
+                      PRT_DEBUG_U32_NONE, rc, aux0, aux1, line);
+}
+
 static void dma_batch_scope_release(prt_rr_scope_t *scope);
 static int dma_token_fence_scope(prt_dma_token_t *tok);
 #if defined(__linux__) && defined(__riscv)
@@ -810,7 +835,13 @@ static int dma_copy_host_to_spm_pages_linux(prt_runtime_t *rt, const prt_page_li
       dma_breadcrumb_page_begin(tensor_id, manager_id, i, &req,
                                 used_bounce ? PRT_BREADCRUMB_FLAG_BOUNCE : 0U,
                                 timeout_ns);
+      dma_gdb_marker_fixed_load_page(PRT_GDB_MARKER_SITE_DMA_FIXED_LOAD_SUBMITWAIT_BEGIN,
+                                     stage_idx, manager_id, tensor_id, i, PRT_OK,
+                                     req.src_addr, req.dst_addr, __LINE__);
       rc = dma_submit_wait_annotated_scoped(rt, &req, stage_idx, tensor_id, timeout_ns, &scope, 0, i);
+      dma_gdb_marker_fixed_load_page(PRT_GDB_MARKER_SITE_DMA_FIXED_LOAD_SUBMITWAIT_END,
+                                     stage_idx, manager_id, tensor_id, i, rc,
+                                     req.src_addr, req.dst_addr, __LINE__);
       dma_breadcrumb_page_end(tensor_id, manager_id, i, &req, rc,
                               used_bounce ? PRT_BREADCRUMB_FLAG_BOUNCE : 0U,
                               timeout_ns);
@@ -839,6 +870,9 @@ static int dma_copy_host_to_spm_pages_linux(prt_runtime_t *rt, const prt_page_li
       if (rc != PRT_OK) goto done;
       copied += chunk;
       remaining -= chunk;
+      dma_gdb_marker_fixed_load_page(PRT_GDB_MARKER_SITE_DMA_FIXED_LOAD_PAGE_ACCOUNTED,
+                                     stage_idx, manager_id, tensor_id, i, rc,
+                                     copied, remaining, __LINE__);
     }
   }
 
@@ -2033,6 +2067,7 @@ static int dma_submit_wait_annotated_scoped(prt_runtime_t *rt, const prt_dma_req
   prt_dma_token_t tok;
   uint32_t cleanup_token_id = 0U;
   uint32_t cleanup_manager_id = PRT_BREADCRUMB_ANY_U32;
+  uint32_t cleanup_page_idx = PRT_DEBUG_U32_NONE;
   uint32_t cleanup_flags = 0U;
   uint64_t cleanup_src_addr = 0ULL;
   uint64_t cleanup_dst_addr = 0ULL;
@@ -2089,6 +2124,7 @@ static int dma_submit_wait_annotated_scoped(prt_runtime_t *rt, const prt_dma_req
                    (unsigned long long)(timeout_ns / 1000000ULL));
   }
   rc = prt_dma_wait(rt, &tok, timeout_ns);
+  dma_gdb_marker_token(PRT_GDB_MARKER_SITE_DMA_SUBMITWAIT_AFTER_WAIT, &tok, rc, __LINE__);
   prt_breadcrumb_note(PRT_BREADCRUMB_KIND_DMA,
                       PRT_BREADCRUMB_PHASE_DMA_SUBMITWAIT_AFTER_WAIT,
                       tok.tensor_id,
@@ -2116,11 +2152,17 @@ static int dma_submit_wait_annotated_scoped(prt_runtime_t *rt, const prt_dma_req
   }
   cleanup_token_id = tok.id;
   cleanup_manager_id = tok.rr_manager_id;
+  cleanup_page_idx = tok.debug_page_idx;
   cleanup_flags = dma_breadcrumb_flags_from_token(&tok, 0U);
   cleanup_src_addr = tok.debug_src_addr;
   cleanup_dst_addr = tok.debug_dst_addr;
   cleanup_done_flag_pa = tok.debug_done_flag_pa;
   (void)prt_dma_token_cleanup(&tok);
+  prt_gdb_marker_note(PRT_GDB_MARKER_SITE_DMA_SUBMITWAIT_AFTER_CLEANUP,
+                      PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE, stage_idx,
+                      PRT_DEBUG_U32_NONE, cleanup_manager_id, tensor_id,
+                      cleanup_page_idx, cleanup_token_id, rc,
+                      cleanup_src_addr, cleanup_dst_addr, __LINE__);
   prt_breadcrumb_note(PRT_BREADCRUMB_KIND_DMA,
                       PRT_BREADCRUMB_PHASE_DMA_SUBMITWAIT_AFTER_CLEANUP,
                       tensor_id,
