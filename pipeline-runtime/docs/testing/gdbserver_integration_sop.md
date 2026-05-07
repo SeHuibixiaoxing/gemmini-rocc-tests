@@ -218,6 +218,12 @@ thread apply all bt
 `prt_gemm_conv_run` 或具体 `file:line` 断点，然后继续运行。这就是“先用条件 marker
 跳到局部窗口，再现场换更窄断点”的标准流程。
 
+不要把源码 marker 写成普通的 `if (...) { int i; ++i; }`。在当前优化等级下，普通局部变量
+和空操作很容易被优化、合并或重排，GDB 行号也可能漂移。应使用现有的
+`prt_gdb_marker_note()` / `prt_gdb_marker_stop()` 路径：先把 segment、stage、tensor、
+page、token 等语义状态写入 `volatile` 全局结构，再调用 `noinline` 停点函数。这样既能
+保留“源码条件断点”的灵活性，也能保证 host 侧符号、全局状态和 backtrace 可解释。
+
 当前 marker 默认关闭。单次 workflow 可通过以下变量打开和过滤：
 
 ```bash
@@ -259,6 +265,22 @@ PRT_GDB_STATIC_NEIGH_MAC=00:12:6d:00:00:02 \
 generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/run_pairdummy_cfg32_gdbserver_marker_stop.sh \
   <run-host-private-ip> 172.16.0.2:2345 32345
 ```
+
+若要在 marker 命中后立刻切换断点集合，不要让 helper 只做一次 smoke 后结束。可以把后续
+GDB 命令通过环境变量注入；这些命令会在 marker state、bt、寄存器和 PC window 采集之后、
+`detach` 之前执行：
+
+```bash
+PRT_GDB_STATIC_NEIGH_MAC=00:12:6d:00:00:02 \
+PRT_GDB_MARKER_DELETE_AFTER_HIT=1 \
+PRT_GDB_POST_MARKER_GDB_CMDS='break sync_stage_export_aliases\ncontinue\nbt\nthread apply all bt' \
+generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/run_pairdummy_cfg32_gdbserver_marker_stop.sh \
+  <run-host-private-ip> 172.16.0.2:2345 32345
+```
+
+更复杂的片段使用 `PRT_GDB_POST_MARKER_GDB_FILE=/abs/path/to/post.gdb`，避免多行 shell
+转义出错。对于 `gdbserver --once`，这个“同一 GDB session 内换断点”的约束很关键：
+一旦 `detach`，本轮 gdbserver 通常不能再被第二个 GDB 连接复用。
 
 ## 4. 关键约束
 

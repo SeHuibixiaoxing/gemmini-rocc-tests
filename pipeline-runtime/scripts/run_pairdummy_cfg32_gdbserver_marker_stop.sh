@@ -19,6 +19,15 @@ Environment:
   PRT_GDB_STATIC_NEIGH_MAC  Optional static neighbor MAC for the guest.
   PRT_GDB_MARKER_TIMEOUT    Seconds before killing GDB. Default: 1200.
   PRT_GDB_MARKER_DETACH     Detach after collecting marker state. Default: 1.
+  PRT_GDB_MARKER_DELETE_AFTER_HIT
+                            Delete breakpoint 1 after the marker hit. Default: 0.
+  PRT_GDB_POST_MARKER_GDB_CMDS
+                            Optional GDB commands to append after marker evidence.
+                            C-style backslash escapes are expanded, so use \n for
+                            multi-line snippets.
+  PRT_GDB_POST_MARKER_GDB_FILE
+                            Optional file of GDB commands to source after marker
+                            evidence. Runs before the optional detach/quit.
 EOF
 }
 
@@ -54,6 +63,9 @@ tap_dev="${PRT_GDB_TAP_DEV:-tap0}"
 static_neigh_mac="${PRT_GDB_STATIC_NEIGH_MAC:-}"
 marker_timeout="${PRT_GDB_MARKER_TIMEOUT:-1200}"
 marker_detach="${PRT_GDB_MARKER_DETACH:-1}"
+marker_delete_after_hit="${PRT_GDB_MARKER_DELETE_AFTER_HIT:-0}"
+post_marker_gdb_cmds="${PRT_GDB_POST_MARKER_GDB_CMDS:-}"
+post_marker_gdb_file="${PRT_GDB_POST_MARKER_GDB_FILE:-}"
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 out_dir="${out_root}/pairdummy-cfg32-marker-stop-${stamp}-${run_host_ip//./_}-${guest_ip//./_}"
 tunnel_log="${out_dir}/ssh-tunnel.log"
@@ -73,6 +85,13 @@ case "${marker_detach}" in
     exit 2
     ;;
 esac
+case "${marker_delete_after_hit}" in
+  0|1) ;;
+  *)
+    echo "invalid PRT_GDB_MARKER_DELETE_AFTER_HIT=${marker_delete_after_hit}; expected 0 or 1" >&2
+    exit 2
+    ;;
+esac
 
 if [[ ! -x "${gdb}" ]]; then
   echo "missing executable cross-gdb: ${gdb}" >&2
@@ -84,6 +103,10 @@ if [[ ! -f "${target_bin}" ]]; then
 fi
 if [[ ! -f "${ssh_key}" ]]; then
   echo "missing FireSim SSH key: ${ssh_key}" >&2
+  exit 1
+fi
+if [[ -n "${post_marker_gdb_file}" && ! -f "${post_marker_gdb_file}" ]]; then
+  echo "missing PRT_GDB_POST_MARKER_GDB_FILE: ${post_marker_gdb_file}" >&2
   exit 1
 fi
 
@@ -150,6 +173,26 @@ info registers
 printf "\\n--- pc window ---\\n"
 x/16i \$pc-32
 EOF
+
+if [[ "${marker_delete_after_hit}" == "1" ]]; then
+  cat >> "${gdb_cmds}" <<'EOF'
+delete 1
+EOF
+fi
+
+if [[ -n "${post_marker_gdb_cmds}" ]]; then
+  {
+    echo 'printf "\n--- post-marker inline gdb commands ---\n"'
+    printf '%b\n' "${post_marker_gdb_cmds}"
+  } >> "${gdb_cmds}"
+fi
+
+if [[ -n "${post_marker_gdb_file}" ]]; then
+  {
+    echo 'printf "\n--- post-marker gdb command file ---\n"'
+    printf 'source %s\n' "${post_marker_gdb_file}"
+  } >> "${gdb_cmds}"
+fi
 
 if [[ "${marker_detach}" == "1" ]]; then
   cat >> "${gdb_cmds}" <<'EOF'
