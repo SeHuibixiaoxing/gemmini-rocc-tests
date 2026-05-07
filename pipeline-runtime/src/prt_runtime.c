@@ -4238,6 +4238,12 @@ static void *stage_worker_main(void *arg) {
             PRT_CHECKPOINT_LOG("worker stage=%u checkpoint=after-c1 subbatch=%u entry=%u tensor=%u idx=%u rc=%d",
                                ctx->stage_id, progress_sbatch, i, b->tensor_id, idx, rc);
           }
+          prt_runtime_gdb_marker(PRT_GDB_MARKER_SITE_WORKER_ENTRY_PROCESS_RETURN,
+                                 segment_idx, global_stage_id, ctx->stage_id,
+                                 progress_sbatch,
+                                 (ctx->stage_id < exec->stage_thread_count) ? exec->stage_dma_ids[ctx->stage_id] : PRT_DEBUG_U32_NONE,
+                                 b->tensor_id, idx, PRT_DEBUG_U32_NONE, rc,
+                                 (uint64_t)b->kind, (uint64_t)i, __LINE__);
           if (rc == PRT_ERR_TIMEOUT) {
             progress_log_worker_wait(ctx->stage_id, progress_sbatch, "entry-c1-process", b, idx,
                                      process_wait_begin_ms, &last_wait_log_ms, rc);
@@ -4255,6 +4261,12 @@ static void *stage_worker_main(void *arg) {
           entry_process_has_context = 1;
           debug_note_worker_wait(ctx->stage_id, progress_sbatch, "entry-c5-process", b, idx, PRT_OK);
           rc = prt_process_c5(rt, b, idx, wait_timeout_ns);
+          prt_runtime_gdb_marker(PRT_GDB_MARKER_SITE_WORKER_ENTRY_PROCESS_RETURN,
+                                 segment_idx, global_stage_id, ctx->stage_id,
+                                 progress_sbatch,
+                                 (ctx->stage_id < exec->stage_thread_count) ? exec->stage_dma_ids[ctx->stage_id] : PRT_DEBUG_U32_NONE,
+                                 b->tensor_id, idx, PRT_DEBUG_U32_NONE, rc,
+                                 (uint64_t)b->kind, (uint64_t)i, __LINE__);
           if (rc == PRT_ERR_TIMEOUT) {
             progress_log_worker_wait(ctx->stage_id, progress_sbatch, "entry-c5-process", b, idx,
                                      process_wait_begin_ms, &last_wait_log_ms, rc);
@@ -4281,6 +4293,12 @@ static void *stage_worker_main(void *arg) {
             rc = prt_process_c7(rt, b);
             if (rc != PRT_OK) rt->fatal_error = rc;
           }
+          prt_runtime_gdb_marker(PRT_GDB_MARKER_SITE_WORKER_ENTRY_PROCESS_RETURN,
+                                 segment_idx, global_stage_id, ctx->stage_id,
+                                 progress_sbatch,
+                                 (ctx->stage_id < exec->stage_thread_count) ? exec->stage_dma_ids[ctx->stage_id] : PRT_DEBUG_U32_NONE,
+                                 b->tensor_id, idx, PRT_DEBUG_U32_NONE, rc,
+                                 (uint64_t)b->kind, (uint64_t)i, __LINE__);
           break;
         default:
           break;
@@ -4299,6 +4317,12 @@ static void *stage_worker_main(void *arg) {
         PRT_CHECKPOINT_LOG("worker stage=%u checkpoint=after-entry-full subbatch=%u entry=%u tensor=%u idx=%u rc=%d",
                            ctx->stage_id, progress_sbatch, i, b->tensor_id, idx, rc);
       }
+      prt_runtime_gdb_marker(PRT_GDB_MARKER_SITE_WORKER_ENTRY_FULL_RETURN,
+                             segment_idx, global_stage_id, ctx->stage_id,
+                             progress_sbatch,
+                             (ctx->stage_id < exec->stage_thread_count) ? exec->stage_dma_ids[ctx->stage_id] : PRT_DEBUG_U32_NONE,
+                             b->tensor_id, idx, PRT_DEBUG_U32_NONE, rc,
+                             (uint64_t)b->kind, (uint64_t)i, __LINE__);
       if (rc != PRT_OK) {
         if (rc == PRT_ERR_TIMEOUT) {
           progress_log_worker_wait(ctx->stage_id, progress_sbatch, "entry-full", b, idx,
@@ -4318,6 +4342,14 @@ static void *stage_worker_main(void *arg) {
       PRT_CHECKPOINT_LOG("worker stage=%u checkpoint=before-exports-ready subbatch=%u exports=%u shared_pairs=%u",
                          ctx->stage_id, progress_sbatch, export_count, shared_pair_count);
     }
+    prt_runtime_gdb_marker(PRT_GDB_MARKER_SITE_WORKER_BEFORE_EXPORTS_READY,
+                           segment_idx, global_stage_id, ctx->stage_id,
+                           progress_sbatch,
+                           (ctx->stage_id < exec->stage_thread_count) ? exec->stage_dma_ids[ctx->stage_id] : PRT_DEBUG_U32_NONE,
+                           PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE,
+                           PRT_DEBUG_U32_NONE, PRT_OK,
+                           (uint64_t)export_count, (uint64_t)shared_pair_count,
+                           __LINE__);
     rc = stage_wait_exports_ready(rt, ctx->stage_id, progress_sbatch, export_bufs, export_count,
                                   shared_pairs, shared_pair_count, wait_timeout_ns,
                                   &last_wait_log_ms);
@@ -4325,6 +4357,14 @@ static void *stage_worker_main(void *arg) {
       PRT_CHECKPOINT_LOG("worker stage=%u checkpoint=after-exports-ready subbatch=%u rc=%d",
                          ctx->stage_id, progress_sbatch, rc);
     }
+    prt_runtime_gdb_marker(PRT_GDB_MARKER_SITE_WORKER_AFTER_EXPORTS_READY,
+                           segment_idx, global_stage_id, ctx->stage_id,
+                           progress_sbatch,
+                           (ctx->stage_id < exec->stage_thread_count) ? exec->stage_dma_ids[ctx->stage_id] : PRT_DEBUG_U32_NONE,
+                           PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE,
+                           PRT_DEBUG_U32_NONE, rc,
+                           (uint64_t)export_count, (uint64_t)shared_pair_count,
+                           __LINE__);
     if (rc != PRT_OK) {
       if (rc == PRT_ERR_TIMEOUT) {
         if (rt->stop_requested) break;
@@ -4366,12 +4406,28 @@ static void *stage_worker_main(void *arg) {
                            ctx->stage_id, progress_sbatch, (uint32_t)task.op_kind,
                            task.tile_count, task.manager_ids[0]);
       }
+      prt_runtime_gdb_marker(PRT_GDB_MARKER_SITE_WORKER_BEFORE_BUILD_STAGE_TASK,
+                             segment_idx, global_stage_id, ctx->stage_id,
+                             progress_sbatch,
+                             (ctx->stage_id < exec->stage_thread_count) ? exec->stage_dma_ids[ctx->stage_id] : PRT_DEBUG_U32_NONE,
+                             PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE,
+                             PRT_DEBUG_U32_NONE, PRT_OK,
+                             (uint64_t)task.tile_count,
+                             (uint64_t)task.manager_ids[0], __LINE__);
       rc = build_stage_task_desc(rt, ctx->stage_id, &task, &conv_desc, &resadd_desc);
       if (ctx->stage_id == 0U) {
         PRT_CHECKPOINT_LOG("worker stage=%u checkpoint=after-build-stage-task subbatch=%u rc=%d op=%u tile_count=%u mgr0=%u",
                            ctx->stage_id, progress_sbatch, rc, (uint32_t)task.op_kind,
                            task.tile_count, task.manager_ids[0]);
       }
+      prt_runtime_gdb_marker(PRT_GDB_MARKER_SITE_WORKER_AFTER_BUILD_STAGE_TASK,
+                             segment_idx, global_stage_id, ctx->stage_id,
+                             progress_sbatch,
+                             (ctx->stage_id < exec->stage_thread_count) ? exec->stage_dma_ids[ctx->stage_id] : PRT_DEBUG_U32_NONE,
+                             PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE,
+                             PRT_DEBUG_U32_NONE, rc,
+                             (uint64_t)task.op_kind,
+                             (uint64_t)task.tile_count, __LINE__);
       if (rc != PRT_OK) {
         rt->fatal_error = rc;
         break;

@@ -161,6 +161,30 @@ static uint32_t prt_gdb_marker_site_from_env(void) {
   }
   if (strcmp(value, "dma-wait-enter") == 0) return PRT_GDB_MARKER_SITE_DMA_WAIT_ENTER;
   if (strcmp(value, "dma-wait-return") == 0) return PRT_GDB_MARKER_SITE_DMA_WAIT_RETURN;
+  if (strcmp(value, "worker-entry-process-return") == 0 ||
+      strcmp(value, "entry-process-return") == 0) {
+    return PRT_GDB_MARKER_SITE_WORKER_ENTRY_PROCESS_RETURN;
+  }
+  if (strcmp(value, "worker-entry-full-return") == 0 ||
+      strcmp(value, "entry-full-return") == 0) {
+    return PRT_GDB_MARKER_SITE_WORKER_ENTRY_FULL_RETURN;
+  }
+  if (strcmp(value, "worker-before-exports-ready") == 0 ||
+      strcmp(value, "before-exports-ready") == 0) {
+    return PRT_GDB_MARKER_SITE_WORKER_BEFORE_EXPORTS_READY;
+  }
+  if (strcmp(value, "worker-after-exports-ready") == 0 ||
+      strcmp(value, "after-exports-ready") == 0) {
+    return PRT_GDB_MARKER_SITE_WORKER_AFTER_EXPORTS_READY;
+  }
+  if (strcmp(value, "worker-before-build-stage-task") == 0 ||
+      strcmp(value, "before-build-stage-task") == 0) {
+    return PRT_GDB_MARKER_SITE_WORKER_BEFORE_BUILD_STAGE_TASK;
+  }
+  if (strcmp(value, "worker-after-build-stage-task") == 0 ||
+      strcmp(value, "after-build-stage-task") == 0) {
+    return PRT_GDB_MARKER_SITE_WORKER_AFTER_BUILD_STAGE_TASK;
+  }
   if (strcmp(value, "artifact-mapping-parse-done") == 0 ||
       strcmp(value, "mapping-parse-done") == 0) {
     return PRT_GDB_MARKER_SITE_ARTIFACT_MAPPING_PARSE_DONE;

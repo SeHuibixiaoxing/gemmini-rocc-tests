@@ -80,6 +80,54 @@ bt
 info threads
 info registers pc sp ra
 
+printf "\n--- segment0 chain: entry-process-return stage0 ---\n"
+set variable g_prt_gdb_marker_filter.site_id = 19
+continue
+print g_prt_gdb_marker_state
+bt
+info threads
+info registers pc sp ra
+
+printf "\n--- segment0 chain: entry-full-return stage0 ---\n"
+set variable g_prt_gdb_marker_filter.site_id = 20
+continue
+print g_prt_gdb_marker_state
+bt
+info threads
+info registers pc sp ra
+
+printf "\n--- segment0 chain: before-exports-ready stage0 ---\n"
+set variable g_prt_gdb_marker_filter.site_id = 21
+continue
+print g_prt_gdb_marker_state
+bt
+info threads
+info registers pc sp ra
+
+printf "\n--- segment0 chain: after-exports-ready stage0 ---\n"
+set variable g_prt_gdb_marker_filter.site_id = 22
+continue
+print g_prt_gdb_marker_state
+bt
+info threads
+info registers pc sp ra
+
+printf "\n--- segment0 chain: before-build-stage-task stage0 ---\n"
+set variable g_prt_gdb_marker_filter.site_id = 23
+continue
+print g_prt_gdb_marker_state
+bt
+info threads
+info registers pc sp ra
+
+printf "\n--- segment0 chain: after-build-stage-task stage0 ---\n"
+set variable g_prt_gdb_marker_filter.site_id = 24
+continue
+print g_prt_gdb_marker_state
+bt
+info threads
+info registers pc sp ra
+
 printf "\n--- segment0 chain: worker-gemm-run stage0 ---\n"
 set variable g_prt_gdb_marker_filter.site_id = 5
 continue
