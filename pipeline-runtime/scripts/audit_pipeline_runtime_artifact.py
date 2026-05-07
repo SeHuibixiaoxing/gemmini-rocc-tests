@@ -108,6 +108,65 @@ def build_model_layer_index(model_doc: Dict[str, Any] | None) -> Dict[int, Dict[
     return index
 
 
+def model_addr_to_offset(addr: int, base: int) -> int:
+    if base > 0 and addr >= base:
+        return addr - base
+    return addr
+
+
+def validate_model_tensor_ranges(model_doc: Dict[str, Any] | None) -> None:
+    if not isinstance(model_doc, dict):
+        return
+    top_addr = to_int_list(model_doc.get("address", []))
+    if len(top_addr) < 2:
+        return
+    base = int(top_addr[0])
+    end = int(top_addr[1])
+    if end <= base:
+        raise RuntimeError(f"model address range [{base},{end}) is invalid")
+    span = end - base
+    for layer in model_doc.get("layers", []) or []:
+        if not isinstance(layer, dict):
+            continue
+        layer_idx = int(layer.get("index", -1))
+        tensor_ids = to_int_list(layer.get("tensorIds", []))
+        tensor_sizes = to_int_list(layer.get("tensorSize", []))
+        if len(tensor_sizes) != len(tensor_ids):
+            raise RuntimeError(
+                f"model layer {layer_idx} tensorSize length={len(tensor_sizes)} "
+                f"tensorIds length={len(tensor_ids)}"
+            )
+        for field_name in ("address", "address2"):
+            addrs = to_int_list(layer.get(field_name, []))
+            if not addrs:
+                continue
+            if len(addrs) != len(tensor_ids):
+                raise RuntimeError(
+                    f"model layer {layer_idx} {field_name} length={len(addrs)} "
+                    f"tensorIds length={len(tensor_ids)}"
+                )
+            for slot, (tensor_id, addr, tensor_size) in enumerate(zip(tensor_ids, addrs, tensor_sizes)):
+                if tensor_size <= 0:
+                    continue
+                off = model_addr_to_offset(int(addr), base)
+                if off < 0 or off + int(tensor_size) > span:
+                    raise RuntimeError(
+                        f"model layer {layer_idx} tensor {tensor_id} slot {slot} {field_name} "
+                        f"range [{off},{off + int(tensor_size)}) exceeds model span={span}"
+                    )
+
+
+def model_layer_tensor_size(layer_doc: Dict[str, Any], tensor_id: int) -> int:
+    tensor_ids = to_int_list(layer_doc.get("tensorIds", []))
+    tensor_sizes = to_int_list(layer_doc.get("tensorSize", []))
+    if tensor_id not in tensor_ids:
+        return 0
+    slot = tensor_ids.index(tensor_id)
+    if slot >= len(tensor_sizes):
+        return 0
+    return int(tensor_sizes[slot])
+
+
 def stage_local_bytes(stage: Dict[str, Any], tensor_id: int) -> int:
     tensor_ids = to_int_list(stage.get("tensorIdList", []))
     if tensor_id not in tensor_ids:
@@ -201,6 +260,10 @@ def validate_stage_contract(
             f"segment {seg_idx} stage {stage_idx} localSpmPageSpan={page_span} required>={required_span}"
         )
     window_bytes = page_span * PAGE_SIZE_BYTES
+    layer_doc = model_layers.get(layer_id)
+    if not layer_doc:
+        raise RuntimeError(f"segment {seg_idx} stage {stage_idx} references missing model layer {layer_id}")
+
     for slot, tensor_id in enumerate(tensor_ids):
         tensor_addr = int(local_addr[slot])
         tensor_pages = int(local_pages[slot])
@@ -209,6 +272,7 @@ def validate_stage_contract(
         slot_start = first_vpage * PAGE_SIZE_BYTES
         slot_end = (first_vpage + tensor_pages) * PAGE_SIZE_BYTES
         tensor_end = tensor_addr + tensor_bytes
+        model_tensor_bytes = model_layer_tensor_size(layer_doc, tensor_id)
         if tensor_pages == 0 and tensor_bytes == 0:
             continue
         if tensor_pages <= 0:
@@ -231,6 +295,11 @@ def validate_stage_contract(
                 f"[{tensor_addr},{tensor_end}) is outside allocated vpage bytes "
                 f"[{slot_start},{slot_end})"
             )
+        if model_tensor_bytes > 0 and tensor_bytes > model_tensor_bytes:
+            raise RuntimeError(
+                f"segment {seg_idx} stage {stage_idx} tensor {tensor_id} local bytes={tensor_bytes} "
+                f"exceed model tensorSize={model_tensor_bytes}"
+            )
 
     entry_ids = to_int_list(stage.get("entryTensorIdList", []))
     export_ids = to_int_list(stage.get("exportTensorIdList", []))
@@ -247,9 +316,6 @@ def validate_stage_contract(
                 f"segment {seg_idx} stage {stage_idx} boundary tensor {tensor_id} missing from tensorIdList"
             )
 
-    layer_doc = model_layers.get(layer_id)
-    if not layer_doc:
-        raise RuntimeError(f"segment {seg_idx} stage {stage_idx} references missing model layer {layer_id}")
     op_type = str(layer_doc.get("type", "") or "")
     if op_type not in SUPPORTED_OP_TYPES:
         raise RuntimeError(f"segment {seg_idx} stage {stage_idx} model layer {layer_id} unsupported type={op_type!r}")
@@ -356,6 +422,7 @@ def audit_segment(
 
     total_acc_util = 0
     explicit_physical_acc_users: Dict[int, int] = {}
+    stage_windows: List[Tuple[int, int, int]] = []
     for stage_idx, stage_group in enumerate(stages):
         if not isinstance(stage_group, list) or len(stage_group) != 1 or not isinstance(stage_group[0], dict):
             raise RuntimeError(f"segment {seg_idx} invalid stage group structure")
@@ -378,6 +445,8 @@ def audit_segment(
                 f"[{exec_base_vpage},{exec_base_vpage + local_page_span}) exceeds "
                 f"segmentSpmPageSpan={segment_page_span}"
             )
+        if local_page_span:
+            stage_windows.append((stage_idx, exec_base_vpage, exec_base_vpage + local_page_span))
 
         explicit_p_acc = to_int_list(stage.get("pAccIdxList", []), flatten_singleton_row=True)
         for gm_local in explicit_p_acc:
@@ -392,6 +461,13 @@ def audit_segment(
         raise RuntimeError(
             f"segment {seg_idx} total accUtil={total_acc_util} exceeds target num_gemmini={target_num_gemmini}"
         )
+    for i, (stage_i, start_i, end_i) in enumerate(stage_windows):
+        for stage_j, start_j, end_j in stage_windows[i + 1 :]:
+            if max(start_i, start_j) < min(end_i, end_j):
+                raise RuntimeError(
+                    f"segment {seg_idx} stage SPM windows overlap: "
+                    f"stage {stage_i} [{start_i},{end_i}) and stage {stage_j} [{start_j},{end_j})"
+                )
 
     binding_ids = to_int_list(seg.get("bufferBindingIdList", []))
     binding_tensor_ids = to_int_list(seg.get("bufferBindingTensorIdList", []))
@@ -401,8 +477,10 @@ def audit_segment(
     if not (len(binding_ids) == len(binding_tensor_ids) == len(binding_kinds) == len(binding_slot_counts) == len(binding_pages)):
         raise RuntimeError(f"segment {seg_idx} buffer binding list length mismatch")
     ring_bindings: Dict[int, Tuple[int, int]] = {}
+    binding_pages_by_tensor: Dict[int, int] = {}
     for tensor_id, kind, slot_count, pages_per_slot in zip(binding_tensor_ids, binding_kinds, binding_slot_counts, binding_pages):
         binding_kind_coverage[kind] = binding_kind_coverage.get(kind, 0) + 1
+        binding_pages_by_tensor[int(tensor_id)] = max(binding_pages_by_tensor.get(int(tensor_id), 0), int(pages_per_slot))
         if kind == "RING":
             ring_bindings[int(tensor_id)] = (int(slot_count), int(pages_per_slot))
 
@@ -410,6 +488,14 @@ def audit_segment(
         tensor_types = set(info["types"])
         min_bytes = int(info["min_bytes"])
         max_bytes = int(info["max_bytes"])
+        pages_per_slot = binding_pages_by_tensor.get(tensor_id)
+        if pages_per_slot is None:
+            raise RuntimeError(f"segment {seg_idx} tensor {tensor_id} missing buffer binding")
+        if pages_per_slot * PAGE_SIZE_BYTES < max_bytes:
+            raise RuntimeError(
+                f"segment {seg_idx} tensor {tensor_id} binding pages_per_slot={pages_per_slot} "
+                f"bytes={pages_per_slot * PAGE_SIZE_BYTES} smaller than max tensor bytes={max_bytes}"
+            )
         if "ALL_RINGBUFFER" in tensor_types:
             if tensor_types != {"ALL_RINGBUFFER"}:
                 raise RuntimeError(f"segment {seg_idx} tensor {tensor_id} mixes ALL_RINGBUFFER with {sorted(tensor_types)}")
@@ -484,6 +570,7 @@ def audit_pipeline(
     split_coverage_total: Dict[str, int] = {}
     op_coverage_total: Dict[str, int] = {}
     model_layers = build_model_layer_index(model_doc)
+    validate_model_tensor_ranges(model_doc)
     target_doc = pipeline_doc.get("target", {}) if isinstance(pipeline_doc.get("target"), dict) else {}
     if isinstance(target_doc, dict):
         pages_per_acc = int(target_doc.get("pages_per_acc", 0) or 0)

@@ -5,6 +5,8 @@
 状态说明：本文保留 17:20 UTC 优化草案原文；其中的构建状态描述已经过期。最新
 cfg32 NIC build 状态和 noTrace fallback 预案见
 [`cfg32_nic_gdbserver_build_status_and_contingency_20260505_temp.md`](cfg32_nic_gdbserver_build_status_and_contingency_20260505_temp.md)。
+2026-05-07 的 P0 完成状态见
+[`pipeline_runtime_p0_completion_20260507.md`](pipeline_runtime_p0_completion_20260507.md)。
 
 本文把 [`问题.md`](问题.md) 中的优化点和风险点转成可执行措施。优先级按“正确性先于性能、可调试性先于复杂 overlap”排序。
 逐条问答版见 [`pipeline_runtime_questions_answers_20260505_draft.md`](pipeline_runtime_questions_answers_20260505_draft.md)。

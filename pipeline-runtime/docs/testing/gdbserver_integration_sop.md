@@ -1,6 +1,6 @@
 # Pipeline Runtime gdbserver Integration SOP
 
-更新时间：`2026-05-07 06:20 UTC`
+更新时间：`2026-05-07 07:25 UTC`
 
 ## 1. 目标
 
@@ -328,6 +328,86 @@ scripts/firesim-tmux-run.sh --session-name "${SESSION}" \
 - build host instance id/private IP
 - config-specific CL 目录
 - RTL freshness gate 结果
+
+### 5.7 当前 P0 gdbserver 使用流程
+
+当前已经验证可用的 remote-gdbserver 路线是
+`dummy8x8 / 4c12p12 / sbus64 / cfg32 / NIC / no TraceIO`：
+
+- AGFI：`agfi-077451484fe3b63c3`
+- AFI：`afi-07989ce9ce725a690`
+- workflow：
+  [`pairdummy_sbus64_dummy8x8_gdbserver_cfg32_nic_notrace_workflow.sh`](/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdummy_sbus64_dummy8x8_gdbserver_cfg32_nic_notrace_workflow.sh)
+- expect triage：
+  [`run_pairdummy_cfg32_gdbserver_expect_triage.sh`](/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/run_pairdummy_cfg32_gdbserver_expect_triage.sh)
+
+标准步骤：
+
+```bash
+cd /home/ubuntu/chipyard
+
+generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdummy_sbus64_dummy8x8_gdbserver_cfg32_nic_notrace_workflow.sh launch
+generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdummy_sbus64_dummy8x8_gdbserver_cfg32_nic_notrace_workflow.sh infrasetup
+generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdummy_sbus64_dummy8x8_gdbserver_cfg32_nic_notrace_workflow.sh run <run-host-private-ip>
+```
+
+等 guest UART 或镜像里的 info 文件出现：
+
+```text
+[gdbserver] phase=listening ... guest_ipv4=172.16.0.2 endpoint=172.16.0.2:2345
+Listening on port 2345
+```
+
+如果 run host 上没有稳定 ARP，先让 helper 安装静态 neighbor；这不会连接
+`gdbserver --once`，不会消耗第一次 TCP 连接：
+
+```bash
+PRT_GDB_STATIC_NEIGH_MAC=00:12:6d:00:00:02 \
+generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/run_pairdummy_cfg32_gdbserver_expect_triage.sh \
+  <run-host-private-ip> 172.16.0.2:2345 32345
+```
+
+当前 helper 的通过判据是出现以下 marker：
+
+```text
+GDB_MARK_CONNECTED
+GDB_MARK_MEMORY_RW_DONE
+GDB_MARK_HIT_MAIN_ENTRY
+GDB_MARK_NEXT_DONE
+GDB_MARK_HIT_FIRST_BREAK
+GDB_MARK_INTERRUPT_BEGIN
+GDB_MARK_INTERRUPT_DONE
+GDB_MARK_DETACH_OK
+```
+
+P0 卡点分类时优先看这些断点和栈：
+
+| 分类 | 主要断点 / 现象 | 下一步 |
+| --- | --- | --- |
+| pipe/ring wait | `stage_prepare_exec_views` 之后卡在 pipe/ring wait 栈 | 看 `prt_debug_state`、pipebuf/ring 指针、producer/consumer stage |
+| DMA submit/wait/fence | `prt_dma_submit`、`prt_dma_wait`、`dma_blocking_wait` | 同时读 token、`hw_done_flag`、completion flag、DMA manager id |
+| ReRoCC acquire/fence/release | `prt_gemmini_spm_xlate_program`、`prt_gemmini_spm_xlate_flush`、`prt_rr_release_scope` | 看 cfg id、manager id、scope 是否 external、fault CSR |
+| Gemmini compute/fence | `prt_gemm_conv_run`、`prt_gemm_fence` | 看 task manager set、conv/resadd descriptor 和 alias address range |
+| thread join/stop/fatal | Ctrl-C 后 `thread apply all bt` 停在 join/wait 或 fatal path | 读 `rt->fatal_error`、`rt->stop_requested`、worker thread 栈 |
+
+测试结束后必须先收集：
+
+- `uartlog`
+- `heartbeat.csv`
+- `sim-run.sh`
+- `switchlog`
+- gdb transcript / expect stdout
+- 可选 pcap 和 tcpdump log
+
+收集完立刻执行：
+
+```bash
+generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdummy_sbus64_dummy8x8_gdbserver_cfg32_nic_notrace_workflow.sh terminate
+```
+
+然后用 AWS 查询确认 F2 instance 不再是 `running`。任何 gdbserver 关键测试通过或失败后，
+都要在 `gemmini-rocc-tests`、`generators/gemmini` 和 top-level 仓库逐级做 checkpoint
+commit，commit message 写清 AGFI/AFI、runtime/HWDB、命令、结果、证据目录和限制。
 
 ## 6. 标准执行步骤
 

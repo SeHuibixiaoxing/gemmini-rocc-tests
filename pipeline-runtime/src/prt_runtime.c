@@ -3383,6 +3383,43 @@ static int runtime_prepare_stage_spm_windows(prt_runtime_t *rt) {
   if (!exec) return PRT_ERR_STATE;
   action = prt_runtime_current_action(rt);
   page_bytes = rt->cfg.page_size_bytes ? rt->cfg.page_size_bytes : PRT_PAGE_SIZE_BYTES;
+  for (uint32_t a = 0; a < exec->stage_thread_count; ++a) {
+    const prt_stage_map_t *sa = runtime_stage_map(rt, a);
+    uint64_t a_start;
+    uint64_t a_end;
+    if (!sa) return PRT_ERR_STATE;
+    if (sa->local_spm_page_span == 0U) continue;
+    a_start = (uint64_t)sa->exec_base_vpage;
+    a_end = a_start + (uint64_t)sa->local_spm_page_span;
+    if (a_end < a_start) {
+      fprintf(stderr,
+              "prepare_stage_spm_windows: stage=%u SPM window overflows start=%llu span=%u\n",
+              a, (unsigned long long)a_start, sa->local_spm_page_span);
+      return PRT_ERR_PARSE;
+    }
+    for (uint32_t b = a + 1U; b < exec->stage_thread_count; ++b) {
+      const prt_stage_map_t *sb = runtime_stage_map(rt, b);
+      uint64_t b_start;
+      uint64_t b_end;
+      if (!sb) return PRT_ERR_STATE;
+      if (sb->local_spm_page_span == 0U) continue;
+      b_start = (uint64_t)sb->exec_base_vpage;
+      b_end = b_start + (uint64_t)sb->local_spm_page_span;
+      if (b_end < b_start) {
+        fprintf(stderr,
+                "prepare_stage_spm_windows: stage=%u SPM window overflows start=%llu span=%u\n",
+                b, (unsigned long long)b_start, sb->local_spm_page_span);
+        return PRT_ERR_PARSE;
+      }
+      if (a_start < b_end && b_start < a_end) {
+        fprintf(stderr,
+                "prepare_stage_spm_windows: stage SPM windows overlap: stage=%u [%llu,%llu) stage=%u [%llu,%llu)\n",
+                a, (unsigned long long)a_start, (unsigned long long)a_end,
+                b, (unsigned long long)b_start, (unsigned long long)b_end);
+        return PRT_ERR_PARSE;
+      }
+    }
+  }
   for (uint32_t stage_id = 0; stage_id < exec->stage_thread_count; ++stage_id) {
     const prt_stage_map_t *stage = runtime_stage_map(rt, stage_id);
     uint32_t span;
