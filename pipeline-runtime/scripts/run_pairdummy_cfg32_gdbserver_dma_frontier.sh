@@ -21,8 +21,13 @@ Environment:
   PRT_GDB_FRONTIER_FUNC        Breakpoint function. Default: dma_blocking_wait.
   PRT_GDB_FRONTIER_CONDITION   GDB C expression. Default targets stage0 tensor2 token>=546.
   PRT_GDB_FRONTIER_TIMEOUT     Seconds to wait for frontier breakpoint. Default: 1200.
+  PRT_GDB_POST_HIT_MODE        interrupt or path_trace. Default: interrupt.
   PRT_GDB_POST_HIT_SECONDS     Seconds to run after breakpoint before Ctrl-C. Default: 8.
   PRT_GDB_INTERRUPT_TIMEOUT    Seconds to wait for Ctrl-C stop. Default: 240.
+  PRT_GDB_PATH_TRACE_TIMEOUT   Seconds to wait for each path breakpoint. Default: 90.
+  PRT_GDB_PATH_TRACE_MAX_STOPS Maximum path stops after the frontier hit. Default: 12.
+  PRT_GDB_PATH_TRACE_BREAKPOINTS
+                                Comma-separated label=addr specs. Suffix :temp makes a tbreak.
 EOF
 }
 
@@ -60,8 +65,12 @@ static_neigh_mac="${PRT_GDB_STATIC_NEIGH_MAC:-}"
 frontier_func="${PRT_GDB_FRONTIER_FUNC:-dma_blocking_wait}"
 frontier_condition="${PRT_GDB_FRONTIER_CONDITION:-tok != 0 && tok->stage_idx == 0 && tok->tensor_id == 2 && tok->id >= 546}"
 frontier_timeout="${PRT_GDB_FRONTIER_TIMEOUT:-1200}"
+post_hit_mode="${PRT_GDB_POST_HIT_MODE:-interrupt}"
 post_hit_seconds="${PRT_GDB_POST_HIT_SECONDS:-8}"
 interrupt_timeout="${PRT_GDB_INTERRUPT_TIMEOUT:-240}"
+path_trace_timeout="${PRT_GDB_PATH_TRACE_TIMEOUT:-90}"
+path_trace_max_stops="${PRT_GDB_PATH_TRACE_MAX_STOPS:-12}"
+path_trace_breakpoints="${PRT_GDB_PATH_TRACE_BREAKPOINTS:-before_decision=0x15670,poll_env_check=0x15bf4,poll_emit_start=0x15c24,poll_noemit_start=0x15f56,poll_loop_first=0x15ce8:temp,poll_done=0x15de4,poll_ok_exit=0x15e50,poll_timeout=0x15e64,hw_dma_fence=0x15674,after_wait_refresh=0x15688,shared_rr_fence=0x15882,release_scope=0x15af0,token_complete=0x159ea,return=0x15ad4}"
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 out_dir="${out_root}/pairdummy-cfg32-dma-frontier-${stamp}-${run_host_ip//./_}-${guest_ip//./_}"
 tunnel_log="${out_dir}/ssh-tunnel.log"
@@ -71,7 +80,15 @@ expect_stdout="${out_dir}/expect-driver.stdout"
 
 mkdir -p "${out_dir}"
 
-for numeric in frontier_timeout post_hit_seconds interrupt_timeout; do
+case "${post_hit_mode}" in
+  interrupt|path_trace) ;;
+  *)
+    echo "invalid PRT_GDB_POST_HIT_MODE=${post_hit_mode}; expected interrupt or path_trace" >&2
+    exit 2
+    ;;
+esac
+
+for numeric in frontier_timeout post_hit_seconds interrupt_timeout path_trace_timeout path_trace_max_stops; do
   value="${!numeric}"
   if [[ ! "${value}" =~ ^[0-9]+$ || "${value}" -lt 1 ]]; then
     echo "invalid ${numeric}=${value}" >&2
@@ -172,6 +189,10 @@ set frontier_condition [lindex $argv 5]
 set frontier_timeout [lindex $argv 6]
 set post_hit_seconds [lindex $argv 7]
 set interrupt_timeout [lindex $argv 8]
+set post_hit_mode [lindex $argv 9]
+set path_trace_timeout [lindex $argv 10]
+set path_trace_max_stops [lindex $argv 11]
+set path_trace_breakpoints [lindex $argv 12]
 
 log_file -noappend $transcript
 spawn $gdb -q $elf
@@ -256,6 +277,115 @@ proc continue_then_interrupt {post_hit_seconds interrupt_timeout} {
     }
 }
 
+proc continue_to_path_stop {timeout_s stop_index} {
+    set old_timeout $::timeout
+    set ::timeout $timeout_s
+    puts "GDB_DMA_PATH_CONTINUE index=$stop_index timeout_s=$timeout_s"
+    send -- "continue\r"
+    expect {
+        -re "Breakpoint \[0-9\]+, .*" {
+            need_prompt
+            set ::timeout $old_timeout
+            return 0
+        }
+        -re "Temporary breakpoint \[0-9\]+, .*" {
+            need_prompt
+            set ::timeout $old_timeout
+            return 0
+        }
+        -re "Program received signal SIGTRAP|Thread .* received signal SIGTRAP" {
+            need_prompt
+            set ::timeout $old_timeout
+            return 0
+        }
+        -re "Program received signal SIGINT|Thread .* received signal SIGINT" {
+            need_prompt
+            set ::timeout $old_timeout
+            return 0
+        }
+        -re "exited normally|exited with code" {
+            puts "GDB_DMA_PATH_INFERIOR_EXITED index=$stop_index"
+            need_prompt
+            set ::timeout $old_timeout
+            return 1
+        }
+        timeout {
+            puts stderr "timeout waiting for DMA path breakpoint index=$stop_index"
+            exit 21
+        }
+        eof {
+            puts stderr "gdb exited during DMA path continue index=$stop_index"
+            exit 22
+        }
+    }
+}
+
+proc dump_dma_wait_context {label} {
+    puts "GDB_DMA_CONTEXT_BEGIN label=$label"
+    gdb_cmd "info registers pc sp ra a0 a1 a2 a3 s2 s9 s11 t3" 120
+    gdb_cmd "bt 10" 300
+    gdb_cmd "print/x tok" 120
+    gdb_cmd "print tok->id" 120
+    gdb_cmd "print tok->stage_idx" 120
+    gdb_cmd "print tok->tensor_id" 120
+    gdb_cmd "print tok->rr_manager_id" 120
+    gdb_cmd "print tok->rr_scope_valid" 120
+    gdb_cmd "print tok->rr_scope_external" 120
+    gdb_cmd "print tok->hw_done_flag" 120
+    gdb_cmd "print tok->done" 120
+    gdb_cmd "print tok->status" 120
+    gdb_cmd "print/x tok->completion_flag" 120
+    gdb_cmd "x/wx tok->completion_flag" 120
+    gdb_cmd "print/x tok->debug_src_addr" 120
+    gdb_cmd "print/x tok->debug_dst_addr" 120
+    gdb_cmd "print/x tok->debug_done_flag_pa" 120
+    gdb_cmd "print tok->debug_bytes" 120
+    gdb_cmd "print/x (prt_dma_token_t *)\$s11" 120
+    gdb_cmd "print ((prt_dma_token_t *)\$s11)->id" 120
+    gdb_cmd "print ((prt_dma_token_t *)\$s11)->stage_idx" 120
+    gdb_cmd "print ((prt_dma_token_t *)\$s11)->tensor_id" 120
+    gdb_cmd "print ((prt_dma_token_t *)\$s11)->rr_manager_id" 120
+    gdb_cmd "print ((prt_dma_token_t *)\$s11)->rr_scope_valid" 120
+    gdb_cmd "print ((prt_dma_token_t *)\$s11)->rr_scope_external" 120
+    gdb_cmd "print ((prt_dma_token_t *)\$s11)->hw_done_flag" 120
+    gdb_cmd "print ((prt_dma_token_t *)\$s11)->done" 120
+    gdb_cmd "print ((prt_dma_token_t *)\$s11)->status" 120
+    gdb_cmd "print/x ((prt_dma_token_t *)\$s11)->completion_flag" 120
+    gdb_cmd "x/wx ((prt_dma_token_t *)\$s11)->completion_flag" 120
+    gdb_cmd "print/x ((prt_dma_token_t *)\$s11)->debug_src_addr" 120
+    gdb_cmd "print/x ((prt_dma_token_t *)\$s11)->debug_dst_addr" 120
+    gdb_cmd "print/x ((prt_dma_token_t *)\$s11)->debug_done_flag_pa" 120
+    gdb_cmd "print ((prt_dma_token_t *)\$s11)->debug_bytes" 120
+    gdb_cmd "x/12i \$pc" 120
+    puts "GDB_DMA_CONTEXT_END label=$label"
+}
+
+proc set_dma_path_breakpoints {breakpoint_specs} {
+    foreach raw_spec [split $breakpoint_specs ","] {
+        set spec [string trim $raw_spec]
+        if {$spec eq ""} {
+            continue
+        }
+        set temporary 0
+        if {[string match "*:temp" $spec]} {
+            set temporary 1
+            set spec [string range $spec 0 end-5]
+        }
+        if {![regexp {^([^=]+)=(0x[0-9a-fA-F]+)$} $spec -> label addr]} {
+            puts stderr "invalid path breakpoint spec: $raw_spec"
+            exit 23
+        }
+        if {$temporary} {
+            gdb_cmd "tbreak *$addr" 120
+            puts "GDB_DMA_PATH_TBREAK_SET label=$label addr=$addr"
+        } else {
+            gdb_cmd "break *$addr" 120
+            puts "GDB_DMA_PATH_BREAK_SET label=$label addr=$addr"
+        }
+    }
+    gdb_cmd "info breakpoints" 120
+}
+
 need_prompt
 gdb_cmd "set pagination off"
 gdb_cmd "set confirm off"
@@ -281,6 +411,33 @@ if {$exited} {
     exit 0
 }
 puts "GDB_DMA_FRONTIER_MARK_HIT"
+dump_dma_wait_context "frontier-hit"
+gdb_cmd "thread apply all bt" 300
+gdb_cmd "disable"
+
+if {$post_hit_mode eq "path_trace"} {
+    puts "GDB_DMA_PATH_TRACE_MARK_START"
+    set_dma_path_breakpoints $path_trace_breakpoints
+    set path_exited 0
+    for {set i 1} {$i <= $path_trace_max_stops} {incr i} {
+        set path_exited [continue_to_path_stop $path_trace_timeout $i]
+        if {$path_exited} {
+            break
+        }
+        dump_dma_wait_context "path-stop-$i"
+    }
+    puts "GDB_DMA_PATH_TRACE_MARK_DONE exited=$path_exited"
+} else {
+    set exited_after [continue_then_interrupt $post_hit_seconds $interrupt_timeout]
+    if {!$exited_after} {
+        puts "GDB_DMA_FRONTIER_MARK_INTERRUPTED_AFTER_HIT"
+        gdb_cmd "info threads"
+        gdb_cmd "thread apply all bt" 300
+        gdb_cmd "info registers pc sp ra a0 a1 a2 a3"
+        gdb_cmd "x/16i \$pc"
+    }
+}
+
 gdb_cmd "bt" 300
 gdb_cmd "info threads"
 gdb_cmd "thread apply all bt" 300
@@ -298,16 +455,6 @@ gdb_cmd "print/x tok->debug_dst_addr"
 gdb_cmd "print/x tok->debug_done_flag_pa"
 gdb_cmd "print tok->debug_bytes"
 gdb_cmd "x/16i \$pc"
-gdb_cmd "disable"
-
-set exited_after [continue_then_interrupt $post_hit_seconds $interrupt_timeout]
-if {!$exited_after} {
-    puts "GDB_DMA_FRONTIER_MARK_INTERRUPTED_AFTER_HIT"
-    gdb_cmd "info threads"
-    gdb_cmd "thread apply all bt" 300
-    gdb_cmd "info registers pc sp ra a0 a1 a2 a3"
-    gdb_cmd "x/16i \$pc"
-}
 
 set timeout 180
 send -- "detach\r"
@@ -327,7 +474,11 @@ echo "[pairdummy-gdb-dma-frontier] tunnel localhost:${local_port} -> ${guest_ip}
 echo "[pairdummy-gdb-dma-frontier] target_bin=${target_bin}"
 echo "[pairdummy-gdb-dma-frontier] frontier_func=${frontier_func}"
 echo "[pairdummy-gdb-dma-frontier] frontier_condition=${frontier_condition}"
-echo "[pairdummy-gdb-dma-frontier] frontier_timeout=${frontier_timeout} post_hit_seconds=${post_hit_seconds}"
+echo "[pairdummy-gdb-dma-frontier] frontier_timeout=${frontier_timeout} post_hit_mode=${post_hit_mode} post_hit_seconds=${post_hit_seconds}"
+if [[ "${post_hit_mode}" == "path_trace" ]]; then
+  echo "[pairdummy-gdb-dma-frontier] path_trace_timeout=${path_trace_timeout} path_trace_max_stops=${path_trace_max_stops}"
+  echo "[pairdummy-gdb-dma-frontier] path_trace_breakpoints=${path_trace_breakpoints}"
+fi
 echo "[pairdummy-gdb-dma-frontier] out_dir=${out_dir}"
 
 set +e
@@ -341,6 +492,10 @@ set +e
   "${frontier_timeout}" \
   "${post_hit_seconds}" \
   "${interrupt_timeout}" \
+  "${post_hit_mode}" \
+  "${path_trace_timeout}" \
+  "${path_trace_max_stops}" \
+  "${path_trace_breakpoints}" \
   >"${expect_stdout}" 2>"${out_dir}/expect-driver.stderr"
 expect_rc=$?
 set -e

@@ -1,0 +1,5 @@
+path=/home/ubuntu/chipyard/tmp/firesim-aws-f2/gdbserver-tests/pairdummy-cfg32-dma-frontier-20260507T112758Z-192_168_1_151-172_16_0_2/remote-after-detach/bertmini-batch8.breadcrumb.2.bin
+version=1 enabled=1 slot_count=64 update_count=9391 last_slot=43 last_kind=dma last_phase=dma_wait_before_fence last_update_ns=22828687000
+filters segment=0 global_stage=0 local_stage=0 subbatch=any stage_radius=0 subbatch_radius=0
+last_slot:
+slot=43 kind=dma phase=dma_wait_before_fence seq=266 mono_ns=22828687000 seg=0 gstage=0 lstage=0 sb=1 tensor=2 tok=541 mgr=0 page=26 rc=0 flags=0x3 src=0x40202c00 dst=0x103d69c00 aux0=0x103264000 aux1=0x12a05f200 line=3571

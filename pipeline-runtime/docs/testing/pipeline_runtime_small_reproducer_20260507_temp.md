@@ -56,7 +56,7 @@ PIPELINE_RUNTIME_BREADCRUMB_ENABLE=1
 PIPELINE_RUNTIME_GDBSERVER_ENABLE=1
 ```
 
-Expected frontier should still be:
+Expected historical frontier should still be:
 
 ```text
 segment=0 global_stage=0 local_stage=0 subbatch=1 tensor=2
@@ -70,6 +70,19 @@ window rather than relying only on exact equality:
 ```gdb
 break dma_blocking_wait if tok != 0 && tok->stage_idx == 0 && tok->tensor_id == 2 && tok->id >= 540 && tok->id <= 560
 ```
+
+Update from the first batch2 GDB path-trace run: the window condition above
+does catch the batch2 export sequence, but it stops at token 540 first. Token
+540 cleanly completed done-flag poll, shared ReRoCC fence, token completion, and
+`dma_blocking_wait()` return. For the historical card point, the next run should
+use exact token 546:
+
+```gdb
+break dma_blocking_wait if tok != 0 && tok->stage_idx == 0 && tok->tensor_id == 2 && tok->id == 546
+```
+
+Use `PRT_GDB_PATH_TRACE_MAX_STOPS=10` so the trace stops after one token's
+return path instead of rolling into token 547.
 
 ## Next GDB strategy
 
@@ -112,4 +125,3 @@ The small reproducer is useful if it can answer one of these:
   focus shifts to token cleanup or external ReRoCC scope release.
 - poll is not reached: inspect the very first lines of `dma_blocking_wait()` and
   any side effects from logs/breadcrumb/completion flag refresh.
-
