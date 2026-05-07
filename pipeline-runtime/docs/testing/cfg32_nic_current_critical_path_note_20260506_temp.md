@@ -206,3 +206,26 @@ Implication:
 - If it fails with the same `Constraints 18-4430` DFX PartPin pattern as 8p,
   the next RTL/config experiment should be a targeted boundary/floorplan fix,
   not another blind resource reduction.
+
+## 2026-05-07 00:22 UTC Update
+
+The 12p dummy8x8/sbus64 build is still actively running. The Vivado log mtime
+updated at `00:22:20 UTC`, and the process showed about `284%` CPU with about
+`71.8 GB` RSS.
+
+No packaging collateral exists yet.
+
+The latest visible post-route phys-opt messages returned to the PCIS/RL_SHIM
+family:
+
+```text
+WRAPPER/RL_SHIM/DMA_PCIS_AXI_REG_SLC/AXI_REGISTER_SLICE/inst/r.r_pipe/Q[471]
+WRAPPER/CL/CL_DMA_PCIS_SLV/AXI4_REG_SLC_PCIS_SLR2/inst/r.r_pipe/M_PAYLOAD_DATA[471]
+WRAPPER/CL/CL_DMA_PCIS_SLV/AXI4_REG_SLC_PCIS_SLR2/inst/ar.ar_pipe/M_PAYLOAD_DATA[73]
+WRAPPER/RL_SHIM/DMA_PCIS_AXI_REG_SLC/AXI_REGISTER_SLICE/inst/ar.ar_pipe/Q[72]
+```
+
+Vivado also warned that a `-through` constraint on
+`WRAPPER/CL/cl_sh_dma_pcis_rdata[471]` blocks downstream optimization. Together
+with the earlier warning on `sh_cl_dma_pcis_arlen[4]`, this points at a broader
+PCIS shell-boundary constraint/optimization limitation, not a single-bit issue.

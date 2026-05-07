@@ -1185,3 +1185,39 @@ Interpretation:
 - Because the 8p dummy16x16/sbus128 build has now failed with DFX PartPin errors
   and no AFI/AGFI, this 12p dummy8x8/sbus64 build is the only remaining active
   hardware candidate.
+
+## 1200s Window Monitor - 2026-05-07 00:22 UTC
+
+Remote host `192.168.1.77` is still running the 12p dummy8x8/sbus64 build.
+
+At `00:22:59 UTC`:
+
+- Vivado is still alive.
+- `ps` showed the Vivado process elapsed time around `09:46:44`, CPU around
+  `284%`, and RSS around `71.8 GB`.
+- the Vivado log mtime was `2026-05-07 00:22:20 UTC`, confirming the process is
+  still making log progress rather than only being a stale process.
+- no `*.post_route_phys_opt.dcp` exists yet.
+- no `*.post_route_phys_opt_timing.rpt` exists yet.
+- no `Developer_CL.tar`, `to_aws`, manifest, AFI, or AGFI exists yet.
+
+Newest visible log lines:
+
+```text
+INFO: [Physopt 32-952] Improved path group WNS = -1.814. Path group: mmcm_clkout0.
+INFO: [Physopt 32-952] Improved path group WNS = -1.811. Path group: mmcm_clkout0.
+INFO: [Physopt 32-953] Path group WNS did not improve. Path group: clk_main_a0. Processed net: WRAPPER/RL_SHIM/DMA_PCIS_AXI_REG_SLC/AXI_REGISTER_SLICE/inst/r.r_pipe/Q[471].
+WARNING: [Physopt 32-894] Found a constraint with the -through option on pin WRAPPER/CL/cl_sh_dma_pcis_rdata[471] or the net immediately connecting to the pin. This constraint will block optimizations for this and all downstream leaf pins.
+INFO: [Physopt 32-953] Path group WNS did not improve. Path group: WRAPPER/CL/clk_main_a0. Processed net: WRAPPER/CL/CL_DMA_PCIS_SLV/AXI4_REG_SLC_PCIS_SLR2/inst/ar.ar_pipe/M_PAYLOAD_DATA[73].
+INFO: [Physopt 32-953] Path group WNS did not improve. Path group: WRAPPER/CL/clk_main_a0. Processed net: WRAPPER/RL_SHIM/DMA_PCIS_AXI_REG_SLC/AXI_REGISTER_SLICE/inst/ar.ar_pipe/Q[72].
+```
+
+Interpretation:
+
+- The build is still actively running, not hung from the manager perspective.
+- The active post-route phys-opt work has circled back from DDR-stat paths to
+  the PCIS/RL_SHIM register-slice family.
+- The `-through` constraint warnings now include both the earlier AR channel and
+  this R-data example. This reinforces that the shell PCIS boundary constraints
+  are blocking some post-route optimizations on the same family that dominated
+  tight pins and the failed 8p DFX boundary errors.
