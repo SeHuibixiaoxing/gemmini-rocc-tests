@@ -161,6 +161,26 @@ static uint32_t prt_gdb_marker_site_from_env(void) {
   }
   if (strcmp(value, "dma-wait-enter") == 0) return PRT_GDB_MARKER_SITE_DMA_WAIT_ENTER;
   if (strcmp(value, "dma-wait-return") == 0) return PRT_GDB_MARKER_SITE_DMA_WAIT_RETURN;
+  if (strcmp(value, "artifact-mapping-parse-done") == 0 ||
+      strcmp(value, "mapping-parse-done") == 0) {
+    return PRT_GDB_MARKER_SITE_ARTIFACT_MAPPING_PARSE_DONE;
+  }
+  if (strcmp(value, "artifact-validate-done") == 0 ||
+      strcmp(value, "validate-artifacts-done") == 0) {
+    return PRT_GDB_MARKER_SITE_ARTIFACT_VALIDATE_DONE;
+  }
+  if (strcmp(value, "synthetic-model-prefault-begin") == 0 ||
+      strcmp(value, "synthetic-prefault-begin") == 0) {
+    return PRT_GDB_MARKER_SITE_SYNTHETIC_MODEL_PREFAULT_BEGIN;
+  }
+  if (strcmp(value, "synthetic-model-prefault-end") == 0 ||
+      strcmp(value, "synthetic-prefault-end") == 0) {
+    return PRT_GDB_MARKER_SITE_SYNTHETIC_MODEL_PREFAULT_END;
+  }
+  if (strcmp(value, "synthetic-model-ready") == 0 ||
+      strcmp(value, "synthetic-ready") == 0) {
+    return PRT_GDB_MARKER_SITE_SYNTHETIC_MODEL_READY;
+  }
   errno = 0;
   parsed = strtoul(value, &end, 0);
   if (errno != 0 || end == value || (end && *end != '\0') || parsed > UINT32_MAX) {

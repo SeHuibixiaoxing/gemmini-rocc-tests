@@ -241,6 +241,13 @@ PIPELINE_RUNTIME_GDB_MARKER_TOKEN=546
 
 空值、未设置、`any` 或 `*` 都表示不过滤该字段。常用 `SITE`：
 
+- `artifact-mapping-parse-done` / `mapping-parse-done`：确认 layer mapping YAML 已解析完。
+- `artifact-validate-done` / `validate-artifacts-done`：确认 artifact validation 已完成。
+- `synthetic-model-prefault-begin` / `synthetic-prefault-begin`：定位 synthetic model blob
+  预触页开始。
+- `synthetic-model-prefault-end` / `synthetic-prefault-end`：确认 synthetic model blob
+  预触页循环已经返回。
+- `synthetic-model-ready` / `synthetic-ready`：确认 synthetic model blob 已 commit 到 runtime。
 - `runtime-ready`：跳过 YAML、artifact 校验和 synthetic model prefault 的早期噪声。
 - `segment-begin`：按 segment 边界收窄。
 - `worker-entry`：确认 worker 线程是否已经进入目标 stage。

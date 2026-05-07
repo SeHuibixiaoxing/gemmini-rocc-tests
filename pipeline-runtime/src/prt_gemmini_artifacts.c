@@ -1,4 +1,5 @@
 #include "prt_gemmini_artifacts.h"
+#include "prt_debug_state.h"
 #include "prt_progress.h"
 
 #include <ctype.h>
@@ -1058,9 +1059,17 @@ static int parse_mapping_file(const char *path, mapping_db_t *db) {
     }
   }
 
-  PRT_PROGRESS_LOG("artifacts mapping parse done layer_mapping=%s entries=%u elapsed_ms=%llu",
-                   path, db->count,
-                   (unsigned long long)(monotonic_ms() - parse_start_ms));
+  {
+    uint64_t parse_elapsed_ms = monotonic_ms() - parse_start_ms;
+    PRT_PROGRESS_LOG("artifacts mapping parse done layer_mapping=%s entries=%u elapsed_ms=%llu",
+                     path, db->count, (unsigned long long)parse_elapsed_ms);
+    prt_gdb_marker_note(PRT_GDB_MARKER_SITE_ARTIFACT_MAPPING_PARSE_DONE,
+                        PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE,
+                        PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE,
+                        PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE,
+                        PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE, PRT_OK,
+                        (uint64_t)db->count, parse_elapsed_ms, __LINE__);
+  }
   free(buf);
   return PRT_OK;
 }
@@ -1225,6 +1234,13 @@ int prt_validate_gemmini_artifacts(const char *model_yaml, const char *layer_map
   }
   PRT_PROGRESS_LOG("artifacts validate end layer_mapping=%s segments=%u",
                    layer_mapping_yaml, pipeline->num_segments);
+  prt_gdb_marker_note(PRT_GDB_MARKER_SITE_ARTIFACT_VALIDATE_DONE,
+                      PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE,
+                      PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE,
+                      PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE,
+                      PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE, PRT_OK,
+                      (uint64_t)pipeline->num_segments, (uint64_t)db.count,
+                      __LINE__);
   rc = PRT_OK;
 out:
   mapping_db_reset(&db);

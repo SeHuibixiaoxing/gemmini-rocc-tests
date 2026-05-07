@@ -972,6 +972,15 @@ static int prefault_and_lock_blob(const char *kind, const char *path, void *buf,
   if (!buf || blob_size == 0U) return PRT_OK;
   (void)total_pages;
 
+  if (strcmp(tag, "synthetic-model alloc") == 0) {
+    prt_runtime_gdb_marker(PRT_GDB_MARKER_SITE_SYNTHETIC_MODEL_PREFAULT_BEGIN,
+                           PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE,
+                           PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE,
+                           PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE,
+                           PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE, PRT_OK,
+                           (uint64_t)blob_size, (uint64_t)total_pages,
+                           __LINE__);
+  }
   PRT_PROGRESS_LOG("%s before-prefault path=%s ptr=%p size=%zu page_bytes=%zu mode=write-preserve",
                    tag, blob_path, buf, blob_size, step);
   for (size_t off = 0; off < blob_size; off += step) {
@@ -1000,6 +1009,15 @@ static int prefault_and_lock_blob(const char *kind, const char *path, void *buf,
   (void)sink;
   PRT_PROGRESS_LOG("%s after-prefault path=%s ptr=%p size=%zu page_bytes=%zu mode=write-preserve",
                    tag, blob_path, buf, blob_size, step);
+  if (strcmp(tag, "synthetic-model alloc") == 0) {
+    prt_runtime_gdb_marker(PRT_GDB_MARKER_SITE_SYNTHETIC_MODEL_PREFAULT_END,
+                           PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE,
+                           PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE,
+                           PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE,
+                           PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE, PRT_OK,
+                           (uint64_t)blob_size, (uint64_t)touched_pages,
+                           __LINE__);
+  }
 
   errno = prior_errno;
   PRT_PROGRESS_LOG("%s before-mlock path=%s ptr=%p size=%zu",
@@ -1330,6 +1348,13 @@ static int allocate_synthetic_model_blob(prt_runtime_t *rt) {
   PRT_PROGRESS_LOG("synthetic-model alloc commit ptr=%p size=%zu offset=%zu mmap=%u",
                    rt->model_blob, rt->model_blob_size, rt->model_blob_offset,
                    rt->model_blob_is_mmap);
+  prt_runtime_gdb_marker(PRT_GDB_MARKER_SITE_SYNTHETIC_MODEL_READY,
+                         PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE,
+                         PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE,
+                         PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE,
+                         PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE, PRT_OK,
+                         (uint64_t)rt->model_blob_size,
+                         (uint64_t)rt->model_blob_offset, __LINE__);
   return PRT_OK;
 }
 
