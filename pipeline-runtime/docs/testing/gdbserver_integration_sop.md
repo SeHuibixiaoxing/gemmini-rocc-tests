@@ -1,6 +1,6 @@
 # Pipeline Runtime gdbserver Integration SOP
 
-更新时间：`2026-05-07 14:58 UTC`
+更新时间：`2026-05-07 15:10 UTC`
 
 ## 1. 目标
 
@@ -198,6 +198,54 @@ PAIRDUMMY_SBUS64_DISABLE_MAPPING_CACHE=0
 这只改变 artifact mapping 加载路径，不改变 DMA/RoCC 执行语义；启用后仍必须重做
 `marshal-build`、`marshal-install`、freshness、`launch/infrasetup/run`，并在 debug record
 里把 cache 状态写清楚。
+
+### 3.3 源码条件 marker 定位
+
+当已知卡点大概落在某个 segment、stage、tensor、page 或 token 附近时，优先使用
+源码条件 marker，而不是继续扩大无断点采样时间。做法是在源码里保留一个
+`noinline` 的 `prt_gdb_marker_stop()`，运行时先把当前上下文写入
+`g_prt_gdb_marker_state`，再调用该函数。GDB 只需要打：
+
+```gdb
+break prt_gdb_marker_stop
+continue
+print g_prt_gdb_marker_state
+thread apply all bt
+```
+
+到达 marker 后目标已经停住，此时可以安全地动态修改断点集合，例如删除
+`prt_gdb_marker_stop`，再添加 `sync_stage_export_aliases`、`dma_blocking_wait`、
+`prt_gemm_conv_run` 或具体 `file:line` 断点，然后继续运行。这就是“先用条件 marker
+跳到局部窗口，再现场换更窄断点”的标准流程。
+
+当前 marker 默认关闭。单次 workflow 可通过以下变量打开和过滤：
+
+```bash
+PIPELINE_RUNTIME_GDB_MARKER_ENABLE=1
+PIPELINE_RUNTIME_GDB_MARKER_SITE=runtime-ready
+PIPELINE_RUNTIME_GDB_MARKER_SEGMENT=0
+PIPELINE_RUNTIME_GDB_MARKER_GLOBAL_STAGE=0
+PIPELINE_RUNTIME_GDB_MARKER_LOCAL_STAGE=0
+PIPELINE_RUNTIME_GDB_MARKER_SUBBATCH=0
+PIPELINE_RUNTIME_GDB_MARKER_MANAGER=0
+PIPELINE_RUNTIME_GDB_MARKER_TENSOR=2
+PIPELINE_RUNTIME_GDB_MARKER_PAGE=546
+PIPELINE_RUNTIME_GDB_MARKER_TOKEN=546
+```
+
+空值、未设置、`any` 或 `*` 都表示不过滤该字段。常用 `SITE`：
+
+- `runtime-ready`：跳过 YAML、artifact 校验和 synthetic model prefault 的早期噪声。
+- `segment-begin`：按 segment 边界收窄。
+- `worker-entry`：确认 worker 线程是否已经进入目标 stage。
+- `worker-gemm-run`：定位 compute 前后。
+- `worker-export-sync` / `export-sync-tensor`：定位 export 同步路径。
+- `dma-export-page-submit-begin` / `dma-export-page-submit-end`：按 export page 定位。
+- `dma-wait-enter` / `dma-wait-return`：定位 DMA wait 是否返回。
+
+注意：这不是 hardware breakpoint；它仍是普通 software breakpoint 停在一个稳定函数符号上，
+所以适合当前 1BP 硬件限制。由于 `gdbserver --once` 只能服务一次 TCP GDB 会话，
+每轮 marker 条件要在启动前写入 guest env；命中后在同一 GDB session 内动态增删断点。
 
 ## 4. 关键约束
 

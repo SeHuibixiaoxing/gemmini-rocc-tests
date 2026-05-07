@@ -6,8 +6,8 @@ usage() {
 Usage: render_pairdummy_guest_env.sh <output-path>
 
 Render the effective pairdummy guest /firemarshal.env by starting from the
-checked-in baseline and applying only the temporary
-PIPELINE_RUNTIME_DEBUG_TRIGGER_* and selected
+checked-in baseline and applying only the temporary GDB marker,
+PIPELINE_RUNTIME_DEBUG_TRIGGER_*, and selected
 PIPELINE_RUNTIME_BREADCRUMB_*/PIPELINE_RUNTIME_DEBUG_FILTER_* overrides from
 the current shell environment.
 EOF
@@ -164,6 +164,19 @@ gdbserver_env_names=(
   PIPELINE_RUNTIME_GDBSERVER_CONSOLE_PATH
 )
 
+gdb_marker_env_names=(
+  PIPELINE_RUNTIME_GDB_MARKER_ENABLE
+  PIPELINE_RUNTIME_GDB_MARKER_SITE
+  PIPELINE_RUNTIME_GDB_MARKER_SEGMENT
+  PIPELINE_RUNTIME_GDB_MARKER_GLOBAL_STAGE
+  PIPELINE_RUNTIME_GDB_MARKER_LOCAL_STAGE
+  PIPELINE_RUNTIME_GDB_MARKER_SUBBATCH
+  PIPELINE_RUNTIME_GDB_MARKER_MANAGER
+  PIPELINE_RUNTIME_GDB_MARKER_TENSOR
+  PIPELINE_RUNTIME_GDB_MARKER_PAGE
+  PIPELINE_RUNTIME_GDB_MARKER_TOKEN
+)
+
 local_gdb_env_names=(
   PIPELINE_RUNTIME_LOCAL_GDB_ENABLE
   PIPELINE_RUNTIME_LOCAL_GDB_TOOL
@@ -230,6 +243,12 @@ for env_name in "${dma_env_names[@]}"; do
 done
 
 for env_name in "${gdbserver_env_names[@]}"; do
+  if [[ -n "${!env_name+x}" ]]; then
+    apply_override "${env_name}" "${!env_name}"
+  fi
+done
+
+for env_name in "${gdb_marker_env_names[@]}"; do
   if [[ -n "${!env_name+x}" ]]; then
     apply_override "${env_name}" "${!env_name}"
   fi

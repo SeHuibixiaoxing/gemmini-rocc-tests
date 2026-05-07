@@ -18,6 +18,7 @@
 
 #include "prt_progress.h"
 #include "prt_breadcrumb.h"
+#include "prt_debug_state.h"
 #include "prt_runtime.h"
 #include "prt_rerocc.h"
 #include "prt_trigger_log.h"
@@ -998,6 +999,11 @@ static int dma_copy_spm_pages_to_host_linux(prt_runtime_t *rt, uint8_t *dst_host
         dma_breadcrumb_page_begin(tensor_id, manager_id, i, &req,
                                   used_bounce ? PRT_BREADCRUMB_FLAG_BOUNCE : 0U,
                                   timeout_ns);
+        prt_gdb_marker_note(PRT_GDB_MARKER_SITE_DMA_EXPORT_PAGE_SUBMIT_BEGIN,
+                            PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE, stage_idx,
+                            PRT_DEBUG_U32_NONE, manager_id, tensor_id, i,
+                            prt_breadcrumb_get_export_target_token(), PRT_OK,
+                            copied, chunk, __LINE__);
         if (dma_tracerv_dma_window_target_match(stage_idx, tensor_id, i, copied)) {
           tracerv_release_page_idx = i;
           tracerv_release_copied_bytes = copied;
@@ -1014,6 +1020,11 @@ static int dma_copy_spm_pages_to_host_linux(prt_runtime_t *rt, uint8_t *dst_host
         dma_breadcrumb_page_end(tensor_id, manager_id, i, &req, rc,
                                 used_bounce ? PRT_BREADCRUMB_FLAG_BOUNCE : 0U,
                                 timeout_ns);
+        prt_gdb_marker_note(PRT_GDB_MARKER_SITE_DMA_EXPORT_PAGE_SUBMIT_END,
+                            PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE, stage_idx,
+                            PRT_DEBUG_U32_NONE, manager_id, tensor_id, i,
+                            prt_breadcrumb_get_export_target_token(), rc,
+                            copied, chunk, __LINE__);
         dma_trigger_export_host("sw-e", stage_idx, manager_id, tensor_id, i, rc);
         dma_breadcrumb_export_loop_phase(stage_idx, tensor_id, manager_id, i, &req, rc,
                                          used_bounce ? PRT_BREADCRUMB_FLAG_BOUNCE : 0U,
@@ -1150,6 +1161,11 @@ static int dma_copy_spm_pages_to_host_linux(prt_runtime_t *rt, uint8_t *dst_host
       dma_breadcrumb_page_begin(tensor_id, manager_id, i, &req,
                                 used_bounce ? PRT_BREADCRUMB_FLAG_BOUNCE : 0U,
                                 timeout_ns);
+      prt_gdb_marker_note(PRT_GDB_MARKER_SITE_DMA_EXPORT_PAGE_SUBMIT_BEGIN,
+                          PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE, stage_idx,
+                          PRT_DEBUG_U32_NONE, manager_id, tensor_id, i,
+                          prt_breadcrumb_get_export_target_token(), PRT_OK,
+                          copied, chunk, __LINE__);
       if (dma_tracerv_dma_window_target_match(stage_idx, tensor_id, i, copied)) {
         tracerv_release_page_idx = i;
         tracerv_release_copied_bytes = copied;
@@ -1166,6 +1182,11 @@ static int dma_copy_spm_pages_to_host_linux(prt_runtime_t *rt, uint8_t *dst_host
       dma_breadcrumb_page_end(tensor_id, manager_id, i, &req, rc,
                               used_bounce ? PRT_BREADCRUMB_FLAG_BOUNCE : 0U,
                               timeout_ns);
+      prt_gdb_marker_note(PRT_GDB_MARKER_SITE_DMA_EXPORT_PAGE_SUBMIT_END,
+                          PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE, stage_idx,
+                          PRT_DEBUG_U32_NONE, manager_id, tensor_id, i,
+                          prt_breadcrumb_get_export_target_token(), rc,
+                          copied, chunk, __LINE__);
       dma_trigger_export_host("sw-e", stage_idx, manager_id, tensor_id, i, rc);
       dma_breadcrumb_export_loop_phase(stage_idx, tensor_id, manager_id, i, &req, rc,
                                        used_bounce ? PRT_BREADCRUMB_FLAG_BOUNCE : 0U,
@@ -3507,6 +3528,11 @@ static int dma_blocking_wait(prt_runtime_t *rt, prt_dma_token_t *tok, uint64_t t
   progress_stage_idx = tok->stage_idx;
   progress_tensor_id = tok->tensor_id;
   checkpoint_wait = dma_should_checkpoint_submit_wait_tok(tok);
+  prt_gdb_marker_note(PRT_GDB_MARKER_SITE_DMA_WAIT_ENTER,
+                      PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE, tok->stage_idx,
+                      PRT_DEBUG_U32_NONE, tok->rr_manager_id, tok->tensor_id,
+                      PRT_DEBUG_U32_NONE, tok->id, PRT_OK,
+                      tok->debug_src_addr, tok->debug_dst_addr, __LINE__);
 #if !defined(__riscv)
   (void)progress_log;
   (void)progress_token_id;
@@ -3785,6 +3811,11 @@ static int dma_blocking_wait(prt_runtime_t *rt, prt_dma_token_t *tok, uint64_t t
                       tok->debug_done_flag_pa,
                       0ULL,
                       __LINE__);
+  prt_gdb_marker_note(PRT_GDB_MARKER_SITE_DMA_WAIT_RETURN,
+                      PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE, tok->stage_idx,
+                      PRT_DEBUG_U32_NONE, tok->rr_manager_id, tok->tensor_id,
+                      PRT_DEBUG_U32_NONE, tok->id, PRT_OK,
+                      tok->debug_src_addr, tok->debug_dst_addr, __LINE__);
   return PRT_OK;
 }
 

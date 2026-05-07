@@ -1,6 +1,7 @@
 #include "prt_debug_state.h"
 
 #include <errno.h>
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -46,9 +47,56 @@
     .rr_cfg_id = PRT_DEBUG_U32_NONE, \
   }
 
+#define PRT_GDB_MARKER_STATE_INIT \
+  { \
+    .site_id = PRT_GDB_MARKER_SITE_ANY, \
+    .segment_idx = PRT_DEBUG_U32_NONE, \
+    .global_stage_id = PRT_DEBUG_U32_NONE, \
+    .local_stage_id = PRT_DEBUG_U32_NONE, \
+    .subbatch_id = PRT_DEBUG_U32_NONE, \
+    .manager_id = PRT_DEBUG_U32_NONE, \
+    .tensor_id = PRT_DEBUG_U32_NONE, \
+    .page_idx = PRT_DEBUG_U32_NONE, \
+    .token_id = PRT_DEBUG_U32_NONE, \
+    .rc = 0, \
+    .aux0 = 0, \
+    .aux1 = 0, \
+    .hit_count = 0, \
+    .line = 0, \
+  }
+
 volatile prt_debug_state_t g_prt_debug_state = PRT_DEBUG_STATE_INIT;
 PRT_DEBUG_TLS volatile prt_debug_state_t g_prt_debug_tls_state = PRT_DEBUG_STATE_INIT;
 volatile prt_debug_filter_t g_prt_debug_filter = PRT_DEBUG_FILTER_INIT;
+volatile prt_gdb_marker_state_t g_prt_gdb_marker_state = PRT_GDB_MARKER_STATE_INIT;
+
+typedef struct {
+  int initialized;
+  int enabled;
+  uint32_t site_id;
+  uint32_t segment_idx;
+  uint32_t global_stage_id;
+  uint32_t local_stage_id;
+  uint32_t subbatch_id;
+  uint32_t manager_id;
+  uint32_t tensor_id;
+  uint32_t page_idx;
+  uint32_t token_id;
+} prt_gdb_marker_filter_t;
+
+static prt_gdb_marker_filter_t g_prt_gdb_marker_filter = {
+  .initialized = 0,
+  .enabled = 0,
+  .site_id = PRT_GDB_MARKER_SITE_ANY,
+  .segment_idx = PRT_DEBUG_U32_NONE,
+  .global_stage_id = PRT_DEBUG_U32_NONE,
+  .local_stage_id = PRT_DEBUG_U32_NONE,
+  .subbatch_id = PRT_DEBUG_U32_NONE,
+  .manager_id = PRT_DEBUG_U32_NONE,
+  .tensor_id = PRT_DEBUG_U32_NONE,
+  .page_idx = PRT_DEBUG_U32_NONE,
+  .token_id = PRT_DEBUG_U32_NONE,
+};
 
 static uint32_t prt_debug_env_u32_any(const char *name) {
   const char *value = getenv(name);
@@ -63,6 +111,60 @@ static uint32_t prt_debug_env_u32_any(const char *name) {
   parsed = strtoul(value, &end, 0);
   if (errno != 0 || end == value || (end && *end != '\0') || parsed > UINT32_MAX) {
     return PRT_DEBUG_U32_NONE;
+  }
+  return (uint32_t)parsed;
+}
+
+static int prt_debug_env_flag(const char *name, int default_value) {
+  const char *value = getenv(name);
+  if (!value || !*value) return default_value;
+  if (strcmp(value, "0") == 0 || strcmp(value, "false") == 0 ||
+      strcmp(value, "off") == 0 || strcmp(value, "no") == 0) {
+    return 0;
+  }
+  return 1;
+}
+
+static uint32_t prt_gdb_marker_site_from_env(void) {
+  const char *value = getenv("PIPELINE_RUNTIME_GDB_MARKER_SITE");
+  char *end = NULL;
+  unsigned long parsed;
+  if (!value || !*value || strcmp(value, "any") == 0 || strcmp(value, "*") == 0) {
+    return PRT_GDB_MARKER_SITE_ANY;
+  }
+  if (strcmp(value, "runtime-ready") == 0 || strcmp(value, "ready") == 0) {
+    return PRT_GDB_MARKER_SITE_RUNTIME_READY;
+  }
+  if (strcmp(value, "segment-begin") == 0 || strcmp(value, "segment") == 0) {
+    return PRT_GDB_MARKER_SITE_SEGMENT_BEGIN;
+  }
+  if (strcmp(value, "worker-create") == 0) return PRT_GDB_MARKER_SITE_WORKER_CREATE;
+  if (strcmp(value, "worker-entry") == 0) return PRT_GDB_MARKER_SITE_WORKER_ENTRY;
+  if (strcmp(value, "worker-gemm-run") == 0 || strcmp(value, "gemm-run") == 0) {
+    return PRT_GDB_MARKER_SITE_WORKER_GEMM_RUN;
+  }
+  if (strcmp(value, "worker-export-sync") == 0 || strcmp(value, "export-sync") == 0) {
+    return PRT_GDB_MARKER_SITE_WORKER_EXPORT_SYNC;
+  }
+  if (strcmp(value, "export-sync-tensor") == 0) return PRT_GDB_MARKER_SITE_EXPORT_SYNC_TENSOR;
+  if (strcmp(value, "export-alias-target-begin") == 0) {
+    return PRT_GDB_MARKER_SITE_EXPORT_ALIAS_TARGET_BEGIN;
+  }
+  if (strcmp(value, "export-alias-target-end") == 0) {
+    return PRT_GDB_MARKER_SITE_EXPORT_ALIAS_TARGET_END;
+  }
+  if (strcmp(value, "dma-export-page-submit-begin") == 0) {
+    return PRT_GDB_MARKER_SITE_DMA_EXPORT_PAGE_SUBMIT_BEGIN;
+  }
+  if (strcmp(value, "dma-export-page-submit-end") == 0) {
+    return PRT_GDB_MARKER_SITE_DMA_EXPORT_PAGE_SUBMIT_END;
+  }
+  if (strcmp(value, "dma-wait-enter") == 0) return PRT_GDB_MARKER_SITE_DMA_WAIT_ENTER;
+  if (strcmp(value, "dma-wait-return") == 0) return PRT_GDB_MARKER_SITE_DMA_WAIT_RETURN;
+  errno = 0;
+  parsed = strtoul(value, &end, 0);
+  if (errno != 0 || end == value || (end && *end != '\0') || parsed > UINT32_MAX) {
+    return PRT_GDB_MARKER_SITE_ANY;
   }
   return (uint32_t)parsed;
 }
@@ -122,6 +224,113 @@ void prt_debug_filter_init_from_env(void) {
     prt_debug_env_u32_any("PIPELINE_RUNTIME_DEBUG_FILTER_RR_OPCODE");
   g_prt_debug_filter.rr_cfg_id =
     prt_debug_env_u32_any("PIPELINE_RUNTIME_DEBUG_FILTER_RR_CFG");
+}
+
+void prt_gdb_marker_init_from_env(void) {
+  g_prt_gdb_marker_filter.initialized = 1;
+  g_prt_gdb_marker_filter.enabled =
+    prt_debug_env_flag("PIPELINE_RUNTIME_GDB_MARKER_ENABLE", 0);
+  g_prt_gdb_marker_filter.site_id = prt_gdb_marker_site_from_env();
+  g_prt_gdb_marker_filter.segment_idx =
+    prt_debug_env_u32_any("PIPELINE_RUNTIME_GDB_MARKER_SEGMENT");
+  g_prt_gdb_marker_filter.global_stage_id =
+    prt_debug_env_u32_any("PIPELINE_RUNTIME_GDB_MARKER_GLOBAL_STAGE");
+  g_prt_gdb_marker_filter.local_stage_id =
+    prt_debug_env_u32_any("PIPELINE_RUNTIME_GDB_MARKER_LOCAL_STAGE");
+  g_prt_gdb_marker_filter.subbatch_id =
+    prt_debug_env_u32_any("PIPELINE_RUNTIME_GDB_MARKER_SUBBATCH");
+  g_prt_gdb_marker_filter.manager_id =
+    prt_debug_env_u32_any("PIPELINE_RUNTIME_GDB_MARKER_MANAGER");
+  g_prt_gdb_marker_filter.tensor_id =
+    prt_debug_env_u32_any("PIPELINE_RUNTIME_GDB_MARKER_TENSOR");
+  g_prt_gdb_marker_filter.page_idx =
+    prt_debug_env_u32_any("PIPELINE_RUNTIME_GDB_MARKER_PAGE");
+  g_prt_gdb_marker_filter.token_id =
+    prt_debug_env_u32_any("PIPELINE_RUNTIME_GDB_MARKER_TOKEN");
+}
+
+int prt_gdb_marker_enabled(void) {
+  if (!g_prt_gdb_marker_filter.initialized) prt_gdb_marker_init_from_env();
+  return g_prt_gdb_marker_filter.enabled;
+}
+
+static int prt_gdb_marker_match_u32(uint32_t want, uint32_t have) {
+  return want == PRT_DEBUG_U32_NONE || have == want;
+}
+
+static int prt_gdb_marker_matches(uint32_t site_id,
+                                  uint32_t segment_idx,
+                                  uint32_t global_stage_id,
+                                  uint32_t local_stage_id,
+                                  uint32_t subbatch_id,
+                                  uint32_t manager_id,
+                                  uint32_t tensor_id,
+                                  uint32_t page_idx,
+                                  uint32_t token_id) {
+  if (g_prt_gdb_marker_filter.site_id != PRT_GDB_MARKER_SITE_ANY &&
+      g_prt_gdb_marker_filter.site_id != site_id) {
+    return 0;
+  }
+  return prt_gdb_marker_match_u32(g_prt_gdb_marker_filter.segment_idx, segment_idx) &&
+         prt_gdb_marker_match_u32(g_prt_gdb_marker_filter.global_stage_id, global_stage_id) &&
+         prt_gdb_marker_match_u32(g_prt_gdb_marker_filter.local_stage_id, local_stage_id) &&
+         prt_gdb_marker_match_u32(g_prt_gdb_marker_filter.subbatch_id, subbatch_id) &&
+         prt_gdb_marker_match_u32(g_prt_gdb_marker_filter.manager_id, manager_id) &&
+         prt_gdb_marker_match_u32(g_prt_gdb_marker_filter.tensor_id, tensor_id) &&
+         prt_gdb_marker_match_u32(g_prt_gdb_marker_filter.page_idx, page_idx) &&
+         prt_gdb_marker_match_u32(g_prt_gdb_marker_filter.token_id, token_id);
+}
+
+void prt_gdb_marker_note(uint32_t site_id,
+                         uint32_t segment_idx,
+                         uint32_t global_stage_id,
+                         uint32_t local_stage_id,
+                         uint32_t subbatch_id,
+                         uint32_t manager_id,
+                         uint32_t tensor_id,
+                         uint32_t page_idx,
+                         uint32_t token_id,
+                         int rc,
+                         uint64_t aux0,
+                         uint64_t aux1,
+                         uint32_t line) {
+  if (!prt_gdb_marker_enabled()) return;
+  if (segment_idx == PRT_DEBUG_U32_NONE) {
+    segment_idx = g_prt_debug_tls_state.segment_idx;
+  }
+  if (global_stage_id == PRT_DEBUG_U32_NONE) {
+    global_stage_id = g_prt_debug_tls_state.global_stage_id;
+  }
+  if (local_stage_id == PRT_DEBUG_U32_NONE) {
+    local_stage_id = g_prt_debug_tls_state.local_stage_id;
+  }
+  if (subbatch_id == PRT_DEBUG_U32_NONE) {
+    subbatch_id = g_prt_debug_tls_state.subbatch_id;
+  }
+  if (!prt_gdb_marker_matches(site_id, segment_idx, global_stage_id,
+                              local_stage_id, subbatch_id, manager_id,
+                              tensor_id, page_idx, token_id)) {
+    return;
+  }
+  g_prt_gdb_marker_state.site_id = site_id;
+  g_prt_gdb_marker_state.segment_idx = segment_idx;
+  g_prt_gdb_marker_state.global_stage_id = global_stage_id;
+  g_prt_gdb_marker_state.local_stage_id = local_stage_id;
+  g_prt_gdb_marker_state.subbatch_id = subbatch_id;
+  g_prt_gdb_marker_state.manager_id = manager_id;
+  g_prt_gdb_marker_state.tensor_id = tensor_id;
+  g_prt_gdb_marker_state.page_idx = page_idx;
+  g_prt_gdb_marker_state.token_id = token_id;
+  g_prt_gdb_marker_state.rc = rc;
+  g_prt_gdb_marker_state.aux0 = aux0;
+  g_prt_gdb_marker_state.aux1 = aux1;
+  g_prt_gdb_marker_state.line = line;
+  prt_gdb_marker_stop();
+}
+
+void __attribute__((noinline)) prt_gdb_marker_stop(void) {
+  g_prt_gdb_marker_state.hit_count = g_prt_gdb_marker_state.hit_count + 1ULL;
+  __asm__ volatile("" ::: "memory");
 }
 
 void prt_debug_state_reset_thread(void) {

@@ -29,6 +29,23 @@ typedef enum {
 } prt_debug_phase_id_t;
 
 typedef enum {
+  PRT_GDB_MARKER_SITE_ANY = 0,
+  PRT_GDB_MARKER_SITE_RUNTIME_READY = 1,
+  PRT_GDB_MARKER_SITE_SEGMENT_BEGIN = 2,
+  PRT_GDB_MARKER_SITE_WORKER_CREATE = 3,
+  PRT_GDB_MARKER_SITE_WORKER_ENTRY = 4,
+  PRT_GDB_MARKER_SITE_WORKER_GEMM_RUN = 5,
+  PRT_GDB_MARKER_SITE_WORKER_EXPORT_SYNC = 6,
+  PRT_GDB_MARKER_SITE_EXPORT_SYNC_TENSOR = 7,
+  PRT_GDB_MARKER_SITE_EXPORT_ALIAS_TARGET_BEGIN = 8,
+  PRT_GDB_MARKER_SITE_EXPORT_ALIAS_TARGET_END = 9,
+  PRT_GDB_MARKER_SITE_DMA_EXPORT_PAGE_SUBMIT_BEGIN = 10,
+  PRT_GDB_MARKER_SITE_DMA_EXPORT_PAGE_SUBMIT_END = 11,
+  PRT_GDB_MARKER_SITE_DMA_WAIT_ENTER = 12,
+  PRT_GDB_MARKER_SITE_DMA_WAIT_RETURN = 13,
+} prt_gdb_marker_site_t;
+
+typedef enum {
   PRT_DEBUG_WAIT_NONE = 0,
   PRT_DEBUG_WAIT_ENTRY_C1_PROCESS = 101,
   PRT_DEBUG_WAIT_ENTRY_C5_PROCESS = 105,
@@ -80,9 +97,27 @@ typedef struct {
   volatile uint32_t rr_cfg_id;
 } prt_debug_filter_t;
 
+typedef struct {
+  volatile uint32_t site_id;
+  volatile uint32_t segment_idx;
+  volatile uint32_t global_stage_id;
+  volatile uint32_t local_stage_id;
+  volatile uint32_t subbatch_id;
+  volatile uint32_t manager_id;
+  volatile uint32_t tensor_id;
+  volatile uint32_t page_idx;
+  volatile uint32_t token_id;
+  volatile int32_t rc;
+  volatile uint64_t aux0;
+  volatile uint64_t aux1;
+  volatile uint64_t hit_count;
+  volatile uint32_t line;
+} prt_gdb_marker_state_t;
+
 extern volatile prt_debug_state_t g_prt_debug_state;
 extern PRT_DEBUG_TLS volatile prt_debug_state_t g_prt_debug_tls_state;
 extern volatile prt_debug_filter_t g_prt_debug_filter;
+extern volatile prt_gdb_marker_state_t g_prt_gdb_marker_state;
 
 void prt_debug_filter_init_from_env(void);
 void prt_debug_state_reset_thread(void);
@@ -107,6 +142,22 @@ void prt_debug_state_set_rr(uint32_t stage_id,
                             uint32_t manager_id,
                             uint32_t opcode_id,
                             uint32_t cfg_id);
+void prt_gdb_marker_init_from_env(void);
+int prt_gdb_marker_enabled(void);
+void prt_gdb_marker_note(uint32_t site_id,
+                         uint32_t segment_idx,
+                         uint32_t global_stage_id,
+                         uint32_t local_stage_id,
+                         uint32_t subbatch_id,
+                         uint32_t manager_id,
+                         uint32_t tensor_id,
+                         uint32_t page_idx,
+                         uint32_t token_id,
+                         int rc,
+                         uint64_t aux0,
+                         uint64_t aux1,
+                         uint32_t line);
+void prt_gdb_marker_stop(void);
 
 #ifdef __cplusplus
 }

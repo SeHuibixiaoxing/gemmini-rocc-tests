@@ -94,6 +94,24 @@ static void prt_runtime_trigger_note_worker(uint32_t segment_idx,
   });
 }
 
+static void prt_runtime_gdb_marker(uint32_t site_id,
+                                   uint32_t segment_idx,
+                                   uint32_t global_stage_id,
+                                   uint32_t local_stage_id,
+                                   uint32_t subbatch_id,
+                                   uint32_t manager_id,
+                                   uint32_t tensor_id,
+                                   uint32_t page_idx,
+                                   uint32_t token_id,
+                                   int rc,
+                                   uint64_t aux0,
+                                   uint64_t aux1,
+                                   uint32_t line) {
+  prt_gdb_marker_note(site_id, segment_idx, global_stage_id, local_stage_id,
+                      subbatch_id, manager_id, tensor_id, page_idx, token_id,
+                      rc, aux0, aux1, line);
+}
+
 static size_t stage_thread_stack_bytes(void) {
   size_t stack_bytes = PRT_STAGE_THREAD_STACK_BYTES_DEFAULT;
 #ifdef PTHREAD_STACK_MIN
@@ -1918,6 +1936,11 @@ static int copy_tensor_pages_to_model_alias_target(prt_runtime_t *rt, uint32_t t
                  pages->size,
                  manager_id,
                  rt->cfg.export_dma_timeout_ms);
+  prt_runtime_gdb_marker(PRT_GDB_MARKER_SITE_EXPORT_ALIAS_TARGET_BEGIN,
+                         PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE, stage_id,
+                         PRT_DEBUG_U32_NONE, manager_id, tensor_id,
+                         PRT_DEBUG_U32_NONE, breadcrumb_token_id, PRT_OK,
+                         (uint64_t)target_seq, (uint64_t)src_size, __LINE__);
   // Reserve token 0 for page-level breadcrumbs; alias-target exports use
   // target_seq + 1 so the direct-path probe lands outside the current slot14
   // equivalence class.
@@ -1931,6 +1954,11 @@ static int copy_tensor_pages_to_model_alias_target(prt_runtime_t *rt, uint32_t t
                  pages->size,
                  manager_id,
                  rc);
+  prt_runtime_gdb_marker(PRT_GDB_MARKER_SITE_EXPORT_ALIAS_TARGET_END,
+                         PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE, stage_id,
+                         PRT_DEBUG_U32_NONE, manager_id, tensor_id,
+                         PRT_DEBUG_U32_NONE, breadcrumb_token_id, rc,
+                         (uint64_t)target_seq, (uint64_t)src_size, __LINE__);
   if (stage_id == 0U && tensor_id == 2U) {
     PRT_PROGRESS_LOG("export-target-dispatch stage=%u tensor=%u target_seq=%u layer=%u slot=%u target=%s target_slot=%u dst=0x%llx bytes=%llu pages=%u dma=%u rc=%d phase=end",
                      stage_id, tensor_id, target_seq, layer_index, slot, target_kind, target_slot,
@@ -2595,6 +2623,12 @@ static int sync_stage_export_aliases(prt_runtime_t *rt, uint32_t segment_idx,
                      (unsigned long long)src_size, pages ? pages->size : 0U,
                      exec->stage_dma_ids[stage_id], stage->local_spm_tensor_addr[slot],
                      rt->cfg.export_dma_timeout_ms);
+      prt_runtime_gdb_marker(PRT_GDB_MARKER_SITE_EXPORT_SYNC_TENSOR,
+                             segment_idx, global_stage_id, stage_id, subbatch_id,
+                             exec->stage_dma_ids[stage_id], stage->exports[i].tensor_id,
+                             PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE, PRT_OK,
+                             (uint64_t)(pages ? pages->size : 0U),
+                             (uint64_t)src_size, __LINE__);
       rc = copy_tensor_pages_to_model_aliases(rt, stage->exports[i].tensor_id, pages,
                                               src_size, exec->stage_dma_ids[stage_id], stage_id);
       PRT_MARKER_LOG("export-sync stage=%u tensor=%u slot=%u path=spm-pages end rc=%d bytes=%llu pages=%u dma=%u",
@@ -4129,6 +4163,14 @@ static void *stage_worker_main(void *arg) {
                    (ctx->stage_id < exec->stage_thread_count) ? exec->stage_acc_ids[ctx->stage_id] : 0U,
                    (ctx->stage_id < exec->stage_thread_count) ? exec->stage_dma_ids[ctx->stage_id] : 0U,
                    (ctx->stage_id < exec->stage_thread_count) ? exec->stage_tile_counts[ctx->stage_id] : 0U);
+  prt_runtime_gdb_marker(PRT_GDB_MARKER_SITE_WORKER_ENTRY,
+                         ctx->action ? ctx->action->segment_idx : PRT_DEBUG_U32_NONE,
+                         runtime_stage_global_id(ctx->action, ctx->stage_id),
+                         ctx->stage_id, PRT_DEBUG_U32_NONE,
+                         (ctx->stage_id < exec->stage_thread_count) ? exec->stage_dma_ids[ctx->stage_id] : PRT_DEBUG_U32_NONE,
+                         PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE,
+                         PRT_DEBUG_U32_NONE, PRT_OK,
+                         (uint64_t)entry_count, (uint64_t)export_count, __LINE__);
   while (!ctx->stop && !rt->stop_requested && !rt->fatal_error) {
     int rc;
     int retry = 0;
@@ -4382,6 +4424,12 @@ static void *stage_worker_main(void *arg) {
       PRT_PROGRESS_RAW_LINE("[prt-raw] wrk-gb");
       prt_debug_state_set_worker(segment_idx, global_stage_id, ctx->stage_id,
                                  progress_sbatch, PRT_DEBUG_PHASE_GEMM_RUN);
+      prt_runtime_gdb_marker(PRT_GDB_MARKER_SITE_WORKER_GEMM_RUN,
+                             segment_idx, global_stage_id, ctx->stage_id, progress_sbatch,
+                             (ctx->stage_id < exec->stage_thread_count) ? exec->stage_dma_ids[ctx->stage_id] : PRT_DEBUG_U32_NONE,
+                             PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE,
+                             PRT_DEBUG_U32_NONE, PRT_OK,
+                             (uint64_t)task.op_kind, (uint64_t)task.tile_count, __LINE__);
       rc = prt_gemm_conv_run(rt, &task, timeout_ns);
       PRT_PROGRESS_RAW_LINE("[prt-raw] wrk-ge");
       PRT_MARKER_LOG("wrk-exit s=%u sb=%u rc=%d", ctx->stage_id, progress_sbatch, rc);
@@ -4432,6 +4480,12 @@ static void *stage_worker_main(void *arg) {
       PRT_PROGRESS_RAW_LINE("[prt-raw] exs-b");
       prt_debug_state_set_worker(segment_idx, global_stage_id, ctx->stage_id,
                                  progress_sbatch, PRT_DEBUG_PHASE_EXPORT_SYNC);
+      prt_runtime_gdb_marker(PRT_GDB_MARKER_SITE_WORKER_EXPORT_SYNC,
+                             segment_idx, global_stage_id, ctx->stage_id, progress_sbatch,
+                             (ctx->stage_id < exec->stage_thread_count) ? exec->stage_dma_ids[ctx->stage_id] : PRT_DEBUG_U32_NONE,
+                             PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE,
+                             PRT_DEBUG_U32_NONE, PRT_OK,
+                             (uint64_t)export_count, (uint64_t)shared_pair_count, __LINE__);
       rc = sync_stage_export_aliases(rt, segment_idx, ctx->stage_id, global_stage_id, progress_sbatch);
       PRT_PROGRESS_RAW_LINE("[prt-raw] exs-e");
       PRT_MARKER_LOG("worker stage=%u subbatch=%u export-sync-exit rc=%d",
@@ -4564,6 +4618,7 @@ int prt_runtime_init(const prt_runtime_cfg_t *cfg, prt_runtime_t *rt) {
   if (!cfg || !rt) return PRT_ERR_INVAL;
   memset(rt, 0, sizeof(*rt));
   prt_debug_filter_init_from_env();
+  prt_gdb_marker_init_from_env();
   prt_debug_state_reset_thread();
   rt->cfg = *cfg;
   pthread_mutex_init(&rt->action_queue_lock, NULL);
@@ -5015,6 +5070,13 @@ int prt_runtime_run(prt_runtime_t *rt, const prt_run_args_t *args) {
                  all_num_segments, all_subbatch_size, args->batch);
   PRT_PROGRESS_LOG("init ready segments=%u pipeline_subbatch_size=%u batch=%u",
                    all_num_segments, all_subbatch_size, args->batch);
+  prt_runtime_gdb_marker(PRT_GDB_MARKER_SITE_RUNTIME_READY,
+                         PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE,
+                         PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE,
+                         PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE,
+                         PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE, PRT_OK,
+                         (uint64_t)all_num_segments, (uint64_t)all_subbatch_size,
+                         __LINE__);
 
   for (seg_idx = 0; seg_idx < all_num_segments && run_rc == PRT_OK; ++seg_idx) {
     const prt_segment_desc_t *seg = &all_segments[seg_idx];
@@ -5029,6 +5091,13 @@ int prt_runtime_run(prt_runtime_t *rt, const prt_run_args_t *args) {
                    seg_idx, seg->num_stages, seg->subbatch_size, (uint32_t)is_last_segment);
     PRT_PROGRESS_LOG("segment=%u init begin stages=%u seg_subbatch_size=%u is_last=%u",
                      seg_idx, seg->num_stages, seg->subbatch_size, (uint32_t)is_last_segment);
+    prt_runtime_gdb_marker(PRT_GDB_MARKER_SITE_SEGMENT_BEGIN,
+                           seg_idx, PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE,
+                           PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE,
+                           PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE,
+                           PRT_DEBUG_U32_NONE, PRT_OK,
+                           (uint64_t)seg->num_stages, (uint64_t)seg->subbatch_size,
+                           __LINE__);
 
     runtime_release_topology(rt);
     rc = runtime_assert_page_allocator_idle(rt, "segment_loop_start");
@@ -5195,6 +5264,14 @@ int prt_runtime_run(prt_runtime_t *rt, const prt_run_args_t *args) {
                        exec->stage_acc_ids[stage_id], exec->stage_dma_ids[stage_id],
                        exec->stage_tile_counts[stage_id],
                        rt->fatal_error, rt->stop_requested);
+      prt_runtime_gdb_marker(PRT_GDB_MARKER_SITE_WORKER_CREATE,
+                             seg_idx, runtime_stage_global_id(action, stage_id), stage_id,
+                             PRT_DEBUG_U32_NONE, exec->stage_dma_ids[stage_id],
+                             PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE,
+                             PRT_DEBUG_U32_NONE, PRT_OK,
+                             (uint64_t)exec->stage_acc_ids[stage_id],
+                             (uint64_t)exec->stage_tile_counts[stage_id],
+                             __LINE__);
       errno = 0;
       create_rc = pthread_create(&exec->stage_threads[i].thread,
                                  stage_thread_attr_ready ? &stage_thread_attr : NULL,
