@@ -1,0 +1,523 @@
+===/root/pipeline-runtime-debug/bertmini-batch8.status===
+state=running
+exit_code=
+log_path=/root/pipeline-runtime-debug/bertmini-batch8.log
+deep_log_path=/root/pipeline-runtime-debug/bertmini-batch8.deep.log
+audit_log_path=/root/pipeline-runtime-debug/bertmini-batch8.audit.log
+checkpoint_log_path=/root/pipeline-runtime-debug/bertmini-batch8.checkpoint.log
+breadcrumb_path=/root/pipeline-runtime-debug/bertmini-batch8.breadcrumb.bin
+status_path=/root/pipeline-runtime-debug/bertmini-batch8.status
+runner_early_stage_path=/root/pipeline-runtime-debug/bertmini-batch8.runner-early.stage
+runner_stage_path=/root/pipeline-runtime-debug/bertmini-batch8.runner.stage
+runner_proc_stage_path=/root/pipeline-runtime-debug/bertmini-batch8.runner-proc.stage
+wrapper_stage_path=/root/pipeline-runtime-debug/bertmini-batch8.wrapper.stage
+wrapper_proc_stage_path=/root/pipeline-runtime-debug/bertmini-batch8.wrapper-proc.stage
+trace_dir=/root/pipeline-runtime-debug/traces
+profile_id=pairdummy-sbus64-dummy8x8-fixed-v2
+periodic_sync_enable=1
+periodic_sync_seconds=1
+progress_ping_enable=0
+progress_ping_seconds=30
+child_proc_poll_seconds=5
+uart_log_enable=0
+guest_log_enable=1
+guest_deep_log_enable=0
+audit_log_enable=0
+checkpoint_log_enable=0
+breadcrumb_enable=1
+log_profile=coarse
+stdio_capture_mode=log
+dummy_gemmini_mode=1
+mlockall_mode=2
+skip_model_bin_load=1
+skip_input_load=1
+skip_golden_check=1
+trace_enable=0
+dma_force_direct_enable=1
+gdbserver_enable=1
+gdbserver_bind_addr=0.0.0.0
+gdbserver_port=2345
+gdbserver_info_path=/root/pipeline-runtime-debug/bertmini-batch8.gdbserver.info
+gdbserver_log_path=/root/pipeline-runtime-debug/bertmini-batch8.gdbserver.log
+auto_poweroff=1
+shutdown_hint=sync; poweroff
+===/root/pipeline-runtime-debug/bertmini-batch8.gdbserver.log===
+Process /root/rerocc-linux-tests/pipeline-runtime/rerocc_pipeline_runtime-linux created; pid = 235
+Listening on port 2345
+Remote debugging from host 172.16.0.1, port 59254
+[prt-early] enter main
+[prt-early] live stdio ready
+[prt-early] defaults ready
+[prt-early] arg parse done
+[prt-early] required args ready
+[prt-early] dma base ready
+[prt-early] watchdog ready
+[prt-early] before process memory lock
+[prt-early] process memory lock mode=disabled flags=0x0
+[prt-early] skip mlockall by build config
+[prt-early] after process memory lock
+[prt-early] calling runtime_init
+[prt-early] runtime_init done
+[prt-early] calling runtime_run
+===/root/pipeline-runtime-debug/bertmini-batch8.gdbserver.info===
+phase=inferior
+ts=1970-01-01T00:00:04Z
+method=ours2
+enable=1
+tool=/usr/bin/gdbserver
+bind_addr=0.0.0.0
+port=2345
+endpoint=0.0.0.0:2345
+net_dev=eth0
+guest_ipv4=172.16.0.2
+pid=235
+gdbserver_pid=222
+===/root/pipeline-runtime-debug/bertmini-batch8.runner-proc.stage===
+label=script-entry ts=1970-01-01T00:00:03Z pid=144 ppid=127
+cmdline=/bin/sh /root/rerocc-linux-tests/run_rerocc_pipeline_runtime_bertmini.sh --batch 8 
+wchan=do_wait
+status:
+Name:	run_rerocc_pipe
+Umask:	0022
+State:	S (sleeping)
+Tgid:	144
+Ngid:	0
+Pid:	144
+PPid:	127
+TracerPid:	0
+Uid:	0	0	0	0
+Gid:	0	0	0	0
+FDSize:	256
+Groups:	 
+NStgid:	144
+NSpid:	144
+NSpgid:	87
+NSsid:	87
+Kthread:	0
+VmPeak:	    3676 kB
+VmSize:	    3676 kB
+VmLck:	       0 kB
+VmPin:	       0 kB
+VmHWM:	    2560 kB
+VmRSS:	    2560 kB
+RssAnon:	     512 kB
+RssFile:	    2048 kB
+RssShmem:	       0 kB
+VmData:	     564 kB
+VmStk:	     136 kB
+VmExe:	     836 kB
+VmLib:	    2064 kB
+VmPTE:	      32 kB
+VmSwap:	       0 kB
+HugetlbPages:	       0 kB
+CoreDumping:	0
+THP_enabled:	0
+untag_mask:	0xffffffffffffffff
+Threads:	1
+SigQ:	1/64007
+SigPnd:	0000000000000000
+ShdPnd:	0000000000000000
+SigBlk:	0000000000010000
+SigIgn:	0000000000000006
+SigCgt:	0000000000010000
+CapInh:	0000000000000000
+CapPrm:	000001ffffffffff
+CapEff:	000001ffffffffff
+CapBnd:	000001ffffffffff
+CapAmb:	0000000000000000
+NoNewPrivs:	0
+Seccomp:	0
+Seccomp_filters:	0
+Speculation_Store_Bypass:	unknown
+SpeculationIndirectBranch:	unsupported
+Cpus_allowed:	f
+Cpus_allowed_list:	0-3
+Mems_allowed:	1
+Mems_allowed_list:	0
+voluntary_ctxt_switches:	16
+nonvoluntary_ctxt_switches:	9
+---
+label=after-arg-parse ts=1970-01-01T00:00:03Z pid=144 ppid=127
+cmdline=/bin/sh /root/rerocc-linux-tests/run_rerocc_pipeline_runtime_bertmini.sh --batch 8 
+wchan=do_wait
+status:
+Name:	run_rerocc_pipe
+Umask:	0022
+State:	S (sleeping)
+Tgid:	144
+Ngid:	0
+Pid:	144
+PPid:	127
+TracerPid:	0
+Uid:	0	0	0	0
+Gid:	0	0	0	0
+FDSize:	256
+Groups:	 
+NStgid:	144
+NSpid:	144
+NSpgid:	87
+NSsid:	87
+Kthread:	0
+VmPeak:	    3676 kB
+VmSize:	    3676 kB
+VmLck:	       0 kB
+VmPin:	       0 kB
+VmHWM:	    2560 kB
+VmRSS:	    2560 kB
+RssAnon:	     512 kB
+RssFile:	    2048 kB
+RssShmem:	       0 kB
+VmData:	     564 kB
+VmStk:	     136 kB
+VmExe:	     836 kB
+VmLib:	    2064 kB
+VmPTE:	      32 kB
+VmSwap:	       0 kB
+HugetlbPages:	       0 kB
+CoreDumping:	0
+THP_enabled:	0
+untag_mask:	0xffffffffffffffff
+Threads:	1
+SigQ:	1/64007
+SigPnd:	0000000000000000
+ShdPnd:	0000000000000000
+SigBlk:	0000000000010000
+SigIgn:	0000000000000006
+SigCgt:	0000000000010000
+CapInh:	0000000000000000
+CapPrm:	000001ffffffffff
+CapEff:	000001ffffffffff
+CapBnd:	000001ffffffffff
+CapAmb:	0000000000000000
+NoNewPrivs:	0
+Seccomp:	0
+Seccomp_filters:	0
+Speculation_Store_Bypass:	unknown
+SpeculationIndirectBranch:	unsupported
+Cpus_allowed:	f
+Cpus_allowed_list:	0-3
+Mems_allowed:	1
+Mems_allowed_list:	0
+voluntary_ctxt_switches:	25
+nonvoluntary_ctxt_switches:	9
+---
+label=after-runner-enter ts=1970-01-01T00:00:03Z pid=144 ppid=127
+cmdline=/bin/sh /root/rerocc-linux-tests/run_rerocc_pipeline_runtime_bertmini.sh --batch 8 
+wchan=do_wait
+status:
+Name:	run_rerocc_pipe
+Umask:	0022
+State:	S (sleeping)
+Tgid:	144
+Ngid:	0
+Pid:	144
+PPid:	127
+TracerPid:	0
+Uid:	0	0	0	0
+Gid:	0	0	0	0
+FDSize:	256
+Groups:	 
+NStgid:	144
+NSpid:	144
+NSpgid:	87
+NSsid:	87
+Kthread:	0
+VmPeak:	    3808 kB
+VmSize:	    3808 kB
+VmLck:	       0 kB
+VmPin:	       0 kB
+VmHWM:	    2560 kB
+VmRSS:	    2560 kB
+RssAnon:	     512 kB
+RssFile:	    2048 kB
+RssShmem:	       0 kB
+VmData:	     696 kB
+VmStk:	     136 kB
+VmExe:	     836 kB
+VmLib:	    2064 kB
+VmPTE:	      32 kB
+VmSwap:	       0 kB
+HugetlbPages:	       0 kB
+CoreDumping:	0
+THP_enabled:	0
+untag_mask:	0xffffffffffffffff
+Threads:	1
+SigQ:	1/64007
+SigPnd:	0000000000000000
+ShdPnd:	0000000000000000
+SigBlk:	0000000000010000
+SigIgn:	0000000000000006
+SigCgt:	0000000000010000
+CapInh:	0000000000000000
+CapPrm:	000001ffffffffff
+CapEff:	000001ffffffffff
+CapBnd:	000001ffffffffff
+CapAmb:	0000000000000000
+NoNewPrivs:	0
+Seccomp:	0
+Seccomp_filters:	0
+Speculation_Store_Bypass:	unknown
+SpeculationIndirectBranch:	unsupported
+Cpus_allowed:	f
+Cpus_allowed_list:	0-3
+Mems_allowed:	1
+Mems_allowed_list:	0
+voluntary_ctxt_switches:	37
+nonvoluntary_ctxt_switches:	9
+---
+label=before-bin method=ours2 ts=1970-01-01T00:00:04Z pid=144 ppid=127
+cmdline=/bin/sh /root/rerocc-linux-tests/run_rerocc_pipeline_runtime_bertmini.sh --batch 8 
+wchan=do_wait
+status:
+Name:	run_rerocc_pipe
+Umask:	0022
+State:	S (sleeping)
+Tgid:	144
+Ngid:	0
+Pid:	144
+PPid:	127
+TracerPid:	0
+Uid:	0	0	0	0
+Gid:	0	0	0	0
+FDSize:	256
+Groups:	 
+NStgid:	144
+NSpid:	144
+NSpgid:	87
+NSsid:	87
+Kthread:	0
+VmPeak:	    3808 kB
+VmSize:	    3808 kB
+VmLck:	       0 kB
+VmPin:	       0 kB
+VmHWM:	    2688 kB
+VmRSS:	    2688 kB
+RssAnon:	     640 kB
+RssFile:	    2048 kB
+RssShmem:	       0 kB
+VmData:	     696 kB
+VmStk:	     136 kB
+VmExe:	     836 kB
+VmLib:	    2064 kB
+VmPTE:	      32 kB
+VmSwap:	       0 kB
+HugetlbPages:	       0 kB
+CoreDumping:	0
+THP_enabled:	0
+untag_mask:	0xffffffffffffffff
+Threads:	1
+SigQ:	1/64007
+SigPnd:	0000000000000000
+ShdPnd:	0000000000000000
+SigBlk:	0000000000010000
+SigIgn:	0000000000000006
+SigCgt:	0000000000010000
+CapInh:	0000000000000000
+CapPrm:	000001ffffffffff
+CapEff:	000001ffffffffff
+CapBnd:	000001ffffffffff
+CapAmb:	0000000000000000
+NoNewPrivs:	0
+Seccomp:	0
+Seccomp_filters:	0
+Speculation_Store_Bypass:	unknown
+SpeculationIndirectBranch:	unsupported
+Cpus_allowed:	f
+Cpus_allowed_list:	0-3
+Mems_allowed:	1
+Mems_allowed_list:	0
+voluntary_ctxt_switches:	72
+nonvoluntary_ctxt_switches:	10
+---
+label=after-bin-spawn method=ours2 kind=gdbserver ts=1970-01-01T00:00:04Z pid=222 ppid=127
+cmdline=/usr/bin/gdbserver --once 0.0.0.0:2345 /root/rerocc-linux-tests/pipeline-runtime/rerocc_pipeline_runtime-linux --backend fpga --model-yaml /root/rerocc-linux-tests/pipeline-runtime/bertmini/model.layers.yaml --layer-mapping-yaml /root/rerocc-linux-tests/pipeline-runtime/bertmini/gemmini_layer_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.yaml --pipeline-yaml /root/rerocc-linux-tests/pipeline-runtime/bertmini/pipeline_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.ours2.yaml --batch 8 --num-cores 4 --num-gemmini-mgrs 12 --num-dma-mgrs 12 --pages-per-acc 1024 --gemmini-base-id 0 --dma-base-id 0 --pair-manager-mode 1 --spm-pt-require-hugetlb 1 --watchdog-ms 600000 --export-dma-timeout-ms 5000 --skip-model-bin-load --skip-input-load --skip-golden-check 
+wchan=poll_schedule_timeout.constprop.0
+status:
+Name:	gdbserver
+Umask:	0022
+State:	S (sleeping)
+Tgid:	222
+Ngid:	0
+Pid:	222
+PPid:	144
+TracerPid:	0
+Uid:	0	0	0	0
+Gid:	0	0	0	0
+FDSize:	256
+Groups:	 
+NStgid:	222
+NSpid:	222
+NSpgid:	87
+NSsid:	87
+Kthread:	0
+VmPeak:	    5184 kB
+VmSize:	    5152 kB
+VmLck:	       0 kB
+VmPin:	       0 kB
+VmHWM:	    3200 kB
+VmRSS:	    3200 kB
+RssAnon:	     256 kB
+RssFile:	    2944 kB
+RssShmem:	       0 kB
+VmData:	     408 kB
+VmStk:	     136 kB
+VmExe:	     444 kB
+VmLib:	    4064 kB
+VmPTE:	      36 kB
+VmSwap:	       0 kB
+HugetlbPages:	       0 kB
+CoreDumping:	0
+THP_enabled:	0
+untag_mask:	0xffffffffffffffff
+Threads:	1
+SigQ:	1/64007
+SigPnd:	0000000000000000
+ShdPnd:	0000000000000000
+SigBlk:	0000000010000000
+SigIgn:	0000000000300006
+SigCgt:	0000000010010000
+CapInh:	0000000000000000
+CapPrm:	000001ffffffffff
+CapEff:	000001ffffffffff
+CapBnd:	000001ffffffffff
+CapAmb:	0000000000000000
+NoNewPrivs:	0
+Seccomp:	0
+Seccomp_filters:	0
+Speculation_Store_Bypass:	unknown
+SpeculationIndirectBranch:	unsupported
+Cpus_allowed:	f
+Cpus_allowed_list:	0-3
+Mems_allowed:	1
+Mems_allowed_list:	0
+voluntary_ctxt_switches:	139
+nonvoluntary_ctxt_switches:	30
+---
+label=gdbserver-inferior method=ours2 parent=222 ts=1970-01-01T00:00:04Z pid=235 ppid=127
+cmdline=/root/rerocc-linux-tests/pipeline-runtime/rerocc_pipeline_runtime-linux --backend fpga --model-yaml /root/rerocc-linux-tests/pipeline-runtime/bertmini/model.layers.yaml --layer-mapping-yaml /root/rerocc-linux-tests/pipeline-runtime/bertmini/gemmini_layer_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.yaml --pipeline-yaml /root/rerocc-linux-tests/pipeline-runtime/bertmini/pipeline_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.ours2.yaml --batch 8 --num-cores 4 --num-gemmini-mgrs 12 --num-dma-mgrs 12 --pages-per-acc 1024 --gemmini-base-id 0 --dma-base-id 0 --pair-manager-mode 1 --spm-pt-require-hugetlb 1 --watchdog-ms 600000 --export-dma-timeout-ms 5000 --skip-model-bin-load --skip-input-load --skip-golden-check 
+wchan=ptrace_stop.part.0
+status:
+Name:	rerocc_pipeline
+Umask:	0022
+State:	t (tracing stop)
+Tgid:	235
+Ngid:	0
+Pid:	235
+PPid:	222
+TracerPid:	222
+Uid:	0	0	0	0
+Gid:	0	0	0	0
+FDSize:	64
+Groups:	 
+NStgid:	235
+NSpid:	235
+NSpgid:	235
+NSsid:	87
+Kthread:	0
+VmPeak:	     592 kB
+VmSize:	     592 kB
+VmLck:	       0 kB
+VmPin:	       0 kB
+VmHWM:	       0 kB
+VmRSS:	       0 kB
+RssAnon:	       0 kB
+RssFile:	       0 kB
+RssShmem:	       0 kB
+VmData:	      28 kB
+VmStk:	     136 kB
+VmExe:	     284 kB
+VmLib:	     136 kB
+VmPTE:	      20 kB
+VmSwap:	       0 kB
+HugetlbPages:	       0 kB
+CoreDumping:	0
+THP_enabled:	0
+untag_mask:	0xffffffffffffffff
+Threads:	1
+SigQ:	1/64007
+SigPnd:	0000000000000000
+ShdPnd:	0000000000000000
+SigBlk:	0000000000000000
+SigIgn:	0000000000000006
+SigCgt:	0000000000000000
+CapInh:	0000000000000000
+CapPrm:	000001ffffffffff
+CapEff:	000001ffffffffff
+CapBnd:	000001ffffffffff
+CapAmb:	0000000000000000
+NoNewPrivs:	0
+Seccomp:	0
+Seccomp_filters:	0
+Speculation_Store_Bypass:	unknown
+SpeculationIndirectBranch:	unsupported
+Cpus_allowed:	f
+Cpus_allowed_list:	0-3
+Mems_allowed:	1
+Mems_allowed_list:	0
+voluntary_ctxt_switches:	12
+nonvoluntary_ctxt_switches:	1
+---
+label=bin-poll-1 method=ours2 kind=inferior ts=1970-01-01T00:00:04Z pid=235 ppid=127
+cmdline=/root/rerocc-linux-tests/pipeline-runtime/rerocc_pipeline_runtime-linux --backend fpga --model-yaml /root/rerocc-linux-tests/pipeline-runtime/bertmini/model.layers.yaml --layer-mapping-yaml /root/rerocc-linux-tests/pipeline-runtime/bertmini/gemmini_layer_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.yaml --pipeline-yaml /root/rerocc-linux-tests/pipeline-runtime/bertmini/pipeline_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.ours2.yaml --batch 8 --num-cores 4 --num-gemmini-mgrs 12 --num-dma-mgrs 12 --pages-per-acc 1024 --gemmini-base-id 0 --dma-base-id 0 --pair-manager-mode 1 --spm-pt-require-hugetlb 1 --watchdog-ms 600000 --export-dma-timeout-ms 5000 --skip-model-bin-load --skip-input-load --skip-golden-check 
+wchan=ptrace_stop.part.0
+status:
+Name:	rerocc_pipeline
+Umask:	0022
+State:	t (tracing stop)
+Tgid:	235
+Ngid:	0
+Pid:	235
+PPid:	222
+TracerPid:	222
+Uid:	0	0	0	0
+Gid:	0	0	0	0
+FDSize:	64
+Groups:	 
+NStgid:	235
+NSpid:	235
+NSpgid:	235
+NSsid:	87
+Kthread:	0
+VmPeak:	     592 kB
+VmSize:	     592 kB
+VmLck:	       0 kB
+VmPin:	       0 kB
+VmHWM:	       0 kB
+VmRSS:	       0 kB
+RssAnon:	       0 kB
+RssFile:	       0 kB
+RssShmem:	       0 kB
+VmData:	      28 kB
+VmStk:	     136 kB
+VmExe:	     284 kB
+VmLib:	     136 kB
+VmPTE:	      20 kB
+VmSwap:	       0 kB
+HugetlbPages:	       0 kB
+CoreDumping:	0
+THP_enabled:	0
+untag_mask:	0xffffffffffffffff
+Threads:	1
+SigQ:	1/64007
+SigPnd:	0000000000000000
+ShdPnd:	0000000000000000
+SigBlk:	0000000000000000
+SigIgn:	0000000000000006
+SigCgt:	0000000000000000
+CapInh:	0000000000000000
+CapPrm:	000001ffffffffff
+CapEff:	000001ffffffffff
+CapBnd:	000001ffffffffff
+CapAmb:	0000000000000000
+NoNewPrivs:	0
+Seccomp:	0
+Seccomp_filters:	0
+Speculation_Store_Bypass:	unknown
+SpeculationIndirectBranch:	unsupported
+Cpus_allowed:	f
+Cpus_allowed_list:	0-3
+Mems_allowed:	1
+Mems_allowed_list:	0
+voluntary_ctxt_switches:	12
+nonvoluntary_ctxt_switches:	1
+---

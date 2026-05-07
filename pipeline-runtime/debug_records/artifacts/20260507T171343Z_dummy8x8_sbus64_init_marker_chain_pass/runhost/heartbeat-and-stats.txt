@@ -1,0 +1,3 @@
+Target Cycle (fastest), Seconds Since Start
+/home/ubuntu/sim_slot_0/heartbeat.csv size=44 mtime=2026-05-07 17:00:38.786994477 +0000
+/home/ubuntu/sim_slot_0/uartlog size=16919 mtime=2026-05-07 17:08:57.309630253 +0000

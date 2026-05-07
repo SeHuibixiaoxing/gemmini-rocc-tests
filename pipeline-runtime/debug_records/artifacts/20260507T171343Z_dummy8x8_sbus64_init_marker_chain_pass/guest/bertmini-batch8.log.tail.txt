@@ -1,0 +1,160 @@
+[prt-progress] artifacts validate stage-end seg=2 local_stage=2 global_stage=4 layer=4 elapsed_ms=4 span_pages=641 tensors=4
+[prt-progress] artifacts validate segment-end seg=2 stages=3 elapsed_ms=13
+[prt-progress] artifacts validate segment-begin seg=3 stages=5
+[prt-progress] artifacts validate stage-begin seg=3 local_stage=0 global_stage=5 layer=5 acc=2 entries=16848
+[prt-progress] artifacts validate stage-hit seg=3 local_stage=0 global_stage=5 layer=5 entry=2588 matches=1 split_kind=2
+[prt-progress] artifacts validate stage-end seg=3 local_stage=0 global_stage=5 layer=5 elapsed_ms=4 span_pages=193 tensors=4
+[prt-progress] artifacts validate stage-begin seg=3 local_stage=1 global_stage=6 layer=6 acc=1 entries=16848
+[prt-progress] artifacts validate stage-hit seg=3 local_stage=1 global_stage=6 layer=6 entry=2935 matches=1 split_kind=1
+[prt-progress] artifacts validate stage-end seg=3 local_stage=1 global_stage=6 layer=6 elapsed_ms=4 span_pages=192 tensors=3
+[prt-progress] artifacts validate stage-begin seg=3 local_stage=2 global_stage=7 layer=7 acc=4 entries=16848
+[prt-progress] artifacts validate stage-hit seg=3 local_stage=2 global_stage=7 layer=7 entry=3317 matches=1 split_kind=2
+[prt-progress] artifacts validate stage-end seg=3 local_stage=2 global_stage=7 layer=7 elapsed_ms=4 span_pages=580 tensors=4
+[prt-progress] artifacts validate stage-begin seg=3 local_stage=3 global_stage=8 layer=8 acc=4 entries=16848
+[prt-progress] artifacts validate stage-hit seg=3 local_stage=3 global_stage=8 layer=8 entry=3791 matches=1 split_kind=2
+[prt-progress] artifacts validate stage-end seg=3 local_stage=3 global_stage=8 layer=8 elapsed_ms=4 span_pages=577 tensors=4
+[prt-progress] artifacts validate stage-begin seg=3 local_stage=4 global_stage=9 layer=9 acc=1 entries=16848
+[prt-progress] artifacts validate stage-hit seg=3 local_stage=4 global_stage=9 layer=9 entry=4069 matches=1 split_kind=1
+[prt-progress] artifacts validate stage-end seg=3 local_stage=4 global_stage=9 layer=9 elapsed_ms=5 span_pages=192 tensors=3
+[prt-progress] artifacts validate segment-end seg=3 stages=5 elapsed_ms=22
+[prt-progress] artifacts validate segment-begin seg=4 stages=3
+[prt-progress] artifacts validate stage-begin seg=4 local_stage=0 global_stage=10 layer=10 acc=4 entries=16848
+[prt-progress] artifacts validate stage-hit seg=4 local_stage=0 global_stage=10 layer=10 entry=4439 matches=1 split_kind=2
+[prt-progress] artifacts validate stage-end seg=4 local_stage=0 global_stage=10 layer=10 elapsed_ms=4 span_pages=193 tensors=4
+[prt-progress] artifacts validate stage-begin seg=4 local_stage=1 global_stage=11 layer=11 acc=4 entries=16848
+[prt-progress] artifacts validate stage-hit seg=4 local_stage=1 global_stage=11 layer=11 entry=4925 matches=1 split_kind=2
+[prt-progress] artifacts validate stage-end seg=4 local_stage=1 global_stage=11 layer=11 elapsed_ms=4 span_pages=193 tensors=4
+[prt-progress] artifacts validate stage-begin seg=4 local_stage=2 global_stage=12 layer=12 acc=4 entries=16848
+[prt-progress] artifacts validate stage-hit seg=4 local_stage=2 global_stage=12 layer=12 entry=5411 matches=1 split_kind=2
+[prt-progress] artifacts validate stage-end seg=4 local_stage=2 global_stage=12 layer=12 elapsed_ms=4 span_pages=193 tensors=4
+[prt-progress] artifacts validate segment-end seg=4 stages=3 elapsed_ms=13
+[prt-progress] artifacts validate segment-begin seg=5 stages=3
+[prt-progress] artifacts validate stage-begin seg=5 local_stage=0 global_stage=13 layer=13 acc=4 entries=16848
+[prt-progress] artifacts validate stage-hit seg=5 local_stage=0 global_stage=13 layer=13 entry=5908 matches=1 split_kind=2
+[prt-progress] artifacts validate stage-end seg=5 local_stage=0 global_stage=13 layer=13 elapsed_ms=4 span_pages=648 tensors=4
+[prt-progress] artifacts validate stage-begin seg=5 local_stage=1 global_stage=14 layer=14 acc=4 entries=16848
+[prt-progress] artifacts validate stage-hit seg=5 local_stage=1 global_stage=14 layer=14 entry=6392 matches=1 split_kind=2
+[prt-progress] artifacts validate stage-end seg=5 local_stage=1 global_stage=14 layer=14 elapsed_ms=4 span_pages=641 tensors=4
+[prt-progress] artifacts validate stage-begin seg=5 local_stage=2 global_stage=15 layer=15 acc=4 entries=16848
+[prt-progress] artifacts validate stage-hit seg=5 local_stage=2 global_stage=15 layer=15 entry=6869 matches=1 split_kind=2
+[prt-progress] artifacts validate stage-end seg=5 local_stage=2 global_stage=15 layer=15 elapsed_ms=4 span_pages=193 tensors=4
+[prt-progress] artifacts validate segment-end seg=5 stages=3 elapsed_ms=13
+[prt-progress] artifacts validate segment-begin seg=6 stages=4
+[prt-progress] artifacts validate stage-begin seg=6 local_stage=0 global_stage=16 layer=16 acc=2 entries=16848
+[prt-progress] artifacts validate stage-hit seg=6 local_stage=0 global_stage=16 layer=16 entry=7174 matches=1 split_kind=4
+[prt-progress] artifacts validate stage-end seg=6 local_stage=0 global_stage=16 layer=16 elapsed_ms=4 span_pages=192 tensors=3
+[prt-progress] artifacts validate stage-begin seg=6 local_stage=1 global_stage=17 layer=17 acc=4 entries=16848
+[prt-progress] artifacts validate stage-hit seg=6 local_stage=1 global_stage=17 layer=17 entry=7529 matches=1 split_kind=2
+[prt-progress] artifacts validate stage-end seg=6 local_stage=1 global_stage=17 layer=17 elapsed_ms=4 span_pages=580 tensors=4
+[prt-progress] artifacts validate stage-begin seg=6 local_stage=2 global_stage=18 layer=18 acc=4 entries=16848
+[prt-progress] artifacts validate stage-hit seg=6 local_stage=2 global_stage=18 layer=18 entry=8003 matches=1 split_kind=2
+[prt-progress] artifacts validate stage-end seg=6 local_stage=2 global_stage=18 layer=18 elapsed_ms=5 span_pages=577 tensors=4
+[prt-progress] artifacts validate stage-begin seg=6 local_stage=3 global_stage=19 layer=19 acc=2 entries=16848
+[prt-progress] artifacts validate stage-hit seg=6 local_stage=3 global_stage=19 layer=19 entry=8308 matches=1 split_kind=4
+[prt-progress] artifacts validate stage-end seg=6 local_stage=3 global_stage=19 layer=19 elapsed_ms=4 span_pages=192 tensors=3
+[prt-progress] artifacts validate segment-end seg=6 stages=4 elapsed_ms=17
+[prt-progress] artifacts validate segment-begin seg=7 stages=3
+[prt-progress] artifacts validate stage-begin seg=7 local_stage=0 global_stage=20 layer=20 acc=4 entries=16848
+[prt-progress] artifacts validate stage-hit seg=7 local_stage=0 global_stage=20 layer=20 entry=8651 matches=1 split_kind=2
+[prt-progress] artifacts validate stage-end seg=7 local_stage=0 global_stage=20 layer=20 elapsed_ms=4 span_pages=193 tensors=4
+[prt-progress] artifacts validate stage-begin seg=7 local_stage=1 global_stage=21 layer=21 acc=4 entries=16848
+[prt-progress] artifacts validate stage-hit seg=7 local_stage=1 global_stage=21 layer=21 entry=9137 matches=1 split_kind=2
+[prt-progress] artifacts validate stage-end seg=7 local_stage=1 global_stage=21 layer=21 elapsed_ms=5 span_pages=193 tensors=4
+[prt-progress] artifacts validate stage-begin seg=7 local_stage=2 global_stage=22 layer=22 acc=4 entries=16848
+[prt-progress] artifacts validate stage-hit seg=7 local_stage=2 global_stage=22 layer=22 entry=9623 matches=1 split_kind=2
+[prt-progress] artifacts validate stage-end seg=7 local_stage=2 global_stage=22 layer=22 elapsed_ms=4 span_pages=193 tensors=4
+[prt-progress] artifacts validate segment-end seg=7 stages=3 elapsed_ms=13
+[prt-progress] artifacts validate segment-begin seg=8 stages=3
+[prt-progress] artifacts validate stage-begin seg=8 local_stage=0 global_stage=23 layer=23 acc=4 entries=16848
+[prt-progress] artifacts validate stage-hit seg=8 local_stage=0 global_stage=23 layer=23 entry=10120 matches=1 split_kind=2
+[prt-progress] artifacts validate stage-end seg=8 local_stage=0 global_stage=23 layer=23 elapsed_ms=5 span_pages=648 tensors=4
+[prt-progress] artifacts validate stage-begin seg=8 local_stage=1 global_stage=24 layer=24 acc=4 entries=16848
+[prt-progress] artifacts validate stage-hit seg=8 local_stage=1 global_stage=24 layer=24 entry=10604 matches=1 split_kind=2
+[prt-progress] artifacts validate stage-end seg=8 local_stage=1 global_stage=24 layer=24 elapsed_ms=4 span_pages=641 tensors=4
+[prt-progress] artifacts validate stage-begin seg=8 local_stage=2 global_stage=25 layer=25 acc=4 entries=16848
+[prt-progress] artifacts validate stage-hit seg=8 local_stage=2 global_stage=25 layer=25 entry=11081 matches=1 split_kind=2
+[prt-progress] artifacts validate stage-end seg=8 local_stage=2 global_stage=25 layer=25 elapsed_ms=4 span_pages=193 tensors=4
+[prt-progress] artifacts validate segment-end seg=8 stages=3 elapsed_ms=13
+[prt-progress] artifacts validate segment-begin seg=9 stages=1
+[prt-progress] artifacts validate stage-begin seg=9 local_stage=0 global_stage=26 layer=26 acc=8 entries=16848
+[prt-progress] artifacts validate stage-hit seg=9 local_stage=0 global_stage=26 layer=26 entry=11440 matches=1 split_kind=4
+[prt-progress] artifacts validate stage-end seg=9 local_stage=0 global_stage=26 layer=26 elapsed_ms=4 span_pages=192 tensors=3
+[prt-progress] artifacts validate segment-end seg=9 stages=1 elapsed_ms=5
+[prt-progress] artifacts validate segment-begin seg=10 stages=2
+[prt-progress] artifacts validate stage-begin seg=10 local_stage=0 global_stage=27 layer=27 acc=4 entries=16848
+[prt-progress] artifacts validate stage-hit seg=10 local_stage=0 global_stage=27 layer=27 entry=11741 matches=1 split_kind=2
+[prt-progress] artifacts validate stage-end seg=10 local_stage=0 global_stage=27 layer=27 elapsed_ms=4 span_pages=580 tensors=4
+[prt-progress] artifacts validate stage-begin seg=10 local_stage=1 global_stage=28 layer=28 acc=8 entries=16848
+[prt-progress] artifacts validate stage-hit seg=10 local_stage=1 global_stage=28 layer=28 entry=12296 matches=1 split_kind=2
+[prt-progress] artifacts validate stage-end seg=10 local_stage=1 global_stage=28 layer=28 elapsed_ms=4 span_pages=577 tensors=4
+[prt-progress] artifacts validate segment-end seg=10 stages=2 elapsed_ms=8
+[prt-progress] artifacts validate segment-begin seg=11 stages=2
+[prt-progress] artifacts validate stage-begin seg=11 local_stage=0 global_stage=29 layer=29 acc=4 entries=16848
+[prt-progress] artifacts validate stage-hit seg=11 local_stage=0 global_stage=29 layer=29 entry=12547 matches=1 split_kind=4
+[prt-progress] artifacts validate stage-end seg=11 local_stage=0 global_stage=29 layer=29 elapsed_ms=4 span_pages=192 tensors=3
+[prt-progress] artifacts validate stage-begin seg=11 local_stage=1 global_stage=30 layer=30 acc=8 entries=16848
+[prt-progress] artifacts validate stage-hit seg=11 local_stage=1 global_stage=30 layer=30 entry=12944 matches=1 split_kind=2
+[prt-progress] artifacts validate stage-end seg=11 local_stage=1 global_stage=30 layer=30 elapsed_ms=5 span_pages=193 tensors=4
+[prt-progress] artifacts validate segment-end seg=11 stages=2 elapsed_ms=9
+[prt-progress] artifacts validate segment-begin seg=12 stages=1
+[prt-progress] artifacts validate stage-begin seg=12 local_stage=0 global_stage=31 layer=31 acc=8 entries=16848
+[prt-progress] artifacts validate stage-hit seg=12 local_stage=0 global_stage=31 layer=31 entry=13430 matches=1 split_kind=2
+[prt-progress] artifacts validate stage-end seg=12 local_stage=0 global_stage=31 layer=31 elapsed_ms=4 span_pages=193 tensors=4
+[prt-progress] artifacts validate segment-end seg=12 stages=1 elapsed_ms=4
+[prt-progress] artifacts validate segment-begin seg=13 stages=3
+[prt-progress] artifacts validate stage-begin seg=13 local_stage=0 global_stage=32 layer=32 acc=4 entries=16848
+[prt-progress] artifacts validate stage-hit seg=13 local_stage=0 global_stage=32 layer=32 entry=13835 matches=1 split_kind=2
+[prt-progress] artifacts validate stage-end seg=13 local_stage=0 global_stage=32 layer=32 elapsed_ms=4 span_pages=193 tensors=4
+[prt-progress] artifacts validate stage-begin seg=13 local_stage=1 global_stage=33 layer=33 acc=4 entries=16848
+[prt-progress] artifacts validate stage-hit seg=13 local_stage=1 global_stage=33 layer=33 entry=14332 matches=1 split_kind=2
+[prt-progress] artifacts validate stage-end seg=13 local_stage=1 global_stage=33 layer=33 elapsed_ms=4 span_pages=648 tensors=4
+[prt-progress] artifacts validate stage-begin seg=13 local_stage=2 global_stage=34 layer=34 acc=4 entries=16848
+[prt-progress] artifacts validate stage-hit seg=13 local_stage=2 global_stage=34 layer=34 entry=14816 matches=1 split_kind=2
+[prt-progress] artifacts validate stage-end seg=13 local_stage=2 global_stage=34 layer=34 elapsed_ms=4 span_pages=641 tensors=4
+[prt-progress] artifacts validate segment-end seg=13 stages=3 elapsed_ms=14
+[prt-progress] artifacts validate segment-begin seg=14 stages=5
+[prt-progress] artifacts validate stage-begin seg=14 local_stage=0 global_stage=35 layer=35 acc=2 entries=16848
+[prt-progress] artifacts validate stage-hit seg=14 local_stage=0 global_stage=35 layer=35 entry=15224 matches=1 split_kind=2
+[prt-progress] artifacts validate stage-end seg=14 local_stage=0 global_stage=35 layer=35 elapsed_ms=4 span_pages=193 tensors=4
+[prt-progress] artifacts validate stage-begin seg=14 local_stage=1 global_stage=36 layer=36 acc=1 entries=16848
+[prt-progress] artifacts validate stage-hit seg=14 local_stage=1 global_stage=36 layer=36 entry=15571 matches=1 split_kind=1
+[prt-progress] artifacts validate stage-end seg=14 local_stage=1 global_stage=36 layer=36 elapsed_ms=4 span_pages=192 tensors=3
+[prt-progress] artifacts validate stage-begin seg=14 local_stage=2 global_stage=37 layer=37 acc=4 entries=16848
+[prt-progress] artifacts validate stage-hit seg=14 local_stage=2 global_stage=37 layer=37 entry=15953 matches=1 split_kind=2
+[prt-progress] artifacts validate stage-end seg=14 local_stage=2 global_stage=37 layer=37 elapsed_ms=4 span_pages=580 tensors=4
+[prt-progress] artifacts validate stage-begin seg=14 local_stage=3 global_stage=38 layer=38 acc=4 entries=16848
+[prt-progress] artifacts validate stage-hit seg=14 local_stage=3 global_stage=38 layer=38 entry=16427 matches=1 split_kind=2
+[prt-progress] artifacts validate stage-end seg=14 local_stage=3 global_stage=38 layer=38 elapsed_ms=5 span_pages=577 tensors=4
+[prt-progress] artifacts validate stage-begin seg=14 local_stage=4 global_stage=39 layer=39 acc=1 entries=16848
+[prt-progress] artifacts validate stage-hit seg=14 local_stage=4 global_stage=39 layer=39 entry=16705 matches=1 split_kind=1
+[prt-progress] artifacts validate stage-end seg=14 local_stage=4 global_stage=39 layer=39 elapsed_ms=4 span_pages=192 tensors=3
+[prt-progress] artifacts validate segment-end seg=14 stages=5 elapsed_ms=21
+[prt-progress] artifacts validate end layer_mapping=/root/rerocc-linux-tests/pipeline-runtime/bertmini/gemmini_layer_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.yaml segments=15
+[prt-progress] init validate-artifacts end elapsed_ms=2001
+[prt-progress] init synthesize-model-bin begin reason=skip-model-bin-load
+[prt-progress] synthetic-model alloc enter existing_ptr=(nil) existing_size=0
+[prt-progress] synthetic-model alloc before-compute
+[prt-progress] synthetic-model size begin addr_base=0x0 addr_end=0x1044000 layers=40
+[prt-progress] synthetic-model size end blob_size=17055744 max_exclusive=17055744
+[prt-progress] synthetic-model alloc after-compute size=17055744 addr_base=0x0 addr_end=0x1044000 layers=40
+[prt-progress] synthetic-model alloc before-mmap size=17055744
+[prt-progress] synthetic-model alloc after-mmap ptr=0x3ff6db4000 size=17055744
+[prt-progress] synthetic-model alloc before-prefault path=(none) ptr=0x3ff6db4000 size=17055744 page_bytes=4096 mode=write-preserve
+[prt-progress] synthetic-model alloc prefault-progress path=(none) touched_pages=256/4164 touched_bytes=1048576/17055744 page_bytes=4096
+[prt-progress] synthetic-model alloc prefault-progress path=(none) touched_pages=512/4164 touched_bytes=2097152/17055744 page_bytes=4096
+[prt-progress] synthetic-model alloc prefault-progress path=(none) touched_pages=768/4164 touched_bytes=3145728/17055744 page_bytes=4096
+[prt-progress] synthetic-model alloc prefault-progress path=(none) touched_pages=1024/4164 touched_bytes=4194304/17055744 page_bytes=4096
+[prt-progress] synthetic-model alloc prefault-progress path=(none) touched_pages=1280/4164 touched_bytes=5242880/17055744 page_bytes=4096
+[prt-progress] synthetic-model alloc prefault-progress path=(none) touched_pages=1536/4164 touched_bytes=6291456/17055744 page_bytes=4096
+[prt-progress] synthetic-model alloc prefault-progress path=(none) touched_pages=1792/4164 touched_bytes=7340032/17055744 page_bytes=4096
+[prt-progress] synthetic-model alloc prefault-progress path=(none) touched_pages=2048/4164 touched_bytes=8388608/17055744 page_bytes=4096
+[prt-progress] synthetic-model alloc prefault-progress path=(none) touched_pages=2304/4164 touched_bytes=9437184/17055744 page_bytes=4096
+[prt-progress] synthetic-model alloc prefault-progress path=(none) touched_pages=2560/4164 touched_bytes=10485760/17055744 page_bytes=4096
+[prt-progress] synthetic-model alloc prefault-progress path=(none) touched_pages=2816/4164 touched_bytes=11534336/17055744 page_bytes=4096
+[prt-progress] synthetic-model alloc prefault-progress path=(none) touched_pages=3072/4164 touched_bytes=12582912/17055744 page_bytes=4096
+[prt-progress] synthetic-model alloc prefault-progress path=(none) touched_pages=3328/4164 touched_bytes=13631488/17055744 page_bytes=4096
+[prt-progress] synthetic-model alloc prefault-progress path=(none) touched_pages=3584/4164 touched_bytes=14680064/17055744 page_bytes=4096
+[prt-progress] synthetic-model alloc prefault-progress path=(none) touched_pages=3840/4164 touched_bytes=15728640/17055744 page_bytes=4096
+[prt-progress] synthetic-model alloc prefault-progress path=(none) touched_pages=4096/4164 touched_bytes=16777216/17055744 page_bytes=4096
+[prt-progress] synthetic-model alloc after-prefault path=(none) ptr=0x3ff6db4000 size=17055744 page_bytes=4096 mode=write-preserve
+[prt-progress] synthetic-model alloc before-mlock path=(none) ptr=0x3ff6db4000 size=17055744
