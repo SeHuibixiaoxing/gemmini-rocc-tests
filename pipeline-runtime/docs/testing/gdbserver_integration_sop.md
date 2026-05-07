@@ -247,6 +247,19 @@ PIPELINE_RUNTIME_GDB_MARKER_TOKEN=546
 所以适合当前 1BP 硬件限制。由于 `gdbserver --once` 只能服务一次 TCP GDB 会话，
 每轮 marker 条件要在启动前写入 guest env；命中后在同一 GDB session 内动态增删断点。
 
+host 侧 ELF 必须使用 FireMarshal staged binary：
+`generators/gemmini/software/gemmini-rocc-tests/build/rerocc-linux-tests/rerocc_pipeline_runtime-linux`。
+不要手工改成源码目录下的
+`rerocc-linux-tests/rerocc_pipeline_runtime-linux`；二者可能 sha256 不同，GDB 仍可能撞到
+同名函数地址，但全局变量、行号和调用栈会失真。当前 marker helper 默认使用 staged
+binary：
+
+```bash
+PRT_GDB_STATIC_NEIGH_MAC=00:12:6d:00:00:02 \
+generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/run_pairdummy_cfg32_gdbserver_marker_stop.sh \
+  <run-host-private-ip> 172.16.0.2:2345 32345
+```
+
 ## 4. 关键约束
 
 - 仍然必须走固定 FireSim workflow：
