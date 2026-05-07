@@ -3514,6 +3514,15 @@ static int dma_blocking_submit(prt_runtime_t *rt, const prt_dma_req_t *req, prt_
   return PRT_OK;
 }
 
+static void dma_gdb_marker_wait_return(const prt_dma_token_t *tok, int rc) {
+  if (!tok) return;
+  prt_gdb_marker_note(PRT_GDB_MARKER_SITE_DMA_WAIT_RETURN,
+                      PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE, tok->stage_idx,
+                      PRT_DEBUG_U32_NONE, tok->rr_manager_id, tok->tensor_id,
+                      PRT_DEBUG_U32_NONE, tok->id, rc,
+                      tok->debug_src_addr, tok->debug_dst_addr, __LINE__);
+}
+
 static int dma_blocking_wait(prt_runtime_t *rt, prt_dma_token_t *tok, uint64_t timeout_ns) {
   int progress_log;
   uint32_t progress_token_id;
@@ -3599,6 +3608,7 @@ static int dma_blocking_wait(prt_runtime_t *rt, prt_dma_token_t *tok, uint64_t t
                                                         fixed_wait_probe || export_wait_probe);
     if (poll_rc == PRT_ERR_TIMEOUT) {
       dma_trigger_wait(tok, wait_family, "poll-to", poll_rc);
+      dma_gdb_marker_wait_return(tok, poll_rc);
       return poll_rc;
     }
     if (poll_rc == PRT_OK) {
@@ -3811,11 +3821,7 @@ static int dma_blocking_wait(prt_runtime_t *rt, prt_dma_token_t *tok, uint64_t t
                       tok->debug_done_flag_pa,
                       0ULL,
                       __LINE__);
-  prt_gdb_marker_note(PRT_GDB_MARKER_SITE_DMA_WAIT_RETURN,
-                      PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE, tok->stage_idx,
-                      PRT_DEBUG_U32_NONE, tok->rr_manager_id, tok->tensor_id,
-                      PRT_DEBUG_U32_NONE, tok->id, PRT_OK,
-                      tok->debug_src_addr, tok->debug_dst_addr, __LINE__);
+  dma_gdb_marker_wait_return(tok, PRT_OK);
   return PRT_OK;
 }
 
