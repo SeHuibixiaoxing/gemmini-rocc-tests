@@ -1,6 +1,6 @@
 # Pipeline Runtime gdbserver Integration SOP
 
-更新时间：`2026-05-07 10:18 UTC`
+更新时间：`2026-05-07 14:58 UTC`
 
 ## 1. 目标
 
@@ -139,6 +139,19 @@ generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/run_pair
 
 若三者不完全一致，不要直接合并成一个精确 PC；先以 breadcrumb frontier 和最后一次
 GDB 栈共同缩小代码窗口，再决定是否需要下一轮更窄的 page/token 级探针。
+
+运行后也可以动态加断点，但在当前 remote gdbserver 的常规 all-stop 用法里，实际流程是
+先让目标停住，再修改断点集合。也就是说，`continue` 运行期间 GDB 没有普通命令 prompt；
+需要用 `Ctrl-C` / `interrupt` 抢停，或者等已有断点命中，然后执行
+`break file:line`、`break function`、`break *addr`、`condition`、`delete` 等命令，再
+继续运行。不要把“必须在程序启动前把所有断点都想好”和“运行中可随时在不停止目标的情况
+下改断点”混为一谈；本项目默认按“停住后动态增删断点”处理。
+
+如果无断点采样停在 YAML 解析、artifact 校验、synthetic model prefault 等初始化阶段，
+下一轮不要继续扩大采样秒数。更稳妥的做法是预设少量软件断点跨过初始化边界，例如
+`prt_runtime.c` 的 `runtime init-step=ready`、segment begin、worker `pthread_create`
+和 `stage_worker_main`。到达这些边界后，再动态补 `prt_gemm_conv_run`、
+`sync_stage_export_aliases`、`dma_blocking_wait` 等更窄断点。
 
 ### 3.2 DMA frontier 定点采样
 
