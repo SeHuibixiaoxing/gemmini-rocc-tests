@@ -237,6 +237,7 @@ guest_entrypoint=/firemarshal.sh
 note=do-not-infer-entrypoint-from-workload-overlay-root-firemarshal.sh
 firesim_live_idle_timeout_seconds=${FIRESIM_RUNWORKLOAD_LIVE_IDLE_TIMEOUT_SECONDS:-}
 methods=${METHODS}
+target_batch=${TARGET_BATCH}
 dummy_gemmini_mode=${DUMMY_GEMMINI_MODE}
 skip_model_bin_load=${PIPELINE_RUNTIME_SKIP_MODEL_BIN_LOAD}
 skip_input_load=${PIPELINE_RUNTIME_SKIP_INPUT_LOAD}
