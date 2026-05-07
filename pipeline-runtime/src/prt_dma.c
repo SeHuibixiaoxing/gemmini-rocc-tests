@@ -133,7 +133,7 @@ static int dma_submit_wait_annotated(prt_runtime_t *rt, const prt_dma_req_t *req
 static int dma_submit_wait_annotated_scoped(prt_runtime_t *rt, const prt_dma_req_t *req,
                                             uint32_t stage_idx, uint32_t tensor_id,
                                             uint64_t timeout_ns, prt_rr_scope_t *scope,
-                                            int force_export_probe);
+                                            int force_export_probe, uint32_t debug_page_idx);
 static uint64_t page_base_addr(const prt_runtime_t *rt, const prt_page_t *page);
 static int dma_completion_pool_init(prt_runtime_t *rt);
 static void dma_completion_pool_destroy(prt_runtime_t *rt);
@@ -810,7 +810,7 @@ static int dma_copy_host_to_spm_pages_linux(prt_runtime_t *rt, const prt_page_li
       dma_breadcrumb_page_begin(tensor_id, manager_id, i, &req,
                                 used_bounce ? PRT_BREADCRUMB_FLAG_BOUNCE : 0U,
                                 timeout_ns);
-      rc = dma_submit_wait_annotated_scoped(rt, &req, stage_idx, tensor_id, timeout_ns, &scope, 0);
+      rc = dma_submit_wait_annotated_scoped(rt, &req, stage_idx, tensor_id, timeout_ns, &scope, 0, i);
       dma_breadcrumb_page_end(tensor_id, manager_id, i, &req, rc,
                               used_bounce ? PRT_BREADCRUMB_FLAG_BOUNCE : 0U,
                               timeout_ns);
@@ -1010,7 +1010,8 @@ static int dma_copy_spm_pages_to_host_linux(prt_runtime_t *rt, uint8_t *dst_host
         }
         dma_tracerv_dma_window_scope_push(i, copied);
         rc = dma_submit_wait_annotated_scoped(rt, &req, stage_idx, tensor_id, timeout_ns, &scope,
-                                              dma_export_probe_enabled() && (page_probe || first_chunk_probe));
+                                              dma_export_probe_enabled() && (page_probe || first_chunk_probe),
+                                              i);
         dma_tracerv_dma_window_scope_pop();
         dma_breadcrumb_export_loop_phase(stage_idx, tensor_id, manager_id, i, &req, rc,
                                          used_bounce ? PRT_BREADCRUMB_FLAG_BOUNCE : 0U,
@@ -1172,7 +1173,8 @@ static int dma_copy_spm_pages_to_host_linux(prt_runtime_t *rt, uint8_t *dst_host
       }
       dma_tracerv_dma_window_scope_push(i, copied);
       rc = dma_submit_wait_annotated_scoped(rt, &req, stage_idx, tensor_id, timeout_ns, &scope,
-                                            dma_export_probe_enabled() && (page_probe || first_chunk_probe));
+                                            dma_export_probe_enabled() && (page_probe || first_chunk_probe),
+                                            i);
       dma_tracerv_dma_window_scope_pop();
       dma_breadcrumb_export_loop_phase(stage_idx, tensor_id, manager_id, i, &req, rc,
                                        used_bounce ? PRT_BREADCRUMB_FLAG_BOUNCE : 0U,
@@ -1984,6 +1986,7 @@ static int dma_submit_wait_annotated(prt_runtime_t *rt, const prt_dma_req_t *req
   memset(&tok, 0, sizeof(tok));
   tok.stage_idx = stage_idx;
   tok.tensor_id = tensor_id;
+  tok.debug_page_idx = PRT_DEBUG_U32_NONE;
   if (trace_submit) {
     PRT_MARKER_LOG("dma-submit stage=%u tensor=%u phase=submit-begin src=0x%llx dst=0x%llx bytes=%llu src_acc=%u dst_acc=%u timeout_ms=%llu",
                    stage_idx, tensor_id,
@@ -2025,7 +2028,7 @@ static int dma_submit_wait_annotated(prt_runtime_t *rt, const prt_dma_req_t *req
 static int dma_submit_wait_annotated_scoped(prt_runtime_t *rt, const prt_dma_req_t *req,
                                             uint32_t stage_idx, uint32_t tensor_id,
                                             uint64_t timeout_ns, prt_rr_scope_t *scope,
-                                            int force_export_probe) {
+                                            int force_export_probe, uint32_t debug_page_idx) {
   int rc;
   prt_dma_token_t tok;
   uint32_t cleanup_token_id = 0U;
@@ -2039,6 +2042,7 @@ static int dma_submit_wait_annotated_scoped(prt_runtime_t *rt, const prt_dma_req
   memset(&tok, 0, sizeof(tok));
   tok.stage_idx = stage_idx;
   tok.tensor_id = tensor_id;
+  tok.debug_page_idx = debug_page_idx;
   tok.debug_force_export_probe = force_export_probe ? 1 : 0;
   if (scope && scope->valid) {
     tok.rr_scope_valid = scope->valid;
@@ -2141,6 +2145,7 @@ static void dma_token_init(prt_dma_token_t *tok) {
   uint32_t rr_cfg_id = 0;
   uint32_t rr_manager_id = 0;
   uint32_t rr_opcode_id = 0;
+  uint32_t debug_page_idx = PRT_DEBUG_U32_NONE;
   int debug_force_export_probe = 0;
   if (tok) {
     stage_idx = tok->stage_idx;
@@ -2150,6 +2155,7 @@ static void dma_token_init(prt_dma_token_t *tok) {
     rr_cfg_id = tok->rr_cfg_id;
     rr_manager_id = tok->rr_manager_id;
     rr_opcode_id = tok->rr_opcode_id;
+    debug_page_idx = tok->debug_page_idx;
     debug_force_export_probe = tok->debug_force_export_probe;
   }
   memset(tok, 0, sizeof(*tok));
@@ -2163,6 +2169,7 @@ static void dma_token_init(prt_dma_token_t *tok) {
   tok->rr_cfg_id = rr_cfg_id;
   tok->rr_manager_id = rr_manager_id;
   tok->rr_opcode_id = rr_opcode_id;
+  tok->debug_page_idx = debug_page_idx;
   tok->debug_force_export_probe = debug_force_export_probe;
   tok->hw_done_flag = 0;
   tok->hw_done_flag_pa_rc = PRT_ERR_NOT_READY;
@@ -2730,7 +2737,7 @@ int prt_dma_copy_spm_pages_prefix(prt_runtime_t *rt, const prt_page_list_t *dst_
     req.dst_addr = page_base_addr(rt, &dst_pages->data[i]);
     req.bytes = dma_min_u64(remaining, page_bytes);
     dma_breadcrumb_page_begin(tensor_id, manager_id, i, &req, 0U, timeout_ns);
-    rc = dma_submit_wait_annotated_scoped(rt, &req, stage_idx, tensor_id, timeout_ns, &scope, 0);
+    rc = dma_submit_wait_annotated_scoped(rt, &req, stage_idx, tensor_id, timeout_ns, &scope, 0, i);
     dma_breadcrumb_page_end(tensor_id, manager_id, i, &req, rc, 0U, timeout_ns);
     if (rc != PRT_OK) break;
     remaining -= req.bytes;
@@ -2784,7 +2791,7 @@ int prt_dma_copy_dram_to_spm_pages_prefix(prt_runtime_t *rt, const prt_page_list
     req.dst_addr = page_base_addr(rt, &dst_pages->data[i]);
     req.bytes = dma_min_u64(remaining, page_bytes);
     dma_breadcrumb_page_begin(tensor_id, manager_id, i, &req, 0U, timeout_ns);
-    rc = dma_submit_wait_annotated_scoped(rt, &req, stage_idx, tensor_id, timeout_ns, &scope, 0);
+    rc = dma_submit_wait_annotated_scoped(rt, &req, stage_idx, tensor_id, timeout_ns, &scope, 0, i);
     dma_breadcrumb_page_end(tensor_id, manager_id, i, &req, rc, 0U, timeout_ns);
     if (rc != PRT_OK) {
       dma_batch_scope_release(&scope);
@@ -2838,7 +2845,7 @@ int prt_dma_copy_spm_pages_to_dram_prefix(prt_runtime_t *rt, uint64_t dst_dram_a
     req.dst_addr = dst_dram_addr + (uint64_t)i * page_bytes;
     req.bytes = dma_min_u64(remaining, page_bytes);
     dma_breadcrumb_page_begin(tensor_id, manager_id, i, &req, 0U, timeout_ns);
-    rc = dma_submit_wait_annotated_scoped(rt, &req, stage_idx, tensor_id, timeout_ns, &scope, 0);
+    rc = dma_submit_wait_annotated_scoped(rt, &req, stage_idx, tensor_id, timeout_ns, &scope, 0, i);
     dma_breadcrumb_page_end(tensor_id, manager_id, i, &req, rc, 0U, timeout_ns);
     if (rc != PRT_OK) {
       dma_batch_scope_release(&scope);
@@ -2923,7 +2930,7 @@ int prt_dma_copy_spm_va(prt_runtime_t *rt, uint64_t dst_va, uint64_t src_va, uin
     req.bytes = chunk;
     req.src_acc = manager_id;
     req.dst_acc = manager_id;
-    rc = dma_submit_wait_annotated_scoped(rt, &req, stage_idx, tensor_id, timeout_ns, &scope, 0);
+    rc = dma_submit_wait_annotated_scoped(rt, &req, stage_idx, tensor_id, timeout_ns, &scope, 0, PRT_DEBUG_U32_NONE);
     if (rc != PRT_OK) goto done;
 
     left -= chunk;
@@ -3519,7 +3526,7 @@ static void dma_gdb_marker_wait_return(const prt_dma_token_t *tok, int rc) {
   prt_gdb_marker_note(PRT_GDB_MARKER_SITE_DMA_WAIT_RETURN,
                       PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE, tok->stage_idx,
                       PRT_DEBUG_U32_NONE, tok->rr_manager_id, tok->tensor_id,
-                      PRT_DEBUG_U32_NONE, tok->id, rc,
+                      tok->debug_page_idx, tok->id, rc,
                       tok->debug_src_addr, tok->debug_dst_addr, __LINE__);
 }
 
@@ -3540,7 +3547,7 @@ static int dma_blocking_wait(prt_runtime_t *rt, prt_dma_token_t *tok, uint64_t t
   prt_gdb_marker_note(PRT_GDB_MARKER_SITE_DMA_WAIT_ENTER,
                       PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE, tok->stage_idx,
                       PRT_DEBUG_U32_NONE, tok->rr_manager_id, tok->tensor_id,
-                      PRT_DEBUG_U32_NONE, tok->id, PRT_OK,
+                      tok->debug_page_idx, tok->id, PRT_OK,
                       tok->debug_src_addr, tok->debug_dst_addr, __LINE__);
 #if !defined(__riscv)
   (void)progress_log;

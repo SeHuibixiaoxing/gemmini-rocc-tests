@@ -84,6 +84,39 @@ printf "\n--- segment0 chain: entry dma-wait-return token16 stage0 tensor0 ---\n
 set variable g_prt_gdb_marker_filter.site_id = 13
 set variable g_prt_gdb_marker_filter.tensor_id = 0
 set variable g_prt_gdb_marker_filter.token_id = 16
+set variable g_prt_gdb_marker_filter.page_idx = 4294967295
+continue
+print g_prt_gdb_marker_state
+bt
+info threads
+info registers pc sp ra
+
+printf "\n--- segment0 chain: entry dma-wait-return token17 stage0 tensor0 ---\n"
+set variable g_prt_gdb_marker_filter.token_id = 17
+continue
+print g_prt_gdb_marker_state
+bt
+info threads
+info registers pc sp ra
+
+printf "\n--- segment0 chain: entry dma-wait-return token20 stage0 tensor0 ---\n"
+set variable g_prt_gdb_marker_filter.token_id = 20
+continue
+print g_prt_gdb_marker_state
+bt
+info threads
+info registers pc sp ra
+
+printf "\n--- segment0 chain: entry dma-wait-return token24 stage0 tensor0 ---\n"
+set variable g_prt_gdb_marker_filter.token_id = 24
+continue
+print g_prt_gdb_marker_state
+bt
+info threads
+info registers pc sp ra
+
+printf "\n--- segment0 chain: entry dma-wait-return token28 stage0 tensor0 ---\n"
+set variable g_prt_gdb_marker_filter.token_id = 28
 continue
 print g_prt_gdb_marker_state
 bt
@@ -132,6 +165,7 @@ info registers pc sp ra
 delete $prt_entry_release_begin_bp $prt_entry_release_end_bp
 
 set variable g_prt_gdb_marker_filter.tensor_id = 4294967295
+set variable g_prt_gdb_marker_filter.page_idx = 4294967295
 set variable g_prt_gdb_marker_filter.token_id = 4294967295
 
 printf "\n--- segment0 chain: entry-process-return stage0 ---\n"

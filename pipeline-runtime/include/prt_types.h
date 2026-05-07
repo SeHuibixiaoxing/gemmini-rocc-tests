@@ -117,6 +117,7 @@ typedef struct {
   uint64_t debug_last_pending_log_ns;
   uint32_t debug_src_acc;
   uint32_t debug_dst_acc;
+  uint32_t debug_page_idx;
   uint32_t debug_progress_polls;
   int debug_force_export_probe;
   int traced_complete;
