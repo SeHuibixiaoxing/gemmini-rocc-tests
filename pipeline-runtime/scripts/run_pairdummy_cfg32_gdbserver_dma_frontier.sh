@@ -25,7 +25,7 @@ Environment:
   PRT_GDB_POST_HIT_SECONDS     Seconds to run after breakpoint before Ctrl-C. Default: 8.
   PRT_GDB_INTERRUPT_TIMEOUT    Seconds to wait for Ctrl-C stop. Default: 240.
   PRT_GDB_PATH_TRACE_TIMEOUT   Seconds to wait for each path breakpoint. Default: 90.
-  PRT_GDB_PATH_TRACE_MAX_STOPS Maximum path stops after the frontier hit. Default: 12.
+  PRT_GDB_PATH_TRACE_MAX_STOPS Maximum path stops after the frontier hit. Default: 9.
   PRT_GDB_PATH_TRACE_BREAKPOINTS
                                 Comma-separated label=location specs. Locations
                                 may be *0xaddr, 0xaddr, function, or file:line.
@@ -73,7 +73,7 @@ post_hit_mode="${PRT_GDB_POST_HIT_MODE:-interrupt}"
 post_hit_seconds="${PRT_GDB_POST_HIT_SECONDS:-8}"
 interrupt_timeout="${PRT_GDB_INTERRUPT_TIMEOUT:-240}"
 path_trace_timeout="${PRT_GDB_PATH_TRACE_TIMEOUT:-90}"
-path_trace_max_stops="${PRT_GDB_PATH_TRACE_MAX_STOPS:-12}"
+path_trace_max_stops="${PRT_GDB_PATH_TRACE_MAX_STOPS:-9}"
 path_trace_breakpoints="${PRT_GDB_PATH_TRACE_BREAKPOINTS:-before_poll_gate=${dma_src}:3570,poll_entry=dma_blocking_wait_poll_doneflag,poll_done=${dma_src}:2433,poll_timeout=${dma_src}:2449,hw_dma_fence=${dma_src}:3603,after_wait_refresh=${dma_src}:3607,before_shared_fence=${dma_src}:3666,dma_token_fence_scope=dma_token_fence_scope,rr_fence_scope=prt_rr_fence_scope,rr_fence_call=${rr_src}:378,after_shared_fence=${dma_src}:3685,after_release=${dma_src}:3723,token_complete=${dma_src}:3760,return=${dma_src}:3788}"
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 out_dir="${out_root}/pairdummy-cfg32-dma-frontier-${stamp}-${run_host_ip//./_}-${guest_ip//./_}"
@@ -450,6 +450,8 @@ if {$post_hit_mode eq "path_trace"} {
     }
 }
 
+gdb_cmd "disable breakpoints" 120
+gdb_cmd "delete breakpoints" 120
 gdb_cmd "bt" 300
 gdb_cmd "info threads"
 gdb_cmd "thread apply all bt" 300
