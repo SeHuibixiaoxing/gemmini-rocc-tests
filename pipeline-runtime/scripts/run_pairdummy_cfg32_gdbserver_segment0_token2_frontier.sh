@@ -64,6 +64,8 @@ continue
 bt
 info threads
 info registers pc sp ra
+info args
+info locals
 
 printf "\n--- token2 frontier: after prt_dma_wait returns to submit_wait ---\n"
 tbreak /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2092
@@ -71,10 +73,9 @@ continue
 bt
 info threads
 info registers pc sp ra
-print tok.id
-print tok.debug_page_idx
-print tok.rr_scope_valid
-print tok.rr_scope_external
+frame 1
+info args
+info locals
 
 printf "\n--- token2 frontier: before token cleanup breadcrumb ---\n"
 tbreak /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2124
@@ -82,9 +83,8 @@ continue
 bt
 info threads
 info registers pc sp ra
-print cleanup_token_id
-print cleanup_manager_id
-print cleanup_flags
+info args
+info locals
 
 printf "\n--- token2 frontier: back in fixed-load page loop after submitwait ---\n"
 tbreak /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:814
@@ -92,10 +92,8 @@ continue
 bt
 info threads
 info registers pc sp ra
-print i
-print copied
-print remaining
-print rc
+info args
+info locals
 
 printf "\n--- token2 frontier: page0 accounting complete ---\n"
 tbreak /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:840
@@ -103,10 +101,8 @@ continue
 bt
 info threads
 info registers pc sp ra
-print i
-print copied
-print remaining
-print rc
+info args
+info locals
 
 printf "\n--- token2 frontier: next page submitwait call ---\n"
 tbreak /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:813
@@ -114,12 +110,8 @@ continue
 bt
 info threads
 info registers pc sp ra
-print i
-print copied
-print remaining
-print req.src_addr
-print req.dst_addr
-print req.bytes
+info args
+info locals
 
 printf "\n--- token2 frontier: token2 wait-enter stage0 tensor0 ---\n"
 set variable g_prt_gdb_marker_filter.site_id = 12
