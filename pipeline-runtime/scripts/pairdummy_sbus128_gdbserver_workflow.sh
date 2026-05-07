@@ -2,9 +2,10 @@
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+fixed_env_script="${PAIRDUMMY_FIXED_ENV_SCRIPT:-${script_dir}/pairdummy_sbus128_fixed_env.sh}"
 
 # shellcheck disable=SC1091
-source "${script_dir}/pairdummy_sbus128_fixed_env.sh"
+source "${fixed_env_script}"
 
 export PIPELINE_RUNTIME_GDBSERVER_ENABLE="${PIPELINE_RUNTIME_GDBSERVER_ENABLE:-1}"
 export PIPELINE_RUNTIME_GDBSERVER_BIND_ADDR="${PIPELINE_RUNTIME_GDBSERVER_BIND_ADDR:-0.0.0.0}"
