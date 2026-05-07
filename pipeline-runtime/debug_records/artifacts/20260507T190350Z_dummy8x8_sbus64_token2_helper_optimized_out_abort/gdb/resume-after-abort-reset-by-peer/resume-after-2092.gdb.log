@@ -1,0 +1,4 @@
+Reading symbols from /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/build/rerocc-linux-tests/rerocc_pipeline_runtime-linux...
+/home/ubuntu/chipyard/tmp/firesim-aws-f2/gdbserver-tests/pairdummy-cfg32-token2-resume-20260507T190341Z-192_168_1_226-172_16_0_2/resume-after-2092.gdb:8: Error in sourced command file:
+Remote communication error.  Target disconnected: Connection reset by peer.
+(gdb) 
