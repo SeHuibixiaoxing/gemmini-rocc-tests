@@ -288,6 +288,17 @@ generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/run_pair
   `launchrunfarm -> infrasetup -> runworkload -> terminaterunfarm`
 - 仍然必须通过：
   [`scripts/firesim-tmux-run.sh`](/home/ubuntu/chipyard/scripts/firesim-tmux-run.sh)
+- fresh run 前除了查 AWS F2 实例，也要查本地 manager 侧是否还有同 runtime config 的
+  stale `firesim runworkload` 进程或旧 tmux session。旧 manager 即使对应的 F2 已经终止，
+  仍可能继续轮询同一个 cluster tag，污染下一轮 runworkload 状态。检查命令：
+
+```bash
+pgrep -af 'firesim runworkload -c .*cfg32_nic_notrace'
+tmux ls | grep 'pairdummy-sbus64-dummy8x8-gdbserver-cfg32-nic-notrace-runworkload'
+```
+
+  若确认这些 session 对应的 F2 已经不存在，先终止本地 stale manager，再启动新的
+  `launchrunfarm`。不要通过清理结果目录来解决这个问题。
 - 不要改全局 watchdog；`pairdummy` 本地 profile 已把 live-idle 上限收敛到 `3600s`
 - `gdbserver` 只是 workload-local rootfs 变体，不要把它塞回共享 `br-base`
 - `gdbserver` 监听的是 guest 内网地址；host 侧要先通过 run host private IP 做 SSH 隧道
