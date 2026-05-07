@@ -1,6 +1,6 @@
 # Pipeline Runtime gdbserver Integration SOP
 
-更新时间：`2026-05-06 00:20 UTC`
+更新时间：`2026-05-07 06:20 UTC`
 
 ## 1. 目标
 
@@ -70,6 +70,38 @@
 `Ctrl-C` 抢回控制和 `detach`。如果这条路线继续通过，而 `pairdummy cfg32_nic`
 失败，优先把问题分到目标硬件、目标 rootfs/workload、pipeline-runtime 或
 cfg32_nic 专属 FireSim 路径，不要回头怀疑通用 GDB 软件栈。
+
+当前 `dummy8x8 / sbus64 / cfg32 / NIC / no TraceIO` 路线也已通过同等的
+remote-gdbserver 操作矩阵：
+
+- AGFI：`agfi-077451484fe3b63c3`
+- AFI：`afi-07989ce9ce725a690`
+- build result：
+  `sims/firesim/deploy/results-build/2026-05-06--12-37-54-firesim_gemmini_rerocc_pairmanager_dummy8x8_4c12p12_sbus64_cfg32_nic_notrace/`
+- workflow：
+  [`pairdummy_sbus64_dummy8x8_gdbserver_cfg32_nic_notrace_workflow.sh`](/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdummy_sbus64_dummy8x8_gdbserver_cfg32_nic_notrace_workflow.sh)
+- expect helper：
+  [`run_pairdummy_cfg32_gdbserver_expect_triage.sh`](/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/run_pairdummy_cfg32_gdbserver_expect_triage.sh)
+- debug records：
+  [`20260507T055420Z_dummy8x8_sbus64_gdbserver_plusargs_pass.md`](/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/20260507T055420Z_dummy8x8_sbus64_gdbserver_plusargs_pass.md)
+  和
+  [`20260507T061559Z_dummy8x8_sbus64_gdbserver_extended_matrix_pass.md`](/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/20260507T061559Z_dummy8x8_sbus64_gdbserver_extended_matrix_pass.md)
+
+该路线的关键前提是 runtime config 中保留已验证的 SimpleNIC plusargs：
+
+```text
++simplenic-relaxed-required-bytes=1
++simplenic-empty-switch-poll-interval=1024
++simplenic-token-debug=0
++cpu-managed-stream-debug=0
++heartbeat-polling-interval=100000000
+```
+
+`run_pairdummy_cfg32_gdbserver_expect_triage.sh` 当前会验证：
+`target remote`、`info threads`、`thread apply all bt`、寄存器读取、反汇编、
+变量读写、内存读写、`break prt_main_entry`、`continue`、`next`、多个
+software breakpoint、Ctrl-C 抢回控制和 `detach`。运行前仍然不要用
+`nc`/telnet 探测端口；`gdbserver --once` 的第一条 TCP 连接必须来自 GDB。
 
 ## 4. 关键约束
 

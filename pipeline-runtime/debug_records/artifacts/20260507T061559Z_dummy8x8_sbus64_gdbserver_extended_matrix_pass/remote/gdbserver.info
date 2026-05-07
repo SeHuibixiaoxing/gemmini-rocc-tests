@@ -1,0 +1,12 @@
+phase=inferior
+ts=1970-01-01T00:00:04Z
+method=ours2
+enable=1
+tool=/usr/bin/gdbserver
+bind_addr=0.0.0.0
+port=2345
+endpoint=0.0.0.0:2345
+net_dev=eth0
+guest_ipv4=172.16.0.2
+pid=235
+gdbserver_pid=221

@@ -222,6 +222,24 @@ gdb_cmd "thread apply all bt" 240
 gdb_cmd "info registers"
 gdb_cmd "x/16i \$pc"
 
+gdb_cmd "print/x g_prt_debug_filter.rr_cfg_id"
+gdb_cmd "set \$prt_gdb_old_rr_cfg = g_prt_debug_filter.rr_cfg_id"
+gdb_cmd "set variable g_prt_debug_filter.rr_cfg_id = 0x5a5aa5a5"
+gdb_cmd "print/x g_prt_debug_filter.rr_cfg_id"
+gdb_cmd "set \$prt_gdb_filter_addr = &g_prt_debug_filter.rr_cfg_id"
+gdb_cmd "x/wx \$prt_gdb_filter_addr"
+gdb_cmd "set {unsigned int}(\$prt_gdb_filter_addr) = 0xa5a55a5a"
+gdb_cmd "x/wx \$prt_gdb_filter_addr"
+gdb_cmd "set variable g_prt_debug_filter.rr_cfg_id = \$prt_gdb_old_rr_cfg"
+gdb_cmd "print/x g_prt_debug_filter.rr_cfg_id"
+puts "GDB_MARK_MEMORY_RW_DONE"
+
+gdb_cmd "break prt_main_entry"
+continue_to_break 600
+puts "GDB_MARK_HIT_MAIN_ENTRY"
+gdb_cmd "next" 240
+puts "GDB_MARK_NEXT_DONE"
+
 foreach sym {
     prt_runtime_run
     prt_action_bind_topology
@@ -310,6 +328,9 @@ fi
 expect_stdout="${out_dir}/expect-driver.stdout"
 for marker in \
   GDB_MARK_CONNECTED \
+  GDB_MARK_MEMORY_RW_DONE \
+  GDB_MARK_HIT_MAIN_ENTRY \
+  GDB_MARK_NEXT_DONE \
   GDB_MARK_HIT_FIRST_BREAK \
   GDB_MARK_INTERRUPT_BEGIN \
   GDB_MARK_INTERRUPT_DONE \
