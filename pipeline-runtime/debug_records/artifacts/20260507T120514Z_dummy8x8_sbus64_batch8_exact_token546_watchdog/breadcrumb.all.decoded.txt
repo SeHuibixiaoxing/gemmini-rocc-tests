@@ -1,0 +1,22 @@
+path=/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/artifacts/20260507T120514Z_dummy8x8_sbus64_batch8_exact_token546_watchdog/pairdummy-sbus64-dummy8x8-gdbserver-cfg32-nic-notrace-runworkload-20260507-115652-192.168.1.71-host-watchdog-20260507T122331Z.guest-breadcrumb.bin
+version=1 enabled=1 slot_count=64 update_count=182 last_slot=0 last_kind=runtime last_phase=runtime_init_done last_update_ns=5172930000
+filters segment=0 global_stage=0 local_stage=0 subbatch=any stage_radius=0 subbatch_radius=0
+last_slot:
+slot=0 kind=runtime phase=runtime_init_done seq=4 mono_ns=5172930000 seg=any gstage=any lstage=any sb=any tensor=any tok=0 mgr=any page=any rc=0 flags=0x0 src=0x0 dst=0x0 aux0=0x0 aux1=0x0 line=4722
+all_slots:
+slot=48 kind=spm_xlate phase=spm_xlate_restore_end seq=12 mono_ns=5168516000 seg=any gstage=any lstage=any sb=any tensor=any tok=0 mgr=0 page=any rc=0 flags=0x0 src=0x0 dst=0x0 aux0=0x0 aux1=0x1f line=201
+slot=50 kind=spm_xlate phase=spm_xlate_restore_end seq=12 mono_ns=5168856000 seg=any gstage=any lstage=any sb=any tensor=any tok=0 mgr=1 page=any rc=0 flags=0x0 src=0x0 dst=0x0 aux0=0x0 aux1=0x1f line=201
+slot=33 kind=rr phase=rr_release_end seq=36 mono_ns=5169445000 seg=any gstage=any lstage=any sb=any tensor=any tok=31 mgr=3 page=any rc=0 flags=0x0 src=0x82f dst=0x0 aux0=0x0 aux1=0x0 line=404
+slot=3 kind=spm_xlate phase=spm_xlate_restore_end seq=24 mono_ns=5169527000 seg=any gstage=any lstage=any sb=any tensor=any tok=0 mgr=3 page=any rc=0 flags=0x0 src=0x0 dst=0x0 aux0=0x0 aux1=0x1f line=201
+slot=37 kind=rr phase=rr_release_end seq=36 mono_ns=5170272000 seg=any gstage=any lstage=any sb=any tensor=any tok=31 mgr=5 page=any rc=0 flags=0x0 src=0x82f dst=0x0 aux0=0x0 aux1=0x0 line=404
+slot=7 kind=spm_xlate phase=spm_xlate_restore_end seq=24 mono_ns=5170359000 seg=any gstage=any lstage=any sb=any tensor=any tok=0 mgr=5 page=any rc=0 flags=0x0 src=0x0 dst=0x0 aux0=0x0 aux1=0x1f line=201
+slot=58 kind=spm_xlate phase=spm_xlate_restore_end seq=48 mono_ns=5170697000 seg=any gstage=any lstage=any sb=any tensor=any tok=0 mgr=6 page=any rc=0 flags=0x0 src=0x0 dst=0x0 aux0=0x0 aux1=0x1f line=201
+slot=56 kind=rr phase=rr_release_end seq=18 mono_ns=5170949000 seg=any gstage=any lstage=any sb=any tensor=any tok=31 mgr=7 page=any rc=0 flags=0x0 src=0x82f dst=0x0 aux0=0x0 aux1=0x0 line=404
+slot=59 kind=spm_xlate phase=spm_xlate_restore_end seq=12 mono_ns=5171032000 seg=any gstage=any lstage=any sb=any tensor=any tok=0 mgr=7 page=any rc=0 flags=0x0 src=0x0 dst=0x0 aux0=0x0 aux1=0x1f line=201
+slot=62 kind=rr phase=rr_release_end seq=18 mono_ns=5171285000 seg=any gstage=any lstage=any sb=any tensor=any tok=31 mgr=8 page=any rc=0 flags=0x0 src=0x82f dst=0x0 aux0=0x0 aux1=0x0 line=404
+slot=61 kind=spm_xlate phase=spm_xlate_restore_end seq=12 mono_ns=5171368000 seg=any gstage=any lstage=any sb=any tensor=any tok=0 mgr=8 page=any rc=0 flags=0x0 src=0x0 dst=0x0 aux0=0x0 aux1=0x1f line=201
+slot=60 kind=rr phase=rr_release_end seq=36 mono_ns=5171626000 seg=any gstage=any lstage=any sb=any tensor=any tok=31 mgr=9 page=any rc=0 flags=0x0 src=0x82f dst=0x0 aux0=0x0 aux1=0x0 line=404
+slot=63 kind=spm_xlate phase=spm_xlate_restore_end seq=12 mono_ns=5171710000 seg=any gstage=any lstage=any sb=any tensor=any tok=0 mgr=9 page=any rc=0 flags=0x0 src=0x0 dst=0x0 aux0=0x0 aux1=0x1f line=201
+slot=40 kind=rr phase=rr_release_end seq=36 mono_ns=5172534000 seg=any gstage=any lstage=any sb=any tensor=any tok=31 mgr=11 page=any rc=0 flags=0x0 src=0x82f dst=0x0 aux0=0x0 aux1=0x0 line=404
+slot=21 kind=spm_xlate phase=spm_xlate_restore_end seq=24 mono_ns=5172769000 seg=any gstage=any lstage=any sb=any tensor=any tok=0 mgr=11 page=any rc=0 flags=0x0 src=0x0 dst=0x0 aux0=0x0 aux1=0x1f line=201
+slot=0 kind=runtime phase=runtime_init_done seq=4 mono_ns=5172930000 seg=any gstage=any lstage=any sb=any tensor=any tok=0 mgr=any page=any rc=0 flags=0x0 src=0x0 dst=0x0 aux0=0x0 aux1=0x0 line=4722

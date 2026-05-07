@@ -1,0 +1,5 @@
+[firemarshal-stage] wrapper-enter log_dir=/root/pipeline-runtime-debug ts=1970-01-01T00:00:02Z
+[firemarshal-stage] after-log-preamble ts=1970-01-01T00:00:02Z
+[firemarshal-stage] before-child-spawn runner=/root/rerocc-linux-tests/run_rerocc_pipeline_runtime_bertmini.sh ts=1970-01-01T00:00:02Z
+[firemarshal-stage] after-child-spawn pid=143 ts=1970-01-01T00:00:02Z
+[firemarshal-stage] before-child-wait pid=143 ts=1970-01-01T00:00:03Z

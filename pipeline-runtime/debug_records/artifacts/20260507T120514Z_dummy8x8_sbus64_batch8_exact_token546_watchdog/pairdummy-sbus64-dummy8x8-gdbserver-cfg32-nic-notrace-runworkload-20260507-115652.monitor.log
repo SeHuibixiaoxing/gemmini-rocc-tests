@@ -1,0 +1,95 @@
+[prt-host-watchdog] started at 2026-05-07T11:56:52Z
+[prt-host-watchdog] runtime_config=/home/ubuntu/chipyard/sims/firesim/deploy/config_runtime_f2_gemmini_rerocc_pairmanager_dummy8x8_4c12p12_sbus64_linux_bertmini_pipeline_runtime_batch8_fileonly_sync_gdbserver_cfg32_nic_notrace.yaml
+[prt-host-watchdog] idle_timeout_seconds=600 live_idle_timeout_seconds=3600 poll_seconds=30
+[prt-host-watchdog] ssh_connect_timeout_seconds=10 probe_timeout_seconds=20 capture_timeout_seconds=180
+[prt-host-watchdog] heartbeat_liveness_enable=1
+[prt-host-watchdog] arm_on_guest_status_nonzero=1
+[prt-host-watchdog] monitoring instance=i-0b35baea158234d9c private_ip=192.168.1.71
+[prt-host-watchdog] guest-status arm observed at 2026-05-07T12:03:41Z hb='Target Cycle (fastest), Seconds Since Start' guest_status=1645
+[prt-host-watchdog] progress hb='Target Cycle (fastest), Seconds Since Start' uart=16627 guest_log=0 guest_sparse=1293 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=1292 guest_runner=0 guest_runner_post=363 guest_runner_early=0 guest_binary=0 guest_runner_proc=0
+[prt-host-watchdog] hb='Target Cycle (fastest), Seconds Since Start' idle=0s hb_idle=31s uart=16627 guest_log=0 guest_sparse=1293 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=1292 guest_runner=0 guest_runner_post=363 guest_runner_early=0 guest_binary=0 guest_runner_proc=0
+[prt-host-watchdog] progress hb='Target Cycle (fastest), Seconds Since Start' uart=16723 guest_log=0 guest_sparse=1293 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=1292 guest_runner=0 guest_runner_post=363 guest_runner_early=0 guest_binary=0 guest_runner_proc=0
+[prt-host-watchdog] hb='Target Cycle (fastest), Seconds Since Start' idle=0s hb_idle=62s uart=16723 guest_log=0 guest_sparse=1293 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=1292 guest_runner=0 guest_runner_post=363 guest_runner_early=0 guest_binary=0 guest_runner_proc=0
+[prt-host-watchdog] progress hb='Target Cycle (fastest), Seconds Since Start' uart=16821 guest_log=0 guest_sparse=3466 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=2580 guest_runner=395 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=4079
+[prt-host-watchdog] hb='Target Cycle (fastest), Seconds Since Start' idle=0s hb_idle=94s uart=16821 guest_log=0 guest_sparse=3466 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=2580 guest_runner=395 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=4079
+[prt-host-watchdog] progress hb='Target Cycle (fastest), Seconds Since Start' uart=16918 guest_log=0 guest_sparse=126495 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=2580 guest_runner=596 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=11458
+[prt-host-watchdog] hb='Target Cycle (fastest), Seconds Since Start' idle=0s hb_idle=125s uart=16918 guest_log=0 guest_sparse=126495 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=2580 guest_runner=596 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=11458
+[prt-host-watchdog] hb='Target Cycle (fastest), Seconds Since Start' idle=31s hb_idle=156s uart=16918 guest_log=0 guest_sparse=126495 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=2580 guest_runner=596 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=11458
+[prt-host-watchdog] hb='Target Cycle (fastest), Seconds Since Start' idle=63s hb_idle=188s uart=16918 guest_log=0 guest_sparse=126495 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=2580 guest_runner=596 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=11458
+[prt-host-watchdog] hb='Target Cycle (fastest), Seconds Since Start' idle=94s hb_idle=219s uart=16918 guest_log=0 guest_sparse=126495 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=2580 guest_runner=596 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=11458
+[prt-host-watchdog] hb='Target Cycle (fastest), Seconds Since Start' idle=126s hb_idle=251s uart=16918 guest_log=0 guest_sparse=126495 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=2580 guest_runner=596 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=11458
+[prt-host-watchdog] hb='Target Cycle (fastest), Seconds Since Start' idle=157s hb_idle=282s uart=16918 guest_log=0 guest_sparse=126495 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=2580 guest_runner=596 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=11458
+[prt-host-watchdog] hb='Target Cycle (fastest), Seconds Since Start' idle=189s hb_idle=314s uart=16918 guest_log=0 guest_sparse=126495 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=2580 guest_runner=596 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=11458
+[prt-host-watchdog] hb='Target Cycle (fastest), Seconds Since Start' idle=220s hb_idle=345s uart=16918 guest_log=0 guest_sparse=126495 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=2580 guest_runner=596 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=11458
+[prt-host-watchdog] hb='Target Cycle (fastest), Seconds Since Start' idle=251s hb_idle=376s uart=16918 guest_log=0 guest_sparse=126495 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=2580 guest_runner=596 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=11458
+[prt-host-watchdog] hb='Target Cycle (fastest), Seconds Since Start' idle=283s hb_idle=408s uart=16918 guest_log=0 guest_sparse=126495 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=2580 guest_runner=596 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=11458
+[prt-host-watchdog] hb='Target Cycle (fastest), Seconds Since Start' idle=314s hb_idle=439s uart=16918 guest_log=0 guest_sparse=126495 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=2580 guest_runner=596 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=11458
+[prt-host-watchdog] hb='Target Cycle (fastest), Seconds Since Start' idle=345s hb_idle=470s uart=16918 guest_log=0 guest_sparse=126495 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=2580 guest_runner=596 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=11458
+[prt-host-watchdog] hb='Target Cycle (fastest), Seconds Since Start' idle=377s hb_idle=502s uart=16918 guest_log=0 guest_sparse=126495 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=2580 guest_runner=596 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=11458
+[prt-host-watchdog] hb='Target Cycle (fastest), Seconds Since Start' idle=408s hb_idle=533s uart=16918 guest_log=0 guest_sparse=126495 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=2580 guest_runner=596 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=11458
+[prt-host-watchdog] heartbeat-progress hb='18246549892, 959' idle=439s hb_idle=0s uart=16918 guest_log=0 guest_sparse=126495 guest_status=1644
+[prt-host-watchdog] hb='18246549892, 959' idle=439s hb_idle=0s uart=16918 guest_log=0 guest_sparse=126495 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=2580 guest_runner=596 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=11458
+[prt-host-watchdog] hb='18246549892, 959' idle=471s hb_idle=32s uart=16918 guest_log=0 guest_sparse=126495 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=2580 guest_runner=596 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=11458
+[prt-host-watchdog] hb='18246549892, 959' idle=502s hb_idle=63s uart=16918 guest_log=0 guest_sparse=126495 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=2580 guest_runner=596 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=11458
+[prt-host-watchdog] hb='18246549892, 959' idle=533s hb_idle=94s uart=16918 guest_log=0 guest_sparse=126495 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=2580 guest_runner=596 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=11458
+[prt-host-watchdog] hb='18246549892, 959' idle=564s hb_idle=125s uart=16918 guest_log=0 guest_sparse=126495 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=2580 guest_runner=596 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=11458
+[prt-host-watchdog] hb='18246549892, 959' idle=596s hb_idle=157s uart=16918 guest_log=0 guest_sparse=126495 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=2580 guest_runner=596 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=11458
+[prt-host-watchdog] hb='18246549892, 959' idle=627s hb_idle=188s uart=16918 guest_log=0 guest_sparse=126495 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=2580 guest_runner=596 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=11458
+[prt-host-watchdog] hb='18246549892, 959' idle=658s hb_idle=219s uart=16918 guest_log=0 guest_sparse=126495 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=2580 guest_runner=596 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=11458
+[prt-host-watchdog] hb='18246549892, 959' idle=690s hb_idle=251s uart=16918 guest_log=0 guest_sparse=126495 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=2580 guest_runner=596 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=11458
+[prt-host-watchdog] hb='18246549892, 959' idle=721s hb_idle=282s uart=16918 guest_log=0 guest_sparse=126495 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=2580 guest_runner=596 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=11458
+[prt-host-watchdog] hb='18246549892, 959' idle=752s hb_idle=313s uart=16918 guest_log=0 guest_sparse=126495 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=2580 guest_runner=596 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=11458
+[prt-host-watchdog] hb='18246549892, 959' idle=784s hb_idle=345s uart=16918 guest_log=0 guest_sparse=126495 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=2580 guest_runner=596 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=11458
+[prt-host-watchdog] hb='18246549892, 959' idle=815s hb_idle=376s uart=16918 guest_log=0 guest_sparse=126495 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=2580 guest_runner=596 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=11458
+[prt-host-watchdog] hb='18246549892, 959' idle=846s hb_idle=407s uart=16918 guest_log=0 guest_sparse=126495 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=2580 guest_runner=596 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=11458
+[prt-host-watchdog] hb='18246549892, 959' idle=877s hb_idle=438s uart=16918 guest_log=0 guest_sparse=126495 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=2580 guest_runner=596 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=11458
+[prt-host-watchdog] hb='18246549892, 959' idle=909s hb_idle=470s uart=16918 guest_log=0 guest_sparse=126495 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=2580 guest_runner=596 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=11458
+[prt-host-watchdog] hb='18246549892, 959' idle=940s hb_idle=501s uart=16918 guest_log=0 guest_sparse=126495 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=2580 guest_runner=596 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=11458
+[prt-host-watchdog] hb='18246549892, 959' idle=971s hb_idle=532s uart=16918 guest_log=0 guest_sparse=126495 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=2580 guest_runner=596 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=11458
+[prt-host-watchdog] hb='18246549892, 959' idle=1003s hb_idle=564s uart=16918 guest_log=0 guest_sparse=126495 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=2580 guest_runner=596 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=11458
+[prt-host-watchdog] hb='18246549892, 959' idle=1034s hb_idle=595s uart=16918 guest_log=0 guest_sparse=126495 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=2580 guest_runner=596 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=11458
+[prt-host-watchdog] hb='18246549892, 959' idle=1065s hb_idle=626s uart=16918 guest_log=0 guest_sparse=126495 guest_checkpoint=0 guest_trigger=0 guest_status=1644 guest_proc=2580 guest_runner=596 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=11458
+[prt-host-watchdog] host idle timeout reached after 1065s (hb_idle=626s)
+[prt-host-watchdog] captures:
+/home/ubuntu/chipyard/tmp/firesim-aws-f2/captures/pairdummy-sbus64-dummy8x8-gdbserver-cfg32-nic-notrace-runworkload-20260507-115652-192.168.1.71-host-watchdog-20260507T122331Z.firesim-cmdline.txt
+/home/ubuntu/chipyard/tmp/firesim-aws-f2/captures/pairdummy-sbus64-dummy8x8-gdbserver-cfg32-nic-notrace-runworkload-20260507-115652-192.168.1.71-host-watchdog-20260507T122331Z.guest-breadcrumb.bin
+/home/ubuntu/chipyard/tmp/firesim-aws-f2/captures/pairdummy-sbus64-dummy8x8-gdbserver-cfg32-nic-notrace-runworkload-20260507-115652-192.168.1.71-host-watchdog-20260507T122331Z.guest-checkpoint-log.txt
+/home/ubuntu/chipyard/tmp/firesim-aws-f2/captures/pairdummy-sbus64-dummy8x8-gdbserver-cfg32-nic-notrace-runworkload-20260507-115652-192.168.1.71-host-watchdog-20260507T122331Z.guest-deep-log.txt
+/home/ubuntu/chipyard/tmp/firesim-aws-f2/captures/pairdummy-sbus64-dummy8x8-gdbserver-cfg32-nic-notrace-runworkload-20260507-115652-192.168.1.71-host-watchdog-20260507T122331Z.guest-proc-stage.txt
+/home/ubuntu/chipyard/tmp/firesim-aws-f2/captures/pairdummy-sbus64-dummy8x8-gdbserver-cfg32-nic-notrace-runworkload-20260507-115652-192.168.1.71-host-watchdog-20260507T122331Z.guest-runner-early-stage.txt
+/home/ubuntu/chipyard/tmp/firesim-aws-f2/captures/pairdummy-sbus64-dummy8x8-gdbserver-cfg32-nic-notrace-runworkload-20260507-115652-192.168.1.71-host-watchdog-20260507T122331Z.guest-runner-post-stage.txt
+/home/ubuntu/chipyard/tmp/firesim-aws-f2/captures/pairdummy-sbus64-dummy8x8-gdbserver-cfg32-nic-notrace-runworkload-20260507-115652-192.168.1.71-host-watchdog-20260507T122331Z.guest-runner-proc-stage.txt
+/home/ubuntu/chipyard/tmp/firesim-aws-f2/captures/pairdummy-sbus64-dummy8x8-gdbserver-cfg32-nic-notrace-runworkload-20260507-115652-192.168.1.71-host-watchdog-20260507T122331Z.guest-runner-stage.txt
+/home/ubuntu/chipyard/tmp/firesim-aws-f2/captures/pairdummy-sbus64-dummy8x8-gdbserver-cfg32-nic-notrace-runworkload-20260507-115652-192.168.1.71-host-watchdog-20260507T122331Z.guest-sparse-log.txt
+/home/ubuntu/chipyard/tmp/firesim-aws-f2/captures/pairdummy-sbus64-dummy8x8-gdbserver-cfg32-nic-notrace-runworkload-20260507-115652-192.168.1.71-host-watchdog-20260507T122331Z.guest-trigger-log.txt
+/home/ubuntu/chipyard/tmp/firesim-aws-f2/captures/pairdummy-sbus64-dummy8x8-gdbserver-cfg32-nic-notrace-runworkload-20260507-115652-192.168.1.71-host-watchdog-20260507T122331Z.heartbeat.csv
+/home/ubuntu/chipyard/tmp/firesim-aws-f2/captures/pairdummy-sbus64-dummy8x8-gdbserver-cfg32-nic-notrace-runworkload-20260507-115652-192.168.1.71-host-watchdog-20260507T122331Z.status.txt
+/home/ubuntu/chipyard/tmp/firesim-aws-f2/captures/pairdummy-sbus64-dummy8x8-gdbserver-cfg32-nic-notrace-runworkload-20260507-115652-192.168.1.71-host-watchdog-20260507T122331Z.trace-fds.txt
+/home/ubuntu/chipyard/tmp/firesim-aws-f2/captures/pairdummy-sbus64-dummy8x8-gdbserver-cfg32-nic-notrace-runworkload-20260507-115652-192.168.1.71-host-watchdog-20260507T122331Z.trace-files.txt
+/home/ubuntu/chipyard/tmp/firesim-aws-f2/captures/pairdummy-sbus64-dummy8x8-gdbserver-cfg32-nic-notrace-runworkload-20260507-115652-192.168.1.71-host-watchdog-20260507T122331Z.uartlog.txt
+[prt-host-watchdog] calling terminaterunfarm --forceterminate
+/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/transport.py:178: CryptographyDeprecationWarning: Blowfish has been deprecated
+  'class': algorithms.Blowfish,
+FireSim Manager. Docs: https://docs.fires.im
+Running: terminaterunfarm
+
+run_farm_hosts_dict defaultdict(<class 'list'>, {'f2.6xlarge': [(<runtools.run_farm.Inst object at 0x7b7cc749baf0>, None)], 'f2.12xlarge': [], 'f2.48xlarge': [], 'm4.16xlarge': [], 'z1d.3xlarge': [], 'z1d.6xlarge': [], 'z1d.12xlarge': []})
+set_server_hardware_config 0 None
+IMPORTANT!: This will terminate the following instances:
+f2.12xlarge
+[]
+f2.48xlarge
+[]
+f2.6xlarge
+['i-0b35baea158234d9c']
+m4.16xlarge
+[]
+z1d.12xlarge
+[]
+z1d.3xlarge
+[]
+z1d.6xlarge
+[]
+Instances terminated. Please confirm in your AWS Management Console.
+The full log of this run is:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-07--12-23-38-terminaterunfarm-NY784BOMX5B9AE52.log

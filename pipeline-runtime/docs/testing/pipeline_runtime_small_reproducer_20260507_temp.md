@@ -84,6 +84,33 @@ break dma_blocking_wait if tok != 0 && tok->stage_idx == 0 && tok->tensor_id == 
 Use `PRT_GDB_PATH_TRACE_MAX_STOPS=10` so the trace stops after one token's
 return path instead of rolling into token 547.
 
+## Inconclusive batch8 exact-token attempt
+
+The `20260507T120514Z` exact-token run should not be used as evidence about the
+batch2 reproducer. Captured `runworkload` state shows the guest launched
+`--batch 8`, not `--batch 2`, and the FireSim host watchdog terminated the F2
+run after 1065 seconds of guest-visible file idle time. GDB connected and set:
+
+```gdb
+break dma_blocking_wait if tok != 0 && tok->stage_idx == 0 && tok->tensor_id == 2 && tok->id == 546
+```
+
+but no `dma_blocking_wait()` hit was observed before `Remote connection
+closed`. The watchdog capture's breadcrumb only reached
+`runtime_init_done`, and sparse log tail was still in YAML pipeline parsing
+around segment 8. There was no token-546 context dump.
+
+Before the next reduced reproducer, verify both:
+
+```bash
+PAIRDUMMY_SBUS64_TARGET_BATCH=2 \
+PAIRDUMMY_SBUS64_DISABLE_MAPPING_CACHE=0 \
+generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdummy_sbus64_dummy8x8_gdbserver_cfg32_nic_notrace_workflow.sh show
+```
+
+and the generated `runworkload` command or guest sparse log. The command must
+show `TARGET_BATCH=2` or the guest must report `runner-enter batch=2`.
+
 ## Next GDB strategy
 
 The previous helper continued for 8 seconds after the hit and then could not

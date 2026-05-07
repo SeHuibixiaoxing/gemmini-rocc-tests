@@ -1,0 +1,51 @@
+breadcrumb=/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/artifacts/20260507T120514Z_dummy8x8_sbus64_batch8_exact_token546_watchdog/pairdummy-sbus64-dummy8x8-gdbserver-cfg32-nic-notrace-runworkload-20260507-115652-192.168.1.71-host-watchdog-20260507T122331Z.guest-breadcrumb.bin
+sparse_log=/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/artifacts/20260507T120514Z_dummy8x8_sbus64_batch8_exact_token546_watchdog/pairdummy-sbus64-dummy8x8-gdbserver-cfg32-nic-notrace-runworkload-20260507-115652-192.168.1.71-host-watchdog-20260507T122331Z.guest-sparse-log.txt
+trigger_log=/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/artifacts/20260507T120514Z_dummy8x8_sbus64_batch8_exact_token546_watchdog/pairdummy-sbus64-dummy8x8-gdbserver-cfg32-nic-notrace-runworkload-20260507-115652-192.168.1.71-host-watchdog-20260507T122331Z.guest-trigger-log.txt
+breadcrumb_last update_count=182 last_kind=runtime last_phase=runtime_init_done
+last_slot seg=any gstage=any lstage=any sb=any tensor=any mgr=any page=any rc=0 line=4722
+sparse_worker: n/a
+sparse_pointwise_dispatch: n/a
+sparse_pointwise_matmul: n/a
+sparse_oc_split_pointwise: n/a
+sparse_export_target: n/a
+sparse_dma_fixed_host: n/a
+sparse_dma_export_host: n/a
+sparse_dma_fixed_submit: n/a
+sparse_dma_fixed_wait: n/a
+sparse_dma_export_wait: n/a
+sparse_spm_xlate_release: mgr=11 cfg=31 phase=restore-end
+sparse_dma_fixed_focus_page_phases: n/a
+sparse_dma_fixed_last_doneflag_end_tok=n/a
+sparse_dma_fixed_last_wait_after_release_tok=n/a
+trigger_line_count=n/a
+trigger_seq_contiguous=n/a
+trigger_budget_exhausted=n/a
+trigger_first_event: n/a
+trigger_last_event: n/a
+frontier=spm-xlate-release mgr=11 cfg=31 phase=restore-end
+previous_frontier=n/a
+change_kind=none
+claim_class=stable_observation
+disturbance_risk=low
+requires_control_rerun=no
+recommended_next_probe=static-read-spm-xlate-restore-then-sx-trigger
+verdict=inside spm-xlate release path (restore-end)
+next_action=Read `prt_spm_xlate_release_scope()` before widening logs; keep the next rerun scoped to the `spm-xlate` trigger family.
+trigger_env:
+export PIPELINE_RUNTIME_DEBUG_TRIGGER_ENABLE=1
+export PIPELINE_RUNTIME_DEBUG_TRIGGER_PRE_RING=8
+export PIPELINE_RUNTIME_DEBUG_TRIGGER_POST_BUDGET=32
+export PIPELINE_RUNTIME_DEBUG_TRIGGER_MATCH_ONCE=1
+export PIPELINE_RUNTIME_DEBUG_TRIGGER_LOG_PATH=/root/pipeline-runtime-debug/bertmini-batch8.trigger.log
+export PIPELINE_RUNTIME_DEBUG_TRIGGER_KIND=spm-xlate
+export PIPELINE_RUNTIME_DEBUG_TRIGGER_MANAGER=11
+export PIPELINE_RUNTIME_DEBUG_TRIGGER_TOKEN=31
+sparse_tail:
+[prt-progress] yaml pipeline parse line=1031 indent=2 text=stages:
+[prt-progress] yaml pipeline parse line=1032 indent=2 text=- - accUtil: 4
+[prt-progress] yaml pipeline stage-push line=1032 segment=8 local_stage=0 acc=4
+[prt-progress] yaml pipeline parse line=1033 indent=6 text=dramBypassList:
+[prt-progress] yaml pipeline parse line=1034 indent=6 text=- [1, 1, 1, 1]
+[prt-progress] yaml pipeline parse line=1035 indent=6 text=entryTensorDoubleBufferList: [0, 0]
+[prt-progress] yaml pipeline parse line=1036 indent=6 text=entryTensorIdList: [27, 26]
+[prt-progress] yaml pipeline parse line=1037 indent=6 text=entryTensorTypeList: [DRAM, DRAM]

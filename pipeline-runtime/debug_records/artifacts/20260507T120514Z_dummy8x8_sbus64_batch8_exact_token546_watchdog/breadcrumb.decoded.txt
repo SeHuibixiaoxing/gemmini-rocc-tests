@@ -1,0 +1,5 @@
+path=/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/artifacts/20260507T120514Z_dummy8x8_sbus64_batch8_exact_token546_watchdog/pairdummy-sbus64-dummy8x8-gdbserver-cfg32-nic-notrace-runworkload-20260507-115652-192.168.1.71-host-watchdog-20260507T122331Z.guest-breadcrumb.bin
+version=1 enabled=1 slot_count=64 update_count=182 last_slot=0 last_kind=runtime last_phase=runtime_init_done last_update_ns=5172930000
+filters segment=0 global_stage=0 local_stage=0 subbatch=any stage_radius=0 subbatch_radius=0
+last_slot:
+slot=0 kind=runtime phase=runtime_init_done seq=4 mono_ns=5172930000 seg=any gstage=any lstage=any sb=any tensor=any tok=0 mgr=any page=any rc=0 flags=0x0 src=0x0 dst=0x0 aux0=0x0 aux1=0x0 line=4722

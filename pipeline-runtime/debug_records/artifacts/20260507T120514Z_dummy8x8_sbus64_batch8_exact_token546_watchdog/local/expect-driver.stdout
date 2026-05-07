@@ -1,0 +1,44 @@
+spawn /home/ubuntu/chipyard/.conda-env/riscv-tools/bin/riscv64-unknown-linux-gnu-gdb -q /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/build/rerocc-linux-tests/rerocc_pipeline_runtime-linux
+Reading symbols from /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/build/rerocc-linux-tests/rerocc_pipeline_runtime-linux...
+[?2004h(gdb) set pagination off
+[?2004l[?2004h(gdb) set confirm off
+[?2004l[?2004h(gdb) set print thread-events off
+[?2004l[?2004h(gdb) set breakpoint pending off
+[?2004l[?2004h(gdb) set debuginfod enabled off
+[?2004l[?2004h(gdb) set auto-load safe-path /
+[?2004l[?2004h(gdb) set remotetimeout 180
+[?2004l[?2004h(gdb) target remote :32345
+[?2004lRemote debugging using :32345
+Reading symbols from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/ld-linux-riscv64-lp64d.so.1...
+(No debugging symbols found in /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/ld-linux-riscv64-lp64d.so.1)
+0x0000003ff7fec386 in ?? ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/ld-linux-riscv64-lp64d.so.1
+[?2004h(gdb) GDB_DMA_FRONTIER_MARK_CONNECTED
+info threads
+[?2004l  Id   Target Id                        Frame 
+* 1    Thread 234.234 "rerocc_pipeline" 0x0000003ff7fec386 in ?? ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/ld-linux-riscv64-lp64d.so.1
+[?2004h(gdb) thread apply all bt
+[?2004l
+Thread 1 (Thread 234.234 "rerocc_pipeline"):
+#0  0x0000003ff7fec386 in ?? () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/ld-linux-riscv64-lp64d.so.1
+[?2004h(gdb) info registers pc sp ra a0 a1 a2 a3
+[?2004lpc             0x3ff7fec386	0x3ff7fec386
+sp             0x3fffffe710	0x3fffffe710
+ra             0x2aaaae35e0	0x2aaaae35e0
+a0             0x0	0
+a1             0x2aaaba5e00	183252966912
+a2             0x2aaab9e100	183252934912
+a3             0x3fffffe190	274877899152
+[?2004h(gdb) break dma_blocking_wait if tok != 0 && tok->stage_idx == 0 && tok->tensor_id == 2 && tok->id == 546
+[?2004lBreakpoint 1 at 0x1552e: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c, line 3506.
+[?2004h(gdb) info breakpoints
+[?2004lNum     Type           Disp Enb Address            What
+1       breakpoint     keep y   0x000000000001552e in dma_blocking_wait 
+                                                   at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3506
+	stop only if tok != 0 && tok->stage_idx == 0 && tok->tensor_id == 2 && tok->id == 546 (host evals)
+[?2004h(gdb) GDB_DMA_FRONTIER_MARK_BREAK_SET
+continue
+[?2004lContinuing.
+Remote connection closed
+[?2004h(gdb) 
