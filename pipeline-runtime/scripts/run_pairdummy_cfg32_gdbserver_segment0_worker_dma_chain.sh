@@ -80,6 +80,60 @@ bt
 info threads
 info registers pc sp ra
 
+printf "\n--- segment0 chain: entry dma-wait-return token16 stage0 tensor0 ---\n"
+set variable g_prt_gdb_marker_filter.site_id = 13
+set variable g_prt_gdb_marker_filter.tensor_id = 0
+set variable g_prt_gdb_marker_filter.token_id = 16
+continue
+print g_prt_gdb_marker_state
+bt
+info threads
+info registers pc sp ra
+
+printf "\n--- segment0 chain: entry dma-wait-return token32 stage0 tensor0 ---\n"
+set variable g_prt_gdb_marker_filter.token_id = 32
+continue
+print g_prt_gdb_marker_state
+bt
+info threads
+info registers pc sp ra
+
+printf "\n--- segment0 chain: entry dma-wait-return token48 stage0 tensor0 ---\n"
+set variable g_prt_gdb_marker_filter.token_id = 48
+continue
+print g_prt_gdb_marker_state
+bt
+info threads
+info registers pc sp ra
+
+printf "\n--- segment0 chain: entry dma-wait-return token64 stage0 tensor0 ---\n"
+set variable g_prt_gdb_marker_filter.token_id = 64
+continue
+print g_prt_gdb_marker_state
+bt
+info threads
+info registers pc sp ra
+
+printf "\n--- segment0 chain: entry DMA batch release begin after token64 ---\n"
+break /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:846
+set $prt_entry_release_begin_bp = $bpnum
+continue
+bt
+info threads
+info registers pc sp ra
+
+printf "\n--- segment0 chain: entry DMA batch release return after token64 ---\n"
+break /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:847
+set $prt_entry_release_end_bp = $bpnum
+continue
+bt
+info threads
+info registers pc sp ra
+delete $prt_entry_release_begin_bp $prt_entry_release_end_bp
+
+set variable g_prt_gdb_marker_filter.tensor_id = 4294967295
+set variable g_prt_gdb_marker_filter.token_id = 4294967295
+
 printf "\n--- segment0 chain: entry-process-return stage0 ---\n"
 set variable g_prt_gdb_marker_filter.site_id = 19
 continue

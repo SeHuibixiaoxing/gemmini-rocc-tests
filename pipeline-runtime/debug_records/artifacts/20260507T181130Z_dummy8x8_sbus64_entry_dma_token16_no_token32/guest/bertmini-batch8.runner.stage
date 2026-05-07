@@ -1,0 +1,7 @@
+[bertmini-stage] after-runner-enter batch=8 ts=1970-01-01T00:00:03Z pid=143
+[bertmini-stage] after-resolve-manager-layout gemmini=12 dma=12 pair=1 ts=1970-01-01T00:00:03Z pid=143
+[bertmini-stage] before-prepare-hugetlb ts=1970-01-01T00:00:03Z pid=143
+[bertmini-stage] after-prepare-hugetlb ts=1970-01-01T00:00:03Z pid=143
+[bertmini-stage] before-bin method=ours2 ts=1970-01-01T00:00:04Z pid=143
+[bertmini-stage] after-bin-spawn method=ours2 pid=221 kind=gdbserver ts=1970-01-01T00:00:04Z pid=143
+[bertmini-stage] gdbserver-inferior method=ours2 pid=234 parent=221 ts=1970-01-01T00:00:04Z pid=143
