@@ -1,0 +1,5 @@
+path=/home/ubuntu/chipyard/tmp/firesim-aws-f2/gdbserver-tests/pairdummy-cfg32-marker-stop-20260507T183334Z-192_168_1_226-172_16_0_2/guest/bertmini-batch8.breadcrumb.bin
+version=1 enabled=1 slot_count=64 update_count=462 last_slot=23 last_kind=dma last_phase=dma_wait_after_trace_complete last_update_ns=9380492000
+filters segment=0 global_stage=0 local_stage=0 subbatch=any stage_radius=0 subbatch_radius=0
+last_slot:
+slot=23 kind=dma phase=dma_wait_after_trace_complete seq=32 mono_ns=9380492000 seg=0 gstage=0 lstage=0 sb=0 tensor=0 tok=1 mgr=0 page=0 rc=0 flags=0x7 src=0x104a4a400 dst=0x40000000 aux0=0x1020fe000 aux1=0x0 line=3830
