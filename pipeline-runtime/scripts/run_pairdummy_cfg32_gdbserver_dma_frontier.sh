@@ -27,7 +27,9 @@ Environment:
   PRT_GDB_PATH_TRACE_TIMEOUT   Seconds to wait for each path breakpoint. Default: 90.
   PRT_GDB_PATH_TRACE_MAX_STOPS Maximum path stops after the frontier hit. Default: 12.
   PRT_GDB_PATH_TRACE_BREAKPOINTS
-                                Comma-separated label=addr specs. Suffix :temp makes a tbreak.
+                                Comma-separated label=location specs. Locations
+                                may be *0xaddr, 0xaddr, function, or file:line.
+                                Suffix :temp makes a tbreak.
 EOF
 }
 
@@ -57,6 +59,8 @@ fi
 gdb="${RISCV_GDB:-${cy_dir}/.conda-env/riscv-tools/bin/riscv64-unknown-linux-gnu-gdb}"
 expect_bin="${EXPECT:-$(command -v expect || true)}"
 target_bin="${PRT_GDB_TARGET_BIN:-${cy_dir}/generators/gemmini/software/gemmini-rocc-tests/build/rerocc-linux-tests/rerocc_pipeline_runtime-linux}"
+dma_src="${cy_dir}/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c"
+rr_src="${cy_dir}/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_rerocc.c"
 ssh_key="${FIRESIM_SSH_KEY:-/home/ubuntu/firesim.pem}"
 ssh_user="${FIRESIM_SSH_USER:-ubuntu}"
 out_root="${PRT_GDB_OUT_ROOT:-${cy_dir}/tmp/firesim-aws-f2/gdbserver-tests}"
@@ -70,7 +74,7 @@ post_hit_seconds="${PRT_GDB_POST_HIT_SECONDS:-8}"
 interrupt_timeout="${PRT_GDB_INTERRUPT_TIMEOUT:-240}"
 path_trace_timeout="${PRT_GDB_PATH_TRACE_TIMEOUT:-90}"
 path_trace_max_stops="${PRT_GDB_PATH_TRACE_MAX_STOPS:-12}"
-path_trace_breakpoints="${PRT_GDB_PATH_TRACE_BREAKPOINTS:-before_decision=0x15670,poll_env_check=0x15bf4,poll_emit_start=0x15c24,poll_noemit_start=0x15f56,poll_loop_first=0x15ce8:temp,poll_done=0x15de4,poll_ok_exit=0x15e50,poll_timeout=0x15e64,hw_dma_fence=0x15674,after_wait_refresh=0x15688,shared_rr_fence=0x15882,release_scope=0x15af0,token_complete=0x159ea,return=0x15ad4}"
+path_trace_breakpoints="${PRT_GDB_PATH_TRACE_BREAKPOINTS:-before_poll_gate=${dma_src}:3570,poll_entry=dma_blocking_wait_poll_doneflag,poll_done=${dma_src}:2433,poll_timeout=${dma_src}:2449,hw_dma_fence=${dma_src}:3603,after_wait_refresh=${dma_src}:3607,before_shared_fence=${dma_src}:3666,dma_token_fence_scope=dma_token_fence_scope,rr_fence_scope=prt_rr_fence_scope,rr_fence_call=${rr_src}:378,after_shared_fence=${dma_src}:3685,after_release=${dma_src}:3723,token_complete=${dma_src}:3760,return=${dma_src}:3788}"
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 out_dir="${out_root}/pairdummy-cfg32-dma-frontier-${stamp}-${run_host_ip//./_}-${guest_ip//./_}"
 tunnel_log="${out_dir}/ssh-tunnel.log"
@@ -371,16 +375,24 @@ proc set_dma_path_breakpoints {breakpoint_specs} {
             set temporary 1
             set spec [string range $spec 0 end-5]
         }
-        if {![regexp {^([^=]+)=(0x[0-9a-fA-F]+)$} $spec -> label addr]} {
+        if {![regexp {^([^=]+)=(.+)$} $spec -> label loc]} {
             puts stderr "invalid path breakpoint spec: $raw_spec"
             exit 23
         }
+        set loc [string trim $loc]
+        if {$loc eq ""} {
+            puts stderr "empty path breakpoint location: $raw_spec"
+            exit 23
+        }
+        if {[regexp {^0x[0-9a-fA-F]+$} $loc]} {
+            set loc "*$loc"
+        }
         if {$temporary} {
-            gdb_cmd "tbreak *$addr" 120
-            puts "GDB_DMA_PATH_TBREAK_SET label=$label addr=$addr"
+            gdb_cmd "tbreak $loc" 120
+            puts "GDB_DMA_PATH_TBREAK_SET label=$label loc=$loc"
         } else {
-            gdb_cmd "break *$addr" 120
-            puts "GDB_DMA_PATH_BREAK_SET label=$label addr=$addr"
+            gdb_cmd "break $loc" 120
+            puts "GDB_DMA_PATH_BREAK_SET label=$label loc=$loc"
         }
     }
     gdb_cmd "info breakpoints" 120
