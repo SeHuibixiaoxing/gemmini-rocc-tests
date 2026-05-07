@@ -1,0 +1,42 @@
+breadcrumb=/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/artifacts/20260507T174300Z_dummy8x8_sbus64_segment0_first_dma_pass_gemm_pre_gap/guest/bertmini-batch8.breadcrumb.bin
+sparse_log=/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/artifacts/20260507T174300Z_dummy8x8_sbus64_segment0_first_dma_pass_gemm_pre_gap/guest/bertmini-batch8.log
+trigger_log=n/a
+breadcrumb_last update_count=182 last_kind=runtime last_phase=runtime_init_done
+last_slot seg=any gstage=any lstage=any sb=any tensor=any mgr=any page=any rc=0 line=4810
+sparse_worker: n/a
+sparse_pointwise_dispatch: n/a
+sparse_pointwise_matmul: n/a
+sparse_oc_split_pointwise: n/a
+sparse_export_target: n/a
+sparse_dma_fixed_host: n/a
+sparse_dma_export_host: n/a
+sparse_dma_fixed_submit: n/a
+sparse_dma_fixed_wait: n/a
+sparse_dma_export_wait: n/a
+sparse_spm_xlate_release: mgr=11 cfg=31 phase=restore-end
+sparse_dma_fixed_focus_page_phases: n/a
+sparse_dma_fixed_last_doneflag_end_tok=n/a
+sparse_dma_fixed_last_wait_after_release_tok=n/a
+trigger_line_count=n/a
+trigger_seq_contiguous=n/a
+trigger_budget_exhausted=n/a
+trigger_first_event: n/a
+trigger_last_event: n/a
+frontier=spm-xlate-release mgr=11 cfg=31 phase=restore-end
+previous_frontier=n/a
+change_kind=none
+claim_class=stable_observation
+disturbance_risk=low
+requires_control_rerun=no
+recommended_next_probe=static-read-spm-xlate-restore-then-sx-trigger
+verdict=inside spm-xlate release path (restore-end)
+next_action=Read `prt_spm_xlate_release_scope()` before widening logs; keep the next rerun scoped to the `spm-xlate` trigger family.
+sparse_tail:
+[prt-progress] synthetic-model alloc prefault-progress path=(none) touched_pages=768/4164 touched_bytes=3145728/17055744 page_bytes=4096
+[prt-progress] synthetic-model alloc prefault-progress path=(none) touched_pages=1024/4164 touched_bytes=4194304/17055744 page_bytes=4096
+[prt-progress] synthetic-model alloc prefault-progress path=(none) touched_pages=1280/4164 touched_bytes=5242880/17055744 page_bytes=4096
+[prt-progress] synthetic-model alloc prefault-progress path=(none) touched_pages=1536/4164 touched_bytes=6291456/17055744 page_bytes=4096
+[prt-progress] synthetic-model alloc prefault-progress path=(none) touched_pages=1792/4164 touched_bytes=7340032/17055744 page_bytes=4096
+[prt-progress] synthetic-model alloc prefault-progress path=(none) touched_pages=2048/4164 touched_bytes=8388608/17055744 page_bytes=4096
+[prt-progress] synthetic-model alloc prefault-progress path=(none) touched_pages=2304/4164 touched_bytes=9437184/17055744 page_bytes=4096
+[prt-progress] synthetic-model alloc prefault-progress path=(none) touched_pages=2560/4164 touched_bytes=10485760/17055744 page_bytes=4096
