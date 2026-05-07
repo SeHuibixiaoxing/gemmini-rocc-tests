@@ -1,6 +1,6 @@
 # Pipeline Runtime gdbserver Integration SOP
 
-更新时间：`2026-05-07 09:25 UTC`
+更新时间：`2026-05-07 10:18 UTC`
 
 ## 1. 目标
 
@@ -139,6 +139,52 @@ generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/run_pair
 
 若三者不完全一致，不要直接合并成一个精确 PC；先以 breadcrumb frontier 和最后一次
 GDB 栈共同缩小代码窗口，再决定是否需要下一轮更窄的 page/token 级探针。
+
+### 3.2 DMA frontier 定点采样
+
+如果无断点采样只停在启动阶段、YAML 解析或其它非卡点路径，不要 detach 后继续等待。
+`gdbserver --once` 的首连已经被消耗，后续无法可靠地再次拿用户态调用栈。下一轮应改用
+DMA frontier helper，让 GDB 从程序入口一直运行到目标 `dma_blocking_wait` 附近：
+
+- helper：
+  [`run_pairdummy_cfg32_gdbserver_dma_frontier.sh`](/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/run_pairdummy_cfg32_gdbserver_dma_frontier.sh)
+- 默认断点：
+  `dma_blocking_wait if tok != 0 && tok->stage_idx == 0 && tok->tensor_id == 2 && tok->id >= 546`
+- 断点命中后采集：
+  `bt`、`thread apply all bt`、寄存器、`tok->id/stage_idx/tensor_id/rr_manager_id`、
+  `rr_scope_valid/external`、`hw_done_flag`、`debug_src_addr/debug_dst_addr/debug_done_flag_pa/debug_bytes`
+- 然后继续短时间并 Ctrl-C：
+  - 若能抢回，栈就是该 DMA frontier 后的用户态现场。
+  - 若 Ctrl-C 超时，说明已经进入 custom instruction/fence/MMIO 等难抢占硬件等待路径。
+  - 若 inferior 退出，结合 breadcrumb 和 guest log 判断 fail-fast 是否生效。
+
+典型命令：
+
+```bash
+PRT_GDB_STATIC_NEIGH_MAC=00:12:6d:00:00:02 \
+PRT_GDB_FRONTIER_TIMEOUT=1200 \
+PRT_GDB_POST_HIT_SECONDS=8 \
+generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/run_pairdummy_cfg32_gdbserver_dma_frontier.sh \
+  <run-host-private-ip> 172.16.0.2:2345 32345
+```
+
+如果 token 有偏移，可临时放宽条件，例如：
+
+```bash
+PRT_GDB_FRONTIER_CONDITION='tok != 0 && tok->stage_idx == 0 && tok->tensor_id == 2 && tok->id >= 520'
+```
+
+`dummy8x8/sbus64` profile 默认继承 `PIPELINE_RUNTIME_DISABLE_MAPPING_CACHE=1`，用于保持与历史
+低扰动 profile 一致。若本轮目标只是缩短 GDB 到达 DMA frontier 的启动时间，可在 workflow
+前设置：
+
+```bash
+PAIRDUMMY_SBUS64_DISABLE_MAPPING_CACHE=0
+```
+
+这只改变 artifact mapping 加载路径，不改变 DMA/RoCC 执行语义；启用后仍必须重做
+`marshal-build`、`marshal-install`、freshness、`launch/infrasetup/run`，并在 debug record
+里把 cache 状态写清楚。
 
 ## 4. 关键约束
 

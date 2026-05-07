@@ -303,9 +303,12 @@ if ! grep -q "GDB_STACK_MARK_CONNECTED" "${transcript}" && \
 fi
 
 if ! grep -q "GDB_STACK_SAMPLE_1_STOPPED" "${transcript}" && \
-    ! grep -q "GDB_STACK_SAMPLE_1_INFERIOR_EXITED" "${transcript}"; then
-  echo "missing first stack sample evidence; see ${transcript}" >&2
+    ! grep -q "GDB_STACK_SAMPLE_1_STOPPED" "${out_dir}/expect-driver.stdout" && \
+    ! grep -q "GDB_STACK_SAMPLE_1_INFERIOR_EXITED" "${transcript}" && \
+    ! grep -q "GDB_STACK_SAMPLE_1_INFERIOR_EXITED" "${out_dir}/expect-driver.stdout"; then
+  echo "missing first stack sample evidence; see ${transcript} and ${out_dir}/expect-driver.stdout" >&2
   tail -n 260 "${transcript}" >&2 || true
+  tail -n 260 "${out_dir}/expect-driver.stdout" >&2 || true
   exit 1
 fi
 
