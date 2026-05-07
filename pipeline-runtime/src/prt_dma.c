@@ -110,6 +110,7 @@ static int dma_env_flag_enabled(const char *name, int default_value);
 static uint32_t dma_env_u32(const char *name, uint32_t default_value);
 static int dma_env_has_value(const char *name);
 static int dma_bounce_bypass_enabled(void);
+static int dma_blocking_wait_poll_timeout_enabled(void);
 #if defined(__linux__) && defined(__riscv)
 static int dma_force_direct_enabled(void);
 #endif
@@ -1447,6 +1448,20 @@ static int dma_bounce_bypass_enabled(void) {
 #endif
 }
 
+static int dma_blocking_wait_poll_timeout_enabled(void) {
+#if !defined(BAREMETAL)
+  static int initialized = 0;
+  static int enabled = 0;
+  if (!initialized) {
+    enabled = dma_env_flag_enabled("PIPELINE_RUNTIME_DMA_BLOCKING_WAIT_POLL_TIMEOUT_ENABLE", 0);
+    initialized = 1;
+  }
+  return enabled;
+#else
+  return 0;
+#endif
+}
+
 #if defined(__linux__) && defined(__riscv)
 static int dma_force_direct_enabled(void) {
 #if !defined(BAREMETAL)
@@ -2360,6 +2375,94 @@ static inline uint64_t hw_dma_fence(void) {
   ROCC_INSTRUCTION_R_R_R(XCUSTOM_DMA, status, 0, 0, 3);
   __asm__ volatile("fence" ::: "memory");
   return status;
+}
+
+static int dma_blocking_wait_poll_doneflag(prt_dma_token_t *tok, uint64_t timeout_ns,
+                                           int emit_progress) {
+  const uint64_t start_ns = prt_now_ns();
+  const struct timespec sleep_ts = { .tv_sec = 0, .tv_nsec = 1000000L };
+  uint32_t polls = 0U;
+
+  if (!tok || !tok->completion_flag || timeout_ns == 0ULL) return PRT_ERR_INVAL;
+  if (emit_progress) {
+    PRT_PROGRESS_LOG("dma-wait-doneflag-poll phase=begin token=%u stage=%u tensor=%u timeout_ns=%llu done_pa=0x%llx",
+                     tok->id,
+                     tok->stage_idx,
+                     tok->tensor_id,
+                     (unsigned long long)timeout_ns,
+                     (unsigned long long)tok->debug_done_flag_pa);
+  }
+  prt_breadcrumb_note(PRT_BREADCRUMB_KIND_DMA,
+                      PRT_BREADCRUMB_PHASE_DMA_WAIT_DONEFLAG_POLL_BEGIN,
+                      tok->tensor_id,
+                      tok->id,
+                      tok->rr_manager_id,
+                      PRT_BREADCRUMB_ANY_U32,
+                      PRT_OK,
+                      dma_breadcrumb_flags_from_token(tok, 0U),
+                      tok->debug_src_addr,
+                      tok->debug_dst_addr,
+                      tok->debug_done_flag_pa,
+                      timeout_ns,
+                      __LINE__);
+
+  while (1) {
+    const uint64_t now_ns = prt_now_ns();
+    if (dma_completion_flag_refresh(tok)) {
+      prt_breadcrumb_note(PRT_BREADCRUMB_KIND_DMA,
+                          PRT_BREADCRUMB_PHASE_DMA_WAIT_DONEFLAG_POLL_DONE,
+                          tok->tensor_id,
+                          tok->id,
+                          tok->rr_manager_id,
+                          PRT_BREADCRUMB_ANY_U32,
+                          PRT_OK,
+                          dma_breadcrumb_flags_from_token(tok, 0U),
+                          tok->debug_src_addr,
+                          tok->debug_dst_addr,
+                          tok->debug_done_flag_pa,
+                          now_ns - start_ns,
+                          __LINE__);
+      if (emit_progress) {
+        PRT_PROGRESS_LOG("dma-wait-doneflag-poll phase=done token=%u stage=%u tensor=%u polls=%u elapsed_ns=%llu",
+                         tok->id,
+                         tok->stage_idx,
+                         tok->tensor_id,
+                         polls,
+                         (unsigned long long)(now_ns - start_ns));
+      }
+      return PRT_OK;
+    }
+    if (now_ns - start_ns >= timeout_ns) {
+      prt_breadcrumb_note(PRT_BREADCRUMB_KIND_DMA,
+                          PRT_BREADCRUMB_PHASE_DMA_WAIT_DONEFLAG_POLL_TIMEOUT,
+                          tok->tensor_id,
+                          tok->id,
+                          tok->rr_manager_id,
+                          PRT_BREADCRUMB_ANY_U32,
+                          PRT_ERR_TIMEOUT,
+                          dma_breadcrumb_flags_from_token(tok, 0U),
+                          tok->debug_src_addr,
+                          tok->debug_dst_addr,
+                          tok->debug_done_flag_pa,
+                          now_ns - start_ns,
+                          __LINE__);
+      PRT_PROGRESS_LOG("dma-wait-doneflag-poll phase=timeout token=%u stage=%u tensor=%u polls=%u elapsed_ns=%llu timeout_ns=%llu done_pa=0x%llx",
+                       tok->id,
+                       tok->stage_idx,
+                       tok->tensor_id,
+                       polls,
+                       (unsigned long long)(now_ns - start_ns),
+                       (unsigned long long)timeout_ns,
+                       (unsigned long long)tok->debug_done_flag_pa);
+      tok->status = PRT_ERR_TIMEOUT;
+      tok->done = 1;
+      tok->rr_scope_valid = 0;
+      tok->rr_scope_external = 0;
+      return PRT_ERR_TIMEOUT;
+    }
+    polls += 1U;
+    (void)nanosleep(&sleep_ts, NULL);
+  }
 }
 
 static void dma_log_rr_snapshot_marker(const char *tag, const prt_dma_token_t *tok) {
@@ -3398,6 +3501,7 @@ static int dma_blocking_wait(prt_runtime_t *rt, prt_dma_token_t *tok, uint64_t t
   uint32_t progress_stage_idx;
   uint32_t progress_tensor_id;
   int checkpoint_wait = 0;
+  int used_doneflag_poll = 0;
 
   if (!tok) return PRT_ERR_INVAL;
   progress_log = dma_should_progress_log(tok);
@@ -3465,8 +3569,27 @@ static int dma_blocking_wait(prt_runtime_t *rt, prt_dma_token_t *tok, uint64_t t
                       tok->debug_done_flag_pa,
                       timeout_ns,
                       __LINE__);
+  if (timeout_ns != 0ULL && dma_blocking_wait_poll_timeout_enabled()) {
+    const int poll_rc = dma_blocking_wait_poll_doneflag(tok, timeout_ns,
+                                                        progress_log || sparse_wait_probe ||
+                                                        fixed_wait_probe || export_wait_probe);
+    if (poll_rc == PRT_ERR_TIMEOUT) {
+      dma_trigger_wait(tok, wait_family, "poll-to", poll_rc);
+      return poll_rc;
+    }
+    if (poll_rc == PRT_OK) {
+      used_doneflag_poll = 1;
+    } else {
+      PRT_PROGRESS_LOG("dma-wait-doneflag-poll phase=disabled token=%u stage=%u tensor=%u rc=%d",
+                       tok->id,
+                       tok->stage_idx,
+                       tok->tensor_id,
+                       poll_rc);
+    }
+  }
   if (progress_log) {
-    PRT_PROGRESS_HOT_LOG("dma-wait fence-enter token=%u stage=%u tensor=%u hw_done=%d src_mod64=0x%02llx dst_mod64=0x%02llx done_mod64=0x%02llx full_byte_mode_hint=%u",
+    PRT_PROGRESS_HOT_LOG("dma-wait idle-enter mode=%s token=%u stage=%u tensor=%u hw_done=%d src_mod64=0x%02llx dst_mod64=0x%02llx done_mod64=0x%02llx full_byte_mode_hint=%u",
+                         used_doneflag_poll ? "doneflag-poll" : "hw-fence",
                          progress_token_id,
                          progress_stage_idx,
                          progress_tensor_id,
@@ -3476,11 +3599,13 @@ static int dma_blocking_wait(prt_runtime_t *rt, prt_dma_token_t *tok, uint64_t t
                          (unsigned long long)dma_debug_mod64(tok->debug_done_flag_pa),
                          dma_debug_full_byte_mode_hint(tok->debug_src_addr, tok->debug_dst_addr, tok->debug_bytes));
   }
-  dma_tracerv_dma_window_marker_if_scope(tok->stage_idx, tok->tensor_id,
-                                         PRT_DMA_TRACERV_MARKER_WAIT_BEFORE_FENCE);
-  fence_status = hw_dma_fence();
-  dma_tracerv_dma_window_marker_if_scope(tok->stage_idx, tok->tensor_id,
-                                         PRT_DMA_TRACERV_MARKER_WAIT_AFTER_FENCE);
+  if (!used_doneflag_poll) {
+    dma_tracerv_dma_window_marker_if_scope(tok->stage_idx, tok->tensor_id,
+                                           PRT_DMA_TRACERV_MARKER_WAIT_BEFORE_FENCE);
+    fence_status = hw_dma_fence();
+    dma_tracerv_dma_window_marker_if_scope(tok->stage_idx, tok->tensor_id,
+                                           PRT_DMA_TRACERV_MARKER_WAIT_AFTER_FENCE);
+  }
   dma_completion_flag_refresh(tok);
   if (checkpoint_wait) {
     PRT_CHECKPOINT_LOG("dma stage=%u checkpoint=wait-fence-done tensor=%u token=%u status=%llu hw_done=%d",
@@ -3489,7 +3614,8 @@ static int dma_blocking_wait(prt_runtime_t *rt, prt_dma_token_t *tok, uint64_t t
                        tok->hw_done_flag);
   }
   if (sparse_wait_probe) {
-    PRT_PROGRESS_LOG("dma-wait-inner phase=after-fence token=%u stage=%u tensor=%u status=%llu hw_done=%d",
+    PRT_PROGRESS_LOG("dma-wait-inner phase=%s token=%u stage=%u tensor=%u status=%llu hw_done=%d",
+                     used_doneflag_poll ? "after-doneflag-poll" : "after-fence",
                      tok->id,
                      tok->stage_idx,
                      tok->tensor_id,
@@ -3497,7 +3623,8 @@ static int dma_blocking_wait(prt_runtime_t *rt, prt_dma_token_t *tok, uint64_t t
                      tok->hw_done_flag);
   }
   if (fixed_wait_probe) {
-    PRT_PROGRESS_LOG("dma-fixed-load-wait phase=after-fence token=%u stage=%u tensor=%u status=%llu hw_done=%d done_pa=0x%llx",
+    PRT_PROGRESS_LOG("dma-fixed-load-wait phase=%s token=%u stage=%u tensor=%u status=%llu hw_done=%d done_pa=0x%llx",
+                     used_doneflag_poll ? "after-doneflag-poll" : "after-fence",
                      tok->id,
                      tok->stage_idx,
                      tok->tensor_id,
@@ -3506,7 +3633,8 @@ static int dma_blocking_wait(prt_runtime_t *rt, prt_dma_token_t *tok, uint64_t t
                      (unsigned long long)tok->debug_done_flag_pa);
   }
   if (export_wait_probe) {
-    PRT_PROGRESS_LOG("dma-export-wait phase=after-fence token=%u stage=%u tensor=%u status=%llu hw_done=%d done_pa=0x%llx",
+    PRT_PROGRESS_LOG("dma-export-wait phase=%s token=%u stage=%u tensor=%u status=%llu hw_done=%d done_pa=0x%llx",
+                     used_doneflag_poll ? "after-doneflag-poll" : "after-fence",
                      tok->id,
                      tok->stage_idx,
                      tok->tensor_id,
@@ -3514,9 +3642,10 @@ static int dma_blocking_wait(prt_runtime_t *rt, prt_dma_token_t *tok, uint64_t t
                      tok->hw_done_flag,
                      (unsigned long long)tok->debug_done_flag_pa);
   }
-  dma_trigger_wait(tok, wait_family, "wf-e", PRT_OK);
+  dma_trigger_wait(tok, wait_family, used_doneflag_poll ? "poll-e" : "wf-e", PRT_OK);
   prt_breadcrumb_note(PRT_BREADCRUMB_KIND_DMA,
-                      PRT_BREADCRUMB_PHASE_DMA_WAIT_AFTER_FENCE,
+                      used_doneflag_poll ? PRT_BREADCRUMB_PHASE_DMA_WAIT_DONEFLAG_POLL_DONE
+                                         : PRT_BREADCRUMB_PHASE_DMA_WAIT_AFTER_FENCE,
                       tok->tensor_id,
                       tok->id,
                       tok->rr_manager_id,

@@ -39,6 +39,9 @@ DMA_FIXED_SUBMIT_RE = re.compile(
 DMA_FIXED_WAIT_RE = re.compile(
     r"dma-fixed-load-wait phase=(?P<phase>[a-z0-9-]+) token=(?P<tok>\d+) stage=(?P<stage>\d+) tensor=(?P<tensor>\d+)"
 )
+DMA_EXPORT_WAIT_RE = re.compile(
+    r"dma-export-wait phase=(?P<phase>[a-z0-9-]+) token=(?P<tok>\d+) stage=(?P<stage>\d+) tensor=(?P<tensor>\d+)"
+)
 SPM_XLATE_RELEASE_RE = re.compile(
     r"spm-xlate-release mgr=(?P<mgr>\d+) cfg=(?P<cfg>\d+) phase=(?P<phase>[a-z0-9-]+)"
 )
@@ -233,6 +236,14 @@ def parse_sparse_summary(
             summary["dma_fixed_wait"] = data
             if data.get("phase") == "after-release":
                 last_wait_after_release_tok = int(data["tok"])
+            continue
+
+        match = DMA_EXPORT_WAIT_RE.search(line)
+        if match:
+            data = {k: v for k, v in match.groupdict().items() if v is not None}
+            data["line"] = line
+            data["line_idx"] = str(idx)
+            summary["dma_export_wait"] = data
             continue
 
         match = SPM_XLATE_RELEASE_RE.search(line)
@@ -460,6 +471,24 @@ def classify_frontier(
             "Inspect the exact page/target window before adding more export probes.",
         )
 
+    if slot.kind == 2 and slot.phase == 124:
+        return (
+            "before DMA done-flag polling loop",
+            "If the next capture stays here, verify the fail-fast env made it into the image and whether the poll loop itself is being reached.",
+        )
+
+    if slot.kind == 2 and slot.phase == 125:
+        return (
+            "after DMA done-flag poll success",
+            "The DMA completion flag became visible; inspect the following shared fence/release path if the runtime still hangs.",
+        )
+
+    if slot.kind == 2 and slot.phase == 126:
+        return (
+            "DMA completion flag poll timeout",
+            "This localizes the stall before DMA completion visibility; prioritize the programmed src/dst/done PA and DMA engine acceptance/completion state.",
+        )
+
     kind_name = breadcrumb.KIND_NAMES.get(slot.kind, f"kind_{slot.kind}")
     phase_name = breadcrumb.PHASE_NAMES.get(slot.phase, f"phase_{slot.phase}")
     return (
@@ -482,6 +511,9 @@ def frontier_summary(
     if sparse_summary.get("dma_fixed_wait"):
         data = sparse_summary["dma_fixed_wait"]
         return "dma-fixed-load stage={stage} tensor={tensor} token={tok} phase={phase}".format(**data)
+    if sparse_summary.get("dma_export_wait"):
+        data = sparse_summary["dma_export_wait"]
+        return "dma-export stage={stage} tensor={tensor} token={tok} phase={phase}".format(**data)
     if slot is not None and slot.kind in (2, 4, 5):
         kind_name = breadcrumb.KIND_NAMES.get(slot.kind, f"kind_{slot.kind}")
         phase_name = breadcrumb.PHASE_NAMES.get(slot.phase, f"phase_{slot.phase}")
@@ -504,6 +536,7 @@ def frontier_summary(
         "oc_split_pointwise",
         "export_target",
         "dma_export_host",
+        "dma_export_wait",
         "dma_fixed_submit",
     )
     if sparse_key == "worker" and sparse_data:
@@ -672,6 +705,13 @@ def emit_trigger_env(
         env["PIPELINE_RUNTIME_DEBUG_TRIGGER_LOCAL_STAGE"] = data["stage"]
         env["PIPELINE_RUNTIME_DEBUG_TRIGGER_TENSOR_ID"] = data["tensor"]
         env["PIPELINE_RUNTIME_DEBUG_TRIGGER_PAGE"] = data["page"]
+    elif sparse_summary.get("dma_export_wait"):
+        data = sparse_summary["dma_export_wait"]
+        env["PIPELINE_RUNTIME_DEBUG_TRIGGER_KIND"] = "dma-export"
+        env["PIPELINE_RUNTIME_DEBUG_TRIGGER_GLOBAL_STAGE"] = data["stage"]
+        env["PIPELINE_RUNTIME_DEBUG_TRIGGER_LOCAL_STAGE"] = data["stage"]
+        env["PIPELINE_RUNTIME_DEBUG_TRIGGER_TENSOR_ID"] = data["tensor"]
+        env["PIPELINE_RUNTIME_DEBUG_TRIGGER_TOKEN"] = data["tok"]
     else:
         env["PIPELINE_RUNTIME_DEBUG_TRIGGER_KIND"] = "runtime"
 
@@ -732,6 +772,8 @@ def recommend_next_probe(
         return "static-read-dma-wait-path-then-token-trigger"
     if sparse_summary.get("dma_export_host"):
         return "static-read-dma-export-host-then-page-trigger"
+    if sparse_summary.get("dma_export_wait"):
+        return "static-read-dma-export-wait-then-token-trigger"
     if sparse_summary.get("worker"):
         return "worker-boundary-trigger-only"
     if "insufficient breadcrumb evidence" in verdict:
@@ -825,6 +867,7 @@ def main() -> int:
     print(format_sparse_item("sparse_dma_export_host", sparse_summary.get("dma_export_host")))
     print(format_sparse_item("sparse_dma_fixed_submit", sparse_summary.get("dma_fixed_submit")))
     print(format_sparse_item("sparse_dma_fixed_wait", sparse_summary.get("dma_fixed_wait")))
+    print(format_sparse_item("sparse_dma_export_wait", sparse_summary.get("dma_export_wait")))
     print(format_sparse_item("sparse_spm_xlate_release", sparse_summary.get("spm_xlate_release")))
     print(
         format_sparse_list(

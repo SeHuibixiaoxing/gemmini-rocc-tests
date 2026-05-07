@@ -255,6 +255,8 @@ checkpoint_log_enable=${PIPELINE_RUNTIME_CHECKPOINT_LOG_ENABLE}
 disable_mapping_cache=${PIPELINE_RUNTIME_DISABLE_MAPPING_CACHE}
 dma_export_probe_enable=${PIPELINE_RUNTIME_DMA_EXPORT_PROBE_ENABLE}
 dma_force_direct_enable=${PIPELINE_RUNTIME_DMA_FORCE_DIRECT_ENABLE:-0}
+dma_blocking_wait_poll_timeout_enable=${PIPELINE_RUNTIME_DMA_BLOCKING_WAIT_POLL_TIMEOUT_ENABLE:-0}
+export_dma_timeout_ms=${EXPORT_DMA_TIMEOUT_MS:-0}
 dma_export_probe_token_start=${PIPELINE_RUNTIME_DMA_EXPORT_PROBE_TOKEN_START}
 dma_export_probe_token_end=${PIPELINE_RUNTIME_DMA_EXPORT_PROBE_TOKEN_END}
 dma_export_page_start=${PIPELINE_RUNTIME_DMA_EXPORT_PAGE_START:-}
@@ -358,6 +360,8 @@ debug_preflight() {
   echo "debug_preflight_guest_deep_log_enable=${PIPELINE_RUNTIME_GUEST_DEEP_LOG_ENABLE}"
   echo "debug_preflight_dma_export_probe_enable=${PIPELINE_RUNTIME_DMA_EXPORT_PROBE_ENABLE}"
   echo "debug_preflight_dma_force_direct_enable=${PIPELINE_RUNTIME_DMA_FORCE_DIRECT_ENABLE:-0}"
+  echo "debug_preflight_dma_blocking_wait_poll_timeout_enable=${PIPELINE_RUNTIME_DMA_BLOCKING_WAIT_POLL_TIMEOUT_ENABLE:-0}"
+  echo "debug_preflight_export_dma_timeout_ms=${EXPORT_DMA_TIMEOUT_MS:-0}"
   echo "debug_preflight_dma_fixed_load_probe_enable=${PIPELINE_RUNTIME_DMA_FIXED_LOAD_PROBE_ENABLE}"
   echo "debug_preflight_dma_fixed_load_monitor_probe_enable=${PIPELINE_RUNTIME_DMA_FIXED_LOAD_MONITOR_PROBE_ENABLE}"
   if [[ "${#notes[@]}" -eq 0 ]]; then
