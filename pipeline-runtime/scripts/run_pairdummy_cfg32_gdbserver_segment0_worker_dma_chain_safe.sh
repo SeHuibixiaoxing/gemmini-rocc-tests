@@ -28,6 +28,11 @@ Environment:
   PRT_GDB_STATIC_NEIGH_MAC          Optional static neighbor MAC for the guest.
   PRT_GDB_INITIAL_MARKER_TIMEOUT    Timeout for initial segment-begin marker. Default: 1200.
   PRT_GDB_STEP_MARKER_TIMEOUT       Timeout for each later marker. Default: 900.
+  PRT_GDB_PAGE_ACCOUNTED_SEQUENCE   Optional comma-separated fixed-load page indices to
+                                    wait for after page0 accounting, e.g. 1,2,15,16,23,24.
+  PRT_GDB_PAGE_STAGE_ID             Stage id for page sequence filters. Default: 0.
+  PRT_GDB_PAGE_MANAGER_ID           Manager id for page sequence filters. Default: 0.
+  PRT_GDB_PAGE_TENSOR_ID            Tensor id for page sequence filters. Default: 0.
 EOF
 }
 
@@ -64,6 +69,10 @@ tap_dev="${PRT_GDB_TAP_DEV:-tap0}"
 static_neigh_mac="${PRT_GDB_STATIC_NEIGH_MAC:-}"
 initial_timeout="${PRT_GDB_INITIAL_MARKER_TIMEOUT:-1200}"
 step_timeout="${PRT_GDB_STEP_MARKER_TIMEOUT:-900}"
+page_accounted_sequence="${PRT_GDB_PAGE_ACCOUNTED_SEQUENCE:-}"
+page_stage_id="${PRT_GDB_PAGE_STAGE_ID:-0}"
+page_manager_id="${PRT_GDB_PAGE_MANAGER_ID:-0}"
+page_tensor_id="${PRT_GDB_PAGE_TENSOR_ID:-0}"
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 out_dir="${out_root}/pairdummy-cfg32-segment0-worker-dma-safe-${stamp}-${run_host_ip//./_}-${guest_ip//./_}"
 tunnel_log="${out_dir}/ssh-tunnel.log"
@@ -78,6 +87,17 @@ for timeout_value in "${initial_timeout}" "${step_timeout}"; do
     exit 2
   fi
 done
+for filter_value in "${page_stage_id}" "${page_manager_id}" "${page_tensor_id}"; do
+  if [[ ! "${filter_value}" =~ ^[0-9]+$ ]]; then
+    echo "invalid page sequence filter value: ${filter_value}" >&2
+    exit 2
+  fi
+done
+if [[ -n "${page_accounted_sequence}" &&
+      ! "${page_accounted_sequence}" =~ ^[0-9]+(,[0-9]+)*$ ]]; then
+  echo "invalid PRT_GDB_PAGE_ACCOUNTED_SEQUENCE: ${page_accounted_sequence}" >&2
+  exit 2
+fi
 
 if [[ ! -x "${gdb}" ]]; then
   echo "missing executable cross-gdb: ${gdb}" >&2
@@ -163,6 +183,10 @@ set port [lindex $argv 2]
 set transcript [lindex $argv 3]
 set initial_timeout [lindex $argv 4]
 set step_timeout [lindex $argv 5]
+set page_accounted_sequence [lindex $argv 6]
+set page_stage_id [lindex $argv 7]
+set page_manager_id [lindex $argv 8]
+set page_tensor_id [lindex $argv 9]
 
 log_file -noappend $transcript
 spawn $gdb -q $elf
@@ -204,6 +228,15 @@ proc collect_state {label} {
     gdb_cmd "info registers pc sp ra a0 a1 a2 a3" 120
     gdb_cmd "x/16i \$pc" 120
     puts "PRT_SAFE_COLLECT_END $label"
+}
+
+proc collect_marker_state {label} {
+    puts "PRT_SAFE_MARKER_BEGIN $label"
+    gdb_cmd "printf \"\\n--- safe marker: $label ---\\n\"" 120
+    gdb_cmd "print g_prt_gdb_marker_state" 120
+    gdb_cmd "print g_prt_debug_state" 120
+    gdb_cmd "bt" 300
+    puts "PRT_SAFE_MARKER_END $label"
 }
 
 proc detach_quit {{exit_code 0}} {
@@ -321,6 +354,21 @@ set_filter 29 0 $any 0 $any $any $any $any $any
 continue_to_marker "first-fixed-load-page-accounted-stage0" $step_timeout
 collect_state "first-fixed-load-page-accounted-stage0"
 
+if {$page_accounted_sequence ne ""} {
+    foreach page [split $page_accounted_sequence ","] {
+        set page [string trim $page]
+        if {$page eq ""} {
+            continue
+        }
+        if {[expr {$page == 0}]} {
+            continue
+        }
+        set_filter 29 0 $any $page_stage_id $any $page_manager_id $page_tensor_id $page $any
+        continue_to_marker "fixed-load-page${page}-accounted-stage${page_stage_id}" $step_timeout
+        collect_marker_state "fixed-load-page${page}-accounted-stage${page_stage_id}"
+    }
+}
+
 puts "PRT_SAFE_SEQUENCE_PASS"
 detach_quit 0
 EOF
@@ -330,10 +378,16 @@ echo "[pairdummy-gdb-safe] tunnel localhost:${local_port} -> ${guest_ip}:${guest
 echo "[pairdummy-gdb-safe] target_bin=${target_bin}"
 echo "[pairdummy-gdb-safe] target_sha256=${target_sha}"
 echo "[pairdummy-gdb-safe] initial_timeout=${initial_timeout} step_timeout=${step_timeout}"
+if [[ -n "${page_accounted_sequence}" ]]; then
+  echo "[pairdummy-gdb-safe] page_accounted_sequence=${page_accounted_sequence}"
+  echo "[pairdummy-gdb-safe] page_stage_id=${page_stage_id} page_manager_id=${page_manager_id} page_tensor_id=${page_tensor_id}"
+fi
 echo "[pairdummy-gdb-safe] out_dir=${out_dir}"
 
 set +e
-"${expect_bin}" -f "${expect_script}" "${gdb}" "${target_bin}" "${local_port}" "${transcript}" "${initial_timeout}" "${step_timeout}" \
+"${expect_bin}" -f "${expect_script}" "${gdb}" "${target_bin}" "${local_port}" "${transcript}" \
+  "${initial_timeout}" "${step_timeout}" "${page_accounted_sequence}" \
+  "${page_stage_id}" "${page_manager_id}" "${page_tensor_id}" \
   >"${out_dir}/expect-driver.stdout" 2>"${out_dir}/expect-driver.stderr"
 expect_rc=$?
 set -e
