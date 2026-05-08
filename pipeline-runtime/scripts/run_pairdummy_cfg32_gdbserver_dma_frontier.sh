@@ -246,7 +246,29 @@ proc continue_to_frontier {timeout_s} {
             set ::timeout $old_timeout
             return 1
         }
-        timeout { puts stderr "timeout waiting for DMA frontier breakpoint"; exit 11 }
+        timeout {
+            puts "GDB_DMA_FRONTIER_TIMEOUT"
+            send \003
+            expect {
+                -re "received signal SIGINT|Program received signal SIGINT|Thread .* received signal SIGINT|Program received signal SIGTRAP|Thread .* received signal SIGTRAP" {
+                    need_prompt
+                    set ::timeout $old_timeout
+                    return 2
+                }
+                -re "\\(gdb\\) $" {
+                    set ::timeout $old_timeout
+                    return 2
+                }
+                timeout {
+                    puts stderr "timeout waiting for Ctrl-C after DMA frontier timeout"
+                    exit 21
+                }
+                eof {
+                    puts stderr "gdb exited during Ctrl-C after DMA frontier timeout"
+                    exit 22
+                }
+            }
+        }
         eof { puts stderr "gdb exited during DMA frontier continue"; exit 12 }
     }
 }
@@ -314,8 +336,27 @@ proc continue_to_path_stop {timeout_s stop_index} {
             return 1
         }
         timeout {
-            puts stderr "timeout waiting for DMA path breakpoint index=$stop_index"
-            exit 21
+            puts "GDB_DMA_PATH_TIMEOUT index=$stop_index"
+            send \003
+            expect {
+                -re "received signal SIGINT|Program received signal SIGINT|Thread .* received signal SIGINT|Program received signal SIGTRAP|Thread .* received signal SIGTRAP" {
+                    need_prompt
+                    set ::timeout $old_timeout
+                    return 2
+                }
+                -re "\\(gdb\\) $" {
+                    set ::timeout $old_timeout
+                    return 2
+                }
+                timeout {
+                    puts stderr "timeout waiting for Ctrl-C after DMA path timeout index=$stop_index"
+                    exit 21
+                }
+                eof {
+                    puts stderr "gdb exited during Ctrl-C after DMA path timeout index=$stop_index"
+                    exit 22
+                }
+            }
         }
         eof {
             puts stderr "gdb exited during DMA path continue index=$stop_index"
@@ -417,10 +458,28 @@ gdb_cmd "info breakpoints"
 puts "GDB_DMA_FRONTIER_MARK_BREAK_SET"
 
 set exited [continue_to_frontier $frontier_timeout]
-if {$exited} {
+if {$exited == 1} {
     send -- "quit\r"
     expect eof
     exit 0
+}
+if {$exited == 2} {
+    puts "GDB_DMA_FRONTIER_MARK_TIMEOUT_INTERRUPTED"
+    gdb_cmd "info threads" 120
+    gdb_cmd "thread apply all bt" 300
+    gdb_cmd "info registers pc sp ra a0 a1 a2 a3" 120
+    gdb_cmd "x/16i \$pc" 120
+    set timeout 180
+    send -- "detach\r"
+    expect {
+        -re "Ending remote debugging|Inferior .* detached|Detaching from program" { need_prompt }
+        timeout { puts stderr "timeout waiting for detach after frontier timeout"; exit 23 }
+        eof { puts stderr "gdb exited during detach after frontier timeout"; exit 24 }
+    }
+    puts "GDB_DMA_FRONTIER_MARK_TIMEOUT_DETACH_OK"
+    send -- "quit\r"
+    expect eof
+    exit 11
 }
 puts "GDB_DMA_FRONTIER_MARK_HIT"
 dump_dma_wait_context "frontier-hit"

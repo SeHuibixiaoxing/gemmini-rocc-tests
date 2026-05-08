@@ -1,0 +1,42 @@
+breadcrumb=/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/artifacts/20260508T041945Z_dummy8x8_sbus64_early_stall_live/bertmini-batch8.breadcrumb.bin
+sparse_log=/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/artifacts/20260508T041945Z_dummy8x8_sbus64_early_stall_live/bertmini-batch8.log
+trigger_log=n/a
+breadcrumb_last update_count=1472 last_kind=dma last_phase=dma_page_begin
+last_slot seg=0 gstage=0 lstage=0 sb=0 tensor=0 mgr=0 page=57 rc=0 line=219
+sparse_worker: n/a
+sparse_pointwise_dispatch: n/a
+sparse_pointwise_matmul: n/a
+sparse_oc_split_pointwise: n/a
+sparse_export_target: n/a
+sparse_dma_fixed_host: n/a
+sparse_dma_export_host: n/a
+sparse_dma_fixed_submit: n/a
+sparse_dma_fixed_wait: n/a
+sparse_dma_export_wait: n/a
+sparse_spm_xlate_release: mgr=7 cfg=31 phase=restore-end
+sparse_dma_fixed_focus_page_phases: n/a
+sparse_dma_fixed_last_doneflag_end_tok=n/a
+sparse_dma_fixed_last_wait_after_release_tok=n/a
+trigger_line_count=n/a
+trigger_seq_contiguous=n/a
+trigger_budget_exhausted=n/a
+trigger_first_event: n/a
+trigger_last_event: n/a
+frontier=spm-xlate-release mgr=7 cfg=31 phase=restore-end
+previous_frontier=n/a
+change_kind=none
+claim_class=stable_observation
+disturbance_risk=low
+requires_control_rerun=no
+recommended_next_probe=static-read-spm-xlate-restore-then-sx-trigger
+verdict=inside spm-xlate release path (restore-end)
+next_action=Read `prt_spm_xlate_release_scope()` before widening logs; keep the next rerun scoped to the `spm-xlate` trigger family.
+sparse_tail:
+[prt-progress] rr-acquire-inner phase=after-csr-read stage=0 manager=0 opcode=2 cfg=0 csr=0x810 cfg_state=0x100 acquired=1
+[prt-progress] rr-acquire-inner phase=before-set-opc stage=0 manager=0 opcode=2 cfg=0 acquired_state=0x100 retries=0
+[prt-progress] rr-acquire-inner phase=after-set-opc stage=0 manager=0 opcode=2 cfg=0
+[prt-progress] rr-acquire-inner phase=before-scope-valid stage=0 manager=0 opcode=2 cfg=0
+[prt-progress] rr-acquire-inner phase=after-scope-valid stage=0 manager=0 opcode=2 cfg=0 valid=1
+[prt-progress] rr-acquire-inner phase=before-return stage=0 manager=0 opcode=2 cfg=0
+[prt-progress] rr-acquire-wrap phase=after-call stage=0 manager=0 opcode=2 rc=0 cfg=0 valid=1
+[prt-progress] segment=0 sink-progress=0/8 elapsed_ms=1018 fatal=0 stop=0

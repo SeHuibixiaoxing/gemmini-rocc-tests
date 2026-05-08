@@ -1,0 +1,10 @@
+image=/home/ubuntu/sim_slot_0/rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver.img
+-rw-r--r-- 1 root root 259975 May  8 04:31 /tmp/bertmini-batch8.log
+-rw-r--r-- 1 root root 7272 May  8 04:31 /tmp/bertmini-batch8.breadcrumb.bin
+-rw-r--r-- 1 root root 634 May  8 04:31 /tmp/bertmini-batch8.gdbserver.log
+-rw-r--r-- 1 root root 196 May  8 04:31 /tmp/bertmini-batch8.gdbserver.info
+-rw-r--r-- 1 root root 0 May  8 04:31 /tmp/bertmini-batch8.checkpoint.log
+-rw-r--r-- 1 root root 0 May  8 04:31 /tmp/bertmini-batch8.deep.log
+-rw-r--r-- 1 root root 0 May  8 04:31 /tmp/bertmini-batch8.audit.log
+-rw-r--r-- 1 ubuntu ubuntu    61 May  8 04:31 /tmp/prt-heartbeat-live.csv
+-rw-rw-r-- 1 ubuntu ubuntu 16919 May  8 04:31 /tmp/prt-uartlog-live.txt
