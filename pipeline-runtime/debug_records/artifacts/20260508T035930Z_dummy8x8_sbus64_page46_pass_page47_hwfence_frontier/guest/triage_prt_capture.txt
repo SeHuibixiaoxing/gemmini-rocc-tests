@@ -1,0 +1,42 @@
+breadcrumb=/home/ubuntu/chipyard/tmp/firesim-aws-f2/live-debug/20260508T035854Z_192_168_1_135/bertmini-batch8.breadcrumb.bin
+sparse_log=/home/ubuntu/chipyard/tmp/firesim-aws-f2/live-debug/20260508T035854Z_192_168_1_135/bertmini-batch8.log
+trigger_log=n/a
+breadcrumb_last update_count=3074 last_kind=dma last_phase=dma_program_post_src
+last_slot seg=0 gstage=0 lstage=0 sb=0 tensor=2 mgr=0 page=47 rc=0 line=3536
+sparse_worker: stage=0 subbatch=0 state=begin
+sparse_pointwise_dispatch: n/a
+sparse_pointwise_matmul: n/a
+sparse_oc_split_pointwise: n/a
+sparse_export_target: stage=0 tensor=2 seq=0 state=begin
+sparse_dma_fixed_host: n/a
+sparse_dma_export_host: n/a
+sparse_dma_fixed_submit: n/a
+sparse_dma_fixed_wait: n/a
+sparse_dma_export_wait: n/a
+sparse_spm_xlate_release: mgr=7 cfg=31 phase=restore-end
+sparse_dma_fixed_focus_page_phases: n/a
+sparse_dma_fixed_last_doneflag_end_tok=n/a
+sparse_dma_fixed_last_wait_after_release_tok=n/a
+trigger_line_count=n/a
+trigger_seq_contiguous=n/a
+trigger_budget_exhausted=n/a
+trigger_first_event: n/a
+trigger_last_event: n/a
+frontier=spm-xlate-release mgr=7 cfg=31 phase=restore-end
+previous_frontier=n/a
+change_kind=none
+claim_class=stable_observation
+disturbance_risk=low
+requires_control_rerun=no
+recommended_next_probe=static-read-spm-xlate-restore-then-sx-trigger
+verdict=inside spm-xlate release path (restore-end)
+next_action=Read `prt_spm_xlate_release_scope()` before widening logs; keep the next rerun scoped to the `spm-xlate` trigger family.
+sparse_tail:
+[prt-progress] rr-acquire-inner phase=after-scope-valid stage=0 manager=0 opcode=2 cfg=0 valid=1
+[prt-progress] rr-acquire-inner phase=before-return stage=0 manager=0 opcode=2 cfg=0
+[prt-progress] rr-acquire-wrap phase=after-call stage=0 manager=0 opcode=2 rc=0 cfg=0 valid=1
+[prt-progress] dma-export-host stage=0 tensor=2 phase=first-chunk-submitwait-begin page=0 copied=0 chunk=1024 src=0x40002000 dst_va=0x3ff6dd4400 dst_pa=0x104ebf400 bounce=0
+[prt-progress] dma-export-host stage=0 tensor=2 phase=first-chunk-submitwait-end page=0 copied=0 chunk=1024 rc=0 bounce=0
+[prt-progress] segment=0 sink-progress=0/8 elapsed_ms=4078 fatal=0 stop=0
+[prt-progress] segment=0 sink-progress=0/8 elapsed_ms=5190 fatal=0 stop=0
+[prt-progress] segment=0 sink-progress=0/8 elapsed_ms=6208 fatal=0 stop=0

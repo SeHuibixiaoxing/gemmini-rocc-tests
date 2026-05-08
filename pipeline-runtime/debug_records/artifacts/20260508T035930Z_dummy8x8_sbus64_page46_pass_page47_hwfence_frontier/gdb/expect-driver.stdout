@@ -1,0 +1,2513 @@
+spawn /home/ubuntu/chipyard/.conda-env/riscv-tools/bin/riscv64-unknown-linux-gnu-gdb -q /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/build/rerocc-linux-tests/rerocc_pipeline_runtime-linux
+Reading symbols from /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/build/rerocc-linux-tests/rerocc_pipeline_runtime-linux...
+[?2004h(gdb) set pagination off
+[?2004l[?2004h(gdb) set confirm off
+[?2004l[?2004h(gdb) set print thread-events off
+[?2004l[?2004h(gdb) set breakpoint pending off
+[?2004l[?2004h(gdb) set debuginfod enabled off
+[?2004l[?2004h(gdb) set auto-load safe-path /
+[?2004l[?2004h(gdb) set remotetimeout 180
+[?2004l[?2004h(gdb) target remote :32345
+[?2004lRemote debugging using :32345
+Reading symbols from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/ld-linux-riscv64-lp64d.so.1...
+(No debugging symbols found in /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/ld-linux-riscv64-lp64d.so.1)
+0x0000003ff7fec386 in ?? ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/ld-linux-riscv64-lp64d.so.1
+[?2004h(gdb) GDB_DMA_FRONTIER_MARK_CONNECTED
+info threads
+[?2004l  Id   Target Id                        Frame 
+* 1    Thread 235.235 "rerocc_pipeline" 0x0000003ff7fec386 in ?? ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/ld-linux-riscv64-lp64d.so.1
+[?2004h(gdb) thread apply all bt
+[?2004l
+Thread 1 (Thread 235.235 "rerocc_pipeline"):
+#0  0x0000003ff7fec386 in ?? () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/ld-linux-riscv64-lp64d.so.1
+[?2004h(gdb) info registers pc sp ra a0 a1 a2 a3
+[?2004lpc             0x3ff7fec386	0x3ff7fec386
+sp             0x3fffffe6e0	0x3fffffe6e0
+ra             0x2aaaae35e0	0x2aaaae35e0
+a0             0x0	0
+a1             0x2aaaba5f60	183252967264
+a2             0x2aaaba66c0	183252969152
+a3             0x3fffffe170	274877899120
+[?2004h(gdb) break dma_submit_wait_annotated_scoped if stage_idx == 0 && tensor_id == 2 && debug_page_idx == 46
+[?2004lBreakpoint 1 at 0x180de: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c, line 2070.
+[?2004h(gdb) info breakpoints
+[?2004lNum     Type           Disp Enb Address            What
+1       breakpoint     keep y   0x00000000000180de in dma_submit_wait_annotated_scoped 
+                                                   at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2070
+	stop only if stage_idx == 0 && tensor_id == 2 && debug_page_idx == 46 (host evals)
+[?2004h(gdb) GDB_DMA_FRONTIER_MARK_BREAK_SET
+continue
+[?2004lContinuing.
+[Switching to Thread 235.277]
+
+Thread 2 "rerocc_pipeline" hit Breakpoint 1, dma_submit_wait_annotated_scoped (
+    rt=rt@entry=0x3fffffe090, req=req@entry=0x3ff6d74fc8, 
+    stage_idx=stage_idx@entry=0, tensor_id=tensor_id@entry=2, 
+    timeout_ns=timeout_ns@entry=5000000000, scope=scope@entry=0x3ff6d74fb0, 
+    force_export_probe=force_export_probe@entry=0, 
+    debug_page_idx=debug_page_idx@entry=46)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2070
+2070	  const int trace_submit = dma_should_marker_trace_submit(req, tensor_id);
+[?2004h[?2004l[?2004h(gdb) GDB_DMA_FRONTIER_MARK_HIT
+GDB_DMA_CONTEXT_BEGIN label=frontier-hit
+info registers pc sp ra a0 a1 a2 a3 s2 s9 s11 t3
+[?2004lpc             0x180de	0x180de <dma_submit_wait_annotated_scoped>
+sp             0x3ff6d74f00	0x3ff6d74f00
+ra             0x19402	0x19402 <dma_copy_spm_pages_to_host_linux+1336>
+a0             0x3fffffe090	274877898896
+a1             0x3ff6d74fc8	274724245448
+a2             0x0	0
+a3             0x2	2
+s2             0x0	0
+s9             0x0	0
+s11            0x0	0
+t3             0x400	1024
+[?2004h(gdb) bt 10
+[?2004l#0  dma_submit_wait_annotated_scoped (rt=rt@entry=0x3fffffe090, 
+    req=req@entry=0x3ff6d74fc8, stage_idx=stage_idx@entry=0, 
+    tensor_id=tensor_id@entry=2, timeout_ns=timeout_ns@entry=5000000000, 
+    scope=scope@entry=0x3ff6d74fb0, 
+    force_export_probe=force_export_probe@entry=0, 
+    debug_page_idx=debug_page_idx@entry=46)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2070
+#1  0x0000000000019402 in dma_copy_spm_pages_to_host_linux (rt=0x3fffffe090, 
+    dst_host=0x3ff6dd4400 "", src_pages=<optimized out>, manager_id=0, 
+    stage_idx=0, tensor_id=2, timeout_ns=5000000000, 
+    total_bytes=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:1209
+#2  0x000000000001a3c6 in prt_dma_copy_spm_pages_to_dram_prefix (
+    timeout_ns=<optimized out>, tensor_id=<optimized out>, 
+    stage_idx=<optimized out>, manager_id=<optimized out>, 
+    bytes=<optimized out>, src_pages=<optimized out>, 
+    dst_dram_addr=<optimized out>, rt=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2869
+#3  0x000000000002bcbc in copy_tensor_pages_to_model_alias_target (
+    rt=rt@entry=0x3fffffe090, tensor_id=tensor_id@entry=2, 
+    pages=pages@entry=0x6bdd0, src_size=src_size@entry=65536, 
+    manager_id=manager_id@entry=0, stage_id=stage_id@entry=0, target_seq=0, 
+    layer_index=<optimized out>, slot=slot@entry=3, 
+    target_kind=target_kind@entry=0x47668 "address", 
+    target_slot=target_slot@entry=3, dst_addr=274724635648)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:1973
+#4  0x000000000002e1e8 in copy_tensor_pages_to_model_aliases (stage_id=0, 
+    manager_id=0, src_size=<optimized out>, pages=0x6bdd0, tensor_id=2, 
+    rt=0x3fffffe090)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:2040
+#5  sync_stage_export_aliases (rt=rt@entry=0x3fffffe090, 
+    segment_idx=segment_idx@entry=0, stage_id=0, 
+    global_stage_id=global_stage_id@entry=0, subbatch_id=subbatch_id@entry=0)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:2657
+#6  0x000000000003065a in stage_worker_main (arg=0x83960)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4570
+#7  0x0000003ff7e6cf46 in ?? ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#8  0x0000003ff7eb5fcc in ?? ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+[?2004h(gdb) print/x tok
+[?2004l$1 = {id = 0xf7e951b4, stage_idx = 0x3f, tensor_id = 0x0, owner_rt = 0x2e50c, 
+  completion_flag = 0xe, completion_slot = 0xb951680, done = 0x0, 
+  hw_done_flag = 0xf6d74e90, hw_done_flag_pa_rc = 0x3f, initialized = 0x13a88, 
+  submit_ns = 0x0, debug_src_addr = 0x3ff7df8000, debug_dst_addr = 0x7, 
+  debug_bytes = 0x7000000db, debug_done_flag_va = 0x3ff6d74fa8, 
+  debug_done_flag_pa = 0x1, debug_last_pending_log_ns = 0x0, 
+  debug_src_acc = 0x0, debug_dst_acc = 0x3f, debug_page_idx = 0x0, 
+  debug_progress_polls = 0x0, debug_force_export_probe = 0x0, 
+  traced_complete = 0x0, status = 0x2e, rr_scope_valid = 0x0, 
+  rr_scope_external = 0x0, rr_cfg_id = 0x0, rr_manager_id = 0xf6d74fc8, 
+  rr_opcode_id = 0x3f, lock = {__data = {__lock = 0x2, __count = 0x0, 
+      __owner = 0x2a05f200, __nusers = 0x1, __kind = 0x0, __spins = 0x0, 
+      __list = {__prev = 0x2e, __next = 0x0}}, __size = {0x2, 0x0, 0x0, 0x0, 
+      0x0, 0x0, 0x0, 0x0, 0x0, 0xf2, 0x5, 0x2a, 0x1, 0x0 <repeats 11 times>, 
+      0x2e, 0x0 <repeats 15 times>}, __align = 0x2}, cv = {__data = {__wseq = {
+        __value64 = 0x2, __value32 = {__low = 0x2, __high = 0x0}}, 
+      __g1_start = {__value64 = 0x3ff6d74fc8, __value32 = {__low = 0xf6d74fc8, 
+          __high = 0x3f}}, __g_refs = {0xf6d74f00, 0x3f}, __g_size = {0x14c8e, 
+        0x0}, __g1_orig_size = 0x40603400, __wrefs = 0x0, __g_signals = {0x0, 
+        0x0}}, __size = {0x2, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xc8, 0x4f, 
+      0xd7, 0xf6, 0x3f, 0x0, 0x0, 0x0, 0x0, 0x4f, 0xd7, 0xf6, 0x3f, 0x0, 0x0, 
+      0x0, 0x8e, 0x4c, 0x1, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x34, 0x60, 0x40, 
+      0x0 <repeats 12 times>}, __align = 0x2}}
+[?2004h(gdb) print tok->id
+[?2004l$2 = 4159263156
+[?2004h(gdb) print tok->stage_idx
+[?2004l$3 = 63
+[?2004h(gdb) print tok->tensor_id
+[?2004l$4 = 0
+[?2004h(gdb) print tok->rr_manager_id
+[?2004l$5 = 4141305800
+[?2004h(gdb) print tok->rr_scope_valid
+[?2004l$6 = 0
+[?2004h(gdb) print tok->rr_scope_external
+[?2004l$7 = 0
+[?2004h(gdb) print tok->hw_done_flag
+[?2004l$8 = -153661808
+[?2004h(gdb) print tok->done
+[?2004l$9 = 0
+[?2004h(gdb) print tok->status
+[?2004l$10 = 46
+[?2004h(gdb) print/x tok->completion_flag
+[?2004l$11 = 0xe
+[?2004h(gdb) x/wx tok->completion_flag
+[?2004l0xe:	Cannot access memory at address 0xe
+[?2004h(gdb) print/x tok->debug_src_addr
+[?2004l$12 = 0x3ff7df8000
+[?2004h(gdb) print/x tok->debug_dst_addr
+[?2004l$13 = 0x7
+[?2004h(gdb) print/x tok->debug_done_flag_pa
+[?2004l$14 = 0x1
+[?2004h(gdb) print tok->debug_bytes
+[?2004l$15 = 30064771291
+[?2004h(gdb) print/x (prt_dma_token_t *)$s11
+[?2004l$16 = 0x0
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->id
+[?2004lCannot access memory at address 0x0
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->stage_idx
+[?2004lCannot access memory at address 0x4
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->tensor_id
+[?2004lCannot access memory at address 0x8
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_manager_id
+[?2004lCannot access memory at address 0x98
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_scope_valid
+[?2004lCannot access memory at address 0x8c
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_scope_external
+[?2004lCannot access memory at address 0x90
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->hw_done_flag
+[?2004lCannot access memory at address 0x28
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->done
+[?2004lCannot access memory at address 0x24
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->status
+[?2004lCannot access memory at address 0x88
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->completion_flag
+[?2004lCannot access memory at address 0x18
+[?2004h(gdb) x/wx ((prt_dma_token_t *)$s11)->completion_flag
+[?2004lCannot access memory at address 0x18
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_src_addr
+[?2004lCannot access memory at address 0x40
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_dst_addr
+[?2004lCannot access memory at address 0x48
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_done_flag_pa
+[?2004lCannot access memory at address 0x60
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->debug_bytes
+[?2004lCannot access memory at address 0x50
+[?2004h(gdb) x/12i $pc
+[?2004l=> 0x180de <dma_submit_wait_annotated_scoped>:	addi	sp,sp,-400
+   0x180e0 <dma_submit_wait_annotated_scoped+2>:	sd	s0,384(sp)
+   0x180e2 <dma_submit_wait_annotated_scoped+4>:	sd	s1,376(sp)
+   0x180e4 <dma_submit_wait_annotated_scoped+6>:	sd	s2,368(sp)
+   0x180e6 <dma_submit_wait_annotated_scoped+8>:	sd	s3,360(sp)
+   0x180e8 <dma_submit_wait_annotated_scoped+10>:	sd	s4,352(sp)
+   0x180ea <dma_submit_wait_annotated_scoped+12>:	sd	s5,344(sp)
+   0x180ec <dma_submit_wait_annotated_scoped+14>:	sd	s6,336(sp)
+   0x180ee <dma_submit_wait_annotated_scoped+16>:	sd	s7,328(sp)
+   0x180f0 <dma_submit_wait_annotated_scoped+18>:	sd	s8,320(sp)
+   0x180f2 <dma_submit_wait_annotated_scoped+20>:	sd	s9,312(sp)
+   0x180f4 <dma_submit_wait_annotated_scoped+22>:	sd	s10,304(sp)
+[?2004h(gdb) GDB_DMA_CONTEXT_END label=frontier-hit
+thread apply all bt
+[?2004l
+Thread 2 (Thread 235.277 "rerocc_pipeline"):
+#0  dma_submit_wait_annotated_scoped (rt=rt@entry=0x3fffffe090, req=req@entry=0x3ff6d74fc8, stage_idx=stage_idx@entry=0, tensor_id=tensor_id@entry=2, timeout_ns=timeout_ns@entry=5000000000, scope=scope@entry=0x3ff6d74fb0, force_export_probe=force_export_probe@entry=0, debug_page_idx=debug_page_idx@entry=46) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2070
+#1  0x0000000000019402 in dma_copy_spm_pages_to_host_linux (rt=0x3fffffe090, dst_host=0x3ff6dd4400 "", src_pages=<optimized out>, manager_id=0, stage_idx=0, tensor_id=2, timeout_ns=5000000000, total_bytes=<optimized out>) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:1209
+#2  0x000000000001a3c6 in prt_dma_copy_spm_pages_to_dram_prefix (timeout_ns=<optimized out>, tensor_id=<optimized out>, stage_idx=<optimized out>, manager_id=<optimized out>, bytes=<optimized out>, src_pages=<optimized out>, dst_dram_addr=<optimized out>, rt=<optimized out>) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2869
+#3  0x000000000002bcbc in copy_tensor_pages_to_model_alias_target (rt=rt@entry=0x3fffffe090, tensor_id=tensor_id@entry=2, pages=pages@entry=0x6bdd0, src_size=src_size@entry=65536, manager_id=manager_id@entry=0, stage_id=stage_id@entry=0, target_seq=0, layer_index=<optimized out>, slot=slot@entry=3, target_kind=target_kind@entry=0x47668 "address", target_slot=target_slot@entry=3, dst_addr=274724635648) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:1973
+#4  0x000000000002e1e8 in copy_tensor_pages_to_model_aliases (stage_id=0, manager_id=0, src_size=<optimized out>, pages=0x6bdd0, tensor_id=2, rt=0x3fffffe090) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:2040
+#5  sync_stage_export_aliases (rt=rt@entry=0x3fffffe090, segment_idx=segment_idx@entry=0, stage_id=0, global_stage_id=global_stage_id@entry=0, subbatch_id=subbatch_id@entry=0) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:2657
+#6  0x000000000003065a in stage_worker_main (arg=0x83960) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4570
+#7  0x0000003ff7e6cf46 in ?? () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#8  0x0000003ff7eb5fcc in ?? () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+
+Thread 1 (Thread 235.235 "rerocc_pipeline"):
+#0  0x0000003ff7e952a6 in clock_nanosleep () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#1  0x0000003ff7e9c262 in nanosleep () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#2  0x0000000000034b30 in prt_runtime_run (rt=rt@entry=0x3fffffe090, args=args@entry=0x3fffffdfa8) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:5408
+#3  0x0000000000012366 in prt_main_entry (argc=34, argv=0x3fffffe6e8) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/main.c:341
+#4  0x0000003ff7e2b636 in ?? () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#5  0x0000003ff7e2b6de in __libc_start_main () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#6  0x000000000001204c in _start ()
+[?2004h(gdb) disable
+[?2004l[?2004h(gdb) GDB_DMA_PATH_TRACE_MARK_START
+break prt_dma_submit
+[?2004lBreakpoint 2 at 0x17efc: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c, line 2698.
+[?2004h(gdb) GDB_DMA_PATH_BREAK_SET label=submit loc=prt_dma_submit
+break /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2095
+[?2004lBreakpoint 3 at 0x1814c: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c, line 2095.
+[?2004h(gdb) GDB_DMA_PATH_BREAK_SET label=after_submit loc=/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2095
+break dma_blocking_wait
+[?2004lBreakpoint 4 at 0x16068: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c, line 3578.
+[?2004h(gdb) GDB_DMA_PATH_BREAK_SET label=wait loc=dma_blocking_wait
+break /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3636
+[?2004lBreakpoint 5 at 0x16178: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c, line 3636.
+[?2004h(gdb) GDB_DMA_PATH_BREAK_SET label=before_fence loc=/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3636
+break /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3649
+[?2004lBreakpoint 6 at 0x161c4: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c, line 3649.
+[?2004h(gdb) GDB_DMA_PATH_BREAK_SET label=poll_gate loc=/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3649
+break /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3683
+[?2004lNote: breakpoint 6 also set at pc 0x161c4.
+Breakpoint 7 at 0x161c4: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c, line 3683.
+[?2004h(gdb) GDB_DMA_PATH_BREAK_SET label=before_hw_fence loc=/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3683
+break hw_dma_fence
+[?2004lNote: breakpoints 6 and 7 also set at pc 0x161c4.
+Breakpoint 8 at 0x161c4: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c, line 2439.
+[?2004h(gdb) GDB_DMA_PATH_BREAK_SET label=hw_dma_fence loc=hw_dma_fence
+break /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3687
+[?2004lBreakpoint 9 at 0x161d2: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c, line 3687.
+[?2004h(gdb) GDB_DMA_PATH_BREAK_SET label=after_hw_fence loc=/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3687
+break /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3762
+[?2004lBreakpoint 10 at 0x162d2: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c, line 3762.
+[?2004h(gdb) GDB_DMA_PATH_BREAK_SET label=before_shared_fence loc=/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3762
+break /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3766
+[?2004lBreakpoint 11 at 0x16306: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c, line 3766.
+[?2004h(gdb) GDB_DMA_PATH_BREAK_SET label=after_shared_fence loc=/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3766
+break /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3803
+[?2004lBreakpoint 12 at 0x163a6: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c, line 3803.
+[?2004h(gdb) GDB_DMA_PATH_BREAK_SET label=after_release loc=/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3803
+break dma_gdb_marker_wait_return
+[?2004lBreakpoint 13 at 0x1651a: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c, line 3563.
+[?2004h(gdb) GDB_DMA_PATH_BREAK_SET label=wait_return_marker loc=dma_gdb_marker_wait_return
+break /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2174
+[?2004lBreakpoint 14 at 0x18306: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c, line 2174.
+[?2004h(gdb) GDB_DMA_PATH_BREAK_SET label=return loc=/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2174
+info breakpoints
+[?2004lNum     Type           Disp Enb Address            What
+1       breakpoint     keep n   0x00000000000180de in dma_submit_wait_annotated_scoped 
+                                                   at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2070
+	stop only if stage_idx == 0 && tensor_id == 2 && debug_page_idx == 46 (host evals)
+	breakpoint already hit 1 time
+2       breakpoint     keep y   0x0000000000017efc in prt_dma_submit 
+                                                   at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2698
+3       breakpoint     keep y   0x000000000001814c in dma_submit_wait_annotated_scoped 
+                                                   at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2095
+4       breakpoint     keep y   0x0000000000016068 in dma_blocking_wait 
+                                                   at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3578
+5       breakpoint     keep y   0x0000000000016178 in dma_breadcrumb_flags_from_token 
+                                                   at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3636
+6       breakpoint     keep y   0x00000000000161c4 in hw_dma_fence 
+                                                   at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3649
+7       breakpoint     keep y   0x00000000000161c4 in hw_dma_fence 
+                                                   at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3683
+8       breakpoint     keep y   0x00000000000161c4 in hw_dma_fence 
+                                                   at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2439
+9       breakpoint     keep y   0x00000000000161d2 in dma_completion_flag_value at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3687
+10      breakpoint     keep y   0x00000000000162d2 in dma_token_fence_scope 
+                                                   at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3762
+11      breakpoint     keep y   0x0000000000016306 in dma_blocking_wait 
+                                                   at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3766
+12      breakpoint     keep y   0x00000000000163a6 in dma_blocking_wait 
+                                                   at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3803
+13      breakpoint     keep y   0x000000000001651a in dma_gdb_marker_wait_return 
+                                                   at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3563
+14      breakpoint     keep y   0x0000000000018306 in dma_submit_wait_annotated_scoped 
+                                                   at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2174
+[?2004h(gdb) GDB_DMA_PATH_CONTINUE index=1 timeout_s=180
+continue
+[?2004lContinuing.
+
+Thread 2 "rerocc_pipeline" hit Breakpoint 2, prt_dma_submit (rt=0x3fffffe090, 
+    req=0x3ff6d74fc8, tok=0x3ff6d74da8)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2698
+2698	  if (!rt || !req || !tok || !rt->dma_ops.submit) return PRT_ERR_INVAL;
+[?2004h[?2004l[?2004h(gdb) GDB_DMA_CONTEXT_BEGIN label=path-stop-1
+info registers pc sp ra a0 a1 a2 a3 s2 s9 s11 t3
+[?2004lpc             0x17efc	0x17efc <prt_dma_submit>
+sp             0x3ff6d74d70	0x3ff6d74d70
+ra             0x181aa	0x181aa <dma_submit_wait_annotated_scoped+204>
+a0             0x3fffffe090	274877898896
+a1             0x3ff6d74fc8	274724245448
+a2             0x3ff6d74da8	274724244904
+a3             0x0	0
+s2             0x3ff6d74fb0	274724245424
+s9             0x2e	46
+s11            0x0	0
+t3             0x3ff7e7cc22	274742103074
+[?2004h(gdb) bt 10
+[?2004l#0  prt_dma_submit (rt=0x3fffffe090, req=0x3ff6d74fc8, tok=0x3ff6d74da8)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2698
+#1  0x00000000000181aa in dma_submit_wait_annotated_scoped (
+    rt=rt@entry=0x3fffffe090, req=req@entry=0x3ff6d74fc8, 
+    stage_idx=stage_idx@entry=0, tensor_id=tensor_id@entry=2, 
+    timeout_ns=timeout_ns@entry=5000000000, scope=scope@entry=0x3ff6d74fb0, 
+    force_export_probe=force_export_probe@entry=0, 
+    debug_page_idx=debug_page_idx@entry=46)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2094
+#2  0x0000000000019402 in dma_copy_spm_pages_to_host_linux (rt=0x3fffffe090, 
+    dst_host=0x3ff6dd4400 "", src_pages=<optimized out>, manager_id=0, 
+    stage_idx=0, tensor_id=2, timeout_ns=5000000000, 
+    total_bytes=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:1209
+#3  0x000000000001a3c6 in prt_dma_copy_spm_pages_to_dram_prefix (
+    timeout_ns=<optimized out>, tensor_id=<optimized out>, 
+    stage_idx=<optimized out>, manager_id=<optimized out>, 
+    bytes=<optimized out>, src_pages=<optimized out>, 
+    dst_dram_addr=<optimized out>, rt=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2869
+#4  0x000000000002bcbc in copy_tensor_pages_to_model_alias_target (
+    rt=rt@entry=0x3fffffe090, tensor_id=tensor_id@entry=2, 
+    pages=pages@entry=0x6bdd0, src_size=src_size@entry=65536, 
+    manager_id=manager_id@entry=0, stage_id=stage_id@entry=0, target_seq=0, 
+    layer_index=<optimized out>, slot=slot@entry=3, 
+    target_kind=target_kind@entry=0x47668 "address", 
+    target_slot=target_slot@entry=3, dst_addr=274724635648)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:1973
+#5  0x000000000002e1e8 in copy_tensor_pages_to_model_aliases (stage_id=0, 
+    manager_id=0, src_size=<optimized out>, pages=0x6bdd0, tensor_id=2, 
+    rt=0x3fffffe090)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:2040
+#6  sync_stage_export_aliases (rt=rt@entry=0x3fffffe090, 
+    segment_idx=segment_idx@entry=0, stage_id=0, 
+    global_stage_id=global_stage_id@entry=0, subbatch_id=subbatch_id@entry=0)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:2657
+#7  0x000000000003065a in stage_worker_main (arg=0x83960)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4570
+#8  0x0000003ff7e6cf46 in ?? ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#9  0x0000003ff7eb5fcc in ?? ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+[?2004h(gdb) print/x tok
+[?2004l$17 = 0x3ff6d74da8
+[?2004h(gdb) print tok->id
+[?2004l$18 = 0
+[?2004h(gdb) print tok->stage_idx
+[?2004l$19 = 0
+[?2004h(gdb) print tok->tensor_id
+[?2004l$20 = 2
+[?2004h(gdb) print tok->rr_manager_id
+[?2004l$21 = 0
+[?2004h(gdb) print tok->rr_scope_valid
+[?2004l$22 = 1
+[?2004h(gdb) print tok->rr_scope_external
+[?2004l$23 = 1
+[?2004h(gdb) print tok->hw_done_flag
+[?2004l$24 = 0
+[?2004h(gdb) print tok->done
+[?2004l$25 = 0
+[?2004h(gdb) print tok->status
+[?2004l$26 = 0
+[?2004h(gdb) print/x tok->completion_flag
+[?2004l$27 = 0x0
+[?2004h(gdb) x/wx tok->completion_flag
+[?2004l0x0:	Cannot access memory at address 0x0
+[?2004h(gdb) print/x tok->debug_src_addr
+[?2004l$28 = 0x0
+[?2004h(gdb) print/x tok->debug_dst_addr
+[?2004l$29 = 0x0
+[?2004h(gdb) print/x tok->debug_done_flag_pa
+[?2004l$30 = 0x0
+[?2004h(gdb) print tok->debug_bytes
+[?2004l$31 = 0
+[?2004h(gdb) print/x (prt_dma_token_t *)$s11
+[?2004l$32 = 0x0
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->id
+[?2004lCannot access memory at address 0x0
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->stage_idx
+[?2004lCannot access memory at address 0x4
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->tensor_id
+[?2004lCannot access memory at address 0x8
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_manager_id
+[?2004lCannot access memory at address 0x98
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_scope_valid
+[?2004lCannot access memory at address 0x8c
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_scope_external
+[?2004lCannot access memory at address 0x90
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->hw_done_flag
+[?2004lCannot access memory at address 0x28
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->done
+[?2004lCannot access memory at address 0x24
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->status
+[?2004lCannot access memory at address 0x88
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->completion_flag
+[?2004lCannot access memory at address 0x18
+[?2004h(gdb) x/wx ((prt_dma_token_t *)$s11)->completion_flag
+[?2004lCannot access memory at address 0x18
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_src_addr
+[?2004lCannot access memory at address 0x40
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_dst_addr
+[?2004lCannot access memory at address 0x48
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_done_flag_pa
+[?2004lCannot access memory at address 0x60
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->debug_bytes
+[?2004lCannot access memory at address 0x50
+[?2004h(gdb) x/12i $pc
+[?2004l=> 0x17efc <prt_dma_submit>:	beqz	a0,0x17f7c <prt_dma_submit+128>
+   0x17efe <prt_dma_submit+2>:	addi	sp,sp,-48
+   0x17f00 <prt_dma_submit+4>:	sd	s0,32(sp)
+   0x17f02 <prt_dma_submit+6>:	sd	s2,16(sp)
+   0x17f04 <prt_dma_submit+8>:	sd	ra,40(sp)
+   0x17f06 <prt_dma_submit+10>:	addi	s0,sp,48
+   0x17f08 <prt_dma_submit+12>:	mv	s2,a1
+   0x17f0a <prt_dma_submit+14>:	beqz	a1,0x17f78 <prt_dma_submit+124>
+   0x17f0c <prt_dma_submit+16>:	sd	s3,8(sp)
+   0x17f0e <prt_dma_submit+18>:	mv	s3,a2
+   0x17f10 <prt_dma_submit+20>:	beqz	a2,0x17f72 <prt_dma_submit+118>
+   0x17f12 <prt_dma_submit+22>:	ld	a5,136(a0)
+[?2004h(gdb) GDB_DMA_CONTEXT_END label=path-stop-1
+GDB_DMA_PATH_CONTINUE index=2 timeout_s=180
+continue
+[?2004lContinuing.
+
+Thread 2 "rerocc_pipeline" hit Breakpoint 4, dma_blocking_wait (
+    rt=0x3fffffe090, tok=0x3ff6d74da8, timeout_ns=5000000000)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3578
+3578	  if (!tok) return PRT_ERR_INVAL;
+[?2004h[?2004l[?2004h(gdb) GDB_DMA_CONTEXT_BEGIN label=path-stop-2
+info registers pc sp ra a0 a1 a2 a3 s2 s9 s11 t3
+[?2004lpc             0x16068	0x16068 <dma_blocking_wait>
+sp             0x3ff6d74d70	0x3ff6d74d70
+ra             0x181c0	0x181c0 <dma_submit_wait_annotated_scoped+226>
+a0             0x3fffffe090	274877898896
+a1             0x3ff6d74da8	274724244904
+a2             0x12a05f200	5000000000
+a3             0x3ff7df8930	274741561648
+s2             0x3ff6d74fb0	274724245424
+s9             0x2e	46
+s11            0x0	0
+t3             0x6b00000000	459561500672
+[?2004h(gdb) bt 10
+[?2004l#0  dma_blocking_wait (rt=0x3fffffe090, tok=0x3ff6d74da8, 
+    timeout_ns=5000000000)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3578
+#1  0x00000000000181c0 in prt_dma_wait (timeout_ns=5000000000, 
+    tok=0x3ff6d74da8, rt=0x3fffffe090)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2708
+#2  dma_submit_wait_annotated_scoped (rt=rt@entry=0x3fffffe090, 
+    req=req@entry=0x3ff6d74fc8, stage_idx=stage_idx@entry=0, 
+    tensor_id=tensor_id@entry=2, timeout_ns=timeout_ns@entry=5000000000, 
+    scope=scope@entry=0x3ff6d74fb0, 
+    force_export_probe=force_export_probe@entry=0, 
+    debug_page_idx=debug_page_idx@entry=46)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2121
+#3  0x0000000000019402 in dma_copy_spm_pages_to_host_linux (rt=0x3fffffe090, 
+    dst_host=0x3ff6dd4400 "", src_pages=<optimized out>, manager_id=0, 
+    stage_idx=0, tensor_id=2, timeout_ns=5000000000, 
+    total_bytes=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:1209
+#4  0x000000000001a3c6 in prt_dma_copy_spm_pages_to_dram_prefix (
+    timeout_ns=<optimized out>, tensor_id=<optimized out>, 
+    stage_idx=<optimized out>, manager_id=<optimized out>, 
+    bytes=<optimized out>, src_pages=<optimized out>, 
+    dst_dram_addr=<optimized out>, rt=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2869
+#5  0x000000000002bcbc in copy_tensor_pages_to_model_alias_target (
+    rt=rt@entry=0x3fffffe090, tensor_id=tensor_id@entry=2, 
+    pages=pages@entry=0x6bdd0, src_size=src_size@entry=65536, 
+    manager_id=manager_id@entry=0, stage_id=stage_id@entry=0, target_seq=0, 
+    layer_index=<optimized out>, slot=slot@entry=3, 
+    target_kind=target_kind@entry=0x47668 "address", 
+    target_slot=target_slot@entry=3, dst_addr=274724635648)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:1973
+#6  0x000000000002e1e8 in copy_tensor_pages_to_model_aliases (stage_id=0, 
+    manager_id=0, src_size=<optimized out>, pages=0x6bdd0, tensor_id=2, 
+    rt=0x3fffffe090)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:2040
+#7  sync_stage_export_aliases (rt=rt@entry=0x3fffffe090, 
+    segment_idx=segment_idx@entry=0, stage_id=0, 
+    global_stage_id=global_stage_id@entry=0, subbatch_id=subbatch_id@entry=0)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:2657
+#8  0x000000000003065a in stage_worker_main (arg=0x83960)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4570
+#9  0x0000003ff7e6cf46 in ?? ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+(More stack frames follow...)
+[?2004h(gdb) print/x tok
+[?2004l$33 = 0x3ff6d74da8
+[?2004h(gdb) print tok->id
+[?2004l$34 = 176
+[?2004h(gdb) print tok->stage_idx
+[?2004l$35 = 0
+[?2004h(gdb) print tok->tensor_id
+[?2004l$36 = 2
+[?2004h(gdb) print tok->rr_manager_id
+[?2004l$37 = 0
+[?2004h(gdb) print tok->rr_scope_valid
+[?2004l$38 = 1
+[?2004h(gdb) print tok->rr_scope_external
+[?2004l$39 = 1
+[?2004h(gdb) print tok->hw_done_flag
+[?2004l$40 = 0
+[?2004h(gdb) print tok->done
+[?2004l$41 = 0
+[?2004h(gdb) print tok->status
+[?2004l$42 = 0
+[?2004h(gdb) print/x tok->completion_flag
+[?2004l$43 = 0x5e000
+[?2004h(gdb) x/wx tok->completion_flag
+[?2004l0x5e000:	0x00000001
+[?2004h(gdb) print/x tok->debug_src_addr
+[?2004l$44 = 0x40603400
+[?2004h(gdb) print/x tok->debug_dst_addr
+[?2004l$45 = 0x104ecac00
+[?2004h(gdb) print/x tok->debug_done_flag_pa
+[?2004l$46 = 0x102d7f000
+[?2004h(gdb) print tok->debug_bytes
+[?2004l$47 = 1024
+[?2004h(gdb) print/x (prt_dma_token_t *)$s11
+[?2004l$48 = 0x0
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->id
+[?2004lCannot access memory at address 0x0
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->stage_idx
+[?2004lCannot access memory at address 0x4
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->tensor_id
+[?2004lCannot access memory at address 0x8
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_manager_id
+[?2004lCannot access memory at address 0x98
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_scope_valid
+[?2004lCannot access memory at address 0x8c
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_scope_external
+[?2004lCannot access memory at address 0x90
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->hw_done_flag
+[?2004lCannot access memory at address 0x28
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->done
+[?2004lCannot access memory at address 0x24
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->status
+[?2004lCannot access memory at address 0x88
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->completion_flag
+[?2004lCannot access memory at address 0x18
+[?2004h(gdb) x/wx ((prt_dma_token_t *)$s11)->completion_flag
+[?2004lCannot access memory at address 0x18
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_src_addr
+[?2004lCannot access memory at address 0x40
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_dst_addr
+[?2004lCannot access memory at address 0x48
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_done_flag_pa
+[?2004lCannot access memory at address 0x60
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->debug_bytes
+[?2004lCannot access memory at address 0x50
+[?2004h(gdb) x/12i $pc
+[?2004l=> 0x16068 <dma_blocking_wait>:	beqz	a1,0x1673a <dma_blocking_wait+1746>
+   0x1606c <dma_blocking_wait+4>:	addi	sp,sp,-192
+   0x1606e <dma_blocking_wait+6>:	sd	ra,184(sp)
+   0x16070 <dma_blocking_wait+8>:	sd	s0,176(sp)
+   0x16072 <dma_blocking_wait+10>:	sd	s1,168(sp)
+   0x16074 <dma_blocking_wait+12>:	sd	s2,160(sp)
+   0x16076 <dma_blocking_wait+14>:	sd	s4,144(sp)
+   0x16078 <dma_blocking_wait+16>:	sd	s5,136(sp)
+   0x1607a <dma_blocking_wait+18>:	sd	s8,112(sp)
+   0x1607c <dma_blocking_wait+20>:	addi	s0,sp,192
+   0x1607e <dma_blocking_wait+22>:	sd	s3,152(sp)
+   0x16080 <dma_blocking_wait+24>:	sd	s6,128(sp)
+[?2004h(gdb) GDB_DMA_CONTEXT_END label=path-stop-2
+GDB_DMA_PATH_CONTINUE index=3 timeout_s=180
+continue
+[?2004lContinuing.
+
+Thread 2 "rerocc_pipeline" hit Breakpoint 5, dma_breadcrumb_flags_from_token (
+    extra_flags=<optimized out>, tok=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3636
+3636	  prt_breadcrumb_note(PRT_BREADCRUMB_KIND_DMA,
+[?2004h[?2004l[?2004h(gdb) GDB_DMA_CONTEXT_BEGIN label=path-stop-3
+info registers pc sp ra a0 a1 a2 a3 s2 s9 s11 t3
+[?2004lpc             0x16178	0x16178 <dma_blocking_wait+272>
+sp             0x3ff6d74cb0	0x3ff6d74cb0
+ra             0x1614e	0x1614e <dma_blocking_wait+230>
+a0             0x0	0
+a1             0xffffffffffffffff	-1
+a2             0xffffffffffffffff	-1
+a3             0x0	0
+s2             0x3	3
+s9             0x2e	46
+s11            0x0	0
+t3             0x104ecac00	4377586688
+[?2004h(gdb) bt 10
+[?2004l#0  dma_breadcrumb_flags_from_token (extra_flags=<optimized out>, 
+    tok=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3636
+#1  dma_blocking_wait (rt=0x3fffffe090, tok=0x3ff6d74da8, 
+    timeout_ns=5000000000)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3636
+#2  0x00000000000181c0 in prt_dma_wait (timeout_ns=5000000000, 
+    tok=0x3ff6d74da8, rt=0x3fffffe090)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2708
+#3  dma_submit_wait_annotated_scoped (rt=rt@entry=0x3fffffe090, 
+    req=req@entry=0x3ff6d74fc8, stage_idx=stage_idx@entry=0, 
+    tensor_id=tensor_id@entry=2, timeout_ns=timeout_ns@entry=5000000000, 
+    scope=scope@entry=0x3ff6d74fb0, 
+    force_export_probe=force_export_probe@entry=0, 
+    debug_page_idx=debug_page_idx@entry=46)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2121
+#4  0x0000000000019402 in dma_copy_spm_pages_to_host_linux (rt=0x3fffffe090, 
+    dst_host=0x3ff6dd4400 "", src_pages=<optimized out>, manager_id=0, 
+    stage_idx=0, tensor_id=2, timeout_ns=5000000000, 
+    total_bytes=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:1209
+#5  0x000000000001a3c6 in prt_dma_copy_spm_pages_to_dram_prefix (
+    timeout_ns=<optimized out>, tensor_id=<optimized out>, 
+    stage_idx=<optimized out>, manager_id=<optimized out>, 
+    bytes=<optimized out>, src_pages=<optimized out>, 
+    dst_dram_addr=<optimized out>, rt=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2869
+#6  0x000000000002bcbc in copy_tensor_pages_to_model_alias_target (
+    rt=rt@entry=0x3fffffe090, tensor_id=tensor_id@entry=2, 
+    pages=pages@entry=0x6bdd0, src_size=src_size@entry=65536, 
+    manager_id=manager_id@entry=0, stage_id=stage_id@entry=0, target_seq=0, 
+    layer_index=<optimized out>, slot=slot@entry=3, 
+    target_kind=target_kind@entry=0x47668 "address", 
+    target_slot=target_slot@entry=3, dst_addr=274724635648)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:1973
+#7  0x000000000002e1e8 in copy_tensor_pages_to_model_aliases (stage_id=0, 
+    manager_id=0, src_size=<optimized out>, pages=0x6bdd0, tensor_id=2, 
+    rt=0x3fffffe090)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:2040
+#8  sync_stage_export_aliases (rt=rt@entry=0x3fffffe090, 
+    segment_idx=segment_idx@entry=0, stage_id=0, 
+    global_stage_id=global_stage_id@entry=0, subbatch_id=subbatch_id@entry=0)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:2657
+#9  0x000000000003065a in stage_worker_main (arg=0x83960)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4570
+(More stack frames follow...)
+[?2004h(gdb) print/x tok
+[?2004l$49 = <optimized out>
+[?2004h(gdb) print tok->id
+[?2004lvalue has been optimized out
+[?2004h(gdb) print tok->stage_idx
+[?2004lvalue has been optimized out
+[?2004h(gdb) print tok->tensor_id
+[?2004lvalue has been optimized out
+[?2004h(gdb) print tok->rr_manager_id
+[?2004lvalue has been optimized out
+[?2004h(gdb) print tok->rr_scope_valid
+[?2004lvalue has been optimized out
+[?2004h(gdb) print tok->rr_scope_external
+[?2004lvalue has been optimized out
+[?2004h(gdb) print tok->hw_done_flag
+[?2004lvalue has been optimized out
+[?2004h(gdb) print tok->done
+[?2004lvalue has been optimized out
+[?2004h(gdb) print tok->status
+[?2004lvalue has been optimized out
+[?2004h(gdb) print/x tok->completion_flag
+[?2004lvalue has been optimized out
+[?2004h(gdb) x/wx tok->completion_flag
+[?2004lvalue has been optimized out
+[?2004h(gdb) print/x tok->debug_src_addr
+[?2004lvalue has been optimized out
+[?2004h(gdb) print/x tok->debug_dst_addr
+[?2004lvalue has been optimized out
+[?2004h(gdb) print/x tok->debug_done_flag_pa
+[?2004lvalue has been optimized out
+[?2004h(gdb) print tok->debug_bytes
+[?2004lvalue has been optimized out
+[?2004h(gdb) print/x (prt_dma_token_t *)$s11
+[?2004l$50 = 0x0
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->id
+[?2004lCannot access memory at address 0x0
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->stage_idx
+[?2004lCannot access memory at address 0x4
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->tensor_id
+[?2004lCannot access memory at address 0x8
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_manager_id
+[?2004lCannot access memory at address 0x98
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_scope_valid
+[?2004lCannot access memory at address 0x8c
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_scope_external
+[?2004lCannot access memory at address 0x90
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->hw_done_flag
+[?2004lCannot access memory at address 0x28
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->done
+[?2004lCannot access memory at address 0x24
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->status
+[?2004lCannot access memory at address 0x88
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->completion_flag
+[?2004lCannot access memory at address 0x18
+[?2004h(gdb) x/wx ((prt_dma_token_t *)$s11)->completion_flag
+[?2004lCannot access memory at address 0x18
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_src_addr
+[?2004lCannot access memory at address 0x40
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_dst_addr
+[?2004lCannot access memory at address 0x48
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_done_flag_pa
+[?2004lCannot access memory at address 0x60
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->debug_bytes
+[?2004lCannot access memory at address 0x50
+[?2004h(gdb) x/12i $pc
+[?2004l=> 0x16178 <dma_blocking_wait+272>:	lw	a7,140(s1)
+   0x1617c <dma_blocking_wait+276>:	lw	a2,144(s1)
+   0x16180 <dma_blocking_wait+280>:	lw	a3,0(s1)
+   0x16182 <dma_blocking_wait+282>:	snez	a5,a7
+   0x16186 <dma_blocking_wait+286>:	lw	a4,152(s1)
+   0x1618a <dma_blocking_wait+290>:	snez	a7,a7
+   0x1618e <dma_blocking_wait+294>:	
+    beqz	a2,0x16198 <dma_blocking_wait+304>
+   0x16190 <dma_blocking_wait+296>:	ori	a5,a5,2
+   0x16194 <dma_blocking_wait+300>:	sext.w	a7,a5
+   0x16198 <dma_blocking_wait+304>:	lw	a5,40(s1)
+   0x1619a <dma_blocking_wait+306>:	
+    bnez	a5,0x16572 <dma_blocking_wait+1290>
+   0x1619e <dma_blocking_wait+310>:	ld	a0,96(s1)
+[?2004h(gdb) GDB_DMA_CONTEXT_END label=path-stop-3
+GDB_DMA_PATH_CONTINUE index=4 timeout_s=180
+continue
+[?2004lContinuing.
+
+Thread 2 "rerocc_pipeline" hit Breakpoint 6, hw_dma_fence ()
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2439
+2439	  __asm__ volatile("fence" ::: "memory");
+[?2004h[?2004l[?2004h(gdb) GDB_DMA_CONTEXT_BEGIN label=path-stop-4
+info registers pc sp ra a0 a1 a2 a3 s2 s9 s11 t3
+[?2004lpc             0x161c4	0x161c4 <dma_blocking_wait+348>
+sp             0x3ff6d74cb0	0x3ff6d74cb0
+ra             0x161c4	0x161c4 <dma_blocking_wait+348>
+a0             0x395187570	15386310000
+a1             0x15	21
+a2             0x0	0
+a3             0x3ff7df8930	274741561648
+s2             0x3	3
+s9             0x2e	46
+s11            0x0	0
+t3             0x6c00000000	463856467968
+[?2004h(gdb) bt 10
+[?2004l#0  hw_dma_fence ()
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2439
+#1  dma_blocking_wait (rt=0x3fffffe090, tok=0x3ff6d74da8, 
+    timeout_ns=5000000000)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3683
+#2  0x00000000000181c0 in prt_dma_wait (timeout_ns=5000000000, 
+    tok=0x3ff6d74da8, rt=0x3fffffe090)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2708
+#3  dma_submit_wait_annotated_scoped (rt=rt@entry=0x3fffffe090, 
+    req=req@entry=0x3ff6d74fc8, stage_idx=stage_idx@entry=0, 
+    tensor_id=tensor_id@entry=2, timeout_ns=timeout_ns@entry=5000000000, 
+    scope=scope@entry=0x3ff6d74fb0, 
+    force_export_probe=force_export_probe@entry=0, 
+    debug_page_idx=debug_page_idx@entry=46)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2121
+#4  0x0000000000019402 in dma_copy_spm_pages_to_host_linux (rt=0x3fffffe090, 
+    dst_host=0x3ff6dd4400 "", src_pages=<optimized out>, manager_id=0, 
+    stage_idx=0, tensor_id=2, timeout_ns=5000000000, 
+    total_bytes=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:1209
+#5  0x000000000001a3c6 in prt_dma_copy_spm_pages_to_dram_prefix (
+    timeout_ns=<optimized out>, tensor_id=<optimized out>, 
+    stage_idx=<optimized out>, manager_id=<optimized out>, 
+    bytes=<optimized out>, src_pages=<optimized out>, 
+    dst_dram_addr=<optimized out>, rt=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2869
+#6  0x000000000002bcbc in copy_tensor_pages_to_model_alias_target (
+    rt=rt@entry=0x3fffffe090, tensor_id=tensor_id@entry=2, 
+    pages=pages@entry=0x6bdd0, src_size=src_size@entry=65536, 
+    manager_id=manager_id@entry=0, stage_id=stage_id@entry=0, target_seq=0, 
+    layer_index=<optimized out>, slot=slot@entry=3, 
+    target_kind=target_kind@entry=0x47668 "address", 
+    target_slot=target_slot@entry=3, dst_addr=274724635648)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:1973
+#7  0x000000000002e1e8 in copy_tensor_pages_to_model_aliases (stage_id=0, 
+    manager_id=0, src_size=<optimized out>, pages=0x6bdd0, tensor_id=2, 
+    rt=0x3fffffe090)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:2040
+#8  sync_stage_export_aliases (rt=rt@entry=0x3fffffe090, 
+    segment_idx=segment_idx@entry=0, stage_id=0, 
+    global_stage_id=global_stage_id@entry=0, subbatch_id=subbatch_id@entry=0)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:2657
+#9  0x000000000003065a in stage_worker_main (arg=0x83960)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4570
+(More stack frames follow...)
+[?2004h(gdb) print/x tok
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print tok->id
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print tok->stage_idx
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print tok->tensor_id
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print tok->rr_manager_id
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print tok->rr_scope_valid
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print tok->rr_scope_external
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print tok->hw_done_flag
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print tok->done
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print tok->status
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print/x tok->completion_flag
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) x/wx tok->completion_flag
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print/x tok->debug_src_addr
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print/x tok->debug_dst_addr
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print/x tok->debug_done_flag_pa
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print tok->debug_bytes
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print/x (prt_dma_token_t *)$s11
+[?2004l$51 = 0x0
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->id
+[?2004lCannot access memory at address 0x0
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->stage_idx
+[?2004lCannot access memory at address 0x4
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->tensor_id
+[?2004lCannot access memory at address 0x8
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_manager_id
+[?2004lCannot access memory at address 0x98
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_scope_valid
+[?2004lCannot access memory at address 0x8c
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_scope_external
+[?2004lCannot access memory at address 0x90
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->hw_done_flag
+[?2004lCannot access memory at address 0x28
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->done
+[?2004lCannot access memory at address 0x24
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->status
+[?2004lCannot access memory at address 0x88
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->completion_flag
+[?2004lCannot access memory at address 0x18
+[?2004h(gdb) x/wx ((prt_dma_token_t *)$s11)->completion_flag
+[?2004lCannot access memory at address 0x18
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_src_addr
+[?2004lCannot access memory at address 0x40
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_dst_addr
+[?2004lCannot access memory at address 0x48
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_done_flag_pa
+[?2004lCannot access memory at address 0x60
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->debug_bytes
+[?2004lCannot access memory at address 0x50
+[?2004h(gdb) x/12i $pc
+[?2004l=> 0x161c4 <dma_blocking_wait+348>:	fence
+   0x161c8 <dma_blocking_wait+352>:	li	s4,0
+   0x161ca <dma_blocking_wait+354>:	.insn	4, 0x074a7a5b
+   0x161ce <dma_blocking_wait+358>:	fence
+   0x161d2 <dma_blocking_wait+362>:	ld	a5,24(s1)
+   0x161d4 <dma_blocking_wait+364>:	
+    beqz	a5,0x16728 <dma_blocking_wait+1728>
+   0x161d8 <dma_blocking_wait+368>:	lw	a5,0(a5)
+   0x161da <dma_blocking_wait+370>:	snez	a5,a5
+   0x161de <dma_blocking_wait+374>:	sw	a5,40(s1)
+   0x161e0 <dma_blocking_wait+376>:	
+    bnez	s8,0x165ba <dma_blocking_wait+1362>
+   0x161e4 <dma_blocking_wait+380>:	
+    bnez	s7,0x16594 <dma_blocking_wait+1324>
+   0x161e8 <dma_blocking_wait+384>:	
+    bnez	s3,0x165d6 <dma_blocking_wait+1390>
+[?2004h(gdb) GDB_DMA_CONTEXT_END label=path-stop-4
+GDB_DMA_PATH_CONTINUE index=5 timeout_s=180
+continue
+[?2004lContinuing.
+
+Thread 2 "rerocc_pipeline" hit Breakpoint 9, dma_completion_flag_value (
+    tok=0x3ff6d74da8)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:660
+660	  if (!tok->completion_flag) return tok->hw_done_flag;
+[?2004h[?2004l[?2004h(gdb) GDB_DMA_CONTEXT_BEGIN label=path-stop-5
+info registers pc sp ra a0 a1 a2 a3 s2 s9 s11 t3
+[?2004lpc             0x161d2	0x161d2 <dma_blocking_wait+362>
+sp             0x3ff6d74cb0	0x3ff6d74cb0
+ra             0x161c4	0x161c4 <dma_blocking_wait+348>
+a0             0x395187570	15386310000
+a1             0x15	21
+a2             0x0	0
+a3             0x3ff7df8930	274741561648
+s2             0x3	3
+s9             0x2e	46
+s11            0x0	0
+t3             0x6c00000000	463856467968
+[?2004h(gdb) bt 10
+[?2004l#0  dma_completion_flag_value (tok=0x3ff6d74da8)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:660
+#1  dma_completion_flag_refresh (tok=0x3ff6d74da8)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:667
+#2  dma_blocking_wait (rt=0x3fffffe090, tok=0x3ff6d74da8, 
+    timeout_ns=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3687
+#3  0x00000000000181c0 in prt_dma_wait (timeout_ns=5000000000, 
+    tok=0x3ff6d74da8, rt=0x3fffffe090)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2708
+#4  dma_submit_wait_annotated_scoped (rt=rt@entry=0x3fffffe090, 
+    req=req@entry=0x3ff6d74fc8, stage_idx=stage_idx@entry=0, 
+    tensor_id=tensor_id@entry=2, timeout_ns=timeout_ns@entry=5000000000, 
+    scope=scope@entry=0x3ff6d74fb0, 
+    force_export_probe=force_export_probe@entry=0, 
+    debug_page_idx=debug_page_idx@entry=46)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2121
+#5  0x0000000000019402 in dma_copy_spm_pages_to_host_linux (rt=0x3fffffe090, 
+    dst_host=0x3ff6dd4400 "", src_pages=<optimized out>, manager_id=0, 
+    stage_idx=0, tensor_id=2, timeout_ns=5000000000, 
+    total_bytes=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:1209
+#6  0x000000000001a3c6 in prt_dma_copy_spm_pages_to_dram_prefix (
+    timeout_ns=<optimized out>, tensor_id=<optimized out>, 
+    stage_idx=<optimized out>, manager_id=<optimized out>, 
+    bytes=<optimized out>, src_pages=<optimized out>, 
+    dst_dram_addr=<optimized out>, rt=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2869
+#7  0x000000000002bcbc in copy_tensor_pages_to_model_alias_target (
+    rt=rt@entry=0x3fffffe090, tensor_id=tensor_id@entry=2, 
+    pages=pages@entry=0x6bdd0, src_size=src_size@entry=65536, 
+    manager_id=manager_id@entry=0, stage_id=stage_id@entry=0, target_seq=0, 
+    layer_index=<optimized out>, slot=slot@entry=3, 
+    target_kind=target_kind@entry=0x47668 "address", 
+    target_slot=target_slot@entry=3, dst_addr=274724635648)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:1973
+#8  0x000000000002e1e8 in copy_tensor_pages_to_model_aliases (stage_id=0, 
+    manager_id=0, src_size=<optimized out>, pages=0x6bdd0, tensor_id=2, 
+    rt=0x3fffffe090)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:2040
+#9  sync_stage_export_aliases (rt=rt@entry=0x3fffffe090, 
+    segment_idx=segment_idx@entry=0, stage_id=0, 
+    global_stage_id=global_stage_id@entry=0, subbatch_id=subbatch_id@entry=0)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:2657
+(More stack frames follow...)
+[?2004h(gdb) print/x tok
+[?2004l$52 = 0x3ff6d74da8
+[?2004h(gdb) print tok->id
+[?2004l$53 = 176
+[?2004h(gdb) print tok->stage_idx
+[?2004l$54 = 0
+[?2004h(gdb) print tok->tensor_id
+[?2004l$55 = 2
+[?2004h(gdb) print tok->rr_manager_id
+[?2004l$56 = 0
+[?2004h(gdb) print tok->rr_scope_valid
+[?2004l$57 = 1
+[?2004h(gdb) print tok->rr_scope_external
+[?2004l$58 = 1
+[?2004h(gdb) print tok->hw_done_flag
+[?2004l$59 = 1
+[?2004h(gdb) print tok->done
+[?2004l$60 = 0
+[?2004h(gdb) print tok->status
+[?2004l$61 = 0
+[?2004h(gdb) print/x tok->completion_flag
+[?2004l$62 = 0x5e000
+[?2004h(gdb) x/wx tok->completion_flag
+[?2004l0x5e000:	0x00000001
+[?2004h(gdb) print/x tok->debug_src_addr
+[?2004l$63 = 0x40603400
+[?2004h(gdb) print/x tok->debug_dst_addr
+[?2004l$64 = 0x104ecac00
+[?2004h(gdb) print/x tok->debug_done_flag_pa
+[?2004l$65 = 0x102d7f000
+[?2004h(gdb) print tok->debug_bytes
+[?2004l$66 = 1024
+[?2004h(gdb) print/x (prt_dma_token_t *)$s11
+[?2004l$67 = 0x0
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->id
+[?2004lCannot access memory at address 0x0
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->stage_idx
+[?2004lCannot access memory at address 0x4
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->tensor_id
+[?2004lCannot access memory at address 0x8
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_manager_id
+[?2004lCannot access memory at address 0x98
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_scope_valid
+[?2004lCannot access memory at address 0x8c
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_scope_external
+[?2004lCannot access memory at address 0x90
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->hw_done_flag
+[?2004lCannot access memory at address 0x28
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->done
+[?2004lCannot access memory at address 0x24
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->status
+[?2004lCannot access memory at address 0x88
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->completion_flag
+[?2004lCannot access memory at address 0x18
+[?2004h(gdb) x/wx ((prt_dma_token_t *)$s11)->completion_flag
+[?2004lCannot access memory at address 0x18
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_src_addr
+[?2004lCannot access memory at address 0x40
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_dst_addr
+[?2004lCannot access memory at address 0x48
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_done_flag_pa
+[?2004lCannot access memory at address 0x60
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->debug_bytes
+[?2004lCannot access memory at address 0x50
+[?2004h(gdb) x/12i $pc
+[?2004l=> 0x161d2 <dma_blocking_wait+362>:	ld	a5,24(s1)
+   0x161d4 <dma_blocking_wait+364>:	
+    beqz	a5,0x16728 <dma_blocking_wait+1728>
+   0x161d8 <dma_blocking_wait+368>:	lw	a5,0(a5)
+   0x161da <dma_blocking_wait+370>:	snez	a5,a5
+   0x161de <dma_blocking_wait+374>:	sw	a5,40(s1)
+   0x161e0 <dma_blocking_wait+376>:	
+    bnez	s8,0x165ba <dma_blocking_wait+1362>
+   0x161e4 <dma_blocking_wait+380>:	
+    bnez	s7,0x16594 <dma_blocking_wait+1324>
+   0x161e8 <dma_blocking_wait+384>:	
+    bnez	s3,0x165d6 <dma_blocking_wait+1390>
+   0x161ec <dma_blocking_wait+388>:	
+    bnez	s6,0x165fe <dma_blocking_wait+1430>
+   0x161f0 <dma_blocking_wait+392>:	lw	a4,4(s1)
+   0x161f2 <dma_blocking_wait+394>:	lw	a1,152(s1)
+   0x161f6 <dma_blocking_wait+398>:	lw	a2,8(s1)
+[?2004h(gdb) GDB_DMA_CONTEXT_END label=path-stop-5
+GDB_DMA_PATH_CONTINUE index=6 timeout_s=180
+continue
+[?2004lContinuing.
+
+Thread 2 "rerocc_pipeline" hit Breakpoint 10, dma_token_fence_scope (
+    tok=0x3ff6d74da8)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2249
+2249	  if (!tok || !tok->rr_scope_valid) return PRT_OK;
+[?2004h[?2004l[?2004h(gdb) GDB_DMA_CONTEXT_BEGIN label=path-stop-6
+info registers pc sp ra a0 a1 a2 a3 s2 s9 s11 t3
+[?2004lpc             0x162d2	0x162d2 <dma_blocking_wait+618>
+sp             0x3ff6d74cb0	0x3ff6d74cb0
+ra             0x162d2	0x162d2 <dma_blocking_wait+618>
+a0             0x3a6e02000	15684608000
+a1             0x15	21
+a2             0x0	0
+a3             0x3ff7df8930	274741561648
+s2             0x3	3
+s9             0x2e	46
+s11            0x0	0
+t3             0x7500000000	502511173632
+[?2004h(gdb) bt 10
+[?2004l#0  dma_token_fence_scope (tok=0x3ff6d74da8)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2249
+#1  dma_blocking_wait (rt=0x3fffffe090, tok=0x3ff6d74da8, 
+    timeout_ns=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3762
+#2  0x00000000000181c0 in prt_dma_wait (timeout_ns=5000000000, 
+    tok=0x3ff6d74da8, rt=0x3fffffe090)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2708
+#3  dma_submit_wait_annotated_scoped (rt=rt@entry=0x3fffffe090, 
+    req=req@entry=0x3ff6d74fc8, stage_idx=stage_idx@entry=0, 
+    tensor_id=tensor_id@entry=2, timeout_ns=timeout_ns@entry=5000000000, 
+    scope=scope@entry=0x3ff6d74fb0, 
+    force_export_probe=force_export_probe@entry=0, 
+    debug_page_idx=debug_page_idx@entry=46)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2121
+#4  0x0000000000019402 in dma_copy_spm_pages_to_host_linux (rt=0x3fffffe090, 
+    dst_host=0x3ff6dd4400 "", src_pages=<optimized out>, manager_id=0, 
+    stage_idx=0, tensor_id=2, timeout_ns=5000000000, 
+    total_bytes=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:1209
+#5  0x000000000001a3c6 in prt_dma_copy_spm_pages_to_dram_prefix (
+    timeout_ns=<optimized out>, tensor_id=<optimized out>, 
+    stage_idx=<optimized out>, manager_id=<optimized out>, 
+    bytes=<optimized out>, src_pages=<optimized out>, 
+    dst_dram_addr=<optimized out>, rt=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2869
+#6  0x000000000002bcbc in copy_tensor_pages_to_model_alias_target (
+    rt=rt@entry=0x3fffffe090, tensor_id=tensor_id@entry=2, 
+    pages=pages@entry=0x6bdd0, src_size=src_size@entry=65536, 
+    manager_id=manager_id@entry=0, stage_id=stage_id@entry=0, target_seq=0, 
+    layer_index=<optimized out>, slot=slot@entry=3, 
+    target_kind=target_kind@entry=0x47668 "address", 
+    target_slot=target_slot@entry=3, dst_addr=274724635648)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:1973
+#7  0x000000000002e1e8 in copy_tensor_pages_to_model_aliases (stage_id=0, 
+    manager_id=0, src_size=<optimized out>, pages=0x6bdd0, tensor_id=2, 
+    rt=0x3fffffe090)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:2040
+#8  sync_stage_export_aliases (rt=rt@entry=0x3fffffe090, 
+    segment_idx=segment_idx@entry=0, stage_id=0, 
+    global_stage_id=global_stage_id@entry=0, subbatch_id=subbatch_id@entry=0)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:2657
+#9  0x000000000003065a in stage_worker_main (arg=0x83960)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4570
+(More stack frames follow...)
+[?2004h(gdb) print/x tok
+[?2004l$68 = 0x3ff6d74da8
+[?2004h(gdb) print tok->id
+[?2004l$69 = 176
+[?2004h(gdb) print tok->stage_idx
+[?2004l$70 = 0
+[?2004h(gdb) print tok->tensor_id
+[?2004l$71 = 2
+[?2004h(gdb) print tok->rr_manager_id
+[?2004l$72 = 0
+[?2004h(gdb) print tok->rr_scope_valid
+[?2004l$73 = 1
+[?2004h(gdb) print tok->rr_scope_external
+[?2004l$74 = 1
+[?2004h(gdb) print tok->hw_done_flag
+[?2004l$75 = 1
+[?2004h(gdb) print tok->done
+[?2004l$76 = 0
+[?2004h(gdb) print tok->status
+[?2004l$77 = 0
+[?2004h(gdb) print/x tok->completion_flag
+[?2004l$78 = 0x5e000
+[?2004h(gdb) x/wx tok->completion_flag
+[?2004l0x5e000:	0x00000001
+[?2004h(gdb) print/x tok->debug_src_addr
+[?2004l$79 = 0x40603400
+[?2004h(gdb) print/x tok->debug_dst_addr
+[?2004l$80 = 0x104ecac00
+[?2004h(gdb) print/x tok->debug_done_flag_pa
+[?2004l$81 = 0x102d7f000
+[?2004h(gdb) print tok->debug_bytes
+[?2004l$82 = 1024
+[?2004h(gdb) print/x (prt_dma_token_t *)$s11
+[?2004l$83 = 0x0
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->id
+[?2004lCannot access memory at address 0x0
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->stage_idx
+[?2004lCannot access memory at address 0x4
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->tensor_id
+[?2004lCannot access memory at address 0x8
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_manager_id
+[?2004lCannot access memory at address 0x98
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_scope_valid
+[?2004lCannot access memory at address 0x8c
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_scope_external
+[?2004lCannot access memory at address 0x90
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->hw_done_flag
+[?2004lCannot access memory at address 0x28
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->done
+[?2004lCannot access memory at address 0x24
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->status
+[?2004lCannot access memory at address 0x88
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->completion_flag
+[?2004lCannot access memory at address 0x18
+[?2004h(gdb) x/wx ((prt_dma_token_t *)$s11)->completion_flag
+[?2004lCannot access memory at address 0x18
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_src_addr
+[?2004lCannot access memory at address 0x40
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_dst_addr
+[?2004lCannot access memory at address 0x48
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_done_flag_pa
+[?2004lCannot access memory at address 0x60
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->debug_bytes
+[?2004lCannot access memory at address 0x50
+[?2004h(gdb) x/12i $pc
+[?2004l=> 0x162d2 <dma_blocking_wait+618>:	lw	a5,140(s1)
+   0x162d6 <dma_blocking_wait+622>:	
+    beqz	a5,0x16302 <dma_blocking_wait+666>
+   0x162d8 <dma_blocking_wait+624>:	lw	a1,148(s1)
+   0x162dc <dma_blocking_wait+628>:	lw	a2,4(s1)
+   0x162de <dma_blocking_wait+630>:	lw	a3,152(s1)
+   0x162e2 <dma_blocking_wait+634>:	lw	a4,156(s1)
+   0x162e6 <dma_blocking_wait+638>:	addi	a0,s0,-136
+   0x162ea <dma_blocking_wait+642>:	sw	a5,-136(s0)
+   0x162ee <dma_blocking_wait+646>:	sw	a1,-132(s0)
+   0x162f2 <dma_blocking_wait+650>:	sw	a2,-128(s0)
+   0x162f6 <dma_blocking_wait+654>:	sw	a3,-124(s0)
+   0x162fa <dma_blocking_wait+658>:	sw	a4,-120(s0)
+[?2004h(gdb) GDB_DMA_CONTEXT_END label=path-stop-6
+GDB_DMA_PATH_CONTINUE index=7 timeout_s=180
+continue
+[?2004lContinuing.
+
+Thread 2 "rerocc_pipeline" hit Breakpoint 11, dma_blocking_wait (
+    rt=0x3fffffe090, tok=0x3ff6d74da8, timeout_ns=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3772
+3772	    if (fixed_wait_probe) {
+[?2004h[?2004l[?2004h(gdb) GDB_DMA_CONTEXT_BEGIN label=path-stop-7
+info registers pc sp ra a0 a1 a2 a3 s2 s9 s11 t3
+[?2004lpc             0x16306	0x16306 <dma_blocking_wait+670>
+sp             0x3ff6d74cb0	0x3ff6d74cb0
+ra             0x16302	0x16302 <dma_blocking_wait+666>
+a0             0x0	0
+a1             0x0	0
+a2             0x0	0
+a3             0x0	0
+s2             0x3	3
+s9             0x2e	46
+s11            0x0	0
+t3             0x7500000000	502511173632
+[?2004h(gdb) bt 10
+[?2004l#0  dma_blocking_wait (rt=0x3fffffe090, tok=0x3ff6d74da8, 
+    timeout_ns=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3772
+#1  0x00000000000181c0 in prt_dma_wait (timeout_ns=5000000000, 
+    tok=0x3ff6d74da8, rt=0x3fffffe090)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2708
+#2  dma_submit_wait_annotated_scoped (rt=rt@entry=0x3fffffe090, 
+    req=req@entry=0x3ff6d74fc8, stage_idx=stage_idx@entry=0, 
+    tensor_id=tensor_id@entry=2, timeout_ns=timeout_ns@entry=5000000000, 
+    scope=scope@entry=0x3ff6d74fb0, 
+    force_export_probe=force_export_probe@entry=0, 
+    debug_page_idx=debug_page_idx@entry=46)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2121
+#3  0x0000000000019402 in dma_copy_spm_pages_to_host_linux (rt=0x3fffffe090, 
+    dst_host=0x3ff6dd4400 "", src_pages=<optimized out>, manager_id=0, 
+    stage_idx=0, tensor_id=2, timeout_ns=5000000000, 
+    total_bytes=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:1209
+#4  0x000000000001a3c6 in prt_dma_copy_spm_pages_to_dram_prefix (
+    timeout_ns=<optimized out>, tensor_id=<optimized out>, 
+    stage_idx=<optimized out>, manager_id=<optimized out>, 
+    bytes=<optimized out>, src_pages=<optimized out>, 
+    dst_dram_addr=<optimized out>, rt=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2869
+#5  0x000000000002bcbc in copy_tensor_pages_to_model_alias_target (
+    rt=rt@entry=0x3fffffe090, tensor_id=tensor_id@entry=2, 
+    pages=pages@entry=0x6bdd0, src_size=src_size@entry=65536, 
+    manager_id=manager_id@entry=0, stage_id=stage_id@entry=0, target_seq=0, 
+    layer_index=<optimized out>, slot=slot@entry=3, 
+    target_kind=target_kind@entry=0x47668 "address", 
+    target_slot=target_slot@entry=3, dst_addr=274724635648)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:1973
+#6  0x000000000002e1e8 in copy_tensor_pages_to_model_aliases (stage_id=0, 
+    manager_id=0, src_size=<optimized out>, pages=0x6bdd0, tensor_id=2, 
+    rt=0x3fffffe090)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:2040
+#7  sync_stage_export_aliases (rt=rt@entry=0x3fffffe090, 
+    segment_idx=segment_idx@entry=0, stage_id=0, 
+    global_stage_id=global_stage_id@entry=0, subbatch_id=subbatch_id@entry=0)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:2657
+#8  0x000000000003065a in stage_worker_main (arg=0x83960)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4570
+#9  0x0000003ff7e6cf46 in ?? ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+(More stack frames follow...)
+[?2004h(gdb) print/x tok
+[?2004l$84 = 0x3ff6d74da8
+[?2004h(gdb) print tok->id
+[?2004l$85 = 176
+[?2004h(gdb) print tok->stage_idx
+[?2004l$86 = 0
+[?2004h(gdb) print tok->tensor_id
+[?2004l$87 = 2
+[?2004h(gdb) print tok->rr_manager_id
+[?2004l$88 = 0
+[?2004h(gdb) print tok->rr_scope_valid
+[?2004l$89 = 1
+[?2004h(gdb) print tok->rr_scope_external
+[?2004l$90 = 1
+[?2004h(gdb) print tok->hw_done_flag
+[?2004l$91 = 1
+[?2004h(gdb) print tok->done
+[?2004l$92 = 0
+[?2004h(gdb) print tok->status
+[?2004l$93 = 0
+[?2004h(gdb) print/x tok->completion_flag
+[?2004l$94 = 0x5e000
+[?2004h(gdb) x/wx tok->completion_flag
+[?2004l0x5e000:	0x00000001
+[?2004h(gdb) print/x tok->debug_src_addr
+[?2004l$95 = 0x40603400
+[?2004h(gdb) print/x tok->debug_dst_addr
+[?2004l$96 = 0x104ecac00
+[?2004h(gdb) print/x tok->debug_done_flag_pa
+[?2004l$97 = 0x102d7f000
+[?2004h(gdb) print tok->debug_bytes
+[?2004l$98 = 1024
+[?2004h(gdb) print/x (prt_dma_token_t *)$s11
+[?2004l$99 = 0x0
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->id
+[?2004lCannot access memory at address 0x0
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->stage_idx
+[?2004lCannot access memory at address 0x4
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->tensor_id
+[?2004lCannot access memory at address 0x8
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_manager_id
+[?2004lCannot access memory at address 0x98
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_scope_valid
+[?2004lCannot access memory at address 0x8c
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_scope_external
+[?2004lCannot access memory at address 0x90
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->hw_done_flag
+[?2004lCannot access memory at address 0x28
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->done
+[?2004lCannot access memory at address 0x24
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->status
+[?2004lCannot access memory at address 0x88
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->completion_flag
+[?2004lCannot access memory at address 0x18
+[?2004h(gdb) x/wx ((prt_dma_token_t *)$s11)->completion_flag
+[?2004lCannot access memory at address 0x18
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_src_addr
+[?2004lCannot access memory at address 0x40
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_dst_addr
+[?2004lCannot access memory at address 0x48
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_done_flag_pa
+[?2004lCannot access memory at address 0x60
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->debug_bytes
+[?2004lCannot access memory at address 0x50
+[?2004h(gdb) x/12i $pc
+[?2004l=> 0x16306 <dma_blocking_wait+670>:	
+    bnez	s3,0x166da <dma_blocking_wait+1650>
+   0x1630a <dma_blocking_wait+674>:	
+    bnez	s6,0x166f4 <dma_blocking_wait+1676>
+   0x1630e <dma_blocking_wait+678>:	lw	a4,4(s1)
+   0x16310 <dma_blocking_wait+680>:	lw	a1,152(s1)
+   0x16314 <dma_blocking_wait+684>:	lw	a2,8(s1)
+   0x16316 <dma_blocking_wait+686>:	lw	a3,0(s1)
+   0x16318 <dma_blocking_wait+688>:	li	a5,-1
+   0x1631a <dma_blocking_wait+690>:	auipc	a6,0x2a
+   0x1631e <dma_blocking_wait+694>:	addi	a6,a6,38
+   0x16322 <dma_blocking_wait+698>:	addi	a0,s0,-136
+   0x16326 <dma_blocking_wait+702>:	sw	a5,-120(s0)
+   0x1632a <dma_blocking_wait+706>:	sw	a4,-116(s0)
+[?2004h(gdb) GDB_DMA_CONTEXT_END label=path-stop-7
+GDB_DMA_PATH_CONTINUE index=8 timeout_s=180
+continue
+[?2004lContinuing.
+
+Thread 2 "rerocc_pipeline" hit Breakpoint 12, dma_blocking_wait (
+    rt=0x3fffffe090, tok=0x3ff6d74da8, timeout_ns=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3803
+3803	  if (sparse_wait_probe) {
+[?2004h[?2004l[?2004h(gdb) GDB_DMA_CONTEXT_BEGIN label=path-stop-8
+info registers pc sp ra a0 a1 a2 a3 s2 s9 s11 t3
+[?2004lpc             0x163a6	0x163a6 <dma_blocking_wait+830>
+sp             0x3ff6d74cb0	0x3ff6d74cb0
+ra             0x163a6	0x163a6 <dma_blocking_wait+830>
+a0             0x3b888ffc0	15980888000
+a1             0x15	21
+a2             0x0	0
+a3             0x3ff7df8930	274741561648
+s2             0x3	3
+s9             0x2e	46
+s11            0x0	0
+t3             0x6e00000000	472446402560
+[?2004h(gdb) bt 10
+[?2004l#0  dma_blocking_wait (rt=0x3fffffe090, tok=0x3ff6d74da8, 
+    timeout_ns=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3803
+#1  0x00000000000181c0 in prt_dma_wait (timeout_ns=5000000000, 
+    tok=0x3ff6d74da8, rt=0x3fffffe090)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2708
+#2  dma_submit_wait_annotated_scoped (rt=rt@entry=0x3fffffe090, 
+    req=req@entry=0x3ff6d74fc8, stage_idx=stage_idx@entry=0, 
+    tensor_id=tensor_id@entry=2, timeout_ns=timeout_ns@entry=5000000000, 
+    scope=scope@entry=0x3ff6d74fb0, 
+    force_export_probe=force_export_probe@entry=0, 
+    debug_page_idx=debug_page_idx@entry=46)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2121
+#3  0x0000000000019402 in dma_copy_spm_pages_to_host_linux (rt=0x3fffffe090, 
+    dst_host=0x3ff6dd4400 "", src_pages=<optimized out>, manager_id=0, 
+    stage_idx=0, tensor_id=2, timeout_ns=5000000000, 
+    total_bytes=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:1209
+#4  0x000000000001a3c6 in prt_dma_copy_spm_pages_to_dram_prefix (
+    timeout_ns=<optimized out>, tensor_id=<optimized out>, 
+    stage_idx=<optimized out>, manager_id=<optimized out>, 
+    bytes=<optimized out>, src_pages=<optimized out>, 
+    dst_dram_addr=<optimized out>, rt=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2869
+#5  0x000000000002bcbc in copy_tensor_pages_to_model_alias_target (
+    rt=rt@entry=0x3fffffe090, tensor_id=tensor_id@entry=2, 
+    pages=pages@entry=0x6bdd0, src_size=src_size@entry=65536, 
+    manager_id=manager_id@entry=0, stage_id=stage_id@entry=0, target_seq=0, 
+    layer_index=<optimized out>, slot=slot@entry=3, 
+    target_kind=target_kind@entry=0x47668 "address", 
+    target_slot=target_slot@entry=3, dst_addr=274724635648)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:1973
+#6  0x000000000002e1e8 in copy_tensor_pages_to_model_aliases (stage_id=0, 
+    manager_id=0, src_size=<optimized out>, pages=0x6bdd0, tensor_id=2, 
+    rt=0x3fffffe090)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:2040
+#7  sync_stage_export_aliases (rt=rt@entry=0x3fffffe090, 
+    segment_idx=segment_idx@entry=0, stage_id=0, 
+    global_stage_id=global_stage_id@entry=0, subbatch_id=subbatch_id@entry=0)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:2657
+#8  0x000000000003065a in stage_worker_main (arg=0x83960)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4570
+#9  0x0000003ff7e6cf46 in ?? ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+(More stack frames follow...)
+[?2004h(gdb) print/x tok
+[?2004l$100 = 0x3ff6d74da8
+[?2004h(gdb) print tok->id
+[?2004l$101 = 176
+[?2004h(gdb) print tok->stage_idx
+[?2004l$102 = 0
+[?2004h(gdb) print tok->tensor_id
+[?2004l$103 = 2
+[?2004h(gdb) print tok->rr_manager_id
+[?2004l$104 = 0
+[?2004h(gdb) print tok->rr_scope_valid
+[?2004l$105 = 1
+[?2004h(gdb) print tok->rr_scope_external
+[?2004l$106 = 1
+[?2004h(gdb) print tok->hw_done_flag
+[?2004l$107 = 1
+[?2004h(gdb) print tok->done
+[?2004l$108 = 0
+[?2004h(gdb) print tok->status
+[?2004l$109 = 0
+[?2004h(gdb) print/x tok->completion_flag
+[?2004l$110 = 0x5e000
+[?2004h(gdb) x/wx tok->completion_flag
+[?2004l0x5e000:	0x00000001
+[?2004h(gdb) print/x tok->debug_src_addr
+[?2004l$111 = 0x40603400
+[?2004h(gdb) print/x tok->debug_dst_addr
+[?2004l$112 = 0x104ecac00
+[?2004h(gdb) print/x tok->debug_done_flag_pa
+[?2004l$113 = 0x102d7f000
+[?2004h(gdb) print tok->debug_bytes
+[?2004l$114 = 1024
+[?2004h(gdb) print/x (prt_dma_token_t *)$s11
+[?2004l$115 = 0x0
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->id
+[?2004lCannot access memory at address 0x0
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->stage_idx
+[?2004lCannot access memory at address 0x4
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->tensor_id
+[?2004lCannot access memory at address 0x8
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_manager_id
+[?2004lCannot access memory at address 0x98
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_scope_valid
+[?2004lCannot access memory at address 0x8c
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_scope_external
+[?2004lCannot access memory at address 0x90
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->hw_done_flag
+[?2004lCannot access memory at address 0x28
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->done
+[?2004lCannot access memory at address 0x24
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->status
+[?2004lCannot access memory at address 0x88
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->completion_flag
+[?2004lCannot access memory at address 0x18
+[?2004h(gdb) x/wx ((prt_dma_token_t *)$s11)->completion_flag
+[?2004lCannot access memory at address 0x18
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_src_addr
+[?2004lCannot access memory at address 0x40
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_dst_addr
+[?2004lCannot access memory at address 0x48
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_done_flag_pa
+[?2004lCannot access memory at address 0x60
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->debug_bytes
+[?2004lCannot access memory at address 0x50
+[?2004h(gdb) x/12i $pc
+[?2004l=> 0x163a6 <dma_blocking_wait+830>:	
+    bnez	s7,0x16578 <dma_blocking_wait+1296>
+   0x163aa <dma_blocking_wait+834>:	
+    bnez	s3,0x1667a <dma_blocking_wait+1554>
+   0x163ae <dma_blocking_wait+838>:	
+    bnez	s6,0x16694 <dma_blocking_wait+1580>
+   0x163b2 <dma_blocking_wait+842>:	lw	a4,4(s1)
+   0x163b4 <dma_blocking_wait+844>:	lw	a1,152(s1)
+   0x163b8 <dma_blocking_wait+848>:	lw	a2,8(s1)
+   0x163ba <dma_blocking_wait+850>:	lw	a3,0(s1)
+   0x163bc <dma_blocking_wait+852>:	li	a5,-1
+   0x163be <dma_blocking_wait+854>:	auipc	a6,0x2a
+   0x163c2 <dma_blocking_wait+858>:	addi	a6,a6,114
+   0x163c6 <dma_blocking_wait+862>:	addi	a0,s0,-136
+   0x163ca <dma_blocking_wait+866>:	sw	a5,-120(s0)
+[?2004h(gdb) GDB_DMA_CONTEXT_END label=path-stop-8
+GDB_DMA_PATH_CONTINUE index=9 timeout_s=180
+continue
+[?2004lContinuing.
+
+Thread 2 "rerocc_pipeline" hit Breakpoint 13, dma_gdb_marker_wait_return (
+    rc=0, tok=0x3ff6d74da8)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3561
+3561	static void dma_gdb_marker_wait_return(const prt_dma_token_t *tok, int rc) {
+[?2004h[?2004l[?2004h(gdb) GDB_DMA_CONTEXT_BEGIN label=path-stop-9
+info registers pc sp ra a0 a1 a2 a3 s2 s9 s11 t3
+[?2004lpc             0x1651a	0x1651a <dma_blocking_wait+1202>
+sp             0x3ff6d74cb0	0x3ff6d74cb0
+ra             0x1651a	0x1651a <dma_blocking_wait+1202>
+a0             0x3c1725f00	16130400000
+a1             0x15	21
+a2             0x0	0
+a3             0x3ff7df8930	274741561648
+s2             0x3ff6d74e48	274724245064
+s9             0x2e	46
+s11            0x0	0
+t3             0x7200000000	489626271744
+[?2004h(gdb) bt 10
+[?2004l#0  dma_gdb_marker_wait_return (rc=0, tok=0x3ff6d74da8)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3561
+#1  dma_blocking_wait (rt=0x3fffffe090, tok=0x3ff6d74da8, 
+    timeout_ns=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3868
+#2  0x00000000000181c0 in prt_dma_wait (timeout_ns=5000000000, 
+    tok=0x3ff6d74da8, rt=0x3fffffe090)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2708
+#3  dma_submit_wait_annotated_scoped (rt=rt@entry=0x3fffffe090, 
+    req=req@entry=0x3ff6d74fc8, stage_idx=stage_idx@entry=0, 
+    tensor_id=tensor_id@entry=2, timeout_ns=timeout_ns@entry=5000000000, 
+    scope=scope@entry=0x3ff6d74fb0, 
+    force_export_probe=force_export_probe@entry=0, 
+    debug_page_idx=debug_page_idx@entry=46)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2121
+#4  0x0000000000019402 in dma_copy_spm_pages_to_host_linux (rt=0x3fffffe090, 
+    dst_host=0x3ff6dd4400 "", src_pages=<optimized out>, manager_id=0, 
+    stage_idx=0, tensor_id=2, timeout_ns=5000000000, 
+    total_bytes=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:1209
+#5  0x000000000001a3c6 in prt_dma_copy_spm_pages_to_dram_prefix (
+    timeout_ns=<optimized out>, tensor_id=<optimized out>, 
+    stage_idx=<optimized out>, manager_id=<optimized out>, 
+    bytes=<optimized out>, src_pages=<optimized out>, 
+    dst_dram_addr=<optimized out>, rt=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2869
+#6  0x000000000002bcbc in copy_tensor_pages_to_model_alias_target (
+    rt=rt@entry=0x3fffffe090, tensor_id=tensor_id@entry=2, 
+    pages=pages@entry=0x6bdd0, src_size=src_size@entry=65536, 
+    manager_id=manager_id@entry=0, stage_id=stage_id@entry=0, target_seq=0, 
+    layer_index=<optimized out>, slot=slot@entry=3, 
+    target_kind=target_kind@entry=0x47668 "address", 
+    target_slot=target_slot@entry=3, dst_addr=274724635648)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:1973
+#7  0x000000000002e1e8 in copy_tensor_pages_to_model_aliases (stage_id=0, 
+    manager_id=0, src_size=<optimized out>, pages=0x6bdd0, tensor_id=2, 
+    rt=0x3fffffe090)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:2040
+#8  sync_stage_export_aliases (rt=rt@entry=0x3fffffe090, 
+    segment_idx=segment_idx@entry=0, stage_id=0, 
+    global_stage_id=global_stage_id@entry=0, subbatch_id=subbatch_id@entry=0)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:2657
+#9  0x000000000003065a in stage_worker_main (arg=0x83960)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4570
+(More stack frames follow...)
+[?2004h(gdb) print/x tok
+[?2004l$116 = 0x3ff6d74da8
+[?2004h(gdb) print tok->id
+[?2004l$117 = 176
+[?2004h(gdb) print tok->stage_idx
+[?2004l$118 = 0
+[?2004h(gdb) print tok->tensor_id
+[?2004l$119 = 2
+[?2004h(gdb) print tok->rr_manager_id
+[?2004l$120 = 0
+[?2004h(gdb) print tok->rr_scope_valid
+[?2004l$121 = 1
+[?2004h(gdb) print tok->rr_scope_external
+[?2004l$122 = 1
+[?2004h(gdb) print tok->hw_done_flag
+[?2004l$123 = 1
+[?2004h(gdb) print tok->done
+[?2004l$124 = 1
+[?2004h(gdb) print tok->status
+[?2004l$125 = 0
+[?2004h(gdb) print/x tok->completion_flag
+[?2004l$126 = 0x5e000
+[?2004h(gdb) x/wx tok->completion_flag
+[?2004l0x5e000:	0x00000001
+[?2004h(gdb) print/x tok->debug_src_addr
+[?2004l$127 = 0x40603400
+[?2004h(gdb) print/x tok->debug_dst_addr
+[?2004l$128 = 0x104ecac00
+[?2004h(gdb) print/x tok->debug_done_flag_pa
+[?2004l$129 = 0x102d7f000
+[?2004h(gdb) print tok->debug_bytes
+[?2004l$130 = 1024
+[?2004h(gdb) print/x (prt_dma_token_t *)$s11
+[?2004l$131 = 0x0
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->id
+[?2004lCannot access memory at address 0x0
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->stage_idx
+[?2004lCannot access memory at address 0x4
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->tensor_id
+[?2004lCannot access memory at address 0x8
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_manager_id
+[?2004lCannot access memory at address 0x98
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_scope_valid
+[?2004lCannot access memory at address 0x8c
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_scope_external
+[?2004lCannot access memory at address 0x90
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->hw_done_flag
+[?2004lCannot access memory at address 0x28
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->done
+[?2004lCannot access memory at address 0x24
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->status
+[?2004lCannot access memory at address 0x88
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->completion_flag
+[?2004lCannot access memory at address 0x18
+[?2004h(gdb) x/wx ((prt_dma_token_t *)$s11)->completion_flag
+[?2004lCannot access memory at address 0x18
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_src_addr
+[?2004lCannot access memory at address 0x40
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_dst_addr
+[?2004lCannot access memory at address 0x48
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_done_flag_pa
+[?2004lCannot access memory at address 0x60
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->debug_bytes
+[?2004lCannot access memory at address 0x50
+[?2004h(gdb) x/12i $pc
+[?2004l=> 0x1651a <dma_blocking_wait+1202>:	ld	a0,72(s1)
+   0x1651c <dma_blocking_wait+1204>:	ld	a1,64(s1)
+   0x1651e <dma_blocking_wait+1206>:	lw	a2,0(s1)
+   0x16520 <dma_blocking_wait+1208>:	lw	a7,120(s1)
+   0x16524 <dma_blocking_wait+1212>:	lw	a6,8(s1)
+   0x16528 <dma_blocking_wait+1216>:	lw	a5,152(s1)
+   0x1652c <dma_blocking_wait+1220>:	lw	a3,4(s1)
+   0x1652e <dma_blocking_wait+1222>:	lui	a4,0x1
+   0x16530 <dma_blocking_wait+1224>:	addi	a4,a4,-529
+   0x16534 <dma_blocking_wait+1228>:	sd	a4,32(sp)
+   0x16536 <dma_blocking_wait+1230>:	sd	a0,24(sp)
+   0x16538 <dma_blocking_wait+1232>:	sd	a1,16(sp)
+[?2004h(gdb) GDB_DMA_CONTEXT_END label=path-stop-9
+GDB_DMA_PATH_CONTINUE index=10 timeout_s=180
+continue
+[?2004lContinuing.
+
+Thread 2 "rerocc_pipeline" hit Breakpoint 14, dma_submit_wait_annotated_scoped
+    (rt=rt@entry=0x3fffffe090, req=req@entry=0x3ff6d74fc8, 
+    stage_idx=stage_idx@entry=0, tensor_id=tensor_id@entry=2, 
+    timeout_ns=timeout_ns@entry=5000000000, scope=scope@entry=0x3ff6d74fb0, 
+    force_export_probe=force_export_probe@entry=0, 
+    debug_page_idx=debug_page_idx@entry=46)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2174
+2174	  return rc;
+[?2004h[?2004l[?2004h(gdb) GDB_DMA_CONTEXT_BEGIN label=path-stop-10
+info registers pc sp ra a0 a1 a2 a3 s2 s9 s11 t3
+[?2004lpc             0x18306	0x18306 <dma_submit_wait_annotated_scoped+552>
+sp             0x3ff6d74d70	0x3ff6d74d70
+ra             0x18306	0x18306 <dma_submit_wait_annotated_scoped+552>
+a0             0x3ca1ed480	16275920000
+a1             0x15	21
+a2             0x0	0
+a3             0x3ff7df8930	274741561648
+s2             0x7	7
+s9             0x2e	46
+s11            0x0	0
+t3             0x7400000000	498216206336
+[?2004h(gdb) bt 10
+[?2004l#0  dma_submit_wait_annotated_scoped (rt=rt@entry=0x3fffffe090, 
+    req=req@entry=0x3ff6d74fc8, stage_idx=stage_idx@entry=0, 
+    tensor_id=tensor_id@entry=2, timeout_ns=timeout_ns@entry=5000000000, 
+    scope=scope@entry=0x3ff6d74fb0, 
+    force_export_probe=force_export_probe@entry=0, 
+    debug_page_idx=debug_page_idx@entry=46)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2174
+#1  0x0000000000019402 in dma_copy_spm_pages_to_host_linux (rt=0x3fffffe090, 
+    dst_host=0x3ff6dd4400 "", src_pages=<optimized out>, manager_id=0, 
+    stage_idx=0, tensor_id=2, timeout_ns=5000000000, 
+    total_bytes=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:1209
+#2  0x000000000001a3c6 in prt_dma_copy_spm_pages_to_dram_prefix (
+    timeout_ns=<optimized out>, tensor_id=<optimized out>, 
+    stage_idx=<optimized out>, manager_id=<optimized out>, 
+    bytes=<optimized out>, src_pages=<optimized out>, 
+    dst_dram_addr=<optimized out>, rt=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2869
+#3  0x000000000002bcbc in copy_tensor_pages_to_model_alias_target (
+    rt=rt@entry=0x3fffffe090, tensor_id=tensor_id@entry=2, 
+    pages=pages@entry=0x6bdd0, src_size=src_size@entry=65536, 
+    manager_id=manager_id@entry=0, stage_id=stage_id@entry=0, target_seq=0, 
+    layer_index=<optimized out>, slot=slot@entry=3, 
+    target_kind=target_kind@entry=0x47668 "address", 
+    target_slot=target_slot@entry=3, dst_addr=274724635648)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:1973
+#4  0x000000000002e1e8 in copy_tensor_pages_to_model_aliases (stage_id=0, 
+    manager_id=0, src_size=<optimized out>, pages=0x6bdd0, tensor_id=2, 
+    rt=0x3fffffe090)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:2040
+#5  sync_stage_export_aliases (rt=rt@entry=0x3fffffe090, 
+    segment_idx=segment_idx@entry=0, stage_id=0, 
+    global_stage_id=global_stage_id@entry=0, subbatch_id=subbatch_id@entry=0)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:2657
+#6  0x000000000003065a in stage_worker_main (arg=0x83960)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4570
+#7  0x0000003ff7e6cf46 in ?? ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#8  0x0000003ff7eb5fcc in ?? ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+[?2004h(gdb) print/x tok
+[?2004l$132 = {id = 0x0, stage_idx = 0x0, tensor_id = 0x0, owner_rt = 0x0, 
+  completion_flag = 0x0, completion_slot = 0x0, done = 0x0, 
+  hw_done_flag = 0x0, hw_done_flag_pa_rc = 0x0, initialized = 0x0, 
+  submit_ns = 0x0, debug_src_addr = 0x0, debug_dst_addr = 0x0, 
+  debug_bytes = 0x0, debug_done_flag_va = 0x0, debug_done_flag_pa = 0x0, 
+  debug_last_pending_log_ns = 0x0, debug_src_acc = 0x0, debug_dst_acc = 0x0, 
+  debug_page_idx = 0x0, debug_progress_polls = 0x0, 
+  debug_force_export_probe = 0x0, traced_complete = 0x0, status = 0x0, 
+  rr_scope_valid = 0x0, rr_scope_external = 0x0, rr_cfg_id = 0x0, 
+  rr_manager_id = 0x0, rr_opcode_id = 0x0, lock = {__data = {__lock = 0x0, 
+      __count = 0x0, __owner = 0x0, __nusers = 0x0, __kind = 0x0, 
+      __spins = 0x0, __list = {__prev = 0x0, __next = 0x0}}, __size = {
+      0x0 <repeats 40 times>}, __align = 0x0}, cv = {__data = {__wseq = {
+        __value64 = 0x0, __value32 = {__low = 0x0, __high = 0x0}}, 
+      __g1_start = {__value64 = 0x0, __value32 = {__low = 0x0, __high = 0x0}}, 
+      __g_refs = {0x0, 0x0}, __g_size = {0x0, 0x0}, __g1_orig_size = 0x0, 
+      __wrefs = 0x0, __g_signals = {0x0, 0x0}}, __size = {
+      0x0 <repeats 48 times>}, __align = 0x0}}
+[?2004h(gdb) print tok->id
+[?2004l$133 = 0
+[?2004h(gdb) print tok->stage_idx
+[?2004l$134 = 0
+[?2004h(gdb) print tok->tensor_id
+[?2004l$135 = 0
+[?2004h(gdb) print tok->rr_manager_id
+[?2004l$136 = 0
+[?2004h(gdb) print tok->rr_scope_valid
+[?2004l$137 = 0
+[?2004h(gdb) print tok->rr_scope_external
+[?2004l$138 = 0
+[?2004h(gdb) print tok->hw_done_flag
+[?2004l$139 = 0
+[?2004h(gdb) print tok->done
+[?2004l$140 = 0
+[?2004h(gdb) print tok->status
+[?2004l$141 = 0
+[?2004h(gdb) print/x tok->completion_flag
+[?2004l$142 = 0x0
+[?2004h(gdb) x/wx tok->completion_flag
+[?2004l0x0:	Cannot access memory at address 0x0
+[?2004h(gdb) print/x tok->debug_src_addr
+[?2004l$143 = 0x0
+[?2004h(gdb) print/x tok->debug_dst_addr
+[?2004l$144 = 0x0
+[?2004h(gdb) print/x tok->debug_done_flag_pa
+[?2004l$145 = 0x0
+[?2004h(gdb) print tok->debug_bytes
+[?2004l$146 = 0
+[?2004h(gdb) print/x (prt_dma_token_t *)$s11
+[?2004l$147 = 0x0
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->id
+[?2004lCannot access memory at address 0x0
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->stage_idx
+[?2004lCannot access memory at address 0x4
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->tensor_id
+[?2004lCannot access memory at address 0x8
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_manager_id
+[?2004lCannot access memory at address 0x98
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_scope_valid
+[?2004lCannot access memory at address 0x8c
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_scope_external
+[?2004lCannot access memory at address 0x90
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->hw_done_flag
+[?2004lCannot access memory at address 0x28
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->done
+[?2004lCannot access memory at address 0x24
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->status
+[?2004lCannot access memory at address 0x88
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->completion_flag
+[?2004lCannot access memory at address 0x18
+[?2004h(gdb) x/wx ((prt_dma_token_t *)$s11)->completion_flag
+[?2004lCannot access memory at address 0x18
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_src_addr
+[?2004lCannot access memory at address 0x40
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_dst_addr
+[?2004lCannot access memory at address 0x48
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_done_flag_pa
+[?2004lCannot access memory at address 0x60
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->debug_bytes
+[?2004lCannot access memory at address 0x50
+[?2004h(gdb) x/12i $pc
+[?2004l=> 0x18306 <dma_submit_wait_annotated_scoped+552>:	
+    j	0x1815e <dma_submit_wait_annotated_scoped+128>
+   0x18308 <dma_submit_wait_annotated_scoped+554>:	auipc	a0,0x28
+   0x1830c <dma_submit_wait_annotated_scoped+558>:	addi	a0,a0,-976
+   0x18310 <dma_submit_wait_annotated_scoped+562>:	
+    jal	0x11bf0 <getenv@plt>
+   0x18314 <dma_submit_wait_annotated_scoped+566>:	
+    beqz	a0,0x18348 <dma_submit_wait_annotated_scoped+618>
+   0x18316 <dma_submit_wait_annotated_scoped+568>:	lbu	a5,0(a0)
+   0x1831a <dma_submit_wait_annotated_scoped+572>:	
+    beqz	a5,0x18348 <dma_submit_wait_annotated_scoped+618>
+   0x1831c <dma_submit_wait_annotated_scoped+574>:	addiw	a5,a5,-48
+   0x18320 <dma_submit_wait_annotated_scoped+578>:	zext.b	a5,a5
+   0x18324 <dma_submit_wait_annotated_scoped+582>:	li	a4,62
+   0x18328 <dma_submit_wait_annotated_scoped+586>:	li	s7,1
+   0x1832a <dma_submit_wait_annotated_scoped+588>:	
+    bltu	a4,a5,0x18348 <dma_submit_wait_annotated_scoped+618>
+[?2004h(gdb) GDB_DMA_CONTEXT_END label=path-stop-10
+GDB_DMA_PATH_CONTINUE index=11 timeout_s=180
+continue
+[?2004lContinuing.
+
+Thread 2 "rerocc_pipeline" hit Breakpoint 2, prt_dma_submit (rt=0x3fffffe090, 
+    req=0x3ff6d74fc8, tok=0x3ff6d74da8)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2698
+2698	  if (!rt || !req || !tok || !rt->dma_ops.submit) return PRT_ERR_INVAL;
+[?2004h[?2004l[?2004h(gdb) GDB_DMA_CONTEXT_BEGIN label=path-stop-11
+info registers pc sp ra a0 a1 a2 a3 s2 s9 s11 t3
+[?2004lpc             0x17efc	0x17efc <prt_dma_submit>
+sp             0x3ff6d74d70	0x3ff6d74d70
+ra             0x181aa	0x181aa <dma_submit_wait_annotated_scoped+204>
+a0             0x3fffffe090	274877898896
+a1             0x3ff6d74fc8	274724245448
+a2             0x3ff6d74da8	274724244904
+a3             0x0	0
+s2             0x3ff6d74fb0	274724245424
+s9             0x2f	47
+s11            0x0	0
+t3             0x3ff7e7cc22	274742103074
+[?2004h(gdb) bt 10
+[?2004l#0  prt_dma_submit (rt=0x3fffffe090, req=0x3ff6d74fc8, tok=0x3ff6d74da8)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2698
+#1  0x00000000000181aa in dma_submit_wait_annotated_scoped (
+    rt=rt@entry=0x3fffffe090, req=req@entry=0x3ff6d74fc8, 
+    stage_idx=stage_idx@entry=0, tensor_id=tensor_id@entry=2, 
+    timeout_ns=timeout_ns@entry=5000000000, scope=scope@entry=0x3ff6d74fb0, 
+    force_export_probe=force_export_probe@entry=0, 
+    debug_page_idx=debug_page_idx@entry=47)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2094
+#2  0x0000000000019402 in dma_copy_spm_pages_to_host_linux (rt=0x3fffffe090, 
+    dst_host=0x3ff6dd4400 "", src_pages=<optimized out>, manager_id=0, 
+    stage_idx=0, tensor_id=2, timeout_ns=5000000000, 
+    total_bytes=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:1209
+#3  0x000000000001a3c6 in prt_dma_copy_spm_pages_to_dram_prefix (
+    timeout_ns=<optimized out>, tensor_id=<optimized out>, 
+    stage_idx=<optimized out>, manager_id=<optimized out>, 
+    bytes=<optimized out>, src_pages=<optimized out>, 
+    dst_dram_addr=<optimized out>, rt=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2869
+#4  0x000000000002bcbc in copy_tensor_pages_to_model_alias_target (
+    rt=rt@entry=0x3fffffe090, tensor_id=tensor_id@entry=2, 
+    pages=pages@entry=0x6bdd0, src_size=src_size@entry=65536, 
+    manager_id=manager_id@entry=0, stage_id=stage_id@entry=0, target_seq=0, 
+    layer_index=<optimized out>, slot=slot@entry=3, 
+    target_kind=target_kind@entry=0x47668 "address", 
+    target_slot=target_slot@entry=3, dst_addr=274724635648)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:1973
+#5  0x000000000002e1e8 in copy_tensor_pages_to_model_aliases (stage_id=0, 
+    manager_id=0, src_size=<optimized out>, pages=0x6bdd0, tensor_id=2, 
+    rt=0x3fffffe090)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:2040
+#6  sync_stage_export_aliases (rt=rt@entry=0x3fffffe090, 
+    segment_idx=segment_idx@entry=0, stage_id=0, 
+    global_stage_id=global_stage_id@entry=0, subbatch_id=subbatch_id@entry=0)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:2657
+#7  0x000000000003065a in stage_worker_main (arg=0x83960)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4570
+#8  0x0000003ff7e6cf46 in ?? ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#9  0x0000003ff7eb5fcc in ?? ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+[?2004h(gdb) print/x tok
+[?2004l$148 = 0x3ff6d74da8
+[?2004h(gdb) print tok->id
+[?2004l$149 = 0
+[?2004h(gdb) print tok->stage_idx
+[?2004l$150 = 0
+[?2004h(gdb) print tok->tensor_id
+[?2004l$151 = 2
+[?2004h(gdb) print tok->rr_manager_id
+[?2004l$152 = 0
+[?2004h(gdb) print tok->rr_scope_valid
+[?2004l$153 = 1
+[?2004h(gdb) print tok->rr_scope_external
+[?2004l$154 = 1
+[?2004h(gdb) print tok->hw_done_flag
+[?2004l$155 = 0
+[?2004h(gdb) print tok->done
+[?2004l$156 = 0
+[?2004h(gdb) print tok->status
+[?2004l$157 = 0
+[?2004h(gdb) print/x tok->completion_flag
+[?2004l$158 = 0x0
+[?2004h(gdb) x/wx tok->completion_flag
+[?2004l0x0:	Cannot access memory at address 0x0
+[?2004h(gdb) print/x tok->debug_src_addr
+[?2004l$159 = 0x0
+[?2004h(gdb) print/x tok->debug_dst_addr
+[?2004l$160 = 0x0
+[?2004h(gdb) print/x tok->debug_done_flag_pa
+[?2004l$161 = 0x0
+[?2004h(gdb) print tok->debug_bytes
+[?2004l$162 = 0
+[?2004h(gdb) print/x (prt_dma_token_t *)$s11
+[?2004l$163 = 0x0
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->id
+[?2004lCannot access memory at address 0x0
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->stage_idx
+[?2004lCannot access memory at address 0x4
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->tensor_id
+[?2004lCannot access memory at address 0x8
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_manager_id
+[?2004lCannot access memory at address 0x98
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_scope_valid
+[?2004lCannot access memory at address 0x8c
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_scope_external
+[?2004lCannot access memory at address 0x90
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->hw_done_flag
+[?2004lCannot access memory at address 0x28
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->done
+[?2004lCannot access memory at address 0x24
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->status
+[?2004lCannot access memory at address 0x88
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->completion_flag
+[?2004lCannot access memory at address 0x18
+[?2004h(gdb) x/wx ((prt_dma_token_t *)$s11)->completion_flag
+[?2004lCannot access memory at address 0x18
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_src_addr
+[?2004lCannot access memory at address 0x40
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_dst_addr
+[?2004lCannot access memory at address 0x48
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_done_flag_pa
+[?2004lCannot access memory at address 0x60
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->debug_bytes
+[?2004lCannot access memory at address 0x50
+[?2004h(gdb) x/12i $pc
+[?2004l=> 0x17efc <prt_dma_submit>:	beqz	a0,0x17f7c <prt_dma_submit+128>
+   0x17efe <prt_dma_submit+2>:	addi	sp,sp,-48
+   0x17f00 <prt_dma_submit+4>:	sd	s0,32(sp)
+   0x17f02 <prt_dma_submit+6>:	sd	s2,16(sp)
+   0x17f04 <prt_dma_submit+8>:	sd	ra,40(sp)
+   0x17f06 <prt_dma_submit+10>:	addi	s0,sp,48
+   0x17f08 <prt_dma_submit+12>:	mv	s2,a1
+   0x17f0a <prt_dma_submit+14>:	beqz	a1,0x17f78 <prt_dma_submit+124>
+   0x17f0c <prt_dma_submit+16>:	sd	s3,8(sp)
+   0x17f0e <prt_dma_submit+18>:	mv	s3,a2
+   0x17f10 <prt_dma_submit+20>:	beqz	a2,0x17f72 <prt_dma_submit+118>
+   0x17f12 <prt_dma_submit+22>:	ld	a5,136(a0)
+[?2004h(gdb) GDB_DMA_CONTEXT_END label=path-stop-11
+GDB_DMA_PATH_CONTINUE index=12 timeout_s=180
+continue
+[?2004lContinuing.
+
+Thread 2 "rerocc_pipeline" hit Breakpoint 4, dma_blocking_wait (
+    rt=0x3fffffe090, tok=0x3ff6d74da8, timeout_ns=5000000000)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3578
+3578	  if (!tok) return PRT_ERR_INVAL;
+[?2004h[?2004l[?2004h(gdb) GDB_DMA_CONTEXT_BEGIN label=path-stop-12
+info registers pc sp ra a0 a1 a2 a3 s2 s9 s11 t3
+[?2004lpc             0x16068	0x16068 <dma_blocking_wait>
+sp             0x3ff6d74d70	0x3ff6d74d70
+ra             0x181c0	0x181c0 <dma_submit_wait_annotated_scoped+226>
+a0             0x3fffffe090	274877898896
+a1             0x3ff6d74da8	274724244904
+a2             0x12a05f200	5000000000
+a3             0x3ff7df8a80	274741561984
+s2             0x3ff6d74fb0	274724245424
+s9             0x2f	47
+s11            0x0	0
+t3             0x6b00000000	459561500672
+[?2004h(gdb) bt 10
+[?2004l#0  dma_blocking_wait (rt=0x3fffffe090, tok=0x3ff6d74da8, 
+    timeout_ns=5000000000)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3578
+#1  0x00000000000181c0 in prt_dma_wait (timeout_ns=5000000000, 
+    tok=0x3ff6d74da8, rt=0x3fffffe090)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2708
+#2  dma_submit_wait_annotated_scoped (rt=rt@entry=0x3fffffe090, 
+    req=req@entry=0x3ff6d74fc8, stage_idx=stage_idx@entry=0, 
+    tensor_id=tensor_id@entry=2, timeout_ns=timeout_ns@entry=5000000000, 
+    scope=scope@entry=0x3ff6d74fb0, 
+    force_export_probe=force_export_probe@entry=0, 
+    debug_page_idx=debug_page_idx@entry=47)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2121
+#3  0x0000000000019402 in dma_copy_spm_pages_to_host_linux (rt=0x3fffffe090, 
+    dst_host=0x3ff6dd4400 "", src_pages=<optimized out>, manager_id=0, 
+    stage_idx=0, tensor_id=2, timeout_ns=5000000000, 
+    total_bytes=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:1209
+#4  0x000000000001a3c6 in prt_dma_copy_spm_pages_to_dram_prefix (
+    timeout_ns=<optimized out>, tensor_id=<optimized out>, 
+    stage_idx=<optimized out>, manager_id=<optimized out>, 
+    bytes=<optimized out>, src_pages=<optimized out>, 
+    dst_dram_addr=<optimized out>, rt=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2869
+#5  0x000000000002bcbc in copy_tensor_pages_to_model_alias_target (
+    rt=rt@entry=0x3fffffe090, tensor_id=tensor_id@entry=2, 
+    pages=pages@entry=0x6bdd0, src_size=src_size@entry=65536, 
+    manager_id=manager_id@entry=0, stage_id=stage_id@entry=0, target_seq=0, 
+    layer_index=<optimized out>, slot=slot@entry=3, 
+    target_kind=target_kind@entry=0x47668 "address", 
+    target_slot=target_slot@entry=3, dst_addr=274724635648)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:1973
+#6  0x000000000002e1e8 in copy_tensor_pages_to_model_aliases (stage_id=0, 
+    manager_id=0, src_size=<optimized out>, pages=0x6bdd0, tensor_id=2, 
+    rt=0x3fffffe090)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:2040
+#7  sync_stage_export_aliases (rt=rt@entry=0x3fffffe090, 
+    segment_idx=segment_idx@entry=0, stage_id=0, 
+    global_stage_id=global_stage_id@entry=0, subbatch_id=subbatch_id@entry=0)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:2657
+#8  0x000000000003065a in stage_worker_main (arg=0x83960)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4570
+#9  0x0000003ff7e6cf46 in ?? ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+(More stack frames follow...)
+[?2004h(gdb) print/x tok
+[?2004l$164 = 0x3ff6d74da8
+[?2004h(gdb) print tok->id
+[?2004l$165 = 177
+[?2004h(gdb) print tok->stage_idx
+[?2004l$166 = 0
+[?2004h(gdb) print tok->tensor_id
+[?2004l$167 = 2
+[?2004h(gdb) print tok->rr_manager_id
+[?2004l$168 = 0
+[?2004h(gdb) print tok->rr_scope_valid
+[?2004l$169 = 1
+[?2004h(gdb) print tok->rr_scope_external
+[?2004l$170 = 1
+[?2004h(gdb) print tok->hw_done_flag
+[?2004l$171 = 0
+[?2004h(gdb) print tok->done
+[?2004l$172 = 0
+[?2004h(gdb) print tok->status
+[?2004l$173 = 0
+[?2004h(gdb) print/x tok->completion_flag
+[?2004l$174 = 0x5e000
+[?2004h(gdb) x/wx tok->completion_flag
+[?2004l0x5e000:	0x00000001
+[?2004h(gdb) print/x tok->debug_src_addr
+[?2004l$175 = 0x40703400
+[?2004h(gdb) print/x tok->debug_dst_addr
+[?2004l$176 = 0x104ecb000
+[?2004h(gdb) print/x tok->debug_done_flag_pa
+[?2004l$177 = 0x102d7f000
+[?2004h(gdb) print tok->debug_bytes
+[?2004l$178 = 1024
+[?2004h(gdb) print/x (prt_dma_token_t *)$s11
+[?2004l$179 = 0x0
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->id
+[?2004lCannot access memory at address 0x0
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->stage_idx
+[?2004lCannot access memory at address 0x4
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->tensor_id
+[?2004lCannot access memory at address 0x8
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_manager_id
+[?2004lCannot access memory at address 0x98
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_scope_valid
+[?2004lCannot access memory at address 0x8c
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_scope_external
+[?2004lCannot access memory at address 0x90
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->hw_done_flag
+[?2004lCannot access memory at address 0x28
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->done
+[?2004lCannot access memory at address 0x24
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->status
+[?2004lCannot access memory at address 0x88
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->completion_flag
+[?2004lCannot access memory at address 0x18
+[?2004h(gdb) x/wx ((prt_dma_token_t *)$s11)->completion_flag
+[?2004lCannot access memory at address 0x18
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_src_addr
+[?2004lCannot access memory at address 0x40
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_dst_addr
+[?2004lCannot access memory at address 0x48
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_done_flag_pa
+[?2004lCannot access memory at address 0x60
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->debug_bytes
+[?2004lCannot access memory at address 0x50
+[?2004h(gdb) x/12i $pc
+[?2004l=> 0x16068 <dma_blocking_wait>:	beqz	a1,0x1673a <dma_blocking_wait+1746>
+   0x1606c <dma_blocking_wait+4>:	addi	sp,sp,-192
+   0x1606e <dma_blocking_wait+6>:	sd	ra,184(sp)
+   0x16070 <dma_blocking_wait+8>:	sd	s0,176(sp)
+   0x16072 <dma_blocking_wait+10>:	sd	s1,168(sp)
+   0x16074 <dma_blocking_wait+12>:	sd	s2,160(sp)
+   0x16076 <dma_blocking_wait+14>:	sd	s4,144(sp)
+   0x16078 <dma_blocking_wait+16>:	sd	s5,136(sp)
+   0x1607a <dma_blocking_wait+18>:	sd	s8,112(sp)
+   0x1607c <dma_blocking_wait+20>:	addi	s0,sp,192
+   0x1607e <dma_blocking_wait+22>:	sd	s3,152(sp)
+   0x16080 <dma_blocking_wait+24>:	sd	s6,128(sp)
+[?2004h(gdb) GDB_DMA_CONTEXT_END label=path-stop-12
+GDB_DMA_PATH_CONTINUE index=13 timeout_s=180
+continue
+[?2004lContinuing.
+
+Thread 2 "rerocc_pipeline" hit Breakpoint 5, dma_breadcrumb_flags_from_token (
+    extra_flags=<optimized out>, tok=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3636
+3636	  prt_breadcrumb_note(PRT_BREADCRUMB_KIND_DMA,
+[?2004h[?2004l[?2004h(gdb) GDB_DMA_CONTEXT_BEGIN label=path-stop-13
+info registers pc sp ra a0 a1 a2 a3 s2 s9 s11 t3
+[?2004lpc             0x16178	0x16178 <dma_blocking_wait+272>
+sp             0x3ff6d74cb0	0x3ff6d74cb0
+ra             0x1614e	0x1614e <dma_blocking_wait+230>
+a0             0x0	0
+a1             0xffffffffffffffff	-1
+a2             0xffffffffffffffff	-1
+a3             0x0	0
+s2             0x3	3
+s9             0x2f	47
+s11            0x0	0
+t3             0x104ecb000	4377587712
+[?2004h(gdb) bt 10
+[?2004l#0  dma_breadcrumb_flags_from_token (extra_flags=<optimized out>, 
+    tok=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3636
+#1  dma_blocking_wait (rt=0x3fffffe090, tok=0x3ff6d74da8, 
+    timeout_ns=5000000000)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3636
+#2  0x00000000000181c0 in prt_dma_wait (timeout_ns=5000000000, 
+    tok=0x3ff6d74da8, rt=0x3fffffe090)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2708
+#3  dma_submit_wait_annotated_scoped (rt=rt@entry=0x3fffffe090, 
+    req=req@entry=0x3ff6d74fc8, stage_idx=stage_idx@entry=0, 
+    tensor_id=tensor_id@entry=2, timeout_ns=timeout_ns@entry=5000000000, 
+    scope=scope@entry=0x3ff6d74fb0, 
+    force_export_probe=force_export_probe@entry=0, 
+    debug_page_idx=debug_page_idx@entry=47)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2121
+#4  0x0000000000019402 in dma_copy_spm_pages_to_host_linux (rt=0x3fffffe090, 
+    dst_host=0x3ff6dd4400 "", src_pages=<optimized out>, manager_id=0, 
+    stage_idx=0, tensor_id=2, timeout_ns=5000000000, 
+    total_bytes=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:1209
+#5  0x000000000001a3c6 in prt_dma_copy_spm_pages_to_dram_prefix (
+    timeout_ns=<optimized out>, tensor_id=<optimized out>, 
+    stage_idx=<optimized out>, manager_id=<optimized out>, 
+    bytes=<optimized out>, src_pages=<optimized out>, 
+    dst_dram_addr=<optimized out>, rt=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2869
+#6  0x000000000002bcbc in copy_tensor_pages_to_model_alias_target (
+    rt=rt@entry=0x3fffffe090, tensor_id=tensor_id@entry=2, 
+    pages=pages@entry=0x6bdd0, src_size=src_size@entry=65536, 
+    manager_id=manager_id@entry=0, stage_id=stage_id@entry=0, target_seq=0, 
+    layer_index=<optimized out>, slot=slot@entry=3, 
+    target_kind=target_kind@entry=0x47668 "address", 
+    target_slot=target_slot@entry=3, dst_addr=274724635648)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:1973
+#7  0x000000000002e1e8 in copy_tensor_pages_to_model_aliases (stage_id=0, 
+    manager_id=0, src_size=<optimized out>, pages=0x6bdd0, tensor_id=2, 
+    rt=0x3fffffe090)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:2040
+#8  sync_stage_export_aliases (rt=rt@entry=0x3fffffe090, 
+    segment_idx=segment_idx@entry=0, stage_id=0, 
+    global_stage_id=global_stage_id@entry=0, subbatch_id=subbatch_id@entry=0)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:2657
+#9  0x000000000003065a in stage_worker_main (arg=0x83960)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4570
+(More stack frames follow...)
+[?2004h(gdb) print/x tok
+[?2004l$180 = <optimized out>
+[?2004h(gdb) print tok->id
+[?2004lvalue has been optimized out
+[?2004h(gdb) print tok->stage_idx
+[?2004lvalue has been optimized out
+[?2004h(gdb) print tok->tensor_id
+[?2004lvalue has been optimized out
+[?2004h(gdb) print tok->rr_manager_id
+[?2004lvalue has been optimized out
+[?2004h(gdb) print tok->rr_scope_valid
+[?2004lvalue has been optimized out
+[?2004h(gdb) print tok->rr_scope_external
+[?2004lvalue has been optimized out
+[?2004h(gdb) print tok->hw_done_flag
+[?2004lvalue has been optimized out
+[?2004h(gdb) print tok->done
+[?2004lvalue has been optimized out
+[?2004h(gdb) print tok->status
+[?2004lvalue has been optimized out
+[?2004h(gdb) print/x tok->completion_flag
+[?2004lvalue has been optimized out
+[?2004h(gdb) x/wx tok->completion_flag
+[?2004lvalue has been optimized out
+[?2004h(gdb) print/x tok->debug_src_addr
+[?2004lvalue has been optimized out
+[?2004h(gdb) print/x tok->debug_dst_addr
+[?2004lvalue has been optimized out
+[?2004h(gdb) print/x tok->debug_done_flag_pa
+[?2004lvalue has been optimized out
+[?2004h(gdb) print tok->debug_bytes
+[?2004lvalue has been optimized out
+[?2004h(gdb) print/x (prt_dma_token_t *)$s11
+[?2004l$181 = 0x0
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->id
+[?2004lCannot access memory at address 0x0
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->stage_idx
+[?2004lCannot access memory at address 0x4
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->tensor_id
+[?2004lCannot access memory at address 0x8
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_manager_id
+[?2004lCannot access memory at address 0x98
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_scope_valid
+[?2004lCannot access memory at address 0x8c
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_scope_external
+[?2004lCannot access memory at address 0x90
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->hw_done_flag
+[?2004lCannot access memory at address 0x28
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->done
+[?2004lCannot access memory at address 0x24
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->status
+[?2004lCannot access memory at address 0x88
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->completion_flag
+[?2004lCannot access memory at address 0x18
+[?2004h(gdb) x/wx ((prt_dma_token_t *)$s11)->completion_flag
+[?2004lCannot access memory at address 0x18
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_src_addr
+[?2004lCannot access memory at address 0x40
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_dst_addr
+[?2004lCannot access memory at address 0x48
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_done_flag_pa
+[?2004lCannot access memory at address 0x60
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->debug_bytes
+[?2004lCannot access memory at address 0x50
+[?2004h(gdb) x/12i $pc
+[?2004l=> 0x16178 <dma_blocking_wait+272>:	lw	a7,140(s1)
+   0x1617c <dma_blocking_wait+276>:	lw	a2,144(s1)
+   0x16180 <dma_blocking_wait+280>:	lw	a3,0(s1)
+   0x16182 <dma_blocking_wait+282>:	snez	a5,a7
+   0x16186 <dma_blocking_wait+286>:	lw	a4,152(s1)
+   0x1618a <dma_blocking_wait+290>:	snez	a7,a7
+   0x1618e <dma_blocking_wait+294>:	
+    beqz	a2,0x16198 <dma_blocking_wait+304>
+   0x16190 <dma_blocking_wait+296>:	ori	a5,a5,2
+   0x16194 <dma_blocking_wait+300>:	sext.w	a7,a5
+   0x16198 <dma_blocking_wait+304>:	lw	a5,40(s1)
+   0x1619a <dma_blocking_wait+306>:	
+    bnez	a5,0x16572 <dma_blocking_wait+1290>
+   0x1619e <dma_blocking_wait+310>:	ld	a0,96(s1)
+[?2004h(gdb) GDB_DMA_CONTEXT_END label=path-stop-13
+GDB_DMA_PATH_CONTINUE index=14 timeout_s=180
+continue
+[?2004lContinuing.
+
+Thread 2 "rerocc_pipeline" hit Breakpoint 6, hw_dma_fence ()
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2439
+2439	  __asm__ volatile("fence" ::: "memory");
+[?2004h[?2004l[?2004h(gdb) GDB_DMA_CONTEXT_BEGIN label=path-stop-14
+info registers pc sp ra a0 a1 a2 a3 s2 s9 s11 t3
+[?2004lpc             0x161c4	0x161c4 <dma_blocking_wait+348>
+sp             0x3ff6d74cb0	0x3ff6d74cb0
+ra             0x161c4	0x161c4 <dma_blocking_wait+348>
+a0             0x3ecabc918	16855583000
+a1             0x18	24
+a2             0x0	0
+a3             0x3ff7df8a80	274741561984
+s2             0x3	3
+s9             0x2f	47
+s11            0x0	0
+t3             0x6c00000000	463856467968
+[?2004h(gdb) bt 10
+[?2004l#0  hw_dma_fence ()
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2439
+#1  dma_blocking_wait (rt=0x3fffffe090, tok=0x3ff6d74da8, 
+    timeout_ns=5000000000)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3683
+#2  0x00000000000181c0 in prt_dma_wait (timeout_ns=5000000000, 
+    tok=0x3ff6d74da8, rt=0x3fffffe090)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2708
+#3  dma_submit_wait_annotated_scoped (rt=rt@entry=0x3fffffe090, 
+    req=req@entry=0x3ff6d74fc8, stage_idx=stage_idx@entry=0, 
+    tensor_id=tensor_id@entry=2, timeout_ns=timeout_ns@entry=5000000000, 
+    scope=scope@entry=0x3ff6d74fb0, 
+    force_export_probe=force_export_probe@entry=0, 
+    debug_page_idx=debug_page_idx@entry=47)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2121
+#4  0x0000000000019402 in dma_copy_spm_pages_to_host_linux (rt=0x3fffffe090, 
+    dst_host=0x3ff6dd4400 "", src_pages=<optimized out>, manager_id=0, 
+    stage_idx=0, tensor_id=2, timeout_ns=5000000000, 
+    total_bytes=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:1209
+#5  0x000000000001a3c6 in prt_dma_copy_spm_pages_to_dram_prefix (
+    timeout_ns=<optimized out>, tensor_id=<optimized out>, 
+    stage_idx=<optimized out>, manager_id=<optimized out>, 
+    bytes=<optimized out>, src_pages=<optimized out>, 
+    dst_dram_addr=<optimized out>, rt=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2869
+#6  0x000000000002bcbc in copy_tensor_pages_to_model_alias_target (
+    rt=rt@entry=0x3fffffe090, tensor_id=tensor_id@entry=2, 
+    pages=pages@entry=0x6bdd0, src_size=src_size@entry=65536, 
+    manager_id=manager_id@entry=0, stage_id=stage_id@entry=0, target_seq=0, 
+    layer_index=<optimized out>, slot=slot@entry=3, 
+    target_kind=target_kind@entry=0x47668 "address", 
+    target_slot=target_slot@entry=3, dst_addr=274724635648)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:1973
+#7  0x000000000002e1e8 in copy_tensor_pages_to_model_aliases (stage_id=0, 
+    manager_id=0, src_size=<optimized out>, pages=0x6bdd0, tensor_id=2, 
+    rt=0x3fffffe090)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:2040
+#8  sync_stage_export_aliases (rt=rt@entry=0x3fffffe090, 
+    segment_idx=segment_idx@entry=0, stage_id=0, 
+    global_stage_id=global_stage_id@entry=0, subbatch_id=subbatch_id@entry=0)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:2657
+#9  0x000000000003065a in stage_worker_main (arg=0x83960)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4570
+(More stack frames follow...)
+[?2004h(gdb) print/x tok
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print tok->id
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print tok->stage_idx
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print tok->tensor_id
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print tok->rr_manager_id
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print tok->rr_scope_valid
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print tok->rr_scope_external
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print tok->hw_done_flag
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print tok->done
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print tok->status
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print/x tok->completion_flag
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) x/wx tok->completion_flag
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print/x tok->debug_src_addr
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print/x tok->debug_dst_addr
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print/x tok->debug_done_flag_pa
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print tok->debug_bytes
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print/x (prt_dma_token_t *)$s11
+[?2004l$182 = 0x0
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->id
+[?2004lCannot access memory at address 0x0
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->stage_idx
+[?2004lCannot access memory at address 0x4
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->tensor_id
+[?2004lCannot access memory at address 0x8
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_manager_id
+[?2004lCannot access memory at address 0x98
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_scope_valid
+[?2004lCannot access memory at address 0x8c
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->rr_scope_external
+[?2004lCannot access memory at address 0x90
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->hw_done_flag
+[?2004lCannot access memory at address 0x28
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->done
+[?2004lCannot access memory at address 0x24
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->status
+[?2004lCannot access memory at address 0x88
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->completion_flag
+[?2004lCannot access memory at address 0x18
+[?2004h(gdb) x/wx ((prt_dma_token_t *)$s11)->completion_flag
+[?2004lCannot access memory at address 0x18
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_src_addr
+[?2004lCannot access memory at address 0x40
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_dst_addr
+[?2004lCannot access memory at address 0x48
+[?2004h(gdb) print/x ((prt_dma_token_t *)$s11)->debug_done_flag_pa
+[?2004lCannot access memory at address 0x60
+[?2004h(gdb) print ((prt_dma_token_t *)$s11)->debug_bytes
+[?2004lCannot access memory at address 0x50
+[?2004h(gdb) x/12i $pc
+[?2004l=> 0x161c4 <dma_blocking_wait+348>:	fence
+   0x161c8 <dma_blocking_wait+352>:	li	s4,0
+   0x161ca <dma_blocking_wait+354>:	.insn	4, 0x074a7a5b
+   0x161ce <dma_blocking_wait+358>:	fence
+   0x161d2 <dma_blocking_wait+362>:	ld	a5,24(s1)
+   0x161d4 <dma_blocking_wait+364>:	
+    beqz	a5,0x16728 <dma_blocking_wait+1728>
+   0x161d8 <dma_blocking_wait+368>:	lw	a5,0(a5)
+   0x161da <dma_blocking_wait+370>:	snez	a5,a5
+   0x161de <dma_blocking_wait+374>:	sw	a5,40(s1)
+   0x161e0 <dma_blocking_wait+376>:	
+    bnez	s8,0x165ba <dma_blocking_wait+1362>
+   0x161e4 <dma_blocking_wait+380>:	
+    bnez	s7,0x16594 <dma_blocking_wait+1324>
+   0x161e8 <dma_blocking_wait+384>:	
+    bnez	s3,0x165d6 <dma_blocking_wait+1390>
+[?2004h(gdb) GDB_DMA_CONTEXT_END label=path-stop-14
+GDB_DMA_PATH_TRACE_MARK_DONE exited=0
+disable breakpoints
+[?2004l[?2004h(gdb) delete breakpoints
+[?2004l[?2004h(gdb) bt
+[?2004l#0  hw_dma_fence ()
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2439
+#1  dma_blocking_wait (rt=0x3fffffe090, tok=0x3ff6d74da8, 
+    timeout_ns=5000000000)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3683
+#2  0x00000000000181c0 in prt_dma_wait (timeout_ns=5000000000, 
+    tok=0x3ff6d74da8, rt=0x3fffffe090)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2708
+#3  dma_submit_wait_annotated_scoped (rt=rt@entry=0x3fffffe090, 
+    req=req@entry=0x3ff6d74fc8, stage_idx=stage_idx@entry=0, 
+    tensor_id=tensor_id@entry=2, timeout_ns=timeout_ns@entry=5000000000, 
+    scope=scope@entry=0x3ff6d74fb0, 
+    force_export_probe=force_export_probe@entry=0, 
+    debug_page_idx=debug_page_idx@entry=47)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2121
+#4  0x0000000000019402 in dma_copy_spm_pages_to_host_linux (rt=0x3fffffe090, 
+    dst_host=0x3ff6dd4400 "", src_pages=<optimized out>, manager_id=0, 
+    stage_idx=0, tensor_id=2, timeout_ns=5000000000, 
+    total_bytes=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:1209
+#5  0x000000000001a3c6 in prt_dma_copy_spm_pages_to_dram_prefix (
+    timeout_ns=<optimized out>, tensor_id=<optimized out>, 
+    stage_idx=<optimized out>, manager_id=<optimized out>, 
+    bytes=<optimized out>, src_pages=<optimized out>, 
+    dst_dram_addr=<optimized out>, rt=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2869
+#6  0x000000000002bcbc in copy_tensor_pages_to_model_alias_target (
+    rt=rt@entry=0x3fffffe090, tensor_id=tensor_id@entry=2, 
+    pages=pages@entry=0x6bdd0, src_size=src_size@entry=65536, 
+    manager_id=manager_id@entry=0, stage_id=stage_id@entry=0, target_seq=0, 
+    layer_index=<optimized out>, slot=slot@entry=3, 
+    target_kind=target_kind@entry=0x47668 "address", 
+    target_slot=target_slot@entry=3, dst_addr=274724635648)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:1973
+#7  0x000000000002e1e8 in copy_tensor_pages_to_model_aliases (stage_id=0, 
+    manager_id=0, src_size=<optimized out>, pages=0x6bdd0, tensor_id=2, 
+    rt=0x3fffffe090)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:2040
+#8  sync_stage_export_aliases (rt=rt@entry=0x3fffffe090, 
+    segment_idx=segment_idx@entry=0, stage_id=0, 
+    global_stage_id=global_stage_id@entry=0, subbatch_id=subbatch_id@entry=0)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:2657
+#9  0x000000000003065a in stage_worker_main (arg=0x83960)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4570
+#10 0x0000003ff7e6cf46 in ?? ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#11 0x0000003ff7eb5fcc in ?? ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+[?2004h(gdb) info threads
+[?2004l  Id   Target Id                        Frame 
+  1    Thread 235.235 "rerocc_pipeline" 0x0000003ff7e952a6 in clock_nanosleep
+    () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+* 2    Thread 235.277 "rerocc_pipeline" hw_dma_fence ()
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2439
+[?2004h(gdb) thread apply all bt
+[?2004l
+Thread 2 (Thread 235.277 "rerocc_pipeline"):
+#0  hw_dma_fence () at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2439
+#1  dma_blocking_wait (rt=0x3fffffe090, tok=0x3ff6d74da8, timeout_ns=5000000000) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3683
+#2  0x00000000000181c0 in prt_dma_wait (timeout_ns=5000000000, tok=0x3ff6d74da8, rt=0x3fffffe090) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2708
+#3  dma_submit_wait_annotated_scoped (rt=rt@entry=0x3fffffe090, req=req@entry=0x3ff6d74fc8, stage_idx=stage_idx@entry=0, tensor_id=tensor_id@entry=2, timeout_ns=timeout_ns@entry=5000000000, scope=scope@entry=0x3ff6d74fb0, force_export_probe=force_export_probe@entry=0, debug_page_idx=debug_page_idx@entry=47) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2121
+#4  0x0000000000019402 in dma_copy_spm_pages_to_host_linux (rt=0x3fffffe090, dst_host=0x3ff6dd4400 "", src_pages=<optimized out>, manager_id=0, stage_idx=0, tensor_id=2, timeout_ns=5000000000, total_bytes=<optimized out>) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:1209
+#5  0x000000000001a3c6 in prt_dma_copy_spm_pages_to_dram_prefix (timeout_ns=<optimized out>, tensor_id=<optimized out>, stage_idx=<optimized out>, manager_id=<optimized out>, bytes=<optimized out>, src_pages=<optimized out>, dst_dram_addr=<optimized out>, rt=<optimized out>) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2869
+#6  0x000000000002bcbc in copy_tensor_pages_to_model_alias_target (rt=rt@entry=0x3fffffe090, tensor_id=tensor_id@entry=2, pages=pages@entry=0x6bdd0, src_size=src_size@entry=65536, manager_id=manager_id@entry=0, stage_id=stage_id@entry=0, target_seq=0, layer_index=<optimized out>, slot=slot@entry=3, target_kind=target_kind@entry=0x47668 "address", target_slot=target_slot@entry=3, dst_addr=274724635648) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:1973
+#7  0x000000000002e1e8 in copy_tensor_pages_to_model_aliases (stage_id=0, manager_id=0, src_size=<optimized out>, pages=0x6bdd0, tensor_id=2, rt=0x3fffffe090) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:2040
+#8  sync_stage_export_aliases (rt=rt@entry=0x3fffffe090, segment_idx=segment_idx@entry=0, stage_id=0, global_stage_id=global_stage_id@entry=0, subbatch_id=subbatch_id@entry=0) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:2657
+#9  0x000000000003065a in stage_worker_main (arg=0x83960) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4570
+#10 0x0000003ff7e6cf46 in ?? () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#11 0x0000003ff7eb5fcc in ?? () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+
+Thread 1 (Thread 235.235 "rerocc_pipeline"):
+#0  0x0000003ff7e952a6 in clock_nanosleep () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#1  0x0000003ff7e9c262 in nanosleep () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#2  0x0000000000034b30 in prt_runtime_run (rt=rt@entry=0x3fffffe090, args=args@entry=0x3fffffdfa8) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:5408
+#3  0x0000000000012366 in prt_main_entry (argc=34, argv=0x3fffffe6e8) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/main.c:341
+#4  0x0000003ff7e2b636 in ?? () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#5  0x0000003ff7e2b6de in __libc_start_main () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#6  0x000000000001204c in _start ()
+[?2004h(gdb) info registers pc sp ra a0 a1 a2 a3
+[?2004lpc             0x161c4	0x161c4 <dma_blocking_wait+348>
+sp             0x3ff6d74cb0	0x3ff6d74cb0
+ra             0x161c4	0x161c4 <dma_blocking_wait+348>
+a0             0x3ecabc918	16855583000
+a1             0x18	24
+a2             0x0	0
+a3             0x3ff7df8a80	274741561984
+[?2004h(gdb) print/x tok
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print tok->id
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print tok->stage_idx
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print tok->tensor_id
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print tok->rr_manager_id
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print tok->rr_scope_valid
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print tok->rr_scope_external
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print tok->hw_done_flag
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print/x tok->debug_src_addr
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print/x tok->debug_dst_addr
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print/x tok->debug_done_flag_pa
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) print tok->debug_bytes
+[?2004lNo symbol "tok" in current context.
+[?2004h(gdb) x/16i $pc
+[?2004l=> 0x161c4 <dma_blocking_wait+348>:	fence
+   0x161c8 <dma_blocking_wait+352>:	li	s4,0
+   0x161ca <dma_blocking_wait+354>:	.insn	4, 0x074a7a5b
+   0x161ce <dma_blocking_wait+358>:	fence
+   0x161d2 <dma_blocking_wait+362>:	ld	a5,24(s1)
+   0x161d4 <dma_blocking_wait+364>:	
+    beqz	a5,0x16728 <dma_blocking_wait+1728>
+   0x161d8 <dma_blocking_wait+368>:	lw	a5,0(a5)
+   0x161da <dma_blocking_wait+370>:	snez	a5,a5
+   0x161de <dma_blocking_wait+374>:	sw	a5,40(s1)
+   0x161e0 <dma_blocking_wait+376>:	
+    bnez	s8,0x165ba <dma_blocking_wait+1362>
+   0x161e4 <dma_blocking_wait+380>:	
+    bnez	s7,0x16594 <dma_blocking_wait+1324>
+   0x161e8 <dma_blocking_wait+384>:	
+    bnez	s3,0x165d6 <dma_blocking_wait+1390>
+   0x161ec <dma_blocking_wait+388>:	
+    bnez	s6,0x165fe <dma_blocking_wait+1430>
+   0x161f0 <dma_blocking_wait+392>:	lw	a4,4(s1)
+   0x161f2 <dma_blocking_wait+394>:	lw	a1,152(s1)
+   0x161f6 <dma_blocking_wait+398>:	lw	a2,8(s1)
+[?2004h(gdb) detach
+[?2004lDetaching from program: /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/build/rerocc-linux-tests/rerocc_pipeline_runtime-linux, process 235
+Ending remote debugging.
+[Inferior 1 (process 235) detached]
+[?2004h(gdb) GDB_DMA_FRONTIER_MARK_DETACH_OK
+quit
+[?2004l

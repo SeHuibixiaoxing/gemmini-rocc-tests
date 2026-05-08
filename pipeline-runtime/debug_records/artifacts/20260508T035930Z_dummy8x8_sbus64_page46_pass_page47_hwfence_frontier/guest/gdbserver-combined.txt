@@ -1,0 +1,31 @@
+phase=inferior
+ts=1970-01-01T00:00:04Z
+method=ours2
+enable=1
+tool=/usr/bin/gdbserver
+bind_addr=0.0.0.0
+port=2345
+endpoint=0.0.0.0:2345
+net_dev=eth0
+guest_ipv4=172.16.0.2
+pid=235
+gdbserver_pid=222
+
+--- gdb log ---
+Process /root/rerocc-linux-tests/pipeline-runtime/rerocc_pipeline_runtime-linux created; pid = 235
+Listening on port 2345
+Remote debugging from host 172.16.0.1, port 39504
+[prt-early] enter main
+[prt-early] live stdio ready
+[prt-early] defaults ready
+[prt-early] arg parse done
+[prt-early] required args ready
+[prt-early] dma base ready
+[prt-early] watchdog ready
+[prt-early] before process memory lock
+[prt-early] process memory lock mode=disabled flags=0x0
+[prt-early] skip mlockall by build config
+[prt-early] after process memory lock
+[prt-early] calling runtime_init
+[prt-early] runtime_init done
+[prt-early] calling runtime_run
