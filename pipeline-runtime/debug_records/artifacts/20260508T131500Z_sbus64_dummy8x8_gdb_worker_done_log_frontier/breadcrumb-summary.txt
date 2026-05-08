@@ -1,0 +1,46 @@
+magic=0x505254424352554d
+version=1 header_bytes=7272 slot_count=64 enabled=1
+filter_segment=0 filter_global=0 filter_local=0 filter_subbatch=4294967295
+last_update_ns=38350835000 update_count=18766 last_slot_idx=23 last_kind=rr last_phase=rr-release-end
+nonempty_slots=64
+last_40_by_mono:
+mono=38348120000 slot=57 seq=468 kind=dma phase=dma-page-direct-path-decided seg=0 glob=0 local=0 sb=3 tensor=2 token=2 mgr=0 page=47 rc=0 flags=0x0 line=1148 src=0x40703400 dst=0x3ff7602000 aux0=1024 aux1=5000000000
+mono=38348303000 slot=36 seq=514 kind=dma phase=dma-page-after-accounting seg=0 glob=0 local=0 sb=3 tensor=2 token=0 mgr=0 page=47 rc=0 flags=0x0 line=1297 src=0x40703400 dst=0x1038fc000 aux0=1024 aux1=5000000000
+mono=38348307000 slot=58 seq=790 kind=dma phase=dma-page-direct-path-decided seg=0 glob=0 local=0 sb=3 tensor=2 token=2 mgr=0 page=48 rc=0 flags=0x0 line=1148 src=0x40003800 dst=0x3ff7602400 aux0=1024 aux1=5000000000
+mono=38348454000 slot=17 seq=650 kind=dma phase=dma-submitwait-after-cleanup seg=0 glob=0 local=0 sb=3 tensor=2 token=1205 mgr=0 page=48 rc=0 flags=0x7 line=2193 src=0x40003800 dst=0x1038fc400 aux0=4329459712 aux1=0
+mono=38348461000 slot=37 seq=728 kind=dma phase=dma-page-after-accounting seg=0 glob=0 local=0 sb=3 tensor=2 token=0 mgr=0 page=48 rc=0 flags=0x0 line=1297 src=0x40003800 dst=0x1038fc400 aux0=1024 aux1=5000000000
+mono=38348466000 slot=59 seq=538 kind=dma phase=dma-page-direct-path-decided seg=0 glob=0 local=0 sb=3 tensor=2 token=2 mgr=0 page=49 rc=0 flags=0x0 line=1148 src=0x40103800 dst=0x3ff7602800 aux0=1024 aux1=5000000000
+mono=38348621000 slot=34 seq=454 kind=dma phase=dma-page-after-accounting seg=0 glob=0 local=0 sb=3 tensor=2 token=0 mgr=0 page=49 rc=0 flags=0x0 line=1297 src=0x40103800 dst=0x1038fc800 aux0=1024 aux1=5000000000
+mono=38348769000 slot=25 seq=740 kind=dma phase=dma-submitwait-after-cleanup seg=0 glob=0 local=0 sb=3 tensor=2 token=1207 mgr=0 page=50 rc=0 flags=0x7 line=2193 src=0x40203800 dst=0x1038fcc00 aux0=4329459712 aux1=0
+mono=38348780000 slot=35 seq=360 kind=dma phase=dma-page-after-accounting seg=0 glob=0 local=0 sb=3 tensor=2 token=0 mgr=0 page=50 rc=0 flags=0x0 line=1297 src=0x40203800 dst=0x1038fcc00 aux0=1024 aux1=5000000000
+mono=38348943000 slot=40 seq=820 kind=dma phase=dma-page-after-accounting seg=0 glob=0 local=0 sb=3 tensor=2 token=0 mgr=0 page=51 rc=0 flags=0x0 line=1297 src=0x40303800 dst=0x1038fd000 aux0=1024 aux1=5000000000
+mono=38348947000 slot=62 seq=594 kind=dma phase=dma-page-direct-path-decided seg=0 glob=0 local=0 sb=3 tensor=2 token=2 mgr=0 page=52 rc=0 flags=0x0 line=1148 src=0x40403800 dst=0x3ff7603400 aux0=1024 aux1=5000000000
+mono=38349099000 slot=41 seq=612 kind=dma phase=dma-page-after-accounting seg=0 glob=0 local=0 sb=3 tensor=2 token=0 mgr=0 page=52 rc=0 flags=0x0 line=1297 src=0x40403800 dst=0x1038fd400 aux0=1024 aux1=5000000000
+mono=38349104000 slot=63 seq=468 kind=dma phase=dma-page-direct-path-decided seg=0 glob=0 local=0 sb=3 tensor=2 token=2 mgr=0 page=53 rc=0 flags=0x0 line=1148 src=0x40503800 dst=0x3ff7603800 aux0=1024 aux1=5000000000
+mono=38349256000 slot=38 seq=552 kind=dma phase=dma-page-after-accounting seg=0 glob=0 local=0 sb=3 tensor=2 token=0 mgr=0 page=53 rc=0 flags=0x0 line=1297 src=0x40503800 dst=0x1038fd800 aux0=1024 aux1=5000000000
+mono=38349412000 slot=31 seq=678 kind=dma phase=dma-submitwait-after-cleanup seg=0 glob=0 local=0 sb=3 tensor=2 token=1211 mgr=0 page=54 rc=0 flags=0x7 line=2193 src=0x40603800 dst=0x1038fdc00 aux0=4329459712 aux1=0
+mono=38349419000 slot=39 seq=854 kind=dma phase=dma-page-after-accounting seg=0 glob=0 local=0 sb=3 tensor=2 token=0 mgr=0 page=54 rc=0 flags=0x0 line=1297 src=0x40603800 dst=0x1038fdc00 aux0=1024 aux1=5000000000
+mono=38349423000 slot=4 seq=652 kind=dma phase=dma-page-direct-path-decided seg=0 glob=0 local=0 sb=3 tensor=2 token=2 mgr=0 page=55 rc=0 flags=0x0 line=1148 src=0x40703800 dst=0x3ff7604000 aux0=1024 aux1=5000000000
+mono=38349579000 slot=44 seq=512 kind=dma phase=dma-page-after-accounting seg=0 glob=0 local=0 sb=3 tensor=2 token=0 mgr=0 page=55 rc=0 flags=0x0 line=1297 src=0x40703800 dst=0x1038fe000 aux0=1024 aux1=5000000000
+mono=38349583000 slot=5 seq=628 kind=dma phase=dma-page-direct-path-decided seg=0 glob=0 local=0 sb=3 tensor=2 token=2 mgr=0 page=56 rc=0 flags=0x0 line=1148 src=0x40003c00 dst=0x3ff7604400 aux0=1024 aux1=5000000000
+mono=38349721000 slot=1 seq=844 kind=dma phase=dma-submitwait-after-cleanup seg=0 glob=0 local=0 sb=3 tensor=2 token=1213 mgr=0 page=56 rc=0 flags=0x7 line=2193 src=0x40003c00 dst=0x1038fe400 aux0=4329459712 aux1=0
+mono=38349729000 slot=45 seq=560 kind=dma phase=dma-page-after-accounting seg=0 glob=0 local=0 sb=3 tensor=2 token=0 mgr=0 page=56 rc=0 flags=0x0 line=1297 src=0x40003c00 dst=0x1038fe400 aux0=1024 aux1=5000000000
+mono=38349733000 slot=6 seq=694 kind=dma phase=dma-page-direct-path-decided seg=0 glob=0 local=0 sb=3 tensor=2 token=2 mgr=0 page=57 rc=0 flags=0x0 line=1148 src=0x40103c00 dst=0x3ff7604800 aux0=1024 aux1=5000000000
+mono=38349881000 slot=42 seq=644 kind=dma phase=dma-page-after-accounting seg=0 glob=0 local=0 sb=3 tensor=2 token=0 mgr=0 page=57 rc=0 flags=0x0 line=1297 src=0x40103c00 dst=0x1038fe800 aux0=1024 aux1=5000000000
+mono=38349885000 slot=7 seq=518 kind=dma phase=dma-page-direct-path-decided seg=0 glob=0 local=0 sb=3 tensor=2 token=2 mgr=0 page=58 rc=0 flags=0x0 line=1148 src=0x40203c00 dst=0x3ff7604c00 aux0=1024 aux1=5000000000
+mono=38350042000 slot=43 seq=444 kind=dma phase=dma-page-after-accounting seg=0 glob=0 local=0 sb=3 tensor=2 token=0 mgr=0 page=58 rc=0 flags=0x0 line=1297 src=0x40203c00 dst=0x1038fec00 aux0=1024 aux1=5000000000
+mono=38350046000 slot=8 seq=600 kind=dma phase=dma-page-direct-path-decided seg=0 glob=0 local=0 sb=3 tensor=2 token=2 mgr=0 page=59 rc=0 flags=0x0 line=1148 src=0x40303c00 dst=0x3ff7605000 aux0=1024 aux1=5000000000
+mono=38350194000 slot=61 seq=632 kind=dma phase=dma-submitwait-after-cleanup seg=0 glob=0 local=0 sb=3 tensor=2 token=1216 mgr=0 page=59 rc=0 flags=0x7 line=2193 src=0x40303c00 dst=0x1038ff000 aux0=4329459712 aux1=0
+mono=38350202000 slot=48 seq=504 kind=dma phase=dma-page-after-accounting seg=0 glob=0 local=0 sb=3 tensor=2 token=0 mgr=0 page=59 rc=0 flags=0x0 line=1297 src=0x40303c00 dst=0x1038ff000 aux0=1024 aux1=5000000000
+mono=38350206000 slot=9 seq=668 kind=dma phase=dma-page-direct-path-decided seg=0 glob=0 local=0 sb=3 tensor=2 token=2 mgr=0 page=60 rc=0 flags=0x0 line=1148 src=0x40403c00 dst=0x3ff7605400 aux0=1024 aux1=5000000000
+mono=38350349000 slot=60 seq=492 kind=dma phase=dma-submitwait-after-cleanup seg=0 glob=0 local=0 sb=3 tensor=2 token=1217 mgr=0 page=60 rc=0 flags=0x7 line=2193 src=0x40403c00 dst=0x1038ff400 aux0=4329459712 aux1=0
+mono=38350361000 slot=10 seq=624 kind=dma phase=dma-page-direct-path-decided seg=0 glob=0 local=0 sb=3 tensor=2 token=2 mgr=0 page=61 rc=0 flags=0x0 line=1148 src=0x40503c00 dst=0x3ff7605800 aux0=1024 aux1=5000000000
+mono=38350504000 slot=27 seq=654 kind=dma phase=dma-submitwait-after-cleanup seg=0 glob=0 local=0 sb=3 tensor=2 token=1218 mgr=0 page=61 rc=0 flags=0x7 line=2193 src=0x40503c00 dst=0x1038ff800 aux0=4329459712 aux1=0
+mono=38350512000 slot=46 seq=752 kind=dma phase=dma-page-after-accounting seg=0 glob=0 local=0 sb=3 tensor=2 token=0 mgr=0 page=61 rc=0 flags=0x0 line=1297 src=0x40503c00 dst=0x1038ff800 aux0=1024 aux1=5000000000
+mono=38350515000 slot=11 seq=670 kind=dma phase=dma-page-direct-path-decided seg=0 glob=0 local=0 sb=3 tensor=2 token=2 mgr=0 page=62 rc=0 flags=0x0 line=1148 src=0x40603c00 dst=0x3ff7605c00 aux0=1024 aux1=5000000000
+mono=38350663000 slot=51 seq=656 kind=dma phase=dma-submitwait-after-cleanup seg=0 glob=0 local=0 sb=3 tensor=2 token=1219 mgr=0 page=62 rc=0 flags=0x7 line=2193 src=0x40603c00 dst=0x1038ffc00 aux0=4329459712 aux1=0
+mono=38350670000 slot=47 seq=720 kind=dma phase=dma-page-after-accounting seg=0 glob=0 local=0 sb=3 tensor=2 token=0 mgr=0 page=62 rc=0 flags=0x0 line=1297 src=0x40603c00 dst=0x1038ffc00 aux0=1024 aux1=5000000000
+mono=38350673000 slot=12 seq=594 kind=dma phase=dma-page-direct-path-decided seg=0 glob=0 local=0 sb=3 tensor=2 token=2 mgr=0 page=63 rc=0 flags=0x0 line=1148 src=0x40703c00 dst=0x3ff7606000 aux0=1024 aux1=5000000000
+mono=38350819000 slot=49 seq=424 kind=dma phase=dma-submitwait-after-cleanup seg=0 glob=0 local=0 sb=3 tensor=2 token=1220 mgr=0 page=63 rc=0 flags=0x7 line=2193 src=0x40703c00 dst=0x103900000 aux0=4329459712 aux1=0
+mono=38350827000 slot=52 seq=490 kind=dma phase=dma-page-after-accounting seg=0 glob=0 local=0 sb=3 tensor=2 token=0 mgr=0 page=63 rc=0 flags=0x0 line=1297 src=0x40703c00 dst=0x103900000 aux0=1024 aux1=5000000000
+mono=38350835000 slot=23 seq=714 kind=rr phase=rr-release-end seg=0 glob=0 local=0 sb=3 tensor=ANY token=0 mgr=0 page=ANY rc=0 flags=0x0 line=404 src=0x810 dst=0x0 aux0=0 aux1=0
