@@ -1,0 +1,172 @@
+#!/usr/bin/env expect
+set timeout [lindex $argv 5]
+
+set gdb [lindex $argv 0]
+set elf [lindex $argv 1]
+set port [lindex $argv 2]
+set transcript [lindex $argv 3]
+set frontier_cmds [lindex $argv 4]
+set marker_timeout [lindex $argv 5]
+set frontier_timeout [lindex $argv 6]
+set detach_after [lindex $argv 7]
+
+log_file -noappend $transcript
+spawn $gdb -q $elf
+
+proc need_prompt {} {
+    expect {
+        -re "\\(gdb\\) $" {}
+        timeout { puts stderr "timeout waiting for gdb prompt"; exit 3 }
+        eof { puts stderr "gdb exited unexpectedly"; exit 4 }
+    }
+}
+
+proc gdb_cmd {cmd {timeout_s 300}} {
+    set old_timeout $::timeout
+    set ::timeout $timeout_s
+    send -- "$cmd\r"
+    need_prompt
+    set ::timeout $old_timeout
+}
+
+proc target_remote {port {timeout_s 300}} {
+    set old_timeout $::timeout
+    set ::timeout $timeout_s
+    send -- "target remote :$port\r"
+    expect {
+        -re "Remote communication error|Target disconnected|Connection reset by peer" {
+            puts stderr "target remote failed"
+            exit 7
+        }
+        -re "\\(gdb\\) $" {}
+        timeout { puts stderr "timeout waiting for target remote"; exit 8 }
+        eof { puts stderr "gdb exited during target remote"; exit 9 }
+    }
+    set ::timeout $old_timeout
+}
+
+proc continue_to_marker {marker_timeout} {
+    set old_timeout $::timeout
+    set ::timeout $marker_timeout
+    send -- "continue\r"
+    expect {
+        -re "Breakpoint 1, .*prt_gdb_marker_stop" {
+            need_prompt
+            set ::timeout $old_timeout
+            return 0
+        }
+        -re "prt_gdb_marker_stop" {
+            need_prompt
+            set ::timeout $old_timeout
+            return 0
+        }
+        -re "exited normally|exited with code" {
+            puts stderr "inferior exited before marker"
+            need_prompt
+            exit 10
+        }
+        timeout {
+            puts stderr "timeout waiting for marker"
+            exit 11
+        }
+        eof { puts stderr "gdb exited before marker"; exit 12 }
+    }
+}
+
+proc interrupt_and_dump {} {
+    puts "GDB_FRONTIER_TIMEOUT_SEND_CTRL_C"
+    send \003
+    expect {
+        -re "received signal SIGINT|Program received signal SIGINT|Thread .* received signal SIGINT" {
+            need_prompt
+        }
+        -re "\\(gdb\\) $" {}
+        timeout { puts stderr "timeout waiting for Ctrl-C stop"; exit 13 }
+        eof { puts stderr "gdb exited during Ctrl-C"; exit 14 }
+    }
+    puts "GDB_FRONTIER_TIMEOUT_STOPPED"
+    gdb_cmd "printf \"\\n--- timeout diagnostic: threads ---\\n\""
+    gdb_cmd "info threads" 300
+    gdb_cmd "printf \"\\n--- timeout diagnostic: all bt full ---\\n\""
+    gdb_cmd "thread apply all bt full" 600
+    gdb_cmd "printf \"\\n--- timeout diagnostic: registers ---\\n\""
+    gdb_cmd "info registers pc sp ra a0 a1 a2 a3 a4 a5 a6 a7" 300
+    gdb_cmd "printf \"\\n--- timeout diagnostic: pc window ---\\n\""
+    gdb_cmd "x/32i \$pc-64" 300
+    gdb_cmd "printf \"\\n--- timeout diagnostic: marker/debug state ---\\n\""
+    gdb_cmd "print g_prt_gdb_marker_state" 300
+    gdb_cmd "print g_prt_debug_state" 300
+    gdb_cmd "print g_prt_debug_tls_state" 300
+}
+
+proc continue_frontier {frontier_timeout} {
+    set old_timeout $::timeout
+    set ::timeout $frontier_timeout
+    puts "GDB_FRONTIER_CONTINUE"
+    send -- "continue\r"
+    expect {
+        -re "exited normally|exited with code" {
+            puts "GDB_FRONTIER_INFERIOR_EXITED"
+            need_prompt
+            set ::timeout $old_timeout
+            return 0
+        }
+        -re "\\(gdb\\) $" {
+            puts "GDB_FRONTIER_STOPPED_WITH_PROMPT"
+            set ::timeout $old_timeout
+            return 2
+        }
+        timeout {
+            set ::timeout $old_timeout
+            interrupt_and_dump
+            return 1
+        }
+        eof { puts stderr "gdb exited during frontier continue"; exit 15 }
+    }
+}
+
+need_prompt
+gdb_cmd "set pagination off"
+gdb_cmd "set confirm off"
+gdb_cmd "set print pretty on"
+gdb_cmd "set print thread-events off"
+gdb_cmd "set debuginfod enabled off"
+gdb_cmd "set auto-load safe-path /"
+gdb_cmd "set remotetimeout 180"
+target_remote $port 300
+puts "GDB_FRONTIER_MARK_CONNECTED"
+
+gdb_cmd "break prt_gdb_marker_stop" 120
+continue_to_marker $marker_timeout
+puts "GDB_FRONTIER_MARKER_HIT"
+gdb_cmd "printf \"\\n--- marker state ---\\n\""
+gdb_cmd "print g_prt_gdb_marker_state"
+gdb_cmd "bt 16"
+gdb_cmd "thread apply all bt" 300
+gdb_cmd "delete 1"
+gdb_cmd "source $frontier_cmds" 300
+
+set outcome [continue_frontier $frontier_timeout]
+
+if {$outcome == 2} {
+    gdb_cmd "printf \"\\n--- unexpected prompt diagnostic ---\\n\""
+    gdb_cmd "info threads" 300
+    gdb_cmd "thread apply all bt full" 600
+    gdb_cmd "print g_prt_gdb_marker_state" 300
+    gdb_cmd "print g_prt_debug_state" 300
+}
+
+if {$detach_after == 1} {
+    send -- "detach\r"
+    expect {
+        -re "Ending remote debugging|Inferior .* detached|Detaching from program" { need_prompt }
+        -re "\\(gdb\\) $" {}
+        timeout { puts stderr "timeout waiting for detach"; exit 16 }
+        eof { puts stderr "gdb exited during detach"; exit 17 }
+    }
+    puts "GDB_FRONTIER_DETACH_OK"
+}
+
+send -- "quit\r"
+expect eof
+exit 0
