@@ -10,11 +10,10 @@ marker chain with controlled per-marker timeouts. On a marker timeout this
 helper sends Ctrl-C, captures thread/register state, detaches, and exits with
 124 instead of killing GDB from the outside.
 
-The guest image should be built with:
+The helper enables the marker filter through GDB after `target remote`, so the
+fixed guest image may keep markers disabled by default:
 
-  PIPELINE_RUNTIME_GDB_MARKER_ENABLE=1
-  PIPELINE_RUNTIME_GDB_MARKER_SITE=segment-begin
-  PIPELINE_RUNTIME_GDB_MARKER_SEGMENT=0
+  PIPELINE_RUNTIME_GDB_MARKER_ENABLE=0
 
 This helper does not probe the gdbserver port; the first TCP connection to the
 guest port remains GDB.
@@ -270,6 +269,11 @@ proc set_filter {site segment global_stage local_stage subbatch manager tensor p
     gdb_cmd "set variable g_prt_gdb_marker_filter.token_id = $token" 120
 }
 
+proc enable_marker_filter {} {
+    gdb_cmd "set variable g_prt_gdb_marker_filter.initialized = 1" 120
+    gdb_cmd "set variable g_prt_gdb_marker_filter.enabled = 1" 120
+}
+
 proc continue_to_marker {label timeout_s} {
     puts "PRT_SAFE_WAIT_BEGIN $label timeout=$timeout_s"
     send -- "continue\r"
@@ -316,12 +320,14 @@ gdb_cmd "set auto-load safe-path /"
 gdb_cmd "set remotetimeout 180"
 gdb_cmd "target remote :$port" 300
 puts "PRT_SAFE_CONNECTED"
+set any 4294967295
+enable_marker_filter
+set_filter 2 0 $any 0 $any $any $any $any $any
 gdb_cmd "break prt_gdb_marker_stop" 120
 
 continue_to_marker "segment-begin-env" $initial_timeout
 collect_state "segment-begin-env"
 
-set any 4294967295
 set_filter 3 0 $any 0 $any $any $any $any $any
 continue_to_marker "worker-create-stage0" $step_timeout
 collect_state "worker-create-stage0"
