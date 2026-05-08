@@ -10,8 +10,9 @@ marker chain with controlled per-marker timeouts. On a marker timeout this
 helper sends Ctrl-C, captures thread/register state, detaches, and exits with
 124 instead of killing GDB from the outside.
 
-The helper enables the marker filter through GDB after `target remote`, so the
-fixed guest image may keep markers disabled by default:
+The helper waits for the runtime marker env initialization to return, then
+enables the marker filter through GDB. The fixed guest image may therefore keep
+markers disabled by default:
 
   PIPELINE_RUNTIME_GDB_MARKER_ENABLE=0
 
@@ -274,6 +275,16 @@ proc enable_marker_filter {} {
     gdb_cmd "set variable g_prt_gdb_marker_filter.enabled = 1" 120
 }
 
+proc wait_for_runtime_marker_init {} {
+    gdb_cmd "tbreak prt_gdb_marker_init_from_env" 120
+    puts "PRT_SAFE_WAIT_RUNTIME_MARKER_INIT"
+    send -- "continue\r"
+    wait_prompt 900
+    puts "PRT_SAFE_HIT_RUNTIME_MARKER_INIT"
+    gdb_cmd "finish" 900
+    puts "PRT_SAFE_AFTER_RUNTIME_MARKER_INIT"
+}
+
 proc continue_to_marker {label timeout_s} {
     puts "PRT_SAFE_WAIT_BEGIN $label timeout=$timeout_s"
     send -- "continue\r"
@@ -321,6 +332,7 @@ gdb_cmd "set remotetimeout 180"
 gdb_cmd "target remote :$port" 300
 puts "PRT_SAFE_CONNECTED"
 set any 4294967295
+wait_for_runtime_marker_init
 enable_marker_filter
 set_filter 2 0 $any 0 $any $any $any $any $any
 gdb_cmd "break prt_gdb_marker_stop" 120
