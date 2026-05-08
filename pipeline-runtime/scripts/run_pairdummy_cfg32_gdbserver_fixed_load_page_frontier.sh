@@ -17,14 +17,14 @@ The guest image must be prepared with matching marker env, for example:
   PIPELINE_RUNTIME_GDB_MARKER_SITE=dma-fixed-load-submitwait-begin
   PIPELINE_RUNTIME_GDB_MARKER_LOCAL_STAGE=0
   PIPELINE_RUNTIME_GDB_MARKER_MANAGER=0
-  PIPELINE_RUNTIME_GDB_MARKER_TENSOR=0
-  PIPELINE_RUNTIME_GDB_MARKER_PAGE=57
+  PIPELINE_RUNTIME_GDB_MARKER_TENSOR=1000001
+  PIPELINE_RUNTIME_GDB_MARKER_PAGE=63
 
 Environment:
   PRT_GDB_FIXED_LOAD_STAGE    Expected local stage. Default: 0.
   PRT_GDB_FIXED_LOAD_MANAGER  Expected DMA manager. Default: 0.
-  PRT_GDB_FIXED_LOAD_TENSOR   Expected tensor id. Default: 0.
-  PRT_GDB_FIXED_LOAD_PAGE     Expected page index. Default: 57.
+  PRT_GDB_FIXED_LOAD_TENSOR   Expected tensor id. Default: 1000001.
+  PRT_GDB_FIXED_LOAD_PAGE     Expected page index. Default: 63.
   PRT_GDB_MARKER_TIMEOUT      Whole GDB session timeout. Default: 1800.
   PRT_GDB_STATIC_NEIGH_MAC    Optional static neighbor MAC for the guest.
 EOF
@@ -45,8 +45,8 @@ cy_dir="$(cd "${script_dir}/../../../../../.." && pwd)"
 
 stage="${PRT_GDB_FIXED_LOAD_STAGE:-0}"
 manager="${PRT_GDB_FIXED_LOAD_MANAGER:-0}"
-tensor="${PRT_GDB_FIXED_LOAD_TENSOR:-0}"
-page="${PRT_GDB_FIXED_LOAD_PAGE:-57}"
+tensor="${PRT_GDB_FIXED_LOAD_TENSOR:-1000001}"
+page="${PRT_GDB_FIXED_LOAD_PAGE:-63}"
 for numeric in stage manager tensor page; do
   value="${!numeric}"
   if [[ ! "${value}" =~ ^[0-9]+$ ]]; then
@@ -56,6 +56,8 @@ for numeric in stage manager tensor page; do
 done
 
 dma_src="${cy_dir}/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c"
+rr_src="${cy_dir}/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_rerocc.c"
+runtime_src="${cy_dir}/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c"
 stamp="$(date -u +%Y%m%dT%H%M%SZ)"
 cmd_dir="${cy_dir}/tmp/firesim-aws-f2/gdbserver-tests/fixed-load-page-frontier-${stamp}"
 post_cmds="${cmd_dir}/fixed-load-page-frontier.gdb"
@@ -128,7 +130,7 @@ set \$tokp = tok
 x/10i \$pc
 
 printf "\\n--- before hw_dma_fence ---\\n"
-tbreak ${dma_src}:3683
+tbreak ${dma_src}:3695
 continue
 bt 8
 info args
@@ -147,7 +149,7 @@ print \$tokp->debug_bytes
 x/10i \$pc
 
 printf "\\n--- after hw_dma_fence ---\\n"
-tbreak ${dma_src}:3687
+tbreak ${dma_src}:3699
 continue
 bt 8
 info args
@@ -160,7 +162,7 @@ x/wx \$tokp->completion_flag
 x/10i \$pc
 
 printf "\\n--- before shared fence ---\\n"
-tbreak ${dma_src}:3762
+tbreak ${dma_src}:3774
 continue
 bt 8
 info args
@@ -185,6 +187,72 @@ print \$tokp->rr_scope_external
 print \$tokp->hw_done_flag
 print \$tokp->done
 print \$tokp->status
+x/10i \$pc
+
+printf "\\n--- fixed-load submitwait end marker call ---\\n"
+tbreak ${dma_src}:867
+continue
+bt 8
+info locals
+x/10i \$pc
+
+printf "\\n--- fixed-load page accounted marker call ---\\n"
+tbreak ${dma_src}:898
+continue
+bt 8
+info locals
+x/10i \$pc
+
+printf "\\n--- fixed-load batch scope release call-site ---\\n"
+tbreak ${dma_src}:905
+continue
+bt 8
+info locals
+x/10i \$pc
+
+printf "\\n--- dma_batch_scope_release entry ---\\n"
+tbreak dma_batch_scope_release
+continue
+bt 8
+info args
+print *scope
+x/10i \$pc
+
+printf "\\n--- prt_rr_release_scope entry ---\\n"
+tbreak prt_rr_release_scope
+continue
+bt 8
+info args
+print *scope
+x/10i \$pc
+
+printf "\\n--- prt_rr_release_scope after readback ---\\n"
+tbreak ${rr_src}:404
+continue
+bt 8
+info args
+print *scope
+x/10i \$pc
+
+printf "\\n--- fixed-load return from batch scope release ---\\n"
+tbreak ${dma_src}:906
+continue
+bt 8
+info locals
+x/10i \$pc
+
+printf "\\n--- stage_prepare_exec_views after fixed-load copy call ---\\n"
+tbreak ${runtime_src}:2231
+continue
+bt 8
+info locals
+x/10i \$pc
+
+printf "\\n--- stage-fixed-load-sparse end log call-site ---\\n"
+tbreak ${runtime_src}:2240
+continue
+bt 8
+info locals
 x/10i \$pc
 EOF
 
