@@ -1,0 +1,416 @@
+spawn /home/ubuntu/chipyard/.conda-env/riscv-tools/bin/riscv64-unknown-linux-gnu-gdb -q /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/build/rerocc-linux-tests/rerocc_pipeline_runtime-linux
+Reading symbols from /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/build/rerocc-linux-tests/rerocc_pipeline_runtime-linux...
+[?2004h(gdb) source /home/ubuntu/chipyard/tmp/firesim-aws-f2/gdbserver-tests/pairdummy-cfg32-synthetic-prefault-20260508T070107Z-192_168_1_179-172_16_0_2/synthetic-prefault-setup.gdb
+[?2004l0x0000003ff7fec386 in ?? ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/ld-linux-riscv64-lp64d.so.1
+Breakpoint 1 at 0x14442: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_debug_state.c, line 396.
+
+Breakpoint 1, prt_gdb_marker_stop ()
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_debug_state.c:396
+396	  g_prt_gdb_marker_state.hit_count = g_prt_gdb_marker_state.hit_count + 1ULL;
+[?2004h(gdb) source /home/ubuntu/chipyard/tmp/firesim-aws-f2/gdbserver-tests/pairdummy-cfg32-synthetic-prefault-20260508T070107Z-192_168_1_179-172_16_0_2/synthetic-prefault-marker.gdb
+[?2004l
+--- synthetic prefault marker hit ---
+$1 = {
+  site_id = 16,
+  segment_idx = 4294967295,
+  global_stage_id = 4294967295,
+  local_stage_id = 4294967295,
+  subbatch_id = 4294967295,
+  manager_id = 4294967295,
+  tensor_id = 4294967295,
+  page_idx = 4294967295,
+  token_id = 4294967295,
+  rc = 0,
+  aux0 = 17055744,
+  aux1 = 4164,
+  hit_count = 0,
+  line = 982
+}
+#0  prt_gdb_marker_stop ()
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_debug_state.c:396
+#1  0x0000000000014604 in prt_gdb_marker_note (site_id=site_id@entry=16, 
+    segment_idx=<optimized out>, segment_idx@entry=4294967295, 
+    global_stage_id=<optimized out>, global_stage_id@entry=4294967295, 
+    local_stage_id=<optimized out>, local_stage_id@entry=4294967295, 
+    subbatch_id=<optimized out>, subbatch_id@entry=4294967295, 
+    manager_id=manager_id@entry=4294967295, 
+    tensor_id=tensor_id@entry=4294967295, page_idx=page_idx@entry=4294967295, 
+    token_id=token_id@entry=4294967295, rc=rc@entry=0, 
+    aux0=aux0@entry=17055744, aux1=aux1@entry=4164, line=line@entry=982)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_debug_state.c:392
+#2  0x000000000002bf46 in prt_runtime_gdb_marker (line=982, aux1=4164, 
+    aux0=17055744, rc=0, token_id=4294967295, page_idx=4294967295, 
+    tensor_id=4294967295, manager_id=4294967295, subbatch_id=4294967295, 
+    local_stage_id=4294967295, global_stage_id=4294967295, 
+    segment_idx=4294967295, site_id=16)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:110
+#3  prefault_and_lock_blob (kind=kind@entry=0x47108 "synthetic-model alloc", 
+    path=path@entry=0x0, buf=buf@entry=0x3ff6db4000, 
+    blob_size=blob_size@entry=17055744)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:976
+#4  0x000000000002c206 in allocate_synthetic_model_blob (
+    rt=rt@entry=0x3fffffe050)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:1330
+#5  0x00000000000331f2 in prt_runtime_run (rt=rt@entry=0x3fffffe050, 
+    args=args@entry=0x3fffffdf68)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:5081
+#6  0x0000000000012366 in prt_main_entry (argc=34, argv=0x3fffffe6a8)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/main.c:341
+#7  0x0000003ff7e2b636 in ?? ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#8  0x0000003ff7e2b6de in __libc_start_main ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#9  0x000000000001204c in _start ()
+
+--- marker caller frame ---
+#1  0x0000000000014604 in prt_gdb_marker_note (site_id=site_id@entry=16, 
+    segment_idx=<optimized out>, segment_idx@entry=4294967295, 
+    global_stage_id=<optimized out>, global_stage_id@entry=4294967295, 
+    local_stage_id=<optimized out>, local_stage_id@entry=4294967295, 
+    subbatch_id=<optimized out>, subbatch_id@entry=4294967295, 
+    manager_id=manager_id@entry=4294967295, 
+    tensor_id=tensor_id@entry=4294967295, page_idx=page_idx@entry=4294967295, 
+    token_id=token_id@entry=4294967295, rc=rc@entry=0, 
+    aux0=aux0@entry=17055744, aux1=aux1@entry=4164, line=line@entry=982)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_debug_state.c:392
+392	  prt_gdb_marker_stop();
+site_id = 16
+segment_idx = <optimized out>
+global_stage_id = <optimized out>
+local_stage_id = <optimized out>
+subbatch_id = <optimized out>
+manager_id = 4294967295
+tensor_id = 4294967295
+page_idx = 4294967295
+token_id = 4294967295
+rc = 0
+aux0 = 17055744
+aux1 = 4164
+line = 982
+No locals.
+/home/ubuntu/chipyard/tmp/firesim-aws-f2/gdbserver-tests/pairdummy-cfg32-synthetic-prefault-20260508T070107Z-192_168_1_179-172_16_0_2/synthetic-prefault-marker.gdb:8: Error in sourced command file:
+No symbol "kind" in current context.
+[?2004h(gdb) source /home/ubuntu/chipyard/tmp/firesim-aws-f2/gdbserver-tests/pairdummy-cfg32-synthetic-prefault-20260508T070107Z-192_168_1_179-172_16_0_2/synthetic-prefault-arm.gdb
+[?2004lBreakpoint 2 at 0x2bea4: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c, line 995.
+Temporary breakpoint 3 at 0x2be1c: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c, line 1010.
+Num     Type           Disp Enb Address            What
+2       breakpoint     keep y   0x000000000002bea4 in prefault_and_lock_blob 
+                                                   at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:995
+	stop only if touched_pages >= 3328 (host evals)
+3       breakpoint     del  y   0x000000000002be1c in prefault_and_lock_blob 
+                                                   at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:1010
+[?2004h(gdb) continue
+[?2004lContinuing.
+
+Breakpoint 2, prefault_and_lock_blob (
+    kind=kind@entry=0x47108 "synthetic-model alloc", path=path@entry=0x0, 
+    buf=buf@entry=0x3ff6db4000, blob_size=blob_size@entry=17055744)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:995
+995	      PRT_PROGRESS_LOG("%s prefault-progress path=%s touched_pages=%zu/%zu touched_bytes=%zu/%zu page_bytes=%zu",
+[?2004h[?2004l[?2004h(gdb) source /home/ubuntu/chipyard/tmp/firesim-aws-f2/gdbserver-tests/pairdummy-cfg32-synthetic-prefault-20260508T070107Z-192_168_1_179-172_16_0_2/synthetic-prefault-progress.gdb
+[?2004l
+--- synthetic prefault progress stop ---
+hit_bpnum=$2 = 2
+#0  prefault_and_lock_blob (kind=kind@entry=0x47108 "synthetic-model alloc", 
+    path=path@entry=0x0, buf=buf@entry=0x3ff6db4000, 
+    blob_size=blob_size@entry=17055744)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:995
+#1  0x000000000002c206 in allocate_synthetic_model_blob (
+    rt=rt@entry=0x3fffffe050)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:1330
+#2  0x00000000000331f2 in prt_runtime_run (rt=rt@entry=0x3fffffe050, 
+    args=args@entry=0x3fffffdf68)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:5081
+#3  0x0000000000012366 in prt_main_entry (argc=34, argv=0x3fffffe6a8)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/main.c:341
+#4  0x0000003ff7e2b636 in ?? ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#5  0x0000003ff7e2b6de in __libc_start_main ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#6  0x000000000001204c in _start ()
+kind = 0x47108 "synthetic-model alloc"
+path = 0x0
+buf = 0x3ff6db4000
+blob_size = 17055744
+touched_bytes = 13631488
+value = 0 '\000'
+off = <optimized out>
+tag = 0x47108 "synthetic-model alloc"
+blob_path = 0x47100 "(none)"
+prior_errno = 0
+host_page_bytes = <optimized out>
+step = 4096
+progress_interval_bytes = 1048576
+total_pages = 4164
+touch = 0x3ff6db4000 ""
+sink = 0 '\000'
+mlock_rc = <optimized out>
+mlock_errno = 0
+touched_pages = 3328
+next_progress_bytes = 13631488
+$3 = <optimized out>
+$4 = 3328
+$5 = 17055744
+$6 = 4096
+$7 = 4164
+$8 = 13631488
+$9 = (void *) 0x3ff6db4000
+$10 = (volatile uint8_t *) 0x3ff6db4000 ""
+/home/ubuntu/chipyard/tmp/firesim-aws-f2/gdbserver-tests/pairdummy-cfg32-synthetic-prefault-20260508T070107Z-192_168_1_179-172_16_0_2/synthetic-prefault-progress.gdb:15: Error in sourced command file:
+value has been optimized out
+[?2004h(gdb) continue
+[?2004lContinuing.
+
+Breakpoint 2, prefault_and_lock_blob (
+    kind=kind@entry=0x47108 "synthetic-model alloc", path=path@entry=0x0, 
+    buf=buf@entry=0x3ff6db4000, blob_size=blob_size@entry=17055744)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:995
+995	      PRT_PROGRESS_LOG("%s prefault-progress path=%s touched_pages=%zu/%zu touched_bytes=%zu/%zu page_bytes=%zu",
+[?2004h[?2004l[?2004h(gdb) source /home/ubuntu/chipyard/tmp/firesim-aws-f2/gdbserver-tests/pairdummy-cfg32-synthetic-prefault-20260508T070107Z-192_168_1_179-172_16_0_2/synthetic-prefault-progress.gdb
+[?2004l
+--- synthetic prefault progress stop ---
+hit_bpnum=$11 = 2
+#0  prefault_and_lock_blob (kind=kind@entry=0x47108 "synthetic-model alloc", 
+    path=path@entry=0x0, buf=buf@entry=0x3ff6db4000, 
+    blob_size=blob_size@entry=17055744)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:995
+#1  0x000000000002c206 in allocate_synthetic_model_blob (
+    rt=rt@entry=0x3fffffe050)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:1330
+#2  0x00000000000331f2 in prt_runtime_run (rt=rt@entry=0x3fffffe050, 
+    args=args@entry=0x3fffffdf68)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:5081
+#3  0x0000000000012366 in prt_main_entry (argc=34, argv=0x3fffffe6a8)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/main.c:341
+#4  0x0000003ff7e2b636 in ?? ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#5  0x0000003ff7e2b6de in __libc_start_main ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#6  0x000000000001204c in _start ()
+kind = 0x47108 "synthetic-model alloc"
+path = 0x0
+buf = 0x3ff6db4000
+blob_size = 17055744
+touched_bytes = 14680064
+value = 0 '\000'
+off = <optimized out>
+tag = 0x47108 "synthetic-model alloc"
+blob_path = 0x47100 "(none)"
+prior_errno = 0
+host_page_bytes = <optimized out>
+step = 4096
+progress_interval_bytes = 1048576
+total_pages = 4164
+touch = 0x3ff6db4000 ""
+sink = 0 '\000'
+mlock_rc = <optimized out>
+mlock_errno = 0
+touched_pages = 3584
+next_progress_bytes = 14680064
+$12 = <optimized out>
+$13 = 3584
+$14 = 17055744
+$15 = 4096
+$16 = 4164
+$17 = 14680064
+$18 = (void *) 0x3ff6db4000
+$19 = (volatile uint8_t *) 0x3ff6db4000 ""
+/home/ubuntu/chipyard/tmp/firesim-aws-f2/gdbserver-tests/pairdummy-cfg32-synthetic-prefault-20260508T070107Z-192_168_1_179-172_16_0_2/synthetic-prefault-progress.gdb:15: Error in sourced command file:
+value has been optimized out
+[?2004h(gdb) continue
+[?2004lContinuing.
+
+Breakpoint 2, prefault_and_lock_blob (
+    kind=kind@entry=0x47108 "synthetic-model alloc", path=path@entry=0x0, 
+    buf=buf@entry=0x3ff6db4000, blob_size=blob_size@entry=17055744)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:995
+995	      PRT_PROGRESS_LOG("%s prefault-progress path=%s touched_pages=%zu/%zu touched_bytes=%zu/%zu page_bytes=%zu",
+[?2004h[?2004l[?2004h(gdb) source /home/ubuntu/chipyard/tmp/firesim-aws-f2/gdbserver-tests/pairdummy-cfg32-synthetic-prefault-20260508T070107Z-192_168_1_179-172_16_0_2/synthetic-prefault-progress.gdb
+[?2004l
+--- synthetic prefault progress stop ---
+hit_bpnum=$20 = 2
+#0  prefault_and_lock_blob (kind=kind@entry=0x47108 "synthetic-model alloc", 
+    path=path@entry=0x0, buf=buf@entry=0x3ff6db4000, 
+    blob_size=blob_size@entry=17055744)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:995
+#1  0x000000000002c206 in allocate_synthetic_model_blob (
+    rt=rt@entry=0x3fffffe050)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:1330
+#2  0x00000000000331f2 in prt_runtime_run (rt=rt@entry=0x3fffffe050, 
+    args=args@entry=0x3fffffdf68)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:5081
+#3  0x0000000000012366 in prt_main_entry (argc=34, argv=0x3fffffe6a8)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/main.c:341
+#4  0x0000003ff7e2b636 in ?? ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#5  0x0000003ff7e2b6de in __libc_start_main ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#6  0x000000000001204c in _start ()
+kind = 0x47108 "synthetic-model alloc"
+path = 0x0
+buf = 0x3ff6db4000
+blob_size = 17055744
+touched_bytes = 15728640
+value = 0 '\000'
+off = <optimized out>
+tag = 0x47108 "synthetic-model alloc"
+blob_path = 0x47100 "(none)"
+prior_errno = 0
+host_page_bytes = <optimized out>
+step = 4096
+progress_interval_bytes = 1048576
+total_pages = 4164
+touch = 0x3ff6db4000 ""
+sink = 0 '\000'
+mlock_rc = <optimized out>
+mlock_errno = 0
+touched_pages = 3840
+next_progress_bytes = 15728640
+$21 = <optimized out>
+$22 = 3840
+$23 = 17055744
+$24 = 4096
+$25 = 4164
+$26 = 15728640
+$27 = (void *) 0x3ff6db4000
+$28 = (volatile uint8_t *) 0x3ff6db4000 ""
+/home/ubuntu/chipyard/tmp/firesim-aws-f2/gdbserver-tests/pairdummy-cfg32-synthetic-prefault-20260508T070107Z-192_168_1_179-172_16_0_2/synthetic-prefault-progress.gdb:15: Error in sourced command file:
+value has been optimized out
+[?2004h(gdb) continue
+[?2004lContinuing.
+
+Breakpoint 2, prefault_and_lock_blob (
+    kind=kind@entry=0x47108 "synthetic-model alloc", path=path@entry=0x0, 
+    buf=buf@entry=0x3ff6db4000, blob_size=blob_size@entry=17055744)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:995
+995	      PRT_PROGRESS_LOG("%s prefault-progress path=%s touched_pages=%zu/%zu touched_bytes=%zu/%zu page_bytes=%zu",
+[?2004h[?2004l[?2004h(gdb) source /home/ubuntu/chipyard/tmp/firesim-aws-f2/gdbserver-tests/pairdummy-cfg32-synthetic-prefault-20260508T070107Z-192_168_1_179-172_16_0_2/synthetic-prefault-progress.gdb
+[?2004l
+--- synthetic prefault progress stop ---
+hit_bpnum=$29 = 2
+#0  prefault_and_lock_blob (kind=kind@entry=0x47108 "synthetic-model alloc", 
+    path=path@entry=0x0, buf=buf@entry=0x3ff6db4000, 
+    blob_size=blob_size@entry=17055744)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:995
+#1  0x000000000002c206 in allocate_synthetic_model_blob (
+    rt=rt@entry=0x3fffffe050)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:1330
+#2  0x00000000000331f2 in prt_runtime_run (rt=rt@entry=0x3fffffe050, 
+    args=args@entry=0x3fffffdf68)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:5081
+#3  0x0000000000012366 in prt_main_entry (argc=34, argv=0x3fffffe6a8)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/main.c:341
+#4  0x0000003ff7e2b636 in ?? ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#5  0x0000003ff7e2b6de in __libc_start_main ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#6  0x000000000001204c in _start ()
+kind = 0x47108 "synthetic-model alloc"
+path = 0x0
+buf = 0x3ff6db4000
+blob_size = 17055744
+touched_bytes = 16777216
+value = 0 '\000'
+off = <optimized out>
+tag = 0x47108 "synthetic-model alloc"
+blob_path = 0x47100 "(none)"
+prior_errno = 0
+host_page_bytes = <optimized out>
+step = 4096
+progress_interval_bytes = 1048576
+total_pages = 4164
+touch = 0x3ff6db4000 ""
+sink = 0 '\000'
+mlock_rc = <optimized out>
+mlock_errno = 0
+touched_pages = 4096
+next_progress_bytes = 16777216
+$30 = <optimized out>
+$31 = 4096
+$32 = 17055744
+$33 = 4096
+$34 = 4164
+$35 = 16777216
+$36 = (void *) 0x3ff6db4000
+$37 = (volatile uint8_t *) 0x3ff6db4000 ""
+/home/ubuntu/chipyard/tmp/firesim-aws-f2/gdbserver-tests/pairdummy-cfg32-synthetic-prefault-20260508T070107Z-192_168_1_179-172_16_0_2/synthetic-prefault-progress.gdb:15: Error in sourced command file:
+value has been optimized out
+[?2004h(gdb) continue
+[?2004lContinuing.
+
+Temporary breakpoint 3, prefault_and_lock_blob (
+    kind=kind@entry=0x47108 "synthetic-model alloc", path=path@entry=0x0, 
+    buf=buf@entry=0x3ff6db4000, blob_size=blob_size@entry=17055744)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:1010
+1010	  PRT_PROGRESS_LOG("%s after-prefault path=%s ptr=%p size=%zu page_bytes=%zu mode=write-preserve",
+[?2004h[?2004l[?2004h(gdb) source /home/ubuntu/chipyard/tmp/firesim-aws-f2/gdbserver-tests/pairdummy-cfg32-synthetic-prefault-20260508T070107Z-192_168_1_179-172_16_0_2/synthetic-prefault-after.gdb
+[?2004l
+--- synthetic prefault after-prefault reached ---
+hit_bpnum=$38 = 2
+#0  prefault_and_lock_blob (kind=kind@entry=0x47108 "synthetic-model alloc", 
+    path=path@entry=0x0, buf=buf@entry=0x3ff6db4000, 
+    blob_size=blob_size@entry=17055744)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:1010
+#1  0x000000000002c206 in allocate_synthetic_model_blob (
+    rt=rt@entry=0x3fffffe050)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:1330
+#2  0x00000000000331f2 in prt_runtime_run (rt=rt@entry=0x3fffffe050, 
+    args=args@entry=0x3fffffdf68)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:5081
+#3  0x0000000000012366 in prt_main_entry (argc=34, argv=0x3fffffe6a8)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/main.c:341
+#4  0x0000003ff7e2b636 in ?? ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#5  0x0000003ff7e2b6de in __libc_start_main ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#6  0x000000000001204c in _start ()
+kind = 0x47108 "synthetic-model alloc"
+path = 0x0
+buf = 0x3ff6db4000
+blob_size = 17055744
+tag = 0x47108 "synthetic-model alloc"
+blob_path = 0x47100 "(none)"
+prior_errno = 0
+host_page_bytes = <optimized out>
+step = 4096
+progress_interval_bytes = 1048576
+total_pages = 4164
+touch = 0x3ff6db4000 ""
+sink = 0 '\000'
+mlock_rc = <optimized out>
+mlock_errno = 0
+touched_pages = 4164
+next_progress_bytes = 17825792
+$39 = 17055744
+$40 = 4096
+$41 = 4164
+$42 = 4164
+$43 = (void *) 0x3ff6db4000
+$44 = (volatile uint8_t *) 0x3ff6db4000 ""
+   0x2bdf4 <prefault_and_lock_blob+192>:	
+    bgeu	a5,s10,0x2bea4 <prefault_and_lock_blob+368>
+   0x2bdf8 <prefault_and_lock_blob+196>:	
+    bltu	s2,s1,0x2bdc8 <prefault_and_lock_blob+148>
+   0x2bdfc <prefault_and_lock_blob+200>:	add	s7,s7,s3
+   0x2bdfe <prefault_and_lock_blob+202>:	lbu	a5,0(s7)
+   0x2be02 <prefault_and_lock_blob+206>:	zext.b	a5,a5
+   0x2be06 <prefault_and_lock_blob+210>:	sb	a5,0(s7)
+   0x2be0a <prefault_and_lock_blob+214>:	lbu	a4,-113(s0)
+   0x2be0e <prefault_and_lock_blob+218>:	xor	a5,a5,a4
+   0x2be10 <prefault_and_lock_blob+220>:	sb	a5,-113(s0)
+   0x2be14 <prefault_and_lock_blob+224>:	fence	rw,rw
+   0x2be18 <prefault_and_lock_blob+228>:	lbu	a6,-113(s0)
+=> 0x2be1c <prefault_and_lock_blob+232>:	auipc	a0,0x1b
+   0x2be20 <prefault_and_lock_blob+236>:	addi	a0,a0,940
+   0x2be24 <prefault_and_lock_blob+240>:	mv	a1,s5
+   0x2be26 <prefault_and_lock_blob+242>:	mv	a5,s11
+   0x2be28 <prefault_and_lock_blob+244>:	mv	a4,s1
+   0x2be2a <prefault_and_lock_blob+246>:	mv	a3,s3
+   0x2be2c <prefault_and_lock_blob+248>:	mv	a2,s4
+   0x2be2e <prefault_and_lock_blob+250>:	
+    jal	0x2bac0 <prt_progress_log_impl>
+   0x2be32 <prefault_and_lock_blob+254>:	auipc	a1,0x1b
+[Inferior 1 (process 233) detached]
+[?2004h(gdb) quit
+[?2004l

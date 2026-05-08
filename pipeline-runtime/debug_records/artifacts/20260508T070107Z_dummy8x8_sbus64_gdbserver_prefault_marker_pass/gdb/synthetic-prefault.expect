@@ -1,0 +1,114 @@
+#!/usr/bin/env expect
+set timeout -1
+
+set gdb [lindex $argv 0]
+set target_bin [lindex $argv 1]
+set setup_cmds [lindex $argv 2]
+set marker_cmds [lindex $argv 3]
+set arm_cmds [lindex $argv 4]
+set progress_cmds [lindex $argv 5]
+set after_cmds [lindex $argv 6]
+set timeout_cmds [lindex $argv 7]
+set transcript [lindex $argv 8]
+set hit_timeout [lindex $argv 9]
+set advance_timeout [lindex $argv 10]
+set diag_timeout [lindex $argv 11]
+set max_stops [lindex $argv 12]
+
+log_file -a $transcript
+spawn $gdb -q $target_bin
+
+proc wait_prompt {seconds} {
+  set timeout $seconds
+  expect {
+    -re {\(gdb\) $} { return 0 }
+    eof { return 2 }
+    timeout { return 1 }
+  }
+}
+
+proc source_gdb {cmds seconds} {
+  send -- "source $cmds\r"
+  return [wait_prompt $seconds]
+}
+
+proc interrupt_and_diag {timeout_cmds diag_timeout} {
+  send "\003"
+  set rc [wait_prompt 30]
+  if {$rc == 0} {
+    send -- "source $timeout_cmds\r"
+    set diag_rc [wait_prompt $diag_timeout]
+    send -- "quit\r"
+    expect {
+      eof {}
+      timeout {}
+    }
+    exit 124
+  }
+  send -- "quit\r"
+  expect {
+    eof {}
+    timeout {}
+  }
+  exit 125
+}
+
+if {[wait_prompt 60] != 0} {
+  exit 1
+}
+
+send -- "source $setup_cmds\r"
+set rc [wait_prompt $hit_timeout]
+if {$rc != 0} {
+  interrupt_and_diag $timeout_cmds $diag_timeout
+}
+
+if {[source_gdb $marker_cmds $diag_timeout] != 0} {
+  interrupt_and_diag $timeout_cmds $diag_timeout
+}
+if {[source_gdb $arm_cmds $diag_timeout] != 0} {
+  interrupt_and_diag $timeout_cmds $diag_timeout
+}
+
+for {set i 0} {$i < $max_stops} {incr i} {
+  send -- "continue\r"
+  set timeout $advance_timeout
+  expect {
+    -re {Temporary breakpoint 3,} {
+      set rc [wait_prompt $diag_timeout]
+      if {$rc != 0} {
+        interrupt_and_diag $timeout_cmds $diag_timeout
+      }
+      if {[source_gdb $after_cmds $diag_timeout] != 0} {
+        interrupt_and_diag $timeout_cmds $diag_timeout
+      }
+      send -- "quit\r"
+      expect eof
+      exit 0
+    }
+    -re {Breakpoint 2,} {
+      set rc [wait_prompt $diag_timeout]
+      if {$rc != 0} {
+        interrupt_and_diag $timeout_cmds $diag_timeout
+      }
+      if {[source_gdb $progress_cmds $diag_timeout] != 0} {
+        interrupt_and_diag $timeout_cmds $diag_timeout
+      }
+    }
+    eof {
+      exit 2
+    }
+    timeout {
+      interrupt_and_diag $timeout_cmds $diag_timeout
+    }
+  }
+}
+
+send -- "source $timeout_cmds\r"
+set diag_rc [wait_prompt $diag_timeout]
+send -- "quit\r"
+expect {
+  eof {}
+  timeout {}
+}
+exit 126
