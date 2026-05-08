@@ -15,16 +15,23 @@ The guest image must be prepared with matching marker env, for example:
 
   PIPELINE_RUNTIME_GDB_MARKER_ENABLE=1
   PIPELINE_RUNTIME_GDB_MARKER_SITE=dma-export-page-submit-begin
+  PIPELINE_RUNTIME_GDB_MARKER_SEGMENT=1
+  PIPELINE_RUNTIME_GDB_MARKER_GLOBAL_STAGE=1
   PIPELINE_RUNTIME_GDB_MARKER_LOCAL_STAGE=0
+  PIPELINE_RUNTIME_GDB_MARKER_SUBBATCH=7
   PIPELINE_RUNTIME_GDB_MARKER_MANAGER=0
-  PIPELINE_RUNTIME_GDB_MARKER_TENSOR=2
-  PIPELINE_RUNTIME_GDB_MARKER_PAGE=47
+  PIPELINE_RUNTIME_GDB_MARKER_TENSOR=3
+  PIPELINE_RUNTIME_GDB_MARKER_PAGE=15
+
+Segment/global-stage/subbatch filters require a guest binary that carries TLS
+debug context in DMA markers. On older binaries, leave those three filters unset
+for dma-export-page-submit-* and dma-wait-* markers.
 
 Environment:
   PRT_GDB_EXPORT_STAGE    Expected local stage. Default: 0.
   PRT_GDB_EXPORT_MANAGER  Expected DMA manager. Default: 0.
-  PRT_GDB_EXPORT_TENSOR   Expected tensor id. Default: 2.
-  PRT_GDB_EXPORT_PAGE     Expected page index. Default: 47.
+  PRT_GDB_EXPORT_TENSOR   Expected tensor id. Default: 3.
+  PRT_GDB_EXPORT_PAGE     Expected page index. Default: 15.
   PRT_GDB_MARKER_TIMEOUT  Whole GDB session timeout. Default: 1800.
   PRT_GDB_STATIC_NEIGH_MAC
                            Optional static neighbor MAC for the guest.
@@ -46,8 +53,8 @@ cy_dir="$(cd "${script_dir}/../../../../../.." && pwd)"
 
 stage="${PRT_GDB_EXPORT_STAGE:-0}"
 manager="${PRT_GDB_EXPORT_MANAGER:-0}"
-tensor="${PRT_GDB_EXPORT_TENSOR:-2}"
-page="${PRT_GDB_EXPORT_PAGE:-47}"
+tensor="${PRT_GDB_EXPORT_TENSOR:-3}"
+page="${PRT_GDB_EXPORT_PAGE:-15}"
 for numeric in stage manager tensor page; do
   value="${!numeric}"
   if [[ ! "${value}" =~ ^[0-9]+$ ]]; then

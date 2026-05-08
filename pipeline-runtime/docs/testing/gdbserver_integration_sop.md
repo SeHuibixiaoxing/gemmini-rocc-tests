@@ -256,6 +256,13 @@ PIPELINE_RUNTIME_GDB_MARKER_TOKEN=546
 - `dma-export-page-submit-begin` / `dma-export-page-submit-end`：按 export page 定位。
 - `dma-wait-enter` / `dma-wait-return`：定位 DMA wait 是否返回。
 
+约束：2026-05-08 之前的 DMA marker 只携带 local stage / manager / tensor / page /
+token，不携带 segment、global stage、subbatch。用旧 guest binary 时，不要给
+`dma-export-page-submit-*` 或 `dma-wait-*` 同时设置 `PIPELINE_RUNTIME_GDB_MARKER_SEGMENT`
+/ `GLOBAL_STAGE` / `SUBBATCH`，否则 marker 会因为字段不匹配而永远不命中。当前
+pipeline-runtime binary 已把 DMA marker 改为携带线程 TLS debug context；使用新 binary
+并完成 image freshness 后，才可以用这些字段精确过滤到某个 segment/subbatch。
+
 注意：这不是 hardware breakpoint；它仍是普通 software breakpoint 停在一个稳定函数符号上，
 所以适合当前 1BP 硬件限制。由于 `gdbserver --once` 只能服务一次 TCP GDB 会话，
 每轮 marker 条件要在启动前写入 guest env；命中后在同一 GDB session 内动态增删断点。
