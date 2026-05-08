@@ -1,0 +1,126 @@
+Remote debugging using :32347
+Reading symbols from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/ld-linux-riscv64-lp64d.so.1...
+(No debugging symbols found in /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/ld-linux-riscv64-lp64d.so.1)
+0x0000003ff7fec386 in ?? () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/ld-linux-riscv64-lp64d.so.1
+Breakpoint 1 at 0x14482: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_debug_state.c, line 396.
+Breakpoint 2 at 0x30730: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c, line 4571.
+Breakpoint 3 at 0x3078c: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c, line 4582.
+Breakpoint 4 at 0x2ffaa: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c, line 4617.
+Breakpoint 5 at 0x30a32: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c, line 4633.
+Breakpoint 6 at 0x3896c: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_scheduler.c, line 406.
+Breakpoint 7 at 0x38aea: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_scheduler.c, line 485.
+Breakpoint 8 at 0x38aee: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_scheduler.c, line 491.
+Breakpoint 9 at 0x38c24: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_scheduler.c, line 517.
+Breakpoint 10 at 0x3003c: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c, line 4682.
+Breakpoint 11 at 0x34a64: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c, line 5386.
+Num     Type           Disp Enb Address            What
+1       breakpoint     keep y   0x0000000000014482 in prt_gdb_marker_stop at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_debug_state.c:396
+2       breakpoint     keep y   0x0000000000030730 in stage_worker_main at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4571
+	stop only if segment_idx == 0 && ctx->stage_id == 0 && progress_sbatch == 0 (host evals)
+3       breakpoint     keep y   0x000000000003078c in stage_worker_main at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4582
+	stop only if segment_idx == 0 && ctx->stage_id == 0 && progress_sbatch == 0 (host evals)
+4       breakpoint     keep y   0x000000000002ffaa in stage_worker_main at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4617
+	stop only if segment_idx == 0 && ctx->stage_id == 0 && progress_sbatch == 0 (host evals)
+5       breakpoint     keep y   0x0000000000030a32 in stage_worker_main at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4633
+	stop only if segment_idx == 0 && ctx->stage_id == 0 && progress_sbatch == 0 (host evals)
+6       breakpoint     keep y   0x000000000003896c in prt_process_c2 at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_scheduler.c:406
+	stop only if buf && buf->stage_idx == 0 && buf->tensor_id == 2 && idx == 0 (host evals)
+7       breakpoint     keep y   0x0000000000038aea in prt_process_c2 at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_scheduler.c:485
+	stop only if sparse_export_probe (host evals)
+8       breakpoint     keep y   0x0000000000038aee in prt_process_c2 at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_scheduler.c:491
+	stop only if sparse_export_probe (host evals)
+9       breakpoint     keep y   0x0000000000038c24 in prt_process_c2 at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_scheduler.c:517
+	stop only if sparse_export_probe (host evals)
+10      breakpoint     keep y   0x000000000003003c in stage_worker_main at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4682
+	stop only if segment_idx == 0 && ctx->stage_id == 0 && progress_sbatch == 0 (host evals)
+11      breakpoint     keep y   0x0000000000034a64 in prt_runtime_run at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:5386
+	stop only if seg_idx == 0 (host evals)
+Continuing.
+Error in testing condition for breakpoint 11:
+value has been optimized out
+
+Thread 1 "rerocc_pipeline" hit Breakpoint 11, prt_runtime_run (rt=rt@entry=0x3fffffdee0, args=args@entry=0x3fffffddf8) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:5386
+5386	      uint32_t done_subbatch = min_sink_sbatch_offset(sink_bufs, sink_count);
+#0  prt_runtime_run (rt=rt@entry=0x3fffffdee0, args=args@entry=0x3fffffddf8) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:5386
+#1  0x00000000000123a6 in prt_main_entry (argc=34, argv=0x3fffffe538) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/main.c:341
+#2  0x0000003ff7e2b636 in ?? () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#3  0x0000003ff7e2b6de in __libc_start_main () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#4  0x000000000001208c in _start ()
+  Id   Target Id                        Frame 
+* 1    Thread 229.229 "rerocc_pipeline" prt_runtime_run (rt=rt@entry=0x3fffffdee0, args=args@entry=0x3fffffddf8) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:5386
+  2    Thread 229.265 "rerocc_pipeline" 0x0000003ff7ea8176 in sched_setaffinity () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+done_subbatch = <optimized out>
+now = <optimized out>
+ts = {tv_sec = 8, tv_nsec = 580719000}
+seg = 0x81b70
+missing_model_sinks = <optimized out>
+is_last_segment = 0
+stage_thread_attr = {__size = '\000' <repeats 17 times>, "\020", '\000' <repeats 16 times>, "\004", '\000' <repeats 20 times>, __align = 0}
+stage_thread_attr_ready = <optimized out>
+stage_stack_bytes = <optimized out>
+exec = 0x83960
+start_ms = <optimized out>
+last_watchdog_log_ms = 8580
+init_step_start_ms = <optimized out>
+model_input_ids = 0x65880
+model_input_count = <optimized out>
+model_output_ids = 0x612d0
+model_output_count = 1
+sink_bufs = 0x625d0
+sink_count = 1
+sink_cap = 4
+subbatch_size = <optimized out>
+target_batch = <optimized out>
+target_subbatch = <optimized out>
+input_blob = 0x0
+input_blob_size = 0
+golden_blob = 0x0
+golden_blob_size = 0
+created_threads = <optimized out>
+all_segments = <optimized out>
+all_num_segments = 15
+all_subbatch_size = 1
+seg_idx = <optimized out>
+pipeline_swizzled = 1
+run_rc = 0
+action = 0x69bb0
+rc = <optimized out>
+$1 = <optimized out>
+$2 = 1
+$3 = <optimized out>
+$4 = 0
+$5 = 0
+$6 = {segment_idx = 0, global_stage_id = 4294967295, local_stage_id = 4294967295, subbatch_id = 4294967295, phase_id = 8, wait_phase_id = 0, tensor_id = 4294967295, pipebuf_idx = 4294967295, pipebuf_kind = 4294967295, pipebuf_in_use_idx = 4294967295, pipebuf_no_use_idx = 4294967295, pipebuf_addr = 0, ring_addr = 0, manager_id = 7, opcode_id = 3, rr_stage_id = 4294967295, rr_manager_id = 7, rr_opcode_id = 3, rr_cfg_id = 31, last_rc = 0, event_seq = 30}
+$7 = {site_id = 0, segment_idx = 4294967295, global_stage_id = 4294967295, local_stage_id = 4294967295, subbatch_id = 4294967295, manager_id = 4294967295, tensor_id = 4294967295, page_idx = 4294967295, token_id = 4294967295, rc = 0, aux0 = 0, aux1 = 0, hit_count = 0, line = 0}
+
+Thread 2 (Thread 229.265 "rerocc_pipeline"):
+#0  0x0000003ff7ea8176 in sched_setaffinity () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#1  0x000000000003013e in stage_bind_current_thread (ctx=0x83960, rt=0x3fffffdee0) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:728
+#2  stage_worker_main (arg=0x83960) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4149
+#3  0x0000003ff7e6cf46 in ?? () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#4  0x0000003ff7eb5fcc in ?? () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+
+Thread 1 (Thread 229.229 "rerocc_pipeline"):
+#0  prt_runtime_run (rt=rt@entry=0x3fffffdee0, args=args@entry=0x3fffffddf8) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:5386
+#1  0x00000000000123a6 in prt_main_entry (argc=34, argv=0x3fffffe538) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/main.c:341
+#2  0x0000003ff7e2b636 in ?? () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#3  0x0000003ff7e2b6de in __libc_start_main () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#4  0x000000000001208c in _start ()
+Continuing.
+[Switching to Thread 229.265]
+
+Thread 2 "rerocc_pipeline" hit Breakpoint 1, prt_gdb_marker_stop () at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_debug_state.c:396
+396	  g_prt_gdb_marker_state.hit_count = g_prt_gdb_marker_state.hit_count + 1ULL;
+#0  prt_gdb_marker_stop () at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_debug_state.c:396
+#1  0x0000000000014644 in prt_gdb_marker_note (site_id=site_id@entry=23, segment_idx=<optimized out>, segment_idx@entry=0, global_stage_id=<optimized out>, global_stage_id@entry=0, local_stage_id=<optimized out>, subbatch_id=<optimized out>, subbatch_id@entry=0, manager_id=<optimized out>, tensor_id=tensor_id@entry=4294967295, page_idx=page_idx@entry=4294967295, token_id=token_id@entry=4294967295, rc=rc@entry=0, aux0=8, aux1=0, line=line@entry=4416) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_debug_state.c:392
+#2  0x000000000002fd3a in prt_runtime_gdb_marker (line=4416, aux1=<optimized out>, aux0=<optimized out>, rc=0, token_id=4294967295, page_idx=4294967295, tensor_id=4294967295, manager_id=<optimized out>, subbatch_id=0, local_stage_id=<optimized out>, global_stage_id=<optimized out>, segment_idx=<optimized out>, site_id=23) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:110
+#3  stage_worker_main (arg=0x83960) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4409
+#4  0x0000003ff7e6cf46 in ?? () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#5  0x0000003ff7eb5fcc in ?? () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+$8 = {site_id = 23, segment_idx = 0, global_stage_id = 0, local_stage_id = 0, subbatch_id = 0, manager_id = 0, tensor_id = 4294967295, page_idx = 4294967295, token_id = 4294967295, rc = 0, aux0 = 8, aux1 = 0, hit_count = 0, line = 4416}
+Cannot find thread-local storage for Thread 229.265, executable file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/build/rerocc-linux-tests/rerocc_pipeline_runtime-linux:
+Remote target failed to process qGetTLSAddr request
+$9 = {segment_idx = 0, global_stage_id = 0, local_stage_id = 0, subbatch_id = 0, phase_id = 4, wait_phase_id = 0, tensor_id = 4294967295, pipebuf_idx = 4294967295, pipebuf_kind = 4294967295, pipebuf_in_use_idx = 4294967295, pipebuf_no_use_idx = 4294967295, pipebuf_addr = 0, ring_addr = 0, manager_id = 0, opcode_id = 2, rr_stage_id = 0, rr_manager_id = 0, rr_opcode_id = 2, rr_cfg_id = 0, last_rc = 0, event_seq = 6}
+No locals.
+Continuing.
+Disconnected from target.
