@@ -1,0 +1,48 @@
+[firemarshal] pipeline-runtime sparse log path: /root/pipeline-runtime-debug/bertmini-batch8.log
+[firemarshal] pipeline-runtime deep log path: /root/pipeline-runtime-debug/bertmini-batch8.deep.log
+[firemarshal] pipeline-runtime audit log path: /root/pipeline-runtime-debug/bertmini-batch8.audit.log
+[firemarshal] pipeline-runtime trace dir: /root/pipeline-runtime-debug/traces
+[firemarshal] pipeline-runtime profile id: pairdummy-sbus64-dummy8x8-fixed-v3
+[firemarshal] auto poweroff on completion: 1
+[firemarshal] log profile: coarse
+[firemarshal] periodic sync enable: 1
+[firemarshal] periodic sync seconds: 1
+[firemarshal] progress ping enable: 0
+[firemarshal] progress ping seconds: 30
+[firemarshal] uart log enable: 0
+[firemarshal] guest sparse log enable: 1
+[firemarshal] guest deep log enable: 0
+[firemarshal] audit log enable: 0
+[firemarshal] checkpoint log enable: 0
+[firemarshal] stdio capture mode: log
+[firemarshal] dummy mode: 1
+[firemarshal] skip model/input/golden: 1/1/1
+[firemarshal] trace enable: 0
+[firemarshal] dma force direct enable: 1
+[firemarshal] gdbserver enable: 1
+[firemarshal] gdbserver endpoint: 0.0.0.0:2345
+[firemarshal] gdbserver info/log: /root/pipeline-runtime-debug/bertmini-batch8.gdbserver.info / /root/pipeline-runtime-debug/bertmini-batch8.gdbserver.log
+[bertmini] runner-enter batch=8 methods=ours2
+[bertmini] runner-config pair=1 gemmini_base_id=0 dma_base_id=0 trace_dir=/root/pipeline-runtime-debug/traces trace_enable=0 export_dma_timeout_ms=5000
+[bertmini] runner-dummy-config dummy=1 skip_model=1 skip_input=1 skip_golden=1
+[bertmini] runner-golden-check requested=0 effective=0
+[bertmini] runner-log-config profile=coarse deep_log_enable=0 dma_submit_trace_enable=0 dma_force_direct_enable=1 dma_blocking_wait_poll_timeout_enable=0 dma_export_chunk_log_stride=32
+[bertmini] runner-gdb-config enable=1 tool=/usr/bin/gdbserver endpoint=0.0.0.0:2345 info_path=/root/pipeline-runtime-debug/bertmini-batch8.gdbserver.info log_path=/root/pipeline-runtime-debug/bertmini-batch8.gdbserver.log
+[bertmini] trace-disabled path=/root/pipeline-runtime-debug/traces
+[bertmini] before-prepare-hugetlb
+[bertmini] hugetlb-probe-begin mount=/dev/hugepages pages=1
+[bertmini] hugetlb before total=0 free=0 size_kb=2048
+[bertmini] hugetlb-set-begin pages=1
+[bertmini] hugetlb-set-end pages=1
+[bertmini] hugetlb-mount-begin mount=/dev/hugepages
+[bertmini] hugetlb-mount-end mount=/dev/hugepages
+[bertmini] hugetlb after total=1 free=1 size_kb=2048 mount=/dev/hugepages
+[bertmini] after-prepare-hugetlb
+[bertmini] method=ours2 cores=4 gemmini=12 dma=12 pair=1
+[bertmini] dummy-mode=1 skip-model=1 skip-input=1 skip-golden=1
+[bertmini] golden-check requested=0 effective=0
+[bertmini] trace enable=0
+[bertmini] dma submit trace enable=0 force direct enable=1 blocking wait poll timeout enable=0 export probe enable=0 export probe token start=unset export probe token end=unset export page start=4294967295 export page end=4294967295 export chunk stride=32
+[bertmini] deep-log enable=0 segment=31 global_stage=39 local_stage=0 subbatch=any stage_radius=0 subbatch_radius=0
+[bertmini] breadcrumb enable=1 path=/root/pipeline-runtime-debug/bertmini-batch8.breadcrumb.bin segment=0 global_stage=0 local_stage=0 subbatch=any stage_radius=0 subbatch_radius=0
+[bertmini] gdbserver enable=1 endpoint=0.0.0.0:2345 info_path=/root/pipeline-runtime-debug/bertmini-batch8.gdbserver.info log_path=/root/pipeline-runtime-debug/bertmini-batch8.gdbserver.log
