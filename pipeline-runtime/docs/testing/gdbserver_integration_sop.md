@@ -218,6 +218,13 @@ thread apply all bt
 `prt_gemm_conv_run` 或具体 `file:line` 断点，然后继续运行。这就是“先用条件 marker
 跳到局部窗口，再现场换更窄断点”的标准流程。
 
+如果 marker 设得太晚，batch-mode marker helper 不是可靠的临时采样工具。实践中，
+在 helper 正阻塞于 `continue` 等待未来 marker 时，从外部给 GDB 发送 `SIGINT`
+可能只得到 `Disconnected from target`，无法拿到调用栈，而且 `gdbserver --once`
+已经被消耗。遇到这种情况不要继续复用该 run；下一轮应把 marker 前移到已经确认会经过
+的边界，例如 fixed-load 的具体 tensor/page，或直接使用
+`run_pairdummy_cfg32_gdbserver_stack_sample.sh` 这种把 Ctrl-C 采样写进 GDB 脚本的 helper。
+
 不要把源码 marker 写成普通的 `if (...) { int i; ++i; }`。在当前优化等级下，普通局部变量
 和空操作很容易被优化、合并或重排，GDB 行号也可能漂移。应使用现有的
 `prt_gdb_marker_note()` / `prt_gdb_marker_stop()` 路径：先把 segment、stage、tensor、

@@ -139,7 +139,7 @@ set \$tokp = tok
 x/12i \$pc
 
 printf "\\n--- before hw_dma_fence ---\\n"
-tbreak ${dma_src}:3683
+tbreak ${dma_src}:3695
 continue
 bt 10
 info args
@@ -158,7 +158,7 @@ print \$tokp->debug_bytes
 x/12i \$pc
 
 printf "\\n--- after hw_dma_fence ---\\n"
-tbreak ${dma_src}:3687
+tbreak ${dma_src}:3699
 continue
 bt 10
 info args
@@ -170,7 +170,7 @@ x/wx \$tokp->completion_flag
 x/12i \$pc
 
 printf "\\n--- before shared fence ---\\n"
-tbreak ${dma_src}:3762
+tbreak ${dma_src}:3774
 continue
 bt 10
 info args
