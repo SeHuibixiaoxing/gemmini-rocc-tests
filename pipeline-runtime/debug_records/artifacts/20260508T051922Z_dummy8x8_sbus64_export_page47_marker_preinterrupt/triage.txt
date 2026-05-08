@@ -1,0 +1,42 @@
+breadcrumb=/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/artifacts/20260508T051922Z_dummy8x8_sbus64_export_page47_marker_preinterrupt/bertmini-batch8.breadcrumb.bin
+sparse_log=/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/artifacts/20260508T051922Z_dummy8x8_sbus64_export_page47_marker_preinterrupt/bertmini-batch8.log
+trigger_log=n/a
+breadcrumb_last update_count=182 last_kind=runtime last_phase=runtime_init_done
+last_slot seg=any gstage=any lstage=any sb=any tensor=any mgr=any page=any rc=0 line=4866
+sparse_worker: n/a
+sparse_pointwise_dispatch: n/a
+sparse_pointwise_matmul: n/a
+sparse_oc_split_pointwise: n/a
+sparse_export_target: n/a
+sparse_dma_fixed_host: n/a
+sparse_dma_export_host: n/a
+sparse_dma_fixed_submit: n/a
+sparse_dma_fixed_wait: n/a
+sparse_dma_export_wait: n/a
+sparse_spm_xlate_release: mgr=11 cfg=31 phase=restore-end
+sparse_dma_fixed_focus_page_phases: n/a
+sparse_dma_fixed_last_doneflag_end_tok=n/a
+sparse_dma_fixed_last_wait_after_release_tok=n/a
+trigger_line_count=n/a
+trigger_seq_contiguous=n/a
+trigger_budget_exhausted=n/a
+trigger_first_event: n/a
+trigger_last_event: n/a
+frontier=spm-xlate-release mgr=11 cfg=31 phase=restore-end
+previous_frontier=n/a
+change_kind=none
+claim_class=stable_observation
+disturbance_risk=low
+requires_control_rerun=no
+recommended_next_probe=static-read-spm-xlate-restore-then-sx-trigger
+verdict=inside spm-xlate release path (restore-end)
+next_action=Read `prt_spm_xlate_release_scope()` before widening logs; keep the next rerun scoped to the `spm-xlate` trigger family.
+sparse_tail:
+[prt-progress] artifacts validate stage-hit seg=13 local_stage=1 global_stage=33 layer=33 entry=14332 matches=1 split_kind=2
+[prt-progress] artifacts validate stage-end seg=13 local_stage=1 global_stage=33 layer=33 elapsed_ms=4 span_pages=648 tensors=4
+[prt-progress] artifacts validate stage-begin seg=13 local_stage=2 global_stage=34 layer=34 acc=4 entries=16848
+[prt-progress] artifacts validate stage-hit seg=13 local_stage=2 global_stage=34 layer=34 entry=14816 matches=1 split_kind=2
+[prt-progress] artifacts validate stage-end seg=13 local_stage=2 global_stage=34 layer=34 elapsed_ms=4 span_pages=641 tensors=4
+[prt-progress] artifacts validate segment-end seg=13 stages=3 elapsed_ms=14
+[prt-progress] artifacts validate segment-begin seg=14 stages=5
+[prt-progress] artifacts validate stage-begin seg=14 local_stage=0 global_stage=35 layer=35 acc=2 entries=16848
