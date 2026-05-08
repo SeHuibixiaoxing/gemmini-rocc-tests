@@ -1021,23 +1021,78 @@ int prt_action_track_alloc_key(prt_schedule_action_t *action, uint32_t key) {
 }
 
 int prt_action_bind_topology(prt_runtime_t *rt, prt_schedule_action_t *action) {
-  prt_action_exec_t *exec;
-  const prt_segment_desc_t *seg;
+  prt_action_exec_t *exec = NULL;
+  const prt_segment_desc_t *seg = NULL;
   uint32_t i;
-  int rc;
-  if (!rt || !action) return PRT_ERR_INVAL;
-  if (action->state != PRT_ACTION_ALLOCATED) return PRT_ERR_STATE;
-  if (prt_action_exec_ensure(action) != PRT_OK) return PRT_ERR_NOMEM;
+  int rc = PRT_OK;
+  const char *fail_phase = "unknown";
+  uint32_t fail_stage = UINT32_MAX;
+  uint32_t fail_pipe = UINT32_MAX;
+  uint32_t fail_ring = UINT32_MAX;
+  uint32_t fail_slot = UINT32_MAX;
+  uint32_t fail_buffer = 0U;
+  uint32_t fail_tensor = 0U;
+  uint32_t fail_is_entry = UINT32_MAX;
+  uint32_t fail_pipe_kind = UINT32_MAX;
+  uint32_t fail_meta_kind = UINT32_MAX;
+  uint32_t fail_meta_slots = 0U;
+  uint32_t fail_meta_pages = 0U;
+
+#define PRT_BIND_FAIL(rc_value, phase_name) do { \
+    rc = (rc_value); \
+    fail_phase = (phase_name); \
+    goto fail; \
+  } while (0)
+#define PRT_BIND_PIPE_CONTEXT(pipe_idx, pipebuf, meta, slot_id) do { \
+    const prt_pipebuf_t *pipebuf_ctx = (pipebuf); \
+    const prt_buffer_binding_t *meta_ctx = (meta); \
+    fail_pipe = (pipe_idx); \
+    fail_slot = (slot_id); \
+    if (pipebuf_ctx) { \
+      fail_stage = pipebuf_ctx->stage_idx; \
+      fail_buffer = pipebuf_ctx->buffer_id; \
+      fail_tensor = pipebuf_ctx->tensor_id; \
+      fail_is_entry = (uint32_t)(pipebuf_ctx->is_entry != 0); \
+      fail_pipe_kind = (uint32_t)pipebuf_ctx->kind; \
+    } \
+    if (meta_ctx) { \
+      fail_meta_kind = (uint32_t)meta_ctx->kind; \
+      fail_meta_slots = meta_ctx->slot_count; \
+      fail_meta_pages = meta_ctx->pages_per_slot; \
+    } \
+  } while (0)
+#define PRT_BIND_RING_CONTEXT(ring_idx_value, ringbuf, meta, slot_id) do { \
+    const prt_ringbuf_t *ringbuf_ctx = (ringbuf); \
+    const prt_buffer_binding_t *meta_ctx = (meta); \
+    fail_ring = (ring_idx_value); \
+    fail_slot = (slot_id); \
+    if (ringbuf_ctx) { \
+      fail_buffer = ringbuf_ctx->buffer_id; \
+      fail_tensor = ringbuf_ctx->tensor_id; \
+    } \
+    if (meta_ctx) { \
+      fail_meta_kind = (uint32_t)meta_ctx->kind; \
+      fail_meta_slots = meta_ctx->slot_count; \
+      fail_meta_pages = meta_ctx->pages_per_slot; \
+    } \
+  } while (0)
+
+  if (!rt || !action) PRT_BIND_FAIL(PRT_ERR_INVAL, "null_args");
+  if (action->state != PRT_ACTION_ALLOCATED) PRT_BIND_FAIL(PRT_ERR_STATE, "action_state");
+  if (prt_action_exec_ensure(action) != PRT_OK) PRT_BIND_FAIL(PRT_ERR_NOMEM, "exec_ensure");
   exec = action->exec;
-  if (!exec) return PRT_ERR_STATE;
-  if (action->acc_source.stage_count != exec->stage_thread_count) return PRT_ERR_STATE;
+  if (!exec) PRT_BIND_FAIL(PRT_ERR_STATE, "exec_missing");
+  if (action->acc_source.stage_count != exec->stage_thread_count) {
+    PRT_BIND_FAIL(PRT_ERR_STATE, "stage_count_mismatch");
+  }
   seg = action->pipeline_segment_ref;
-  if (!seg) return PRT_ERR_INVAL;
+  if (!seg) PRT_BIND_FAIL(PRT_ERR_INVAL, "segment_missing");
 
   for (i = 0; i < exec->stage_thread_count; ++i) {
     const prt_stage_acc_assign_t *assign = &action->acc_source.stage_assign[i];
     if (assign->acc_util == 0 || !assign->gemmini_mgr_ids || !assign->dma_mgr_ids) {
-      return PRT_ERR_STATE;
+      fail_stage = i;
+      PRT_BIND_FAIL(PRT_ERR_STATE, "stage_assign_missing");
     }
     exec->stage_acc_ids[i] = assign->gemmini_mgr_ids[0];
     exec->stage_tile_counts[i] = assign->acc_util;
@@ -1060,7 +1115,10 @@ int prt_action_bind_topology(prt_runtime_t *rt, prt_schedule_action_t *action) {
 
   for (i = 0; i < exec->pipebuf_count; ++i) {
     prt_pipebuf_t *b = &exec->pipebufs[i];
-    if (b->stage_idx >= exec->stage_thread_count) return PRT_ERR_STATE;
+    if (b->stage_idx >= exec->stage_thread_count) {
+      PRT_BIND_PIPE_CONTEXT(i, b, NULL, UINT32_MAX);
+      PRT_BIND_FAIL(PRT_ERR_STATE, "pipe_stage_oob");
+    }
     b->cmd_acc[0] = exec->stage_dma_ids[b->stage_idx];
     b->cmd_acc[1] = exec->stage_dma_ids[b->stage_idx];
   }
@@ -1075,13 +1133,17 @@ int prt_action_bind_topology(prt_runtime_t *rt, prt_schedule_action_t *action) {
     uint32_t slots = rb->size;
     if (binding_meta) {
       if (binding_meta->kind != PRT_BUFFER_BINDING_RING) {
+        PRT_BIND_RING_CONTEXT(i, rb, binding_meta, UINT32_MAX);
         fprintf(stderr,
                 "action_bind_topology: segment=%u ring buffer_id=%u tensor=%u kind-mismatch meta_kind=%u expected=%u\n",
                 action->segment_idx, rb->buffer_id, rb->tensor_id,
                 binding_meta->kind, (uint32_t)PRT_BUFFER_BINDING_RING);
-        return PRT_ERR_PARSE;
+        PRT_BIND_FAIL(PRT_ERR_PARSE, "ring_kind_mismatch");
       }
-      if (binding_meta->slot_count > 0U && binding_meta->slot_count != rb->size) return PRT_ERR_STATE;
+      if (binding_meta->slot_count > 0U && binding_meta->slot_count != rb->size) {
+        PRT_BIND_RING_CONTEXT(i, rb, binding_meta, UINT32_MAX);
+        PRT_BIND_FAIL(PRT_ERR_STATE, "ring_slot_count_mismatch");
+      }
       if (binding_meta->slot_count > 0U) slots = binding_meta->slot_count;
     }
     for (uint32_t slot = 0; slot < slots; ++slot) {
@@ -1089,11 +1151,17 @@ int prt_action_bind_topology(prt_runtime_t *rt, prt_schedule_action_t *action) {
         find_action_binding(action->spm_source.ring_pages, action->spm_source.ring_count,
                             rb->buffer_id, slot);
       if (!binding) {
-        if (binding_meta && binding_meta->pages_per_slot > 0U) return PRT_ERR_STATE;
+        if (binding_meta && binding_meta->pages_per_slot > 0U) {
+          PRT_BIND_RING_CONTEXT(i, rb, binding_meta, slot);
+          PRT_BIND_FAIL(PRT_ERR_STATE, "ring_pages_missing");
+        }
         continue;
       }
       rc = clone_into_runtime_page_list(&rb->slot_pages[slot], &binding->pages);
-      if (rc != PRT_OK) return rc;
+      if (rc != PRT_OK) {
+        PRT_BIND_RING_CONTEXT(i, rb, binding_meta, slot);
+        PRT_BIND_FAIL(rc, "ring_clone_pages");
+      }
     }
   }
 
@@ -1102,46 +1170,63 @@ int prt_action_bind_topology(prt_runtime_t *rt, prt_schedule_action_t *action) {
     const prt_buffer_binding_t *binding_meta = find_segment_buffer_binding(seg, b->buffer_id);
     uint32_t slots;
     if (!binding_meta) {
+      PRT_BIND_PIPE_CONTEXT(i, b, NULL, UINT32_MAX);
       fprintf(stderr,
               "action_bind_topology: segment=%u pipe stage=%u tensor=%u buffer_id=%u missing binding kind=%u is_entry=%d\n",
               action->segment_idx, b->stage_idx, b->tensor_id, b->buffer_id,
               (uint32_t)b->kind, b->is_entry);
-      return PRT_ERR_PARSE;
+      PRT_BIND_FAIL(PRT_ERR_PARSE, "pipe_binding_missing");
     }
     if (binding_meta->kind != PRT_BUFFER_BINDING_PIPE) {
+      PRT_BIND_PIPE_CONTEXT(i, b, binding_meta, UINT32_MAX);
       fprintf(stderr,
               "action_bind_topology: segment=%u pipe stage=%u tensor=%u buffer_id=%u kind-mismatch meta_kind=%u expected=%u is_entry=%d pipe_kind=%u\n",
               action->segment_idx, b->stage_idx, b->tensor_id, b->buffer_id,
               binding_meta->kind, (uint32_t)PRT_BUFFER_BINDING_PIPE, b->is_entry,
               (uint32_t)b->kind);
-      return PRT_ERR_PARSE;
+      PRT_BIND_FAIL(PRT_ERR_PARSE, "pipe_kind_mismatch");
     }
     slots = b->with_double_buffer ? 2U : 1U;
-    if (binding_meta->slot_count > 0U && binding_meta->slot_count < slots) return PRT_ERR_STATE;
+    if (binding_meta->slot_count > 0U && binding_meta->slot_count < slots) {
+      PRT_BIND_PIPE_CONTEXT(i, b, binding_meta, UINT32_MAX);
+      PRT_BIND_FAIL(PRT_ERR_STATE, "pipe_slot_count_too_small");
+    }
 
     for (uint32_t slot = 0; slot < slots; ++slot) {
       const prt_spm_page_binding_t *binding =
         find_action_binding(action->spm_source.in_stage_pages, action->spm_source.in_stage_count,
                             b->buffer_id, slot);
       if (!binding) {
-        if (binding_meta->pages_per_slot > 0U) return PRT_ERR_STATE;
+        if (binding_meta->pages_per_slot > 0U) {
+          PRT_BIND_PIPE_CONTEXT(i, b, binding_meta, slot);
+          PRT_BIND_FAIL(PRT_ERR_STATE, "pipe_pages_missing");
+        }
         continue;
       }
       rc = clone_into_runtime_page_list(&b->slot_pages[slot], &binding->pages);
-      if (rc != PRT_OK) return rc;
+      if (rc != PRT_OK) {
+        PRT_BIND_PIPE_CONTEXT(i, b, binding_meta, slot);
+        PRT_BIND_FAIL(rc, "pipe_clone_pages");
+      }
     }
   }
 
   for (i = 0; i < action->spm_source.weight_count; ++i) {
     rc = append_runtime_weight_binding(exec, &action->spm_source.weight_pages[i]);
-    if (rc != PRT_OK) return rc;
+    if (rc != PRT_OK) {
+      fail_buffer = action->spm_source.weight_pages[i].buffer_id;
+      fail_tensor = action->spm_source.weight_pages[i].tensor_id;
+      fail_stage = action->spm_source.weight_pages[i].stage_id;
+      fail_slot = action->spm_source.weight_pages[i].slot_id;
+      PRT_BIND_FAIL(rc, "weight_append_runtime");
+    }
   }
 
   rc = runtime_shared_aliasing_valid(exec);
-  if (rc != PRT_OK) return rc;
+  if (rc != PRT_OK) PRT_BIND_FAIL(rc, "shared_aliasing_valid");
 
   rc = configure_action_spm_xlate(rt, action);
-  if (rc != PRT_OK) return rc;
+  if (rc != PRT_OK) PRT_BIND_FAIL(rc, "configure_spm_xlate");
 
   action->spm_ptbr_pa = action->spm_xlate.ptbr_pa;
   action->spm_pte_count = action->spm_xlate.pte_count;
@@ -1154,7 +1239,38 @@ int prt_action_bind_topology(prt_runtime_t *rt, prt_schedule_action_t *action) {
                  action->action_id, action->segment_idx,
                  action->spm_source.weight_count, exec->pipebuf_count, exec->ringbuf_count,
                  action->alias_vpage_start, action->alias_page_count);
+#undef PRT_BIND_RING_CONTEXT
+#undef PRT_BIND_PIPE_CONTEXT
+#undef PRT_BIND_FAIL
   return PRT_OK;
+
+fail:
+  fprintf(stderr,
+          "action_bind_topology: segment=%u action=%u phase=%s rc=%s(%d) action_state=%u "
+          "stage_count=%u exec_stage_threads=%u pipebufs=%u ringbufs=%u weights=%u "
+          "spm_in=%u spm_ring=%u alias_pages=%u pipe_i=%u ring_i=%u slot=%u "
+          "stage=%u buffer=%u tensor=%u is_entry=%u pipe_kind=%u meta_kind=%u "
+          "meta_slots=%u meta_pages=%u\n",
+          action ? action->segment_idx : UINT32_MAX,
+          action ? action->action_id : UINT32_MAX,
+          fail_phase ? fail_phase : "unknown",
+          prt_err_str(rc), rc,
+          action ? (uint32_t)action->state : UINT32_MAX,
+          action ? action->acc_source.stage_count : 0U,
+          exec ? exec->stage_thread_count : 0U,
+          exec ? exec->pipebuf_count : 0U,
+          exec ? exec->ringbuf_count : 0U,
+          action ? action->spm_source.weight_count : 0U,
+          action ? action->spm_source.in_stage_count : 0U,
+          action ? action->spm_source.ring_count : 0U,
+          action ? action->alias_page_count : 0U,
+          fail_pipe, fail_ring, fail_slot, fail_stage, fail_buffer, fail_tensor,
+          fail_is_entry, fail_pipe_kind, fail_meta_kind, fail_meta_slots,
+          fail_meta_pages);
+#undef PRT_BIND_RING_CONTEXT
+#undef PRT_BIND_PIPE_CONTEXT
+#undef PRT_BIND_FAIL
+  return rc;
 }
 
 int prt_action_release(prt_runtime_t *rt, prt_schedule_action_t **action_ptr) {
