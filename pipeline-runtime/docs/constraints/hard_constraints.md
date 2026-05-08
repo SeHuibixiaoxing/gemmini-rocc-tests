@@ -62,9 +62,19 @@
 
 ## 7. DMA / Gemmini 同步语义
 
-- 不要重新引入 DMA doneflag 轮询作为完成逻辑。
-- 当前主线以 fence / blocking retire 为准。
-- Linux host buffer 与 SPM DMA 继续遵守 page-chunk / bounce / `virt_to_phys` / completion flag PA 的 guardrail。
+- **已知重要约束：DMA doneflag 已验证有问题，不能作为完成语义。**
+- 不要重新引入 DMA doneflag 轮询作为完成逻辑；这不是可选优化，也不是低风险 fallback。
+- 任何依赖 doneflag polling 判定 DMA 完成、绕过 `hw_dma_fence()` / blocking wait、
+  或把 `dma-wait-doneflag-poll phase=done` 当作“DMA 已正确完成”的测试证据，
+  都必须标记为无效证据。
+- doneflag / completion flag 最多只能作为辅助观测点，用来和 fence 返回、breadcrumb、
+  DMA manager 状态做交叉对照；它不能驱动控制流前进。
+- 当前主线以 fence / blocking retire 为准；Linux 路径的 DMA completion 必须经过
+  `hw_dma_fence()` / blocking wait 方法。
+- 如果后续为了定位硬件问题临时观察 doneflag，必须在 change/debug record 中明确写成
+  “观测用途”，并补一轮不依赖 doneflag 的 control run。
+- Linux host buffer 与 SPM DMA 继续遵守 page-chunk / bounce / `virt_to_phys` /
+  completion flag PA 的 guardrail。
 
 ## 8. 日志与观测
 

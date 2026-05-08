@@ -26,7 +26,9 @@
 ## 4. 不要把 doneflag polling 当主完成逻辑
 
 - 当前主线完成语义以 blocking fence 为准。
-- doneflag 只能作为辅助观测，不是新的主同步协议。
+- doneflag 已验证有问题，只能作为辅助观测，不是新的主同步协议。
+- 任何通过 doneflag polling 跳过 `hw_dma_fence()` / blocking wait 的结果，
+  都不能作为 DMA 完成证据。
 
 ## 5. guest file log 优先
 
