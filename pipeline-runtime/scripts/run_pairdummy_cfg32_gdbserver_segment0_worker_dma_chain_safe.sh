@@ -334,7 +334,7 @@ puts "PRT_SAFE_CONNECTED"
 set any 4294967295
 wait_for_runtime_marker_init
 enable_marker_filter
-set_filter 2 0 $any 0 $any $any $any $any $any
+set_filter 2 0 $any $any $any $any $any $any $any
 gdb_cmd "break prt_gdb_marker_stop" 120
 
 continue_to_marker "segment-begin-env" $initial_timeout
