@@ -1,0 +1,13 @@
+spawn /home/ubuntu/chipyard/.conda-env/riscv-tools/bin/riscv64-unknown-linux-gnu-gdb -q /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/build/rerocc-linux-tests/rerocc_pipeline_runtime-linux
+Reading symbols from /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/build/rerocc-linux-tests/rerocc_pipeline_runtime-linux...
+[?2004h(gdb) set pagination off
+[?2004l[?2004h(gdb) set confirm off
+[?2004l[?2004h(gdb) set print thread-events off
+[?2004l[?2004h(gdb) set breakpoint pending off
+[?2004l[?2004h(gdb) set debuginfod enabled off
+[?2004l[?2004h(gdb) set auto-load safe-path /
+[?2004l[?2004h(gdb) set remotetimeout 180
+[?2004l[?2004h(gdb) target remote :32346
+[?2004lRemote debugging using :32346
+Remote communication error.  Target disconnected: Connection reset by peer.
+[?2004h(gdb) 
