@@ -1,0 +1,200 @@
+Platform HSM Device       : ---
+Platform PMU Device       : ---
+Platform Reboot Device    : htif
+Platform Shutdown Device  : htif
+Platform Suspend Device   : ---
+Firmware Base             : 0x80000000
+Firmware Size             : 384 KB
+Firmware RW Offset        : 0x40000
+Runtime SBI Version       : 1.0
+
+Domain0 Name              : root
+Domain0 Boot HART         : 0
+Domain0 HARTs             : 0*,1*,2*,3*
+Domain0 Region00          : 0x0000000002000000-0x000000000200ffff M: (I,R,W) S/U: ()
+Domain0 Region01          : 0x0000000080040000-0x000000008005ffff M: (R,W) S/U: ()
+Domain0 Region02          : 0x0000000080000000-0x000000008003ffff M: (R,X) S/U: ()
+Domain0 Region03          : 0x0000000000000000-0xffffffffffffffff M: (R,W,X) S/U: (R,W,X)
+Domain0 Next Address      : 0x0000000080200000
+Domain0 Next Arg1         : 0x0000000081600000
+Domain0 Next Mode         : S-mode
+Domain0 SysReset          : yes
+Domain0 SysSuspend        : yes
+
+Boot HART ID              : 0
+Boot HART Domain          : root
+Boot HART Priv Version    : v1.12
+Boot HART Base ISA        : rv64imafdcx
+Boot HART ISA Extensions  : none
+Boot HART PMP Count       : 8
+Boot HART PMP Granularity : 4
+Boot HART PMP Address Bits: 33
+Boot HART MHPM Count      : 0
+Boot HART MIDELEG         : 0x0000000000000222
+Boot HART MEDELEG         : 0x000000000000b109
+[    0.000000] Linux version 6.6.0-00004-g67bc4513761f (ubuntu@ip-192-168-1-149) (riscv64-unknown-linux-gnu-gcc (gc891d8dc23e) 13.2.0, GNU ld (GNU Binutils) 2.42) #174 SMP Thu May  7 15:14:22 UTC 2026
+[    0.000000] Machine model: ucb-bar,chipyard
+[    0.000000] Forcing kernel command line to: console=ttyS0 console=ttySIF0,3686400 earlycon
+[    0.000000] SBI specification v1.0 detected
+[    0.000000] SBI implementation ID=0x1 Version=0x10002
+[    0.000000] SBI TIME extension detected
+[    0.000000] SBI IPI extension detected
+[    0.000000] SBI RFENCE extension detected
+[    0.000000] SBI SRST extension detected
+[    0.000000] earlycon: sifive0 at MMIO 0x0000000010020000 (options '')
+[    0.000000] printk: bootconsole [sifive0] enabled
+[    0.000000] efi: UEFI not found.
+[    0.000000] OF: reserved mem: 0x0000000080000000..0x000000008003ffff (256 KiB) map non-reusable mmode_resv1@80000000
+[    0.000000] OF: reserved mem: 0x0000000080040000..0x000000008005ffff (128 KiB) map non-reusable mmode_resv0@80040000
+[    0.000000] Zone ranges:
+[    0.000000]   DMA32    [mem 0x0000000080000000-0x00000000ffffffff]
+[    0.000000]   Normal   [mem 0x0000000100000000-0x000000047fffffff]
+[    0.000000] Movable zone start for each node
+[    0.000000] Early memory node ranges
+[    0.000000]   node   0: [mem 0x0000000080000000-0x000000047fffffff]
+[    0.000000] Initmem setup node 0 [mem 0x0000000080000000-0x000000047fffffff]
+[    0.000000] SBI HSM extension detected
+[    0.000000] Falling back to deprecated "riscv,isa"
+[    0.000000] riscv: base ISA extensions acdfim
+[    0.000000] riscv: ELF capabilities acdfim
+[    0.000000] percpu: Embedded 20 pages/cpu s41016 r8192 d32712 u81920
+[    0.000000] Kernel command line: console=ttyS0 console=ttySIF0,3686400 earlycon
+[    0.000000] random: crng init done
+[    0.000000] random: overriding entropy value
+[    0.000000] Dentry cache hash table entries: 2097152 (order: 12, 16777216 bytes, linear)
+[    0.000000] Inode-cache hash table entries: 1048576 (order: 11, 8388608 bytes, linear)
+[    0.000000] Built 1 zonelists, mobility grouping on.  Total pages: 4128768
+[    0.000000] mem auto-init: stack:all(zero), heap alloc:off, heap free:off
+[    0.000000] software IO TLB: area num 4.
+[    0.000000] software IO TLB: mapped [mem 0x00000000fbfff000-0x00000000fffff000] (64MB)
+[    0.000000] Virtual kernel memory layout:
+[    0.000000]       fixmap : 0xffffffc6fea00000 - 0xffffffc6ff000000   (6144 kB)
+[    0.000000]       pci io : 0xffffffc6ff000000 - 0xffffffc700000000   (  16 MB)
+[    0.000000]      vmemmap : 0xffffffc700000000 - 0xffffffc800000000   (4096 MB)
+[    0.000000]      vmalloc : 0xffffffc800000000 - 0xffffffd800000000   (  64 GB)
+[    0.000000]      modules : 0xffffffff01368000 - 0xffffffff80000000   (2028 MB)
+[    0.000000]       lowmem : 0xffffffd800000000 - 0xffffffdc00000000   (  16 GB)
+[    0.000000]       kernel : 0xffffffff80000000 - 0xffffffffffffffff   (2047 MB)
+[    0.000000] Memory: 16386028K/16777216K available (7919K kernel code, 3373K rwdata, 4096K rodata, 3743K init, 463K bss, 391188K reserved, 0K cma-reserved)
+[    0.000000] SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=4, Nodes=1
+[    0.000000] rcu: Hierarchical RCU implementation.
+[    0.000000] rcu: 	RCU restricting CPUs from NR_CPUS=32 to nr_cpu_ids=4.
+[    0.000000] rcu: 	RCU debug extended QS entry/exit.
+[    0.000000] 	Tracing variant of Tasks RCU enabled.
+[    0.000000] rcu: RCU calculated value of scheduler-enlistment delay is 25 jiffies.
+[    0.000000] rcu: Adjusting geometry for rcu_fanout_leaf=16, nr_cpu_ids=4
+[    0.000000] NR_IRQS: 64, nr_irqs: 64, preallocated irqs: 0
+[    0.000000] riscv-intc: 64 local interrupts mapped
+[    0.000000] plic: interrupt-controller@c000000: mapped 4 interrupts with 4 handlers for 8 contexts.
+[    0.000000] riscv: providing IPIs using SBI IPI extension
+[    0.000000] rcu: srcu_init: Setting srcu_struct sizes based on contention.
+[    0.000000] clocksource: riscv_clocksource: mask: 0xffffffffffffffff max_cycles: 0x1d854df40, max_idle_ns: 3526361616960 ns
+[    0.000006] sched_clock: 64 bits at 1000kHz, resolution 1000ns, wraps every 2199023255500ns
+[    0.000818] Console: colour dummy device 80x25
+[    0.001047] Calibrating delay loop (skipped), value calculated using timer frequency.. 2.00 BogoMIPS (lpj=4000)
+[    0.001145] pid_max: default: 32768 minimum: 301
+[    0.001499] LSM: initializing lsm=capability,integrity
+[    0.002816] Mount-cache hash table entries: 32768 (order: 6, 262144 bytes, linear)
+[    0.003755] Mountpoint-cache hash table entries: 32768 (order: 6, 262144 bytes, linear)
+[    0.014107] RCU Tasks Trace: Setting shift to 2 and lim to 1 rcu_task_cb_adjust=1.
+[    0.014759] riscv: ELF compat mode unsupported
+[    0.014806] ASID allocator disabled (0 bits)
+[    0.015689] rcu: Hierarchical SRCU implementation.
+[    0.015753] rcu: 	Max phase no-delay instances is 1000.
+[    0.017324] EFI services will not be available.
+[    0.019240] smp: Bringing up secondary CPUs ...
+[    0.044711] cpu1: Ratio of byte access time to unaligned word access is 0.01, unaligned accesses are slow
+[    0.073007] cpu2: Ratio of byte access time to unaligned word access is 0.01, unaligned accesses are slow
+[    0.101272] cpu3: Ratio of byte access time to unaligned word access is 0.01, unaligned accesses are slow
+[    0.101995] smp: Brought up 1 node, 4 CPUs
+[    0.115254] devtmpfs: initialized
+[    0.123732] clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 7645041785100000 ns
+[    0.123848] futex hash table entries: 1024 (order: 4, 65536 bytes, linear)
+[    0.125043] pinctrl core: initialized pinctrl subsystem
+[    0.128622] NET: Registered PF_NETLINK/PF_ROUTE protocol family
+[    0.130626] DMA: preallocated 2048 KiB GFP_KERNEL pool for atomic allocations
+[    0.131200] DMA: preallocated 2048 KiB GFP_KERNEL|GFP_DMA32 pool for atomic allocations
+[    0.131478] audit: initializing netlink subsys (disabled)
+[    0.132630] audit: type=2000 audit(0.128:1): state=initialized audit_enabled=0 res=1
+[    0.133926] thermal_sys: Registered thermal governor 'step_wise'
+[    0.134267] cpuidle: using governor menu
+[    0.158302] cpu0: Ratio of byte access time to unaligned word access is 0.01, unaligned accesses are slow
+[    0.180731] HugeTLB: registered 2.00 MiB page size, pre-allocated 0 pages
+[    0.180800] HugeTLB: 28 KiB vmemmap can be freed for a 2.00 MiB page
+[    0.183100] ACPI: Interpreter disabled.
+[    0.183773] iommu: Default domain type: Translated
+[    0.183834] iommu: DMA domain TLB invalidation policy: strict mode
+[    0.190336] clocksource: Switched to clocksource riscv_clocksource
+[    0.192825] pnp: PnP ACPI: disabled
+[    0.249489] NET: Registered PF_INET protocol family
+[    0.256813] IP idents hash table entries: 262144 (order: 9, 2097152 bytes, linear)
+[    0.304233] tcp_listen_portaddr_hash hash table entries: 8192 (order: 6, 262144 bytes, linear)
+[    0.305369] Table-perturb hash table entries: 65536 (order: 6, 262144 bytes, linear)
+[    0.305561] TCP established hash table entries: 131072 (order: 8, 1048576 bytes, linear)
+[    0.310780] TCP bind hash table entries: 65536 (order: 10, 4194304 bytes, linear)
+[    0.332405] TCP: Hash tables configured (established 131072 bind 65536)
+[    0.333278] UDP hash table entries: 8192 (order: 7, 786432 bytes, linear)
+[    0.336625] UDP-Lite hash table entries: 8192 (order: 7, 786432 bytes, linear)
+[    0.340430] NET: Registered PF_UNIX/PF_LOCAL protocol family
+[    0.343020] RPC: Registered named UNIX socket transport module.
+[    0.343091] RPC: Registered udp transport module.
+[    0.343133] RPC: Registered tcp transport module.
+[    0.343167] RPC: Registered tcp-with-tls transport module.
+[    0.343200] RPC: Registered tcp NFSv4.1 backchannel transport module.
+[    0.348750] workingset: timestamp_bits=46 max_order=22 bucket_order=0
+[    0.352758] NFS: Registering the id_resolver key type
+[    0.352870] Key type id_resolver registered
+[    0.352926] Key type id_legacy registered
+[    0.353084] nfs4filelayout_init: NFSv4 File Layout Driver Registering...
+[    0.353150] nfs4flexfilelayout_init: NFSv4 Flexfile Layout Driver Registering...
+[    0.354034] 9p: Installing v9fs 9p2000 file system support
+[    0.355178] NET: Registered PF_ALG protocol family
+[    0.355411] io scheduler mq-deadline registered
+[    0.355483] io scheduler kyber registered
+[    0.355707] io scheduler bfq registered
+[    0.713963] Serial: 8250/16550 driver, 4 ports, IRQ sharing disabled
+[    0.722425] SuperH (H)SCI(F) driver initialized
+  r:"B
+j
+rI%1i"QeM%A
+Qj5%=BEBJIEj
+bM}	Uj2*JJM
+KTKW*IQ2Aj
+[    0.724932] printk: console [ttySIF0] enabled
+[    0.724932] printk: console [ttySIF0] enabled
+[    0.724995] printk: bootconsole [sifive0] disabled
+[    0.724995] printk: bootconsole [sifive0] disabled
+[    0.755157] loop: module loaded
+[    0.766796] NET: Registered PF_INET6 protocol family
+[    0.771051] Segment Routing with IPv6
+[    0.771212] In-situ OAM (IOAM) with IPv6
+[    0.771449] sit: IPv6, IPv4 and MPLS over IPv4 tunneling driver
+[    0.773428] NET: Registered PF_PACKET protocol family
+[    0.773879] 9pnet: Installing 9P2000 support
+[    0.774155] Key type dns_resolver registered
+[    0.833454] debug_vm_pgtable: [debug_vm_pgtable         ]: Validating architecture page table helpers
+[    0.837028] clk: Disabling unused clocks
+[    0.852911] Freeing unused kernel image (initmem) memory: 3740K
+[    0.858509] Run /init as init process
+[    0.967885] icenet: loading out-of-tree module taints kernel.
+[    0.970116] icenet 10016000.ice-nic: IceNet TX coherent bounce enabled; checksum offload and SG disabled
+[    0.974247] Registered IceNet NIC 00:12:6d:00:00:02
+[    0.984591] disk [iceblk] of loaded; 636144 sectors, 1 tags, 16 max request length
+Mounting /dev/iceblk as root device
+[    1.011289] EXT4-fs (iceblk): mounted filesystem 8afd85f8-1a76-4b4c-b952-f84b39520779 r/w without journal. Quota mode: disabled.
+Loaded platform drivers, booting from disk:
+[    1.206426] EXT4-fs (iceblk): re-mounted 8afd85f8-1a76-4b4c-b952-f84b39520779 r/w. Quota mode: disabled.
+running /etc/init.d/S01syslogd
+Starting syslogd: OK
+running /etc/init.d/S02klogd
+Starting klogd: OK
+running /etc/init.d/S02sysctl
+Running sysctl: OK
+running /etc/init.d/S10mdev
+Starting mdev: OK
+running /etc/init.d/S40network
+Starting network: OK
+running /etc/init.d/S99run
+[gdbserver] phase=prelaunch method=ours2 guest_ipv4=172.16.0.2 endpoint=172.16.0.2:2345 pid=0
+[gdbserver] phase=listening method=ours2 guest_ipv4=172.16.0.2 endpoint=172.16.0.2:2345 pid=222
+[gdbserver] phase=inferior method=ours2 guest_ipv4=172.16.0.2 endpoint=172.16.0.2:2345 pid=235

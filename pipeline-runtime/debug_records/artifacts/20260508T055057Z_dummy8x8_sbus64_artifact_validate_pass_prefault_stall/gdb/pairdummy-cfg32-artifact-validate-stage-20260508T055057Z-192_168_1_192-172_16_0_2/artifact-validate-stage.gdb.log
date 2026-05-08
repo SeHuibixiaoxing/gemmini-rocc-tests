@@ -1,0 +1,210 @@
+spawn /home/ubuntu/chipyard/.conda-env/riscv-tools/bin/riscv64-unknown-linux-gnu-gdb -q /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/build/rerocc-linux-tests/rerocc_pipeline_runtime-linux
+Reading symbols from /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/build/rerocc-linux-tests/rerocc_pipeline_runtime-linux...
+[?2004h(gdb) source /home/ubuntu/chipyard/tmp/firesim-aws-f2/gdbserver-tests/pairdummy-cfg32-artifact-validate-stage-20260508T055057Z-192_168_1_192-172_16_0_2/artifact-validate-stage-setup.gdb
+[?2004l0x0000003ff7fec386 in ?? ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/ld-linux-riscv64-lp64d.so.1
+Breakpoint 1 at 0x2420e: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_gemmini_artifacts.c, line 1086.
+
+Breakpoint 1, validate_stage_against_mapping_entries (
+    path=0x3fffffeda8 "/root/rerocc-linux-tests/pipeline-runtime/bertmini/gemmini_layer_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.yaml", db=0x3fffffdc68, seg_idx=14, stage_idx=0, 
+    stage=0x82550)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_gemmini_artifacts.c:1086
+1086	  if (!path || !db || !stage) return PRT_ERR_INVAL;
+[?2004h(gdb) source /home/ubuntu/chipyard/tmp/firesim-aws-f2/gdbserver-tests/pairdummy-cfg32-artifact-validate-stage-20260508T055057Z-192_168_1_192-172_16_0_2/artifact-validate-stage-hit.gdb
+[?2004l
+--- artifact validation stage hit ---
+#0  validate_stage_against_mapping_entries (
+    path=0x3fffffeda8 "/root/rerocc-linux-tests/pipeline-runtime/bertmini/gemmini_layer_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.yaml", db=0x3fffffdc68, seg_idx=14, stage_idx=0, 
+    stage=0x82550)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_gemmini_artifacts.c:1086
+#1  0x000000000002598e in prt_validate_gemmini_artifacts (
+    model_yaml=<optimized out>, 
+    layer_mapping_yaml=0x3fffffeda8 "/root/rerocc-linux-tests/pipeline-runtime/bertmini/gemmini_layer_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.yaml", 
+    pipeline=pipeline@entry=0x3fffffe1f8)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_gemmini_artifacts.c:1226
+#2  0x0000000000032ea6 in prt_runtime_run (rt=rt@entry=0x3fffffe090, 
+    args=args@entry=0x3fffffdfa8)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:5066
+#3  0x0000000000012366 in prt_main_entry (argc=34, argv=0x3fffffe6e8)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/main.c:341
+#4  0x0000003ff7e2b636 in ?? ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#5  0x0000003ff7e2b6de in __libc_start_main ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#6  0x000000000001204c in _start ()
+path = 0x3fffffeda8 "/root/rerocc-linux-tests/pipeline-runtime/bertmini/gemmini_layer_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.yaml"
+db = 0x3fffffdc68
+seg_idx = 14
+stage_idx = 0
+stage = 0x82550
+matches = 0
+layout_matches = 0
+matched_split_kind = 0
+matched = {
+  layer_id = 0,
+  target_accel = 0,
+  split_kind = 0,
+  dram = {0, 0, 0, 0, 0, 0, 0, 0},
+  dram_n = 0,
+  spm = {0, 0, 0, 0, 0, 0, 0, 0},
+  spm_n = 0,
+  spm_addr = {0, 0, 0, 0, 0, 0, 0, 0},
+  spm_addr_n = 0,
+  first_vpage = {0, 0, 0, 0, 0, 0, 0, 0},
+  first_vpage_n = 0,
+  page_count = {0, 0, 0, 0, 0, 0, 0, 0},
+  page_count_n = 0,
+  spm_bytes = {3, 0, 14, 0, 0, 0, 4294959608, 63},
+  spm_bytes_n = 4294962600,
+  active = 63
+}
+start_ms = <optimized out>
+$1 = 0x3fffffeda8 "/root/rerocc-linux-tests/pipeline-runtime/bertmini/gemmini_layer_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.yaml"
+$2 = 16848
+$3 = 14
+$4 = 0
+$5 = {
+  stage_id = 35,
+  layer_id = 35,
+  layer_count = 1,
+  acc_util = 2,
+  acc_util_present = 1,
+  num_virtual_acc_ids = 2,
+  virtual_acc_ids = {0, 1, 0 <repeats 62 times>},
+  virtual_acc_ids_present = 1,
+  num_physical_acc_ids = 0,
+  physical_acc_ids = {0 <repeats 64 times>},
+  physical_acc_ids_present = 0,
+  split_kind = 2,
+  num_entry = 1,
+  entry = 0x7f870,
+  num_export = 1,
+  exports = 0x7fb60,
+  tensor_id_count = 4,
+  tensor_ids = {1000050, 1000051, 43, 44, 0, 0, 0, 0},
+  fix_tensor_count = 2,
+  fix_tensor_ids = {1000050, 1000051, 0, 0, 0, 0, 0, 0},
+  inner_isolate_count = 0,
+  inner_isolate_ids = {0, 0, 0, 0, 0, 0, 0, 0},
+  inner_shared_count = 0,
+  inner_shared_ids = {0, 0, 0, 0, 0, 0, 0, 0},
+  dram_bypass_count = 4,
+  dram_bypass = {1, 1, 1, 1, 0, 0, 0, 0},
+  spm_bypass_count = 4,
+  spm_bypass = {0, 0, 0, 0, 0, 0, 0, 0},
+  tensor_usage_count_present = 1,
+  tensor_usage_count_count = 4,
+  tensor_usage_count = {1, 1, 1, 1, 0, 0, 0, 0},
+  tensor_lazy_fetch_present = 1,
+  tensor_lazy_fetch_count = 4,
+  tensor_lazy_fetch = {0, 0, 0, 0, 0, 0, 0, 0},
+  local_spm_tensor_count = 4,
+  local_spm_tensor_addr = {0, 1024, 66560, 132096, 0, 0, 0, 0},
+  local_spm_first_vpage = {0, 1, 65, 129, 0, 0, 0, 0},
+  local_spm_page_count = {1, 64, 64, 64, 0, 0, 0, 0},
+  local_spm_tensor_bytes = {1024, 65536, 65536, 65536, 0, 0, 0, 0},
+  local_spm_page_span = 193,
+  exec_base_vpage = 0
+}
+$6 = 35
+$7 = 35
+$8 = 2
+$9 = 4
+$10 = 4
+$11 = 4
+$12 = 4
+$13 = 193
+   0x241ee <prt_progress_log_impl+22>:	
+    j	0x242fe <validate_stage_against_mapping_entries+240>
+   0x241f0 <prt_progress_log_impl+24>:	sd	a3,24(s0)
+   0x241f2 <prt_progress_log_impl+26>:	sd	a4,32(s0)
+   0x241f4 <prt_progress_log_impl+28>:	sd	a5,40(s0)
+   0x241f6 <prt_progress_log_impl+30>:	sd	a6,48(s0)
+   0x241fa <prt_progress_log_impl+34>:	sd	a7,56(s0)
+   0x241fe <prt_progress_log_impl+38>:	sd	t1,-24(s0)
+   0x24202 <prt_progress_log_impl+42>:	
+    jal	0x24048 <prt_progress_prefixed_vlog_impl>
+   0x24206 <prt_progress_log_impl+46>:	ld	ra,24(sp)
+   0x24208 <prt_progress_log_impl+48>:	ld	s0,16(sp)
+   0x2420a <prt_progress_log_impl+50>:	addi	sp,sp,96
+   0x2420c <prt_progress_log_impl+52>:	ret
+=> 0x2420e <validate_stage_against_mapping_entries>:	addi	sp,sp,-432
+   0x24210 <validate_stage_against_mapping_entries+2>:	sd	s0,416(sp)
+   0x24212 <validate_stage_against_mapping_entries+4>:	sd	ra,424(sp)
+   0x24214 <validate_stage_against_mapping_entries+6>:	addi	s0,sp,432
+
+--- artifact validation stage finish begins ---
+[?2004h(gdb) finish
+[?2004lRun till exit from #0  validate_stage_against_mapping_entries (
+    path=0x3fffffeda8 "/root/rerocc-linux-tests/pipeline-runtime/bertmini/gemmini_layer_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.yaml", db=0x3fffffdc68, seg_idx=14, stage_idx=0, 
+    stage=0x82550)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_gemmini_artifacts.c:1086
+prt_validate_gemmini_artifacts (model_yaml=<optimized out>, 
+    layer_mapping_yaml=0x3fffffeda8 "/root/rerocc-linux-tests/pipeline-runtime/bertmini/gemmini_layer_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.yaml", 
+    pipeline=pipeline@entry=0x3fffffe1f8)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_gemmini_artifacts.c:1190
+1190	    for (uint32_t stage_idx = 0; stage_idx < seg->num_stages; ++stage_idx) {
+Value returned is $14 = 0
+[?2004h[?2004l[?2004h(gdb) source /home/ubuntu/chipyard/tmp/firesim-aws-f2/gdbserver-tests/pairdummy-cfg32-artifact-validate-stage-20260508T055057Z-192_168_1_192-172_16_0_2/artifact-validate-stage-finish.gdb
+[?2004l
+--- artifact validation stage returned ---
+#0  prt_validate_gemmini_artifacts (model_yaml=<optimized out>, 
+    layer_mapping_yaml=0x3fffffeda8 "/root/rerocc-linux-tests/pipeline-runtime/bertmini/gemmini_layer_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.yaml", 
+    pipeline=pipeline@entry=0x3fffffe1f8)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_gemmini_artifacts.c:1190
+#1  0x0000000000032ea6 in prt_runtime_run (rt=rt@entry=0x3fffffe090, 
+    args=args@entry=0x3fffffdfa8)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:5066
+#2  0x0000000000012366 in prt_main_entry (argc=34, argv=0x3fffffe6e8)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/main.c:341
+#3  0x0000003ff7e2b636 in ?? ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#4  0x0000003ff7e2b6de in __libc_start_main ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#5  0x000000000001204c in _start ()
+model_yaml = <optimized out>
+layer_mapping_yaml = 0x3fffffeda8 "/root/rerocc-linux-tests/pipeline-runtime/bertmini/gemmini_layer_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.yaml"
+pipeline = 0x3fffffe1f8
+stage_idx = 1
+seg = 0x824a0
+seg_start_ms = 7496
+seg_idx = 14
+db = {
+  entries = 0x3ff6b3e010,
+  count = 16848,
+  cap = 32768,
+  file_size_bytes = 12029909
+}
+rc = <optimized out>
+parse_start_ms = <optimized out>
+$15 = void
+$16 = 35
+$17 = 35
+$18 = 4
+$19 = 193
+   0x2596e <prt_validate_gemmini_artifacts+322>:	addi	a0,sp,132
+   0x25970 <prt_validate_gemmini_artifacts+324>:	lw	a5,12(a7)
+   0x25974 <prt_validate_gemmini_artifacts+328>:	
+    beqz	a6,0x259fc <prt_validate_gemmini_artifacts+464>
+   0x25978 <prt_validate_gemmini_artifacts+332>:	
+    bne	t1,a5,0x259fc <prt_validate_gemmini_artifacts+464>
+   0x2597c <prt_validate_gemmini_artifacts+336>:	lw	a5,544(a7)
+   0x25980 <prt_validate_gemmini_artifacts+340>:	
+    beqz	a5,0x2598a <prt_validate_gemmini_artifacts+350>
+   0x25982 <prt_validate_gemmini_artifacts+342>:	lw	a6,284(a7)
+   0x25986 <prt_validate_gemmini_artifacts+346>:	
+    bne	a6,t1,0x25ae6 <prt_validate_gemmini_artifacts+698>
+   0x2598a <prt_validate_gemmini_artifacts+350>:	
+    jal	0x2420e <validate_stage_against_mapping_entries>
+=> 0x2598e <prt_validate_gemmini_artifacts+354>:	addi	s11,s11,1
+   0x25990 <prt_validate_gemmini_artifacts+356>:	sext.w	t3,s11
+   0x25994 <prt_validate_gemmini_artifacts+360>:	
+    bnez	a0,0x25ae2 <prt_validate_gemmini_artifacts+694>
+   0x25998 <prt_validate_gemmini_artifacts+364>:	lw	a5,8(s9)
+   0x2599c <prt_validate_gemmini_artifacts+368>:	
+    bgeu	t3,a5,0x25a1a <prt_validate_gemmini_artifacts+494>
+   0x259a0 <prt_validate_gemmini_artifacts+372>:	ld	a7,16(s9)
+   0x259a4 <prt_validate_gemmini_artifacts+376>:	slli	a5,s11,0xa
+[Inferior 1 (process 235) detached]
+[?2004h(gdb) quit
+[?2004l

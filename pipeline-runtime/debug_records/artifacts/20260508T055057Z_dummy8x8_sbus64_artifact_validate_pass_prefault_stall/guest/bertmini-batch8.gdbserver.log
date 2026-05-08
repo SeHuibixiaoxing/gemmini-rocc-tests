@@ -1,0 +1,18 @@
+Process /root/rerocc-linux-tests/pipeline-runtime/rerocc_pipeline_runtime-linux created; pid = 235
+Listening on port 2345
+Remote debugging from host 172.16.0.1, port 41990
+[prt-early] enter main
+[prt-early] live stdio ready
+[prt-early] defaults ready
+[prt-early] arg parse done
+[prt-early] required args ready
+[prt-early] dma base ready
+[prt-early] watchdog ready
+[prt-early] before process memory lock
+[prt-early] process memory lock mode=disabled flags=0x0
+[prt-early] skip mlockall by build config
+[prt-early] after process memory lock
+[prt-early] calling runtime_init
+[prt-early] runtime_init done
+[prt-early] calling runtime_run
+Detaching from process 235

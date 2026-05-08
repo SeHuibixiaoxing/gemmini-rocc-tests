@@ -1,0 +1,77 @@
+#!/usr/bin/env expect
+set timeout -1
+
+set gdb [lindex $argv 0]
+set target_bin [lindex $argv 1]
+set setup_cmds [lindex $argv 2]
+set hit_cmds [lindex $argv 3]
+set finish_cmds [lindex $argv 4]
+set timeout_cmds [lindex $argv 5]
+set transcript [lindex $argv 6]
+set hit_timeout [lindex $argv 7]
+set finish_timeout [lindex $argv 8]
+
+log_file -a $transcript
+spawn $gdb -q $target_bin
+
+proc wait_prompt {seconds} {
+  set timeout $seconds
+  expect {
+    -re {\(gdb\) $} { return 0 }
+    eof { return 2 }
+    timeout { return 1 }
+  }
+}
+
+proc send_gdb {cmd seconds} {
+  send -- "$cmd\r"
+  return [wait_prompt $seconds]
+}
+
+proc interrupt_and_diag {timeout_cmds} {
+  send "\003"
+  set rc [wait_prompt 30]
+  if {$rc == 0} {
+    send -- "source $timeout_cmds\r"
+    set diag_rc [wait_prompt 120]
+    send -- "quit\r"
+    expect eof
+    exit 124
+  }
+  send -- "quit\r"
+  expect {
+    eof {}
+    timeout {}
+  }
+  exit 125
+}
+
+if {[wait_prompt 60] != 0} {
+  exit 1
+}
+
+send -- "source $setup_cmds\r"
+set rc [wait_prompt $hit_timeout]
+if {$rc != 0} {
+  interrupt_and_diag $timeout_cmds
+}
+
+set rc [send_gdb "source $hit_cmds" 120]
+if {$rc != 0} {
+  interrupt_and_diag $timeout_cmds
+}
+
+send -- "finish\r"
+set rc [wait_prompt $finish_timeout]
+if {$rc != 0} {
+  interrupt_and_diag $timeout_cmds
+}
+
+set rc [send_gdb "source $finish_cmds" 120]
+if {$rc != 0} {
+  interrupt_and_diag $timeout_cmds
+}
+
+send -- "quit\r"
+expect eof
+exit 0
