@@ -1,0 +1,220 @@
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/packet.py", line 575, in _read_timeout
+    raise EOFError()
+EOFError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/transport.py", line 1904, in run
+    self._check_banner()
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/transport.py", line 2053, in _check_banner
+    raise SSHException(
+paramiko.ssh_exception.SSHException: Error reading SSH protocol banner
+2026-05-08 02:52:12,645 [_log        ] [ERROR]  Exception: Error reading SSH protocol banner[Errno 104] Connection reset by peer
+Traceback (most recent call last):
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/transport.py", line 2049, in _check_banner
+    buf = self.packetizer.readline(timeout)
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/packet.py", line 360, in readline
+    buf += self._read_timeout(timeout)
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/packet.py", line 573, in _read_timeout
+    x = self.__socket.recv(128)
+ConnectionResetError: [Errno 104] Connection reset by peer
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/transport.py", line 1904, in run
+    self._check_banner()
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/transport.py", line 2053, in _check_banner
+    raise SSHException(
+paramiko.ssh_exception.SSHException: Error reading SSH protocol banner[Errno 104] Connection reset by peer
+2026-05-08 02:52:12,646 [_log        ] [ERROR]  Exception: Error reading SSH protocol banner
+Traceback (most recent call last):
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/transport.py", line 2049, in _check_banner
+    buf = self.packetizer.readline(timeout)
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/packet.py", line 360, in readline
+    buf += self._read_timeout(timeout)
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/packet.py", line 575, in _read_timeout
+    raise EOFError()
+EOFError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/transport.py", line 1904, in run
+    self._check_banner()
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/transport.py", line 2053, in _check_banner
+    raise SSHException(
+paramiko.ssh_exception.SSHException: Error reading SSH protocol banner
+2026-05-08 02:52:12,652 [_log        ] [ERROR]  Exception: Error reading SSH protocol banner
+Traceback (most recent call last):
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/transport.py", line 2049, in _check_banner
+    buf = self.packetizer.readline(timeout)
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/packet.py", line 360, in readline
+    buf += self._read_timeout(timeout)
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/packet.py", line 575, in _read_timeout
+    raise EOFError()
+EOFError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/transport.py", line 1904, in run
+    self._check_banner()
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/transport.py", line 2053, in _check_banner
+    raise SSHException(
+paramiko.ssh_exception.SSHException: Error reading SSH protocol banner
+2026-05-08 02:52:12,653 [_log        ] [ERROR]  Exception: Error reading SSH protocol banner
+Traceback (most recent call last):
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/transport.py", line 2049, in _check_banner
+    buf = self.packetizer.readline(timeout)
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/packet.py", line 360, in readline
+    buf += self._read_timeout(timeout)
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/packet.py", line 575, in _read_timeout
+    raise EOFError()
+EOFError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/transport.py", line 1904, in run
+    self._check_banner()
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/transport.py", line 2053, in _check_banner
+    raise SSHException(
+paramiko.ssh_exception.SSHException: Error reading SSH protocol banner
+2026-05-08 02:52:12,654 [_log        ] [ERROR]  Exception: Error reading SSH protocol banner
+Traceback (most recent call last):
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/transport.py", line 2049, in _check_banner
+    buf = self.packetizer.readline(timeout)
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/packet.py", line 360, in readline
+    buf += self._read_timeout(timeout)
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/packet.py", line 575, in _read_timeout
+    raise EOFError()
+EOFError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/transport.py", line 1904, in run
+    self._check_banner()
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/transport.py", line 2053, in _check_banner
+    raise SSHException(
+paramiko.ssh_exception.SSHException: Error reading SSH protocol banner
+2026-05-08 02:52:12,654 [_log        ] [ERROR]  Exception: Error reading SSH protocol banner
+Traceback (most recent call last):
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/transport.py", line 2049, in _check_banner
+    buf = self.packetizer.readline(timeout)
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/packet.py", line 360, in readline
+    buf += self._read_timeout(timeout)
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/packet.py", line 575, in _read_timeout
+    raise EOFError()
+EOFError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/transport.py", line 1904, in run
+    self._check_banner()
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/transport.py", line 2053, in _check_banner
+    raise SSHException(
+paramiko.ssh_exception.SSHException: Error reading SSH protocol banner
+2026-05-08 02:52:12,655 [_log        ] [ERROR]  Exception: Error reading SSH protocol banner
+Traceback (most recent call last):
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/transport.py", line 2049, in _check_banner
+    buf = self.packetizer.readline(timeout)
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/packet.py", line 360, in readline
+    buf += self._read_timeout(timeout)
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/packet.py", line 575, in _read_timeout
+    raise EOFError()
+EOFError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/transport.py", line 1904, in run
+    self._check_banner()
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/transport.py", line 2053, in _check_banner
+    raise SSHException(
+paramiko.ssh_exception.SSHException: Error reading SSH protocol banner
+2026-05-08 02:52:12,656 [_log        ] [ERROR]  Exception: Error reading SSH protocol banner
+Traceback (most recent call last):
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/transport.py", line 2049, in _check_banner
+    buf = self.packetizer.readline(timeout)
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/packet.py", line 360, in readline
+    buf += self._read_timeout(timeout)
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/packet.py", line 575, in _read_timeout
+    raise EOFError()
+EOFError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/transport.py", line 1904, in run
+    self._check_banner()
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/transport.py", line 2053, in _check_banner
+    raise SSHException(
+paramiko.ssh_exception.SSHException: Error reading SSH protocol banner
+2026-05-08 02:52:12,656 [_log        ] [ERROR]  Exception: Error reading SSH protocol banner
+Traceback (most recent call last):
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/transport.py", line 2049, in _check_banner
+    buf = self.packetizer.readline(timeout)
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/packet.py", line 360, in readline
+    buf += self._read_timeout(timeout)
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/packet.py", line 575, in _read_timeout
+    raise EOFError()
+EOFError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/transport.py", line 1904, in run
+    self._check_banner()
+  File "/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/transport.py", line 2053, in _check_banner
+    raise SSHException(
+paramiko.ssh_exception.SSHException: Error reading SSH protocol banner
+2026-05-08 02:52:12,657 [instance_war] [WARNI]  [192.168.1.244] Transient SSH failure while polling screens; preserving assigned jobs as running for this monitor loop: Error reading SSH protocol banner
+2026-05-08 02:52:12,657 [instance_log] [DEBUG]  [192.168.1.244] Switch Slots running: {'switch0': False}
+2026-05-08 02:52:12,657 [instance_log] [DEBUG]  [192.168.1.244] pipe Slots running: {}
+2026-05-08 02:52:12,657 [instance_log] [DEBUG]  [192.168.1.244] Sim Slots running: ['0']
+2026-05-08 02:52:12,657 [instance_log] [DEBUG]  [192.168.1.244] Now done?: False
+2026-05-08 02:52:12,680 [run_workload] [DEBUG]  {'192.168.1.244': {'pipes': {},
+                   'sims': {'rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0': False},
+                   'switches': {'switch0': False}}}
+2026-05-08 02:52:12,681 [loop_logger ] [INFO ]  [2J
+2026-05-08 02:52:12,681 [loop_logger ] [INFO ]  FireSim Simulation Status @ 2026-05-08 02:52:12.681237
+2026-05-08 02:52:12,681 [loop_logger ] [INFO ]  --------------------------------------------------------------------------------
+2026-05-08 02:52:12,681 [loop_logger ] [INFO ]  This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-08--02-24-55-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+2026-05-08 02:52:12,681 [loop_logger ] [INFO ]  This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-08--02-24-55-runworkload-55GDRG6XZR2PAPWM.log
+2026-05-08 02:52:12,681 [loop_logger ] [INFO ]  This status will update every 10s.
+2026-05-08 02:52:12,681 [loop_logger ] [INFO ]  --------------------------------------------------------------------------------
+2026-05-08 02:52:12,681 [loop_logger ] [INFO ]  Instances
+2026-05-08 02:52:12,681 [loop_logger ] [INFO ]  --------------------------------------------------------------------------------
+2026-05-08 02:52:12,681 [loop_logger ] [INFO ]  Hostname/IP: 192.168.1.244 | Terminated: [33mFalse[0m
+2026-05-08 02:52:12,681 [loop_logger ] [INFO ]  --------------------------------------------------------------------------------
+2026-05-08 02:52:12,681 [loop_logger ] [INFO ]  Simulated Switches
+2026-05-08 02:52:12,681 [loop_logger ] [INFO ]  --------------------------------------------------------------------------------
+2026-05-08 02:52:12,681 [loop_logger ] [INFO ]  Hostname/IP: 192.168.1.244 | Switch name: switch0 | Switch running: [32mTrue [0m
+2026-05-08 02:52:12,681 [loop_logger ] [INFO ]  --------------------------------------------------------------------------------
+2026-05-08 02:52:12,681 [loop_logger ] [INFO ]  Simulated Pipes
+2026-05-08 02:52:12,681 [loop_logger ] [INFO ]  --------------------------------------------------------------------------------
+2026-05-08 02:52:12,681 [loop_logger ] [INFO ]  --------------------------------------------------------------------------------
+2026-05-08 02:52:12,681 [loop_logger ] [INFO ]  Simulated Nodes/Jobs
+2026-05-08 02:52:12,681 [loop_logger ] [INFO ]  --------------------------------------------------------------------------------
+2026-05-08 02:52:12,681 [loop_logger ] [INFO ]  Hostname/IP: 192.168.1.244 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+2026-05-08 02:52:12,681 [loop_logger ] [INFO ]  --------------------------------------------------------------------------------
+2026-05-08 02:52:12,681 [loop_logger ] [INFO ]  Summary
+2026-05-08 02:52:12,681 [loop_logger ] [INFO ]  --------------------------------------------------------------------------------
+2026-05-08 02:52:12,681 [loop_logger ] [INFO ]  1/1 instances are still running.
+2026-05-08 02:52:12,681 [loop_logger ] [INFO ]  1/1 simulations are still running.
+2026-05-08 02:52:12,681 [loop_logger ] [INFO ]  --------------------------------------------------------------------------------
+2026-05-08 02:52:12,681 [run_workload] [DEBUG]  Jobs complete: {'rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0': False}
+2026-05-08 02:52:12,681 [run_workload] [DEBUG]  Global status: dict_values([False])
+2026-05-08 02:52:22,692 [get_jobs_com] [DEBUG]  Monitoring dir jobs completed: []
+2026-05-08 02:52:22,692 [flush       ] [DEBUG]  [192.168.1.244] Executing task 'monitor_jobs_wrapper'
+2026-05-08 02:52:22,697 [instance_log] [DEBUG]  [192.168.1.244] Final loop?: False Is networked?: True Terminateoncomplete: False
+2026-05-08 02:52:22,697 [instance_log] [DEBUG]  [192.168.1.244] Prior completed jobs: []
+2026-05-08 02:52:22,697 [instance_log] [DEBUG]  [192.168.1.244] Polling node with simulations (and potentially switches)
+2026-05-08 02:52:22,697 [instance_log] [DEBUG]  [192.168.1.244] jobnames: ['rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0']
+2026-05-08 02:52:22,697 [instance_log] [DEBUG]  [192.168.1.244] All jobs completed?: False
