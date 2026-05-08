@@ -153,7 +153,6 @@ tbreak ${dma_src}:3699
 continue
 bt 8
 info args
-print fence_status
 print \$tokp->id
 print \$tokp->debug_page_idx
 print \$tokp->hw_done_flag
@@ -210,16 +209,8 @@ bt 8
 info locals
 x/10i \$pc
 
-printf "\\n--- dma_batch_scope_release entry ---\\n"
-tbreak dma_batch_scope_release
-continue
-bt 8
-info args
-print *scope
-x/10i \$pc
-
 printf "\\n--- prt_rr_release_scope entry ---\\n"
-tbreak prt_rr_release_scope
+tbreak ${rr_src}:388
 continue
 bt 8
 info args
