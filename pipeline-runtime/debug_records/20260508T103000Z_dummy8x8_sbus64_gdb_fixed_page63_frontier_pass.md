@@ -48,7 +48,8 @@ For this page, GDB then stepped through the submit/wait/release frontier:
 - Hit the release readback breadcrumb in `prt_rr_release_scope()`.
 - Observed the scope as invalid after release readback.
 - Returned to `stage_prepare_exec_views()` at the fixed-load end log call-site
-  for `tensor=1000001`, `rc=0`.
+  for `tensor=1000001`, with GDB locals showing `rc=0`, `slot=1`,
+  `local_bytes=65536`, and `need_flush=1`.
 
 The known-bad DMA doneflag is not used as pass evidence here. The pass criterion
 is that the blocking wait returned `rc=0`, the RR scope release path was reached
@@ -60,23 +61,25 @@ The current hang is not in the selected fixed-load page63 DMA submit, blocking
 wait, local/shared fence path, RR scope release, or return to
 `stage_prepare_exec_views()`.
 
-After GDB detached, the guest sparse log continued beyond the fixed-load section
-and reached:
+The guest sparse log does not contain the final fixed-load end line for
+`tensor=1000001`. It contains the fixed-load end for slot 0, the begin line for
+slot 1, and then later the periodic segment sink-progress line:
 
 ```text
 [prt-progress] stage-fixed-load-sparse phase=end segment=0 stage=0 slot=0 tensor=1000000 rc=0 pages=1 bytes=1024 lazy=0 reuse=0 dma=0
 [prt-progress] stage-fixed-load-sparse phase=begin segment=0 stage=0 slot=1 tensor=1000001 pages=64 bytes=65536 lazy=0 reuse=0 dma=0
-[prt-progress] stage-fixed-load-sparse phase=end segment=0 stage=0 slot=1 tensor=1000001 rc=0 pages=64 bytes=65536 lazy=0 reuse=0 dma=0
 [prt-progress] segment=0 sink-progress=0/8 elapsed_ms=1053 fatal=0 stop=0
 ```
 
-The next unresolved frontier is after fixed-load completion, likely in the first
-segment worker/export/sink-progress path rather than in fixed-load host-to-SPM
-DMA. One notable clue is that the GDB script unexpectedly hit
-`dma_copy_spm_pages_to_host_linux()` for `tensor_id=2` before the final
-fixed-load end call-site breakpoint; this suggests the export path becomes
-active immediately after or concurrently with fixed-load completion and should be
-the next breakpoint target.
+The precise boundary is therefore: fixed-load page63 returned through the DMA
+wait/release path and reached the slot-1 end log call-site, but the corresponding
+log line was not observed after detach. The next unresolved frontier is the code
+starting at that end-log call-site and the immediately following first segment
+worker/export/sink-progress path. One notable clue is that the GDB script
+unexpectedly hit `dma_copy_spm_pages_to_host_linux()` for `tensor_id=2` before
+the final fixed-load end call-site breakpoint; this suggests the export path can
+become active immediately after or concurrently with fixed-load completion and
+should be the next breakpoint target.
 
 ## Commands
 
