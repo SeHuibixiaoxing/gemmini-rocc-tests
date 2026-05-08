@@ -1,0 +1,17 @@
+[marshal-tmux] started at 2026-05-07T19:13:53Z
+[marshal-tmux] working directory: /home/ubuntu/chipyard/software/firemarshal
+[marshal-tmux] command: ./marshal build /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/rerocc-linux-tests-coupleddma/workload/rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver.json
+To check on progress, either call marshal with '-v' or see the live output at: 
+/home/ubuntu/chipyard/software/firemarshal/logs/rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-build-2026-05-07--19-13-53-PLICKCD184Y0KPR6.log
+.  /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/rerocc-linux-tests-coupleddma/workload/host-init-fileonly-sync-pairdummy.sh 
+.  /home/ubuntu/chipyard/software/firemarshal/boards/firechip/base-workloads/br-base/host-init.sh 
+-- build_busybox
+-- /home/ubuntu/chipyard/software/firemarshal/images/firechip/br.366c/br.366c.img
+.  calc_br-base.json.366c_dep
+-- /home/ubuntu/chipyard/software/firemarshal/images/firechip/br-base/br-base.json.366c.img
+-- /home/ubuntu/chipyard/software/firemarshal/images/firechip/rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver/rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-bin
+.  calc_rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver_dep
+.  /home/ubuntu/chipyard/software/firemarshal/images/firechip/rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver/rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver.img
+Log available at: /home/ubuntu/chipyard/software/firemarshal/logs/rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-build-2026-05-07--19-13-53-PLICKCD184Y0KPR6.log
+SUCCESS: All builds completed successfully!
+[marshal-tmux] finished at 2026-05-07T19:14:13Z rc=0

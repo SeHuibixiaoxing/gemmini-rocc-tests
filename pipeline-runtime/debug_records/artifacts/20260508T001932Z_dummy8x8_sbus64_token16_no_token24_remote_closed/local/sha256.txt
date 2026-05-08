@@ -1,0 +1,2 @@
+062f9dcc6899f355f26d0444bf0d8bf3bc9abe2d146718ac6e076b0c82793a3a  generators/gemmini/software/gemmini-rocc-tests/build/rerocc-linux-tests/rerocc_pipeline_runtime-linux
+a49087a09c60f67849132be6e5dce73b116a75f69c446020ba6c3bcbfc0b0cab  generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/run_pairdummy_cfg32_gdbserver_segment0_token2_frontier.sh

@@ -1,0 +1,8 @@
+[marshal-tmux] started at 2026-05-07T19:14:32Z
+[marshal-tmux] working directory: /home/ubuntu/chipyard/software/firemarshal
+[marshal-tmux] command: ./marshal install /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/rerocc-linux-tests-coupleddma/workload/rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver.json
+To check on progress, either call marshal with '-v' or see the live output at: 
+/home/ubuntu/chipyard/software/firemarshal/logs/rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-install-2026-05-07--19-14-32-LM0LAX9M5KZT7MJ1.log
+Workload installed to FireSim at /home/ubuntu/chipyard/sims/firesim/deploy/workloads/rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver.json
+Log available at: /home/ubuntu/chipyard/software/firemarshal/logs/rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-install-2026-05-07--19-14-32-LM0LAX9M5KZT7MJ1.log
+[marshal-tmux] finished at 2026-05-07T19:14:32Z rc=0
