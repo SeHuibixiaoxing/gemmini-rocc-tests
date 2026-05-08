@@ -1,0 +1,33 @@
+spawn /home/ubuntu/chipyard/.conda-env/riscv-tools/bin/riscv64-unknown-linux-gnu-gdb -q /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/build/rerocc-linux-tests/rerocc_pipeline_runtime-linux
+Reading symbols from /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/build/rerocc-linux-tests/rerocc_pipeline_runtime-linux...
+[?2004h(gdb) set pagination off
+[?2004l[?2004h(gdb) set confirm off
+[?2004l[?2004h(gdb) set print thread-events off
+[?2004l[?2004h(gdb) set debuginfod enabled off
+[?2004l[?2004h(gdb) target remote :32346
+[?2004lRemote debugging using :32346
+Ignoring packet error, continuing...
+warning: unrecognized item "timeout" in "qSupported" response
+Ignoring packet error, continuing...
+Ignoring packet error, continuing...
+Remote replied unexpectedly to 'vMustReplyEmpty': timeout
+[?2004h(gdb) PRT_RECONNECT_CONNECTED
+info threads
+[?2004lNo threads.
+[?2004h(gdb) bt
+[?2004lNo stack.
+[?2004h(gdb) thread apply all bt
+[?2004l[?2004h(gdb) print g_prt_gdb_marker_state
+[?2004l$1 = {site_id = 0, segment_idx = 0, global_stage_id = 0, local_stage_id = 0, 
+  subbatch_id = 0, manager_id = 0, tensor_id = 0, page_idx = 0, token_id = 0, 
+  rc = 0, aux0 = 0, aux1 = 0, hit_count = 0, line = 0}
+[?2004h(gdb) print g_prt_debug_state
+[?2004l$2 = {segment_idx = 0, global_stage_id = 0, local_stage_id = 0, 
+  subbatch_id = 0, phase_id = 0, wait_phase_id = 0, tensor_id = 0, 
+  pipebuf_idx = 0, pipebuf_kind = 0, pipebuf_in_use_idx = 0, 
+  pipebuf_no_use_idx = 0, pipebuf_addr = 0, ring_addr = 0, manager_id = 0, 
+  opcode_id = 0, rr_stage_id = 0, rr_manager_id = 0, rr_opcode_id = 0, 
+  rr_cfg_id = 0, last_rc = 0, event_seq = 0}
+[?2004h(gdb) info registers pc sp ra a0 a1 a2 a3
+[?2004lThe program has no registers now.
+[?2004h(gdb) 

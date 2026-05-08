@@ -1,0 +1,4 @@
+can't read "pc": no such variable
+    while executing
+"gdb_cmd "x/16i $pc" 120"
+    (file "/home/ubuntu/chipyard/tmp/firesim-aws-f2/gdbserver-tests/pairdummy-cfg32-safe-reconnect-20260508T012650Z-192_168_1_234-172_16_0_2/reconnect.expect" line 70)

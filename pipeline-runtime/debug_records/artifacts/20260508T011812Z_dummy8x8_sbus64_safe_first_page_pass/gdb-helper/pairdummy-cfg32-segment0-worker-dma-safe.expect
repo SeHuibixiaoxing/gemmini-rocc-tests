@@ -1,0 +1,169 @@
+#!/usr/bin/env expect
+set timeout 300
+
+set gdb [lindex $argv 0]
+set elf [lindex $argv 1]
+set port [lindex $argv 2]
+set transcript [lindex $argv 3]
+set initial_timeout [lindex $argv 4]
+set step_timeout [lindex $argv 5]
+
+log_file -noappend $transcript
+spawn $gdb -q $elf
+
+proc wait_prompt {{timeout_s 300}} {
+    set old_timeout $::timeout
+    set ::timeout $timeout_s
+    expect {
+        -re "Remote communication error|Target disconnected|Connection reset by peer|Remote connection closed" {
+            puts stderr "remote connection failed while waiting for gdb prompt"
+            exit 7
+        }
+        -re "\\(gdb\\) $" {}
+        timeout {
+            puts stderr "timeout waiting for gdb prompt"
+            exit 3
+        }
+        eof {
+            puts stderr "gdb exited unexpectedly"
+            exit 4
+        }
+    }
+    set ::timeout $old_timeout
+}
+
+proc gdb_cmd {cmd {timeout_s 300}} {
+    send -- "$cmd\r"
+    wait_prompt $timeout_s
+}
+
+proc collect_state {label} {
+    puts "PRT_SAFE_COLLECT_BEGIN $label"
+    gdb_cmd "printf \"\\n--- safe marker: $label ---\\n\"" 120
+    gdb_cmd "print g_prt_gdb_marker_state" 120
+    gdb_cmd "print g_prt_debug_state" 120
+    gdb_cmd "bt" 300
+    gdb_cmd "info threads" 300
+    gdb_cmd "thread apply all bt" 300
+    gdb_cmd "info registers pc sp ra a0 a1 a2 a3" 120
+    gdb_cmd "x/16i \$pc" 120
+    puts "PRT_SAFE_COLLECT_END $label"
+}
+
+proc detach_quit {{exit_code 0}} {
+    send -- "detach\r"
+    set old_timeout $::timeout
+    set ::timeout 180
+    expect {
+        -re "\\(gdb\\) $" {}
+        -re "Remote communication error|Target disconnected|Connection reset by peer|Remote connection closed" {}
+        timeout { puts stderr "timeout waiting for detach" }
+        eof {}
+    }
+    set ::timeout $old_timeout
+    send -- "quit\r"
+    expect {
+        eof {}
+        timeout {}
+    }
+    exit $exit_code
+}
+
+proc set_filter {site segment global_stage local_stage subbatch manager tensor page token} {
+    gdb_cmd "set variable g_prt_gdb_marker_filter.site_id = $site" 120
+    gdb_cmd "set variable g_prt_gdb_marker_filter.segment_idx = $segment" 120
+    gdb_cmd "set variable g_prt_gdb_marker_filter.global_stage_id = $global_stage" 120
+    gdb_cmd "set variable g_prt_gdb_marker_filter.local_stage_id = $local_stage" 120
+    gdb_cmd "set variable g_prt_gdb_marker_filter.subbatch_id = $subbatch" 120
+    gdb_cmd "set variable g_prt_gdb_marker_filter.manager_id = $manager" 120
+    gdb_cmd "set variable g_prt_gdb_marker_filter.tensor_id = $tensor" 120
+    gdb_cmd "set variable g_prt_gdb_marker_filter.page_idx = $page" 120
+    gdb_cmd "set variable g_prt_gdb_marker_filter.token_id = $token" 120
+}
+
+proc continue_to_marker {label timeout_s} {
+    puts "PRT_SAFE_WAIT_BEGIN $label timeout=$timeout_s"
+    send -- "continue\r"
+    set old_timeout $::timeout
+    set ::timeout $timeout_s
+    expect {
+        -re "Remote communication error|Target disconnected|Connection reset by peer|Remote connection closed" {
+            puts stderr "remote connection failed while waiting for marker $label"
+            exit 7
+        }
+        -re "exited normally|exited with code|Inferior .* exited" {
+            puts stderr "inferior exited while waiting for marker $label"
+            wait_prompt 120
+            exit 8
+        }
+        -re "\\(gdb\\) $" {
+            set ::timeout $old_timeout
+            puts "PRT_SAFE_WAIT_HIT $label"
+            return 0
+        }
+        timeout {
+            set ::timeout $old_timeout
+            puts "PRT_SAFE_WAIT_TIMEOUT $label"
+            send \003
+            wait_prompt 180
+            collect_state "timeout-$label"
+            detach_quit 124
+        }
+        eof {
+            puts stderr "gdb exited while waiting for marker $label"
+            exit 9
+        }
+    }
+}
+
+wait_prompt 300
+gdb_cmd "set pagination off"
+gdb_cmd "set confirm off"
+gdb_cmd "set print pretty on"
+gdb_cmd "set print thread-events off"
+gdb_cmd "set breakpoint pending off"
+gdb_cmd "set debuginfod enabled off"
+gdb_cmd "set auto-load safe-path /"
+gdb_cmd "set remotetimeout 180"
+gdb_cmd "target remote :$port" 300
+puts "PRT_SAFE_CONNECTED"
+gdb_cmd "break prt_gdb_marker_stop" 120
+
+continue_to_marker "segment-begin-env" $initial_timeout
+collect_state "segment-begin-env"
+
+set any 4294967295
+set_filter 3 0 $any 0 $any $any $any $any $any
+continue_to_marker "worker-create-stage0" $step_timeout
+collect_state "worker-create-stage0"
+
+set_filter 4 0 $any 0 $any $any $any $any $any
+continue_to_marker "worker-entry-stage0" $step_timeout
+collect_state "worker-entry-stage0"
+
+set_filter 12 0 $any 0 $any $any $any $any $any
+continue_to_marker "first-dma-wait-enter-stage0" $step_timeout
+collect_state "first-dma-wait-enter-stage0"
+
+set_filter 13 0 $any 0 $any $any $any $any $any
+continue_to_marker "first-dma-wait-return-stage0" $step_timeout
+collect_state "first-dma-wait-return-stage0"
+
+set_filter 25 0 $any 0 $any $any $any $any $any
+continue_to_marker "first-submitwait-after-wait-stage0" $step_timeout
+collect_state "first-submitwait-after-wait-stage0"
+
+set_filter 26 0 $any 0 $any $any $any $any $any
+continue_to_marker "first-submitwait-after-cleanup-stage0" $step_timeout
+collect_state "first-submitwait-after-cleanup-stage0"
+
+set_filter 28 0 $any 0 $any $any $any $any $any
+continue_to_marker "first-fixed-load-submitwait-end-stage0" $step_timeout
+collect_state "first-fixed-load-submitwait-end-stage0"
+
+set_filter 29 0 $any 0 $any $any $any $any $any
+continue_to_marker "first-fixed-load-page-accounted-stage0" $step_timeout
+collect_state "first-fixed-load-page-accounted-stage0"
+
+puts "PRT_SAFE_SEQUENCE_PASS"
+detach_quit 0

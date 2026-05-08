@@ -1,0 +1,81 @@
+#!/usr/bin/env expect
+set timeout 180
+set gdb [lindex $argv 0]
+set elf [lindex $argv 1]
+set port [lindex $argv 2]
+set transcript [lindex $argv 3]
+log_file -noappend $transcript
+spawn $gdb -q $elf
+proc wait_prompt {{timeout_s 180}} {
+    set old_timeout $::timeout
+    set ::timeout $timeout_s
+    expect {
+        -re "\\(gdb\\) $" {}
+        -re "Remote communication error|Target disconnected|Connection reset by peer|Remote connection closed|Connection refused" {
+            puts stderr "remote connection failed"
+            exit 7
+        }
+        timeout {
+            puts stderr "timeout waiting for prompt"
+            exit 3
+        }
+        eof {
+            puts stderr "gdb exited"
+            exit 4
+        }
+    }
+    set ::timeout $old_timeout
+}
+proc gdb_cmd {cmd {timeout_s 180}} {
+    send -- "$cmd\r"
+    wait_prompt $timeout_s
+}
+wait_prompt 180
+gdb_cmd "set pagination off"
+gdb_cmd "set confirm off"
+gdb_cmd "set print thread-events off"
+gdb_cmd "set debuginfod enabled off"
+send -- "target remote :$port\r"
+set old_timeout $timeout
+set timeout 240
+expect {
+    -re "Remote communication error|Target disconnected|Connection reset by peer|Remote connection closed|Connection refused" {
+        puts stderr "target remote failed"
+        send -- "quit\r"
+        expect { eof {} timeout {} }
+        exit 7
+    }
+    -re "\\(gdb\\) $" {}
+    timeout {
+        puts stderr "target remote timeout"
+        send \003
+        wait_prompt 120
+        send -- "quit\r"
+        expect { eof {} timeout {} }
+        exit 124
+    }
+    eof {
+        puts stderr "gdb exited during target remote"
+        exit 4
+    }
+}
+set timeout $old_timeout
+puts "PRT_RECONNECT_CONNECTED"
+gdb_cmd "info threads" 240
+gdb_cmd "bt" 240
+gdb_cmd "thread apply all bt" 240
+gdb_cmd "print g_prt_gdb_marker_state" 120
+gdb_cmd "print g_prt_debug_state" 120
+gdb_cmd "info registers pc sp ra a0 a1 a2 a3" 120
+gdb_cmd "x/16i $pc" 120
+send -- "detach\r"
+set timeout 240
+expect {
+    -re "\\(gdb\\) $" {}
+    -re "Remote communication error|Target disconnected|Connection reset by peer|Remote connection closed" {}
+    timeout { puts stderr "timeout waiting for detach" }
+    eof {}
+}
+send -- "quit\r"
+expect { eof {} timeout {} }
+puts "PRT_RECONNECT_DONE"

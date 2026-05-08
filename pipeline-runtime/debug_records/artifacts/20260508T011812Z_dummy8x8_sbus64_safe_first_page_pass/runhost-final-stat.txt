@@ -1,0 +1,3 @@
+/home/ubuntu/sim_slot_0/rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver.img 325709824 2026-05-08 01:21:27.664187043 +0000
+/home/ubuntu/sim_slot_0/uartlog 16919 2026-05-08 01:17:29.628012495 +0000
+/home/ubuntu/sim_slot_0/heartbeat.csv 61 2026-05-08 01:25:12.324715405 +0000

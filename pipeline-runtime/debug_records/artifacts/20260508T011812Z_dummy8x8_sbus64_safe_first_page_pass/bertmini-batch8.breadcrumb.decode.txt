@@ -1,0 +1,24 @@
+path=/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/artifacts/20260508T011812Z_dummy8x8_sbus64_safe_first_page_pass/bertmini-batch8.breadcrumb.bin
+version=1 enabled=1 slot_count=64 update_count=464 last_slot=23 last_kind=dma last_phase=dma_submitwait_after_cleanup last_update_ns=9325527000
+filters segment=0 global_stage=0 local_stage=0 subbatch=any stage_radius=0 subbatch_radius=0
+last_slot:
+slot=23 kind=dma phase=dma_submitwait_after_cleanup seq=36 mono_ns=9325527000 seg=0 gstage=0 lstage=0 sb=0 tensor=0 tok=1 mgr=0 page=0 rc=0 flags=0x7 src=0x1049f3400 dst=0x40000000 aux0=0x1032eb000 aux1=0x0 line=2178
+all_slots:
+slot=62 kind=rr phase=rr_release_end seq=18 mono_ns=5909223000 seg=any gstage=any lstage=any sb=any tensor=any tok=31 mgr=8 page=any rc=0 flags=0x0 src=0x82f dst=0x0 aux0=0x0 aux1=0x0 line=404
+slot=61 kind=spm_xlate phase=spm_xlate_restore_end seq=12 mono_ns=5909303000 seg=any gstage=any lstage=any sb=any tensor=any tok=0 mgr=8 page=any rc=0 flags=0x0 src=0x0 dst=0x0 aux0=0x0 aux1=0x1f line=201
+slot=63 kind=spm_xlate phase=spm_xlate_restore_end seq=12 mono_ns=5909616000 seg=any gstage=any lstage=any sb=any tensor=any tok=0 mgr=9 page=any rc=0 flags=0x0 src=0x0 dst=0x0 aux0=0x0 aux1=0x1f line=201
+slot=40 kind=rr phase=rr_release_end seq=36 mono_ns=5910178000 seg=any gstage=any lstage=any sb=any tensor=any tok=31 mgr=11 page=any rc=0 flags=0x0 src=0x82f dst=0x0 aux0=0x0 aux1=0x0 line=404
+slot=21 kind=spm_xlate phase=spm_xlate_restore_end seq=24 mono_ns=5910415000 seg=any gstage=any lstage=any sb=any tensor=any tok=0 mgr=11 page=any rc=0 flags=0x0 src=0x0 dst=0x0 aux0=0x0 aux1=0x1f line=201
+slot=0 kind=runtime phase=runtime_init_done seq=4 mono_ns=5910560000 seg=any gstage=any lstage=any sb=any tensor=any tok=0 mgr=any page=any rc=0 flags=0x0 src=0x0 dst=0x0 aux0=0x0 aux1=0x0 line=4866
+slot=60 kind=rr phase=rr_release_end seq=72 mono_ns=8401906000 seg=any gstage=any lstage=any sb=any tensor=any tok=31 mgr=0 page=any rc=0 flags=0x0 src=0x82f dst=0x0 aux0=0x0 aux1=0x0 line=404
+slot=48 kind=spm_xlate phase=spm_xlate_restore_end seq=40 mono_ns=8401983000 seg=any gstage=any lstage=any sb=any tensor=any tok=0 mgr=0 page=any rc=0 flags=0x0 src=0x0 dst=0x0 aux0=0x0 aux1=0x1f line=201
+slot=50 kind=spm_xlate phase=spm_xlate_restore_end seq=40 mono_ns=8402361000 seg=any gstage=any lstage=any sb=any tensor=any tok=0 mgr=1 page=any rc=0 flags=0x0 src=0x0 dst=0x0 aux0=0x0 aux1=0x1f line=201
+slot=33 kind=rr phase=rr_release_end seq=108 mono_ns=8403215000 seg=any gstage=any lstage=any sb=any tensor=any tok=31 mgr=3 page=any rc=0 flags=0x0 src=0x82f dst=0x0 aux0=0x0 aux1=0x0 line=404
+slot=37 kind=rr phase=rr_release_end seq=108 mono_ns=8403948000 seg=any gstage=any lstage=any sb=any tensor=any tok=31 mgr=5 page=any rc=0 flags=0x0 src=0x82f dst=0x0 aux0=0x0 aux1=0x0 line=404
+slot=7 kind=spm_xlate phase=spm_xlate_restore_end seq=80 mono_ns=8404211000 seg=any gstage=any lstage=any sb=any tensor=any tok=0 mgr=5 page=any rc=0 flags=0x0 src=0x0 dst=0x0 aux0=0x0 aux1=0x1f line=201
+slot=58 kind=spm_xlate phase=spm_xlate_restore_end seq=148 mono_ns=8404629000 seg=any gstage=any lstage=any sb=any tensor=any tok=0 mgr=6 page=any rc=0 flags=0x0 src=0x0 dst=0x0 aux0=0x0 aux1=0x1f line=201
+slot=56 kind=rr phase=rr_release_end seq=54 mono_ns=8404932000 seg=any gstage=any lstage=any sb=any tensor=any tok=31 mgr=7 page=any rc=0 flags=0x0 src=0x82f dst=0x0 aux0=0x0 aux1=0x0 line=404
+slot=59 kind=spm_xlate phase=spm_xlate_restore_end seq=40 mono_ns=8405009000 seg=any gstage=any lstage=any sb=any tensor=any tok=0 mgr=7 page=any rc=0 flags=0x0 src=0x0 dst=0x0 aux0=0x0 aux1=0x1f line=201
+slot=39 kind=rr phase=rr_acquire_after_call seq=14 mono_ns=8657644000 seg=0 gstage=0 lstage=0 sb=0 tensor=any tok=0 mgr=0 page=any rc=0 flags=0x1 src=0x810 dst=0x0 aux0=0x0 aux1=0x0 line=358
+slot=3 kind=dma phase=dma_page_begin seq=82 mono_ns=8657834000 seg=0 gstage=0 lstage=0 sb=0 tensor=0 tok=0 mgr=0 page=0 rc=0 flags=0x0 src=0x1049f3400 dst=0x40000000 aux0=0x400 aux1=0x989680 line=219
+slot=23 kind=dma phase=dma_submitwait_after_cleanup seq=36 mono_ns=9325527000 seg=0 gstage=0 lstage=0 sb=0 tensor=0 tok=1 mgr=0 page=0 rc=0 flags=0x7 src=0x1049f3400 dst=0x40000000 aux0=0x1032eb000 aux1=0x0 line=2178
