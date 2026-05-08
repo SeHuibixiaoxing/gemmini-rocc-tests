@@ -5,7 +5,7 @@ set -euo pipefail
 # Do not override these ad hoc in the shell. If this profile needs to change,
 # edit this file, rebuild the image, and let freshness checks propagate it.
 
-export PIPELINE_RUNTIME_PROFILE_ID="pairdummy-sbus128-fixed-v26"
+export PIPELINE_RUNTIME_PROFILE_ID="pairdummy-sbus128-fixed-v27"
 
 export ENABLE_PIPELINE_RUNTIME="1"
 export TARGET_KEY="rerocc_globalnoc_pairmanager_dummy16x16_c4_g12_d12_spad1024kb_dram19_noc64_mac256_sbus128"
@@ -47,7 +47,9 @@ export PIPELINE_RUNTIME_RUNNER_STAGE_SYNC_ENABLE="0"
 export PIPELINE_RUNTIME_DISABLE_MAPPING_CACHE="1"
 export PIPELINE_RUNTIME_DMA_SUBMIT_TRACE_ENABLE="0"
 export PIPELINE_RUNTIME_DMA_FORCE_DIRECT_ENABLE="${PIPELINE_RUNTIME_DMA_FORCE_DIRECT_ENABLE-1}"
-export PIPELINE_RUNTIME_DMA_BLOCKING_WAIT_POLL_TIMEOUT_ENABLE="${PIPELINE_RUNTIME_DMA_BLOCKING_WAIT_POLL_TIMEOUT_ENABLE-1}"
+# DMA completion must use the blocking wait/fence path. The doneflag is an
+# auxiliary observation point only and must not decide completion.
+export PIPELINE_RUNTIME_DMA_BLOCKING_WAIT_POLL_TIMEOUT_ENABLE="0"
 export PIPELINE_RUNTIME_DMA_BOUNCE_BYPASS_ENABLE="${PIPELINE_RUNTIME_DMA_BOUNCE_BYPASS_ENABLE-0}"
 # Low-perturbation baseline.
 # Export proof probes must stay off here; later rounds may only add temporary

@@ -8,7 +8,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "${script_dir}/pairdummy_sbus128_fixed_env.sh"
 
-export PIPELINE_RUNTIME_PROFILE_ID="pairdummy-sbus64-dummy8x8-fixed-v2"
+export PIPELINE_RUNTIME_PROFILE_ID="pairdummy-sbus64-dummy8x8-fixed-v3"
 export TARGET_KEY="rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64"
 export METHODS="ours2"
 export TARGET_BATCH="${PAIRDUMMY_SBUS64_TARGET_BATCH:-8}"

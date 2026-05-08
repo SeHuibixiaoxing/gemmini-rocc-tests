@@ -50,7 +50,7 @@ Suggested environment:
 ```bash
 PAIRDUMMY_SBUS64_TARGET_BATCH=2
 PAIRDUMMY_SBUS64_DISABLE_MAPPING_CACHE=0
-PIPELINE_RUNTIME_DMA_BLOCKING_WAIT_POLL_TIMEOUT_ENABLE=1
+PIPELINE_RUNTIME_DMA_BLOCKING_WAIT_POLL_TIMEOUT_ENABLE=0
 PIPELINE_RUNTIME_DMA_FORCE_DIRECT_ENABLE=1
 PIPELINE_RUNTIME_BREADCRUMB_ENABLE=1
 PIPELINE_RUNTIME_GDBSERVER_ENABLE=1
@@ -73,9 +73,10 @@ break dma_blocking_wait if tok != 0 && tok->stage_idx == 0 && tok->tensor_id == 
 
 Update from the first batch2 GDB path-trace run: the window condition above
 does catch the batch2 export sequence, but it stops at token 540 first. Token
-540 cleanly completed done-flag poll, shared ReRoCC fence, token completion, and
-`dma_blocking_wait()` return. For the historical card point, the next run should
-use exact token 546:
+540 cleanly completed in the old accidental done-flag-poll run. That result is
+not valid evidence for the intended DMA completion semantics. Re-run with the
+poll knob set to `0`; for the historical card point, the next run should use
+exact token 546:
 
 ```gdb
 break dma_blocking_wait if tok != 0 && tok->stage_idx == 0 && tok->tensor_id == 2 && tok->id == 546
@@ -146,9 +147,7 @@ the card point occurs inside segment 0 before any later segment can matter.
 
 The small reproducer is useful if it can answer one of these:
 
-- `dma_blocking_wait_poll_doneflag()` is reached and times out: completion flag
-  is not becoming visible for the problematic export DMA.
-- done-flag poll returns but execution later becomes uninterruptible:
+- the runtime enters `hw_dma_fence()` / blocking wait for the target token.
+- `hw_dma_fence()` returns but execution later becomes uninterruptible:
   focus shifts to token cleanup or external ReRoCC scope release.
-- poll is not reached: inspect the very first lines of `dma_blocking_wait()` and
-  any side effects from logs/breadcrumb/completion flag refresh.
+- any done-flag poll breakpoint is hit, which is now a regression.

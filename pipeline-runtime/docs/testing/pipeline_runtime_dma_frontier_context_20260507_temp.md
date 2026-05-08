@@ -115,11 +115,16 @@ The unresolved split is inside `dma_blocking_wait()` after the entry breakpoint:
 
 1. `dma_completion_flag_refresh(tok)`
 2. breadcrumb/log before the wait
-3. optional done-flag polling controlled by
-   `PIPELINE_RUNTIME_DMA_BLOCKING_WAIT_POLL_TIMEOUT_ENABLE=1`
-4. `hw_dma_fence()` only if done-flag polling was not used
+3. `hw_dma_fence()` / blocking wait
+4. completion-flag refresh for observation only
 5. completion refresh and token cleanup
 6. external ReRoCC scope fence/release
+
+Correction on 2026-05-08: the earlier debug profile accidentally enabled
+`PIPELINE_RUNTIME_DMA_BLOCKING_WAIT_POLL_TIMEOUT_ENABLE=1`, which let done-flag
+polling bypass `hw_dma_fence()`. That is not an allowed completion semantic.
+The fixed profile now exports this knob as `0`, and the source-side gate is
+hardened to return disabled.
 
 Because Ctrl-C did not regain control after a long continue, the next run should
 not continue past the breakpoint blindly. It should step or set narrower
@@ -141,4 +146,3 @@ Most important files:
   `local/pairdummy-cfg32-dma-frontier-20260507T103951Z-192_168_1_150-172_16_0_2/expect-driver.stdout`
 - decoded stale breadcrumb after timeout:
   `local/20260507T105837Z_192_168_1_150_after_gdb_timeout/breadcrumb.decoded.txt`
-

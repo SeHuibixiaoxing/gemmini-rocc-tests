@@ -54,7 +54,7 @@ The first split is `0x15670`, the compiled branch for:
 if (timeout_ns != 0ULL && dma_blocking_wait_poll_timeout_enabled()) {
 ```
 
-Expected next stops:
+Historical next stops from the accidental doneflag-poll build:
 
 - `0x15bf4`: the function took the timeout/poll-enable branch and is checking
   `PIPELINE_RUNTIME_DMA_BLOCKING_WAIT_POLL_TIMEOUT_ENABLE`.
@@ -73,6 +73,11 @@ Expected next stops:
   path if `tok->rr_scope_external == 1`.
 - `0x159ea`: token completion mutex path.
 - `0x15ad4`: function epilogue.
+
+Correction on 2026-05-08: done-flag polling is no longer an allowed DMA
+completion path. Current binaries must not take the poll branch; if this path
+trace is repeated, the expected wait-side proof is entry to `hw_dma_fence()` and
+post-fence refresh/cleanup, not any `dma_blocking_wait_poll_doneflag()` address.
 
 ## Current run command template
 
@@ -98,9 +103,9 @@ The previous run proved entry to `dma_blocking_wait()` for token 546 but then
 lost interruptability after a blind 8 second `continue`. This path trace should
 identify which of these cases is true:
 
-- done-flag poll is entered and times out;
-- done-flag poll succeeds and the later card point is shared-scope fencing or
+- the runtime enters `hw_dma_fence()` / blocking wait;
+- `hw_dma_fence()` returns and the later card point is shared-scope fencing or
   token cleanup;
-- done-flag poll is not used and the runtime enters `hw_dma_fence()`;
+- any done-flag poll breakpoint is hit, which is now a regression;
 - execution does not reach the first branch after entry, which would point at
   early logging/breadcrumb/completion refresh side effects.

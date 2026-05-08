@@ -1506,17 +1506,12 @@ static int dma_bounce_bypass_enabled(void) {
 }
 
 static int dma_blocking_wait_poll_timeout_enabled(void) {
-#if !defined(BAREMETAL)
-  static int initialized = 0;
-  static int enabled = 0;
-  if (!initialized) {
-    enabled = dma_env_flag_enabled("PIPELINE_RUNTIME_DMA_BLOCKING_WAIT_POLL_TIMEOUT_ENABLE", 0);
-    initialized = 1;
-  }
-  return enabled;
-#else
+  /*
+   * Linux DMA completion is defined by the blocking wait/fence path. The
+   * completion flag is still useful as telemetry, but polling it must not
+   * bypass hw_dma_fence() as the primary completion decision.
+   */
   return 0;
-#endif
 }
 
 #if defined(__linux__) && defined(__riscv)
