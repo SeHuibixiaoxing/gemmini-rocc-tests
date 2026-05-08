@@ -1,6 +1,6 @@
 # Pipeline Runtime gdbserver Integration SOP
 
-更新时间：`2026-05-07 15:10 UTC`
+更新时间：`2026-05-08 12:18 UTC`
 
 ## 1. 目标
 
@@ -153,7 +153,57 @@ GDB 栈共同缩小代码窗口，再决定是否需要下一轮更窄的 page/t
 和 `stage_worker_main`。到达这些边界后，再动态补 `prt_gemm_conv_run`、
 `sync_stage_export_aliases`、`dma_blocking_wait` 等更窄断点。
 
-### 3.2 DMA frontier 定点采样
+### 3.2 Live GDB 手工调试
+
+helper 不是必须的。helper 的价值是把已经稳定的测试矩阵固化成可复现脚本；当 frontier
+仍在移动时，直接开 live GDB 更合适。推荐流程：
+
+1. 只通过 UART 或 run host 文件确认 `[gdbserver] phase=listening`，不要用 `nc`、
+   telnet、curl 或端口探测碰 `172.16.0.2:2345`。
+2. 建 SSH tunnel，例如：
+
+   ```bash
+   ssh -i /home/ubuntu/firesim.pem \
+     -o StrictHostKeyChecking=no \
+     -o UserKnownHostsFile=/dev/null \
+     -o ExitOnForwardFailure=yes \
+     -N -L 32347:172.16.0.2:2345 ubuntu@<run-host-private-ip>
+   ```
+
+3. 用 staged ELF 启动 cross-gdb：
+
+   ```bash
+   /home/ubuntu/chipyard/.conda-env/riscv-tools/bin/riscv64-unknown-linux-gnu-gdb \
+     -q /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/build/rerocc-linux-tests/rerocc_pipeline_runtime-linux
+   ```
+
+4. GDB 内先设置基本选项和日志，再 `target remote :32347`。第一条连到 guest
+   `gdbserver --once` 的 TCP 连接必须来自这条 GDB session。
+5. 在动态加载器或 marker 停点处预放一组“下一段边界”断点，再 `continue`。命中后现场读
+   `bt`、`info locals`、`info args`、`info threads`、`thread apply all bt` 和相关全局
+   debug state，然后按现场增删断点。
+
+关键限制：
+
+- `continue` 后没有普通 GDB prompt。要改断点，必须等已有断点命中，或用 interrupt
+  抢停。
+- 当前 pipeline-runtime live run 中，长时间 `continue` 后 Ctrl-C 可能得到
+  `Disconnected from target`。这会消耗本轮 `gdbserver --once`，通常不能可靠重连。
+- 因此不要把“等很久再 Ctrl-C 抢调用栈”作为主策略。更稳的是预放阶段边界断点，例如
+  `before-build-stage-task`、`after-build-stage-task`、`prt_gemm_conv_run`、
+  `prt_gemm_fence`、`sync_stage_export_aliases`、`prt_process_c2` 和 worker done。
+- 对优化后的局部变量加条件要谨慎。比如 `prt_runtime.c:5386` 的 `seg_idx` 在实测中被
+  optimized out，条件断点会报错并提前停住。优先用函数参数、结构体字段或
+  `g_prt_gdb_marker_state` / `g_prt_debug_state` 这类 volatile 全局状态过滤。
+- live GDB 现场如果形成新的关键证据，必须立刻归档 GDB log、uartlog、heartbeat 和
+  run config，并按仓库约束做 checkpoint commit。
+
+2026-05-08 的参考记录：
+
+- [`20260508T113624Z_dummy8x8_sbus64_gdb_export_alias_progress.md`](/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/20260508T113624Z_dummy8x8_sbus64_gdb_export_alias_progress.md)
+- [`20260508T120934Z_dummy8x8_sbus64_live_gdb_build_task_frontier.md`](/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/20260508T120934Z_dummy8x8_sbus64_live_gdb_build_task_frontier.md)
+
+### 3.3 DMA frontier 定点采样
 
 如果无断点采样只停在启动阶段、YAML 解析或其它非卡点路径，不要 detach 后继续等待。
 `gdbserver --once` 的首连已经被消耗，后续无法可靠地再次拿用户态调用栈。下一轮应改用
@@ -199,7 +249,7 @@ PAIRDUMMY_SBUS64_DISABLE_MAPPING_CACHE=0
 `marshal-build`、`marshal-install`、freshness、`launch/infrasetup/run`，并在 debug record
 里把 cache 状态写清楚。
 
-### 3.3 源码条件 marker 定位
+### 3.4 源码条件 marker 定位
 
 当已知卡点大概落在某个 segment、stage、tensor、page 或 token 附近时，优先使用
 源码条件 marker，而不是继续扩大无断点采样时间。做法是在源码里保留一个
