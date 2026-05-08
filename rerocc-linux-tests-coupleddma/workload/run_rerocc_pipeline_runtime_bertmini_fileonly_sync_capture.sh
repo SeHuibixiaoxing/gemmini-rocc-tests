@@ -26,6 +26,7 @@ CAPTURE_PERIODIC_SYNC_ENABLE="${CAPTURE_PERIODIC_SYNC_ENABLE:-1}"
 CAPTURE_PERIODIC_SYNC_SECONDS="${CAPTURE_PERIODIC_SYNC_SECONDS:-1}"
 CAPTURE_PROGRESS_PING_ENABLE="${CAPTURE_PROGRESS_PING_ENABLE:-0}"
 CAPTURE_PROGRESS_PING_SECONDS="${CAPTURE_PROGRESS_PING_SECONDS:-30}"
+CHILD_PROC_DIAG_ENABLE="${PIPELINE_RUNTIME_CHILD_PROC_DIAG_ENABLE:-1}"
 CHILD_PROC_POLL_SECONDS="${PIPELINE_RUNTIME_CHILD_PROC_POLL_SECONDS:-5}"
 GOLDEN_CHECK_ENABLE="${GOLDEN_CHECK_ENABLE:-0}"
 DUMMY_GEMMINI_MODE="${DUMMY_GEMMINI_MODE:-0}"
@@ -188,6 +189,9 @@ append_child_proc_diag() {
 }
 
 start_child_proc_diag_loop() {
+  if [ "${CHILD_PROC_DIAG_ENABLE}" = "0" ]; then
+    return 0
+  fi
   if [ -n "${child_proc_diag_pid}" ] && kill -0 "${child_proc_diag_pid}" 2>/dev/null; then
     return 0
   fi
@@ -205,6 +209,9 @@ start_child_proc_diag_loop() {
 }
 
 stop_child_proc_diag_loop() {
+  if [ "${CHILD_PROC_DIAG_ENABLE}" = "0" ]; then
+    return 0
+  fi
   if [ -n "${child_proc_diag_pid}" ]; then
     kill "${child_proc_diag_pid}" 2>/dev/null || true
     wait "${child_proc_diag_pid}" 2>/dev/null || true
@@ -236,6 +243,7 @@ write_status() {
     echo "periodic_sync_seconds=${CAPTURE_PERIODIC_SYNC_SECONDS}"
     echo "progress_ping_enable=${CAPTURE_PROGRESS_PING_ENABLE}"
     echo "progress_ping_seconds=${CAPTURE_PROGRESS_PING_SECONDS}"
+    echo "child_proc_diag_enable=${CHILD_PROC_DIAG_ENABLE}"
     echo "child_proc_poll_seconds=${CHILD_PROC_POLL_SECONDS}"
     echo "uart_log_enable=${PIPELINE_RUNTIME_UART_LOG_ENABLE}"
     echo "guest_log_enable=${PIPELINE_RUNTIME_GUEST_LOG_ENABLE}"
@@ -362,7 +370,9 @@ AUTO_POWEROFF=0 \
   "${GUEST_RUNNER}" "$@" &
 child_pid=$!
 write_wrapper_stage "after-child-spawn pid=${child_pid}"
-append_child_proc_diag "${child_pid}" "after-spawn"
+if [ "${CHILD_PROC_DIAG_ENABLE}" != "0" ]; then
+  append_child_proc_diag "${child_pid}" "after-spawn"
+fi
 
 write_status "running" ""
 flush_capture_state
@@ -378,7 +388,9 @@ else
 fi
 
 write_wrapper_stage "after-child-wait rc=${rc} pid=${child_pid}"
-append_child_proc_diag "${child_pid}" "after-wait"
+if [ "${CHILD_PROC_DIAG_ENABLE}" != "0" ]; then
+  append_child_proc_diag "${child_pid}" "after-wait"
+fi
 stop_child_proc_diag_loop
 stop_progress_ping_loop
 stop_periodic_sync_loop
