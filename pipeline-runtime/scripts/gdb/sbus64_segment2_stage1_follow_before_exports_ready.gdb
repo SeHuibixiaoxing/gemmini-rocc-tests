@@ -3,13 +3,13 @@ set pagination off
 set confirm off
 set print pretty on
 
-break stage_wait_exports_ready if stage_id == 1 && progress_sbatch == 0
+break stage_wait_exports_ready if stage_id == 1 && subbatch == 0
 continue
 printf "\n--- hit stage_wait_exports_ready stage1 subbatch0 ---\n"
 bt 10
 info args
 print stage_id
-print progress_sbatch
+print subbatch
 print export_count
 print shared_pair_count
 finish
