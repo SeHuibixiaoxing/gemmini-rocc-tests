@@ -1,0 +1,42 @@
+breadcrumb=/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/artifacts/20260508T045331Z_dummy8x8_sbus64_page57_marker_frontier/bertmini-batch8.breadcrumb.bin
+sparse_log=/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/artifacts/20260508T045331Z_dummy8x8_sbus64_page57_marker_frontier/bertmini-batch8.log
+trigger_log=n/a
+breadcrumb_last update_count=1480 last_kind=dma last_phase=dma_wait_before_fence
+last_slot seg=0 gstage=0 lstage=0 sb=0 tensor=0 mgr=0 page=57 rc=0 line=3648
+sparse_worker: n/a
+sparse_pointwise_dispatch: n/a
+sparse_pointwise_matmul: n/a
+sparse_oc_split_pointwise: n/a
+sparse_export_target: n/a
+sparse_dma_fixed_host: n/a
+sparse_dma_export_host: n/a
+sparse_dma_fixed_submit: n/a
+sparse_dma_fixed_wait: n/a
+sparse_dma_export_wait: n/a
+sparse_spm_xlate_release: mgr=7 cfg=31 phase=restore-end
+sparse_dma_fixed_focus_page_phases: n/a
+sparse_dma_fixed_last_doneflag_end_tok=n/a
+sparse_dma_fixed_last_wait_after_release_tok=n/a
+trigger_line_count=n/a
+trigger_seq_contiguous=n/a
+trigger_budget_exhausted=n/a
+trigger_first_event: n/a
+trigger_last_event: n/a
+frontier=spm-xlate-release mgr=7 cfg=31 phase=restore-end
+previous_frontier=n/a
+change_kind=none
+claim_class=stable_observation
+disturbance_risk=low
+requires_control_rerun=no
+recommended_next_probe=static-read-spm-xlate-restore-then-sx-trigger
+verdict=inside spm-xlate release path (restore-end)
+next_action=Read `prt_spm_xlate_release_scope()` before widening logs; keep the next rerun scoped to the `spm-xlate` trigger family.
+sparse_tail:
+[prt-progress] rr-acquire-wrap phase=after-call stage=0 manager=0 opcode=2 rc=0 cfg=0 valid=1
+[bertmini] PASS method=ours2
+BERTMINI_PIPELINE_RUNTIME_PASS
+[bertmini] auto poweroff disabled; guest left running for manual inspection
+[bertmini] when ready, run: sync; poweroff
+[firemarshal] pipeline-runtime exited rc=0
+[firemarshal] guest files are ready under /root/pipeline-runtime-debug
+[firemarshal] powering off guest to trigger FireSim copy-back

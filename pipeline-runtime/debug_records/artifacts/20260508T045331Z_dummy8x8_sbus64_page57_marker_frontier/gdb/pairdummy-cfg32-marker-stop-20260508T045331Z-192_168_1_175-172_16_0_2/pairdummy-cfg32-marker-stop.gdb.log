@@ -1,0 +1,382 @@
+Reading symbols from /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/build/rerocc-linux-tests/rerocc_pipeline_runtime-linux...
+0x0000003ff7fec386 in ?? ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/ld-linux-riscv64-lp64d.so.1
+Breakpoint 1 at 0x14442: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_debug_state.c, line 396.
+[Switching to Thread 235.275]
+
+Thread 2 "rerocc_pipeline" hit Breakpoint 1, prt_gdb_marker_stop ()
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_debug_state.c:396
+396	  g_prt_gdb_marker_state.hit_count = g_prt_gdb_marker_state.hit_count + 1ULL;
+
+--- marker state ---
+$1 = {
+  site_id = 27,
+  segment_idx = 0,
+  global_stage_id = 0,
+  local_stage_id = 0,
+  subbatch_id = 0,
+  manager_id = 0,
+  tensor_id = 0,
+  page_idx = 57,
+  token_id = 4294967295,
+  rc = 0,
+  aux0 = 4376766464,
+  aux1 = 1074797568,
+  hit_count = 0,
+  line = 840
+}
+
+--- current bt ---
+#0  prt_gdb_marker_stop ()
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_debug_state.c:396
+#1  0x0000000000014604 in prt_gdb_marker_note (site_id=site_id@entry=27, 
+    segment_idx=<optimized out>, segment_idx@entry=4294967295, 
+    global_stage_id=<optimized out>, global_stage_id@entry=4294967295, 
+    local_stage_id=<optimized out>, local_stage_id@entry=0, 
+    subbatch_id=<optimized out>, subbatch_id@entry=4294967295, 
+    manager_id=manager_id@entry=0, tensor_id=tensor_id@entry=0, 
+    page_idx=page_idx@entry=57, token_id=token_id@entry=4294967295, 
+    rc=rc@entry=0, aux0=4376766464, aux1=1074797568, line=line@entry=840)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_debug_state.c:392
+#2  0x0000000000018a18 in dma_gdb_marker_fixed_load_page (line=840, 
+    aux1=<optimized out>, aux0=<optimized out>, rc=0, page_idx=57, 
+    tensor_id=0, manager_id=0, stage_idx=0, site_id=27)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:374
+#3  dma_copy_host_to_spm_pages_linux (rt=0x3fffffdf90, 
+    dst_pages=<optimized out>, src_host=0x3ff6dc4400 "", manager_id=0, 
+    stage_idx=0, tensor_id=0, timeout_ns=10000000, total_bytes=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:838
+#4  0x000000000001a2d4 in prt_dma_copy_dram_to_spm_pages_prefix (
+    rt=rt@entry=0x3fffffdf90, dst_pages=dst_pages@entry=0x6bab8, 
+    src_dram_addr=<optimized out>, bytes=<optimized out>, 
+    manager_id=<optimized out>, stage_idx=<optimized out>, 
+    tensor_id=<optimized out>, timeout_ns=timeout_ns@entry=10000000)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2814
+#5  0x000000000003859e in prt_process_c1 (rt=rt@entry=0x3fffffdf90, 
+    buf=buf@entry=0x6ba90, idx=idx@entry=0, 
+    timeout_ns=timeout_ns@entry=10000000)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_scheduler.c:294
+#6  0x000000000002f016 in stage_worker_main (arg=0x83960)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4236
+#7  0x0000003ff7e6cf46 in ?? ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#8  0x0000003ff7eb5fcc in ?? ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+
+--- all thread bt ---
+
+Thread 2 (Thread 235.275 "rerocc_pipeline"):
+#0  prt_gdb_marker_stop () at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_debug_state.c:396
+#1  0x0000000000014604 in prt_gdb_marker_note (site_id=site_id@entry=27, segment_idx=<optimized out>, segment_idx@entry=4294967295, global_stage_id=<optimized out>, global_stage_id@entry=4294967295, local_stage_id=<optimized out>, local_stage_id@entry=0, subbatch_id=<optimized out>, subbatch_id@entry=4294967295, manager_id=manager_id@entry=0, tensor_id=tensor_id@entry=0, page_idx=page_idx@entry=57, token_id=token_id@entry=4294967295, rc=rc@entry=0, aux0=4376766464, aux1=1074797568, line=line@entry=840) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_debug_state.c:392
+#2  0x0000000000018a18 in dma_gdb_marker_fixed_load_page (line=840, aux1=<optimized out>, aux0=<optimized out>, rc=0, page_idx=57, tensor_id=0, manager_id=0, stage_idx=0, site_id=27) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:374
+#3  dma_copy_host_to_spm_pages_linux (rt=0x3fffffdf90, dst_pages=<optimized out>, src_host=0x3ff6dc4400 "", manager_id=0, stage_idx=0, tensor_id=0, timeout_ns=10000000, total_bytes=<optimized out>) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:838
+#4  0x000000000001a2d4 in prt_dma_copy_dram_to_spm_pages_prefix (rt=rt@entry=0x3fffffdf90, dst_pages=dst_pages@entry=0x6bab8, src_dram_addr=<optimized out>, bytes=<optimized out>, manager_id=<optimized out>, stage_idx=<optimized out>, tensor_id=<optimized out>, timeout_ns=timeout_ns@entry=10000000) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2814
+#5  0x000000000003859e in prt_process_c1 (rt=rt@entry=0x3fffffdf90, buf=buf@entry=0x6ba90, idx=idx@entry=0, timeout_ns=timeout_ns@entry=10000000) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_scheduler.c:294
+#6  0x000000000002f016 in stage_worker_main (arg=0x83960) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4236
+#7  0x0000003ff7e6cf46 in ?? () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#8  0x0000003ff7eb5fcc in ?? () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+
+Thread 1 (Thread 235.235 "rerocc_pipeline"):
+#0  0x0000003ff7e952a6 in clock_nanosleep () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#1  0x0000003ff7e9c262 in nanosleep () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#2  0x0000000000034b30 in prt_runtime_run (rt=rt@entry=0x3fffffdf90, args=args@entry=0x3fffffdea8) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:5408
+#3  0x0000000000012366 in prt_main_entry (argc=34, argv=0x3fffffe5e8) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/main.c:341
+#4  0x0000003ff7e2b636 in ?? () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#5  0x0000003ff7e2b6de in __libc_start_main () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#6  0x000000000001204c in _start ()
+
+--- registers ---
+ra             0x18a18	0x18a18 <dma_copy_host_to_spm_pages_linux+1676>
+sp             0x3ff6d75150	0x3ff6d75150
+gp             0x58d40	0x58d40 <c_buffer+1360>
+tp             0x3ff6d7e7a0	0x3ff6d7e7a0
+t0             0x7b233a8	129119144
+t1             0x1	1
+t2             0x1ec8ce	2017486
+fp             0x3ff6d752e0	0x3ff6d752e0
+s1             0x0	0
+a0             0x1b	27
+a1             0xffffffffffffffff	-1
+a2             0xffffffffffffffff	-1
+a3             0x0	0
+a4             0xffffffffffffffff	-1
+a5             0xffffffffffffffff	-1
+a6             0x0	0
+a7             0x39	57
+s2             0x400	1024
+s3             0x0	0
+s4             0x39	57
+s5             0x0	0
+s6             0xffffffffffffffff	-1
+s7             0x1c00	7168
+s8             0x0	0
+s9             0x0	0
+s10            0x0	0
+s11            0x0	0
+t3             0x40101c00	1074797568
+t4             0x104e02800	4376766464
+t5             0x0	0
+t6             0x4	4
+pc             0x14442	0x14442 <prt_gdb_marker_stop>
+
+--- pc window ---
+   0x14422 <prt_gdb_marker_enabled+24>:	ld	ra,24(sp)
+   0x14424 <prt_gdb_marker_enabled+26>:	ld	s0,16(sp)
+   0x14426 <prt_gdb_marker_enabled+28>:	lw	a0,164(s1)
+   0x1442a <prt_gdb_marker_enabled+32>:	ld	s1,8(sp)
+   0x1442c <prt_gdb_marker_enabled+34>:	addi	sp,sp,32
+   0x1442e <prt_gdb_marker_enabled+36>:	ret
+   0x14430 <prt_gdb_marker_enabled+38>:	
+    jal	0x13e86 <prt_gdb_marker_init_from_env>
+   0x14434 <prt_gdb_marker_enabled+42>:	ld	ra,24(sp)
+   0x14436 <prt_gdb_marker_enabled+44>:	ld	s0,16(sp)
+   0x14438 <prt_gdb_marker_enabled+46>:	lw	a0,164(s1)
+   0x1443c <prt_gdb_marker_enabled+50>:	ld	s1,8(sp)
+   0x1443e <prt_gdb_marker_enabled+52>:	addi	sp,sp,32
+   0x14440 <prt_gdb_marker_enabled+54>:	ret
+=> 0x14442 <prt_gdb_marker_stop>:	addi	sp,sp,-16
+   0x14444 <prt_gdb_marker_stop+2>:	sd	s0,8(sp)
+   0x14446 <prt_gdb_marker_stop+4>:	addi	s0,sp,16
+
+--- post-marker gdb command file ---
+
+--- fixed-load marker expectation ---
+$2 = 27
+$3 = 0
+$4 = 0
+$5 = 0
+$6 = 57
+$7 = 0
+
+--- immediate submitwait entry ---
+Temporary breakpoint 2 at 0x180de: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c, line 2070.
+
+Thread 2 "rerocc_pipeline" hit Temporary breakpoint 2, dma_submit_wait_annotated_scoped (rt=rt@entry=0x3fffffdf90, req=req@entry=0x3ff6d75218, 
+    stage_idx=stage_idx@entry=0, tensor_id=tensor_id@entry=0, 
+    timeout_ns=timeout_ns@entry=10000000, scope=scope@entry=0x3ff6d75200, 
+    force_export_probe=force_export_probe@entry=0, 
+    debug_page_idx=debug_page_idx@entry=57)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2070
+2070	  const int trace_submit = dma_should_marker_trace_submit(req, tensor_id);
+#0  dma_submit_wait_annotated_scoped (rt=rt@entry=0x3fffffdf90, 
+    req=req@entry=0x3ff6d75218, stage_idx=stage_idx@entry=0, 
+    tensor_id=tensor_id@entry=0, timeout_ns=timeout_ns@entry=10000000, 
+    scope=scope@entry=0x3ff6d75200, 
+    force_export_probe=force_export_probe@entry=0, 
+    debug_page_idx=debug_page_idx@entry=57)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2070
+#1  0x0000000000018a34 in dma_copy_host_to_spm_pages_linux (rt=0x3fffffdf90, 
+    dst_pages=<optimized out>, src_host=0x3ff6dc4400 "", manager_id=0, 
+    stage_idx=0, tensor_id=0, timeout_ns=10000000, total_bytes=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:841
+#2  0x000000000001a2d4 in prt_dma_copy_dram_to_spm_pages_prefix (
+    rt=rt@entry=0x3fffffdf90, dst_pages=dst_pages@entry=0x6bab8, 
+    src_dram_addr=<optimized out>, bytes=<optimized out>, 
+    manager_id=<optimized out>, stage_idx=<optimized out>, 
+    tensor_id=<optimized out>, timeout_ns=timeout_ns@entry=10000000)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2814
+#3  0x000000000003859e in prt_process_c1 (rt=rt@entry=0x3fffffdf90, 
+    buf=buf@entry=0x6ba90, idx=idx@entry=0, 
+    timeout_ns=timeout_ns@entry=10000000)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_scheduler.c:294
+#4  0x000000000002f016 in stage_worker_main (arg=0x83960)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4236
+#5  0x0000003ff7e6cf46 in ?? ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#6  0x0000003ff7eb5fcc in ?? ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+rt = 0x3fffffdf90
+req = 0x3ff6d75218
+stage_idx = 0
+tensor_id = 0
+timeout_ns = 10000000
+scope = 0x3ff6d75200
+force_export_probe = 0
+debug_page_idx = 57
+$8 = 0
+$9 = 0
+$10 = 57
+$11 = 0x3ff6d75218
+$12 = {
+  src_addr = 4376766464,
+  dst_addr = 1074797568,
+  bytes = 1024,
+  src_acc = 0,
+  dst_acc = 0
+}
+=> 0x180de <dma_submit_wait_annotated_scoped>:	addi	sp,sp,-400
+   0x180e0 <dma_submit_wait_annotated_scoped+2>:	sd	s0,384(sp)
+   0x180e2 <dma_submit_wait_annotated_scoped+4>:	sd	s1,376(sp)
+   0x180e4 <dma_submit_wait_annotated_scoped+6>:	sd	s2,368(sp)
+   0x180e6 <dma_submit_wait_annotated_scoped+8>:	sd	s3,360(sp)
+   0x180e8 <dma_submit_wait_annotated_scoped+10>:	sd	s4,352(sp)
+   0x180ea <dma_submit_wait_annotated_scoped+12>:	sd	s5,344(sp)
+   0x180ec <dma_submit_wait_annotated_scoped+14>:	sd	s6,336(sp)
+   0x180ee <dma_submit_wait_annotated_scoped+16>:	sd	s7,328(sp)
+   0x180f0 <dma_submit_wait_annotated_scoped+18>:	sd	s8,320(sp)
+
+--- prt_dma_submit entry ---
+Temporary breakpoint 3 at 0x17efc: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c, line 2698.
+
+Thread 2 "rerocc_pipeline" hit Temporary breakpoint 3, prt_dma_submit (
+    rt=0x3fffffdf90, req=0x3ff6d75218, tok=0x3ff6d74ff8)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2698
+2698	  if (!rt || !req || !tok || !rt->dma_ops.submit) return PRT_ERR_INVAL;
+#0  prt_dma_submit (rt=0x3fffffdf90, req=0x3ff6d75218, tok=0x3ff6d74ff8)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2698
+#1  0x00000000000181aa in dma_submit_wait_annotated_scoped (
+    rt=rt@entry=0x3fffffdf90, req=req@entry=0x3ff6d75218, 
+    stage_idx=stage_idx@entry=0, tensor_id=tensor_id@entry=0, 
+    timeout_ns=timeout_ns@entry=10000000, scope=scope@entry=0x3ff6d75200, 
+    force_export_probe=force_export_probe@entry=0, 
+    debug_page_idx=debug_page_idx@entry=57)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2094
+#2  0x0000000000018a34 in dma_copy_host_to_spm_pages_linux (rt=0x3fffffdf90, 
+    dst_pages=<optimized out>, src_host=0x3ff6dc4400 "", manager_id=0, 
+    stage_idx=0, tensor_id=0, timeout_ns=10000000, total_bytes=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:841
+#3  0x000000000001a2d4 in prt_dma_copy_dram_to_spm_pages_prefix (
+    rt=rt@entry=0x3fffffdf90, dst_pages=dst_pages@entry=0x6bab8, 
+    src_dram_addr=<optimized out>, bytes=<optimized out>, 
+    manager_id=<optimized out>, stage_idx=<optimized out>, 
+    tensor_id=<optimized out>, timeout_ns=timeout_ns@entry=10000000)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2814
+#4  0x000000000003859e in prt_process_c1 (rt=rt@entry=0x3fffffdf90, 
+    buf=buf@entry=0x6ba90, idx=idx@entry=0, 
+    timeout_ns=timeout_ns@entry=10000000)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_scheduler.c:294
+#5  0x000000000002f016 in stage_worker_main (arg=0x83960)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4236
+#6  0x0000003ff7e6cf46 in ?? ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#7  0x0000003ff7eb5fcc in ?? ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+rt = 0x3fffffdf90
+req = 0x3ff6d75218
+tok = 0x3ff6d74ff8
+$13 = 0x3ff6d75218
+$14 = {
+  src_addr = 4376766464,
+  dst_addr = 1074797568,
+  bytes = 1024,
+  src_acc = 0,
+  dst_acc = 0
+}
+$15 = 0x3ff6d74ff8
+=> 0x17efc <prt_dma_submit>:	beqz	a0,0x17f7c <prt_dma_submit+128>
+   0x17efe <prt_dma_submit+2>:	addi	sp,sp,-48
+   0x17f00 <prt_dma_submit+4>:	sd	s0,32(sp)
+   0x17f02 <prt_dma_submit+6>:	sd	s2,16(sp)
+   0x17f04 <prt_dma_submit+8>:	sd	ra,40(sp)
+   0x17f06 <prt_dma_submit+10>:	addi	s0,sp,48
+   0x17f08 <prt_dma_submit+12>:	mv	s2,a1
+   0x17f0a <prt_dma_submit+14>:	beqz	a1,0x17f78 <prt_dma_submit+124>
+   0x17f0c <prt_dma_submit+16>:	sd	s3,8(sp)
+   0x17f0e <prt_dma_submit+18>:	mv	s3,a2
+
+--- dma_blocking_wait entry ---
+Temporary breakpoint 4 at 0x16068: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c, line 3578.
+
+Thread 2 "rerocc_pipeline" hit Temporary breakpoint 4, dma_blocking_wait (
+    rt=0x3fffffdf90, tok=0x3ff6d74ff8, timeout_ns=10000000)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3578
+3578	  if (!tok) return PRT_ERR_INVAL;
+#0  dma_blocking_wait (rt=0x3fffffdf90, tok=0x3ff6d74ff8, timeout_ns=10000000)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3578
+#1  0x00000000000181c0 in prt_dma_wait (timeout_ns=10000000, tok=0x3ff6d74ff8, 
+    rt=0x3fffffdf90)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2708
+#2  dma_submit_wait_annotated_scoped (rt=rt@entry=0x3fffffdf90, 
+    req=req@entry=0x3ff6d75218, stage_idx=stage_idx@entry=0, 
+    tensor_id=tensor_id@entry=0, timeout_ns=timeout_ns@entry=10000000, 
+    scope=scope@entry=0x3ff6d75200, 
+    force_export_probe=force_export_probe@entry=0, 
+    debug_page_idx=debug_page_idx@entry=57)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2121
+#3  0x0000000000018a34 in dma_copy_host_to_spm_pages_linux (rt=0x3fffffdf90, 
+    dst_pages=<optimized out>, src_host=0x3ff6dc4400 "", manager_id=0, 
+    stage_idx=0, tensor_id=0, timeout_ns=10000000, total_bytes=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:841
+#4  0x000000000001a2d4 in prt_dma_copy_dram_to_spm_pages_prefix (
+    rt=rt@entry=0x3fffffdf90, dst_pages=dst_pages@entry=0x6bab8, 
+    src_dram_addr=<optimized out>, bytes=<optimized out>, 
+    manager_id=<optimized out>, stage_idx=<optimized out>, 
+    tensor_id=<optimized out>, timeout_ns=timeout_ns@entry=10000000)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2814
+#5  0x000000000003859e in prt_process_c1 (rt=rt@entry=0x3fffffdf90, 
+    buf=buf@entry=0x6ba90, idx=idx@entry=0, 
+    timeout_ns=timeout_ns@entry=10000000)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_scheduler.c:294
+#6  0x000000000002f016 in stage_worker_main (arg=0x83960)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4236
+#7  0x0000003ff7e6cf46 in ?? ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+rt = 0x3fffffdf90
+tok = 0x3ff6d74ff8
+timeout_ns = 10000000
+$16 = 58
+$17 = 0
+$18 = 0
+$19 = 57
+$20 = 0
+$21 = 1
+$22 = 1
+$23 = 0
+$24 = 0x5e000
+0x5e000:	0x00000001
+$25 = 0x104e02800
+$26 = 0x40101c00
+$27 = 0x1032f9000
+$28 = 1024
+=> 0x16068 <dma_blocking_wait>:	beqz	a1,0x1673a <dma_blocking_wait+1746>
+   0x1606c <dma_blocking_wait+4>:	addi	sp,sp,-192
+   0x1606e <dma_blocking_wait+6>:	sd	ra,184(sp)
+   0x16070 <dma_blocking_wait+8>:	sd	s0,176(sp)
+   0x16072 <dma_blocking_wait+10>:	sd	s1,168(sp)
+   0x16074 <dma_blocking_wait+12>:	sd	s2,160(sp)
+   0x16076 <dma_blocking_wait+14>:	sd	s4,144(sp)
+   0x16078 <dma_blocking_wait+16>:	sd	s5,136(sp)
+   0x1607a <dma_blocking_wait+18>:	sd	s8,112(sp)
+   0x1607c <dma_blocking_wait+20>:	addi	s0,sp,192
+
+--- before hw_dma_fence ---
+Temporary breakpoint 5 at 0x161c4: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c, line 3683.
+
+Thread 2 "rerocc_pipeline" hit Temporary breakpoint 5, hw_dma_fence ()
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2439
+2439	  __asm__ volatile("fence" ::: "memory");
+#0  hw_dma_fence ()
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2439
+#1  dma_blocking_wait (rt=0x3fffffdf90, tok=0x3ff6d74ff8, timeout_ns=10000000)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:3683
+#2  0x00000000000181c0 in prt_dma_wait (timeout_ns=10000000, tok=0x3ff6d74ff8, 
+    rt=0x3fffffdf90)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2708
+#3  dma_submit_wait_annotated_scoped (rt=rt@entry=0x3fffffdf90, 
+    req=req@entry=0x3ff6d75218, stage_idx=stage_idx@entry=0, 
+    tensor_id=tensor_id@entry=0, timeout_ns=timeout_ns@entry=10000000, 
+    scope=scope@entry=0x3ff6d75200, 
+    force_export_probe=force_export_probe@entry=0, 
+    debug_page_idx=debug_page_idx@entry=57)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2121
+#4  0x0000000000018a34 in dma_copy_host_to_spm_pages_linux (rt=0x3fffffdf90, 
+    dst_pages=<optimized out>, src_host=0x3ff6dc4400 "", manager_id=0, 
+    stage_idx=0, tensor_id=0, timeout_ns=10000000, total_bytes=<optimized out>)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:841
+#5  0x000000000001a2d4 in prt_dma_copy_dram_to_spm_pages_prefix (
+    rt=rt@entry=0x3fffffdf90, dst_pages=dst_pages@entry=0x6bab8, 
+    src_dram_addr=<optimized out>, bytes=<optimized out>, 
+    manager_id=<optimized out>, stage_idx=<optimized out>, 
+    tensor_id=<optimized out>, timeout_ns=timeout_ns@entry=10000000)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_dma.c:2814
+#6  0x000000000003859e in prt_process_c1 (rt=rt@entry=0x3fffffdf90, 
+    buf=buf@entry=0x6ba90, idx=idx@entry=0, 
+    timeout_ns=timeout_ns@entry=10000000)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_scheduler.c:294
+#7  0x000000000002f016 in stage_worker_main (arg=0x83960)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4236
+No arguments.
+/home/ubuntu/chipyard/tmp/firesim-aws-f2/gdbserver-tests/pairdummy-cfg32-marker-stop-20260508T045331Z-192_168_1_175-172_16_0_2/pairdummy-cfg32-marker-stop.gdb:23: Error in sourced command file:
+/home/ubuntu/chipyard/tmp/firesim-aws-f2/gdbserver-tests/fixed-load-page-frontier-20260508T045331Z/fixed-load-page-frontier.gdb:69: Error in sourced command file:
+No symbol "tok" in current context.
+(gdb) 

@@ -124,6 +124,7 @@ print/x tok->debug_src_addr
 print/x tok->debug_dst_addr
 print/x tok->debug_done_flag_pa
 print tok->debug_bytes
+set \$tokp = tok
 x/10i \$pc
 
 printf "\\n--- before hw_dma_fence ---\\n"
@@ -131,18 +132,18 @@ tbreak ${dma_src}:3683
 continue
 bt 8
 info args
-print tok->id
-print tok->debug_page_idx
-print tok->rr_manager_id
-print tok->rr_scope_valid
-print tok->rr_scope_external
-print tok->hw_done_flag
-print/x tok->completion_flag
-x/wx tok->completion_flag
-print/x tok->debug_src_addr
-print/x tok->debug_dst_addr
-print/x tok->debug_done_flag_pa
-print tok->debug_bytes
+print \$tokp->id
+print \$tokp->debug_page_idx
+print \$tokp->rr_manager_id
+print \$tokp->rr_scope_valid
+print \$tokp->rr_scope_external
+print \$tokp->hw_done_flag
+print/x \$tokp->completion_flag
+x/wx \$tokp->completion_flag
+print/x \$tokp->debug_src_addr
+print/x \$tokp->debug_dst_addr
+print/x \$tokp->debug_done_flag_pa
+print \$tokp->debug_bytes
 x/10i \$pc
 
 printf "\\n--- after hw_dma_fence ---\\n"
@@ -151,11 +152,11 @@ continue
 bt 8
 info args
 print fence_status
-print tok->id
-print tok->debug_page_idx
-print tok->hw_done_flag
-print/x tok->completion_flag
-x/wx tok->completion_flag
+print \$tokp->id
+print \$tokp->debug_page_idx
+print \$tokp->hw_done_flag
+print/x \$tokp->completion_flag
+x/wx \$tokp->completion_flag
 x/10i \$pc
 
 printf "\\n--- before shared fence ---\\n"
@@ -163,11 +164,11 @@ tbreak ${dma_src}:3762
 continue
 bt 8
 info args
-print tok->id
-print tok->debug_page_idx
-print tok->rr_manager_id
-print tok->rr_scope_valid
-print tok->rr_scope_external
+print \$tokp->id
+print \$tokp->debug_page_idx
+print \$tokp->rr_manager_id
+print \$tokp->rr_scope_valid
+print \$tokp->rr_scope_external
 x/10i \$pc
 
 printf "\\n--- wait return marker ---\\n"
@@ -176,14 +177,14 @@ continue
 bt 8
 info args
 print rc
-print tok->id
-print tok->debug_page_idx
-print tok->rr_manager_id
-print tok->rr_scope_valid
-print tok->rr_scope_external
-print tok->hw_done_flag
-print tok->done
-print tok->status
+print \$tokp->id
+print \$tokp->debug_page_idx
+print \$tokp->rr_manager_id
+print \$tokp->rr_scope_valid
+print \$tokp->rr_scope_external
+print \$tokp->hw_done_flag
+print \$tokp->done
+print \$tokp->status
 x/10i \$pc
 EOF
 

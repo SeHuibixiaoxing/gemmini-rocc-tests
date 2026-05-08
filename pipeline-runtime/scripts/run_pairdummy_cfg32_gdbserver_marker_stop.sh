@@ -209,7 +209,7 @@ echo "[pairdummy-gdb-marker] gdb_cmds=${gdb_cmds}"
 echo "[pairdummy-gdb-marker] transcript=${transcript}"
 
 set +e
-timeout "${marker_timeout}" "${gdb}" -q -x "${gdb_cmds}" "${target_bin}" 2>&1 | tee "${transcript}"
+timeout "${marker_timeout}" "${gdb}" -q -batch -x "${gdb_cmds}" "${target_bin}" 2>&1 | tee "${transcript}"
 gdb_rc=${PIPESTATUS[0]}
 set -e
 
