@@ -47,6 +47,7 @@ PIPELINE_RUNTIME_GDBSERVER_INFO_PATH="${PIPELINE_RUNTIME_GDBSERVER_INFO_PATH:-${
 PIPELINE_RUNTIME_GDBSERVER_LOG_PATH="${PIPELINE_RUNTIME_GDBSERVER_LOG_PATH:-${LOG_DIR}/bertmini-batch8.gdbserver.log}"
 PIPELINE_RUNTIME_GDBSERVER_CONSOLE_ANNOUNCE="${PIPELINE_RUNTIME_GDBSERVER_CONSOLE_ANNOUNCE:-1}"
 PIPELINE_RUNTIME_DMA_FORCE_DIRECT_ENABLE="${PIPELINE_RUNTIME_DMA_FORCE_DIRECT_ENABLE:-0}"
+PIPELINE_RUNTIME_WRAPPER_PROC_WCHAN_ENABLE="${PIPELINE_RUNTIME_WRAPPER_PROC_WCHAN_ENABLE:-0}"
 DEEP_LOG_ENABLE="${DEEP_LOG_ENABLE:-1}"
 TRACE_ENABLE="${TRACE_ENABLE:-0}"
 sync_pid=""
@@ -171,7 +172,11 @@ append_child_proc_diag() {
       tr '\0' ' ' < "/proc/${proc_pid}/cmdline" 2>/dev/null || true
       printf '\n'
       printf 'wchan='
-      cat "/proc/${proc_pid}/wchan" 2>/dev/null || true
+      if [ "${PIPELINE_RUNTIME_WRAPPER_PROC_WCHAN_ENABLE}" != "0" ]; then
+        cat "/proc/${proc_pid}/wchan" 2>/dev/null || true
+      else
+        printf 'skipped'
+      fi
       printf '\n'
       printf 'status:\n'
       cat "/proc/${proc_pid}/status" 2>/dev/null || true

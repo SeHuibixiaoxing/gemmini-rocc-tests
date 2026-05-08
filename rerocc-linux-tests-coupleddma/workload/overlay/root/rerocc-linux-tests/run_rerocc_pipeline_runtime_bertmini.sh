@@ -17,6 +17,7 @@ RUNNER_BIN_DELAY_PROBE_FORCE_SYNC="${PIPELINE_RUNTIME_RUNNER_BIN_DELAY_PROBE_FOR
 RUNNER_PTRACE_PROBE_ENABLE="${PIPELINE_RUNTIME_RUNNER_PTRACE_PROBE_ENABLE:-0}"
 RUNNER_PTRACE_PROBE_TOOL="${PIPELINE_RUNTIME_RUNNER_PTRACE_PROBE_TOOL:-/root/rerocc-linux-tests/rerocc_ptrace_peek-linux}"
 RUNNER_PTRACE_PROBE_DETAIL_BYTES="${PIPELINE_RUNTIME_RUNNER_PTRACE_PROBE_DETAIL_BYTES:-32}"
+RUNNER_PROC_WCHAN_ENABLE="${PIPELINE_RUNTIME_RUNNER_PROC_WCHAN_ENABLE:-0}"
 GDBSERVER_ENABLE="${PIPELINE_RUNTIME_GDBSERVER_ENABLE:-0}"
 GDBSERVER_TOOL="${PIPELINE_RUNTIME_GDBSERVER_TOOL:-/usr/bin/gdbserver}"
 GDBSERVER_BIND_ADDR="${PIPELINE_RUNTIME_GDBSERVER_BIND_ADDR:-0.0.0.0}"
@@ -99,7 +100,11 @@ append_proc_stage() {
     tr '\0' ' ' < "/proc/${proc_pid}/cmdline" 2>/dev/null || true
     printf '\n'
     printf 'wchan='
-    cat "/proc/${proc_pid}/wchan" 2>/dev/null || true
+    if [ "${RUNNER_PROC_WCHAN_ENABLE}" != "0" ]; then
+      cat "/proc/${proc_pid}/wchan" 2>/dev/null || true
+    else
+      printf 'skipped'
+    fi
     printf '\n'
     printf 'status:\n'
     cat "/proc/${proc_pid}/status" 2>/dev/null || true
