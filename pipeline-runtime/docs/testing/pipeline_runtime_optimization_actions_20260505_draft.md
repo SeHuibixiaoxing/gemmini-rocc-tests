@@ -90,7 +90,15 @@ allocation order、默认 xlate range 和 idle check 都改为使用独立的 SP
 - 如果需要 overlap，先实现 shared scope 或 action/stage 级 scope，不允许两个 helper 独立抢同一 manager。
 - action release 前统一 drain/fence 所有 manager，再释放资源。
 
-验收：日志中能看到 action manager 表；任何越权 manager 使用都 fail-fast。
+当前执行策略：
+
+- 在 shared scope 或 action/stage 级 owner 尚未实现前，DMA/Gemmini 并行仍然禁止作为正确性路径使用。
+- 默认保持保守串行行为：entry/fixed-load DMA 完成后再发 Gemmini 计算，Gemmini drain/fence 后再做 export DMA。
+- `async_experimental` 只能作为受控实验观察点，不能作为默认正确性假设；任何同一 manager 上的 DMA/Gemmini overlap
+  都必须显式声明、显式打开，并先通过冲突表和 fence/completion 语义验证。
+
+验收：日志中能看到 action manager 表和当前执行模式；任何越权 manager 使用都 fail-fast；
+未显式启用并验证的 DMA/Gemmini overlap 必须保持串行或直接拒绝。
 
 当前状态：`2026-05-05T152012Z` 已补第一版 DMA manager ownership 运行时断言。
 `dma_batch_scope_acquire`、直接 `prt_dma_submit` 和 host `prt_dma_copy_spm_va`
@@ -98,6 +106,8 @@ allocation order、默认 xlate range 和 idle check 都改为使用独立的 SP
 绑定的 DMA manager；在 pair-manager mode 下，也接受同一 stage 的 paired
 Gemmini manager set。这样 DMA/Gemmini 共用 local id 时，误用 manager 会先报
 `dma manager contract violation`，不再直接表现成硬件 DMA fence 卡死。
+这一步只建立 ownership fail-fast；当前仍不声明同一 manager 上 DMA/Gemmini 可以并行，
+默认调度语义继续按保守串行路径执行。
 
 当前状态：`2026-05-05T165017Z` 默认 host 构建已恢复通过，三套
 `bertmini` artifact (`ours2/gemini2/tangram2`) 在 `--page-size-bytes 1024`
@@ -156,30 +166,41 @@ F2 现场；若 backtrace 显示卡点就是 xlate bind/flush，再把阶段 A/B
 
 ## P1：no-DMA compute 二分测试
 
-目的：把卡死从 DMA/completion/direct/bounce 与 Gemmini/SPM/manager 中拆开。
+目的：把卡死从 DMA/completion/direct DMA 与 Gemmini/SPM/manager 中拆开。
 
 措施：
 
-- 构造最小 stage，input/weight/output 预置在 SPM。
+- 构造最小 stage，假设 input/weight/output 对应数据已经在 SPM。
+- 不构造真实数值、model/input/golden；该测试只验证 SPM 地址、manager ownership、
+  Gemmini issue/fence 和 runtime 控制流。
 - 禁用 fixed-load DMA 和 export DMA。
-- 只执行 Gemmini issue/fence，并读取 output。
+- 只执行 Gemmini issue/fence；output 只作为 SPM 目标地址参与检查，不做数值正确性比较。
 - 分别在 baremetal/metasim/F2 上运行。
 
 验收：
 
-- no-DMA 通过：优先查 DMA/completion/host buffer/direct/bounce。
+- no-DMA 通过：优先查 DMA/completion/host buffer/direct DMA。
 - no-DMA 失败：优先查 Gemmini/SPM xlate/ReRoCC manager ownership。
 
 最小测试建议：
 
 - 首先在 host/CPU backend 下做“调度干跑”：保留 artifact 和 action alloc/bind 校验，跳过 model/input/golden，
   只验证 no-DMA profile 能走完 runtime 初始化和 stage/task 构建。
-- 第二步做 baremetal/metasim 小负载：预置 input/weight 到 SPM，执行一个单 stage / 单 manager conv 或 pointwise，
-  禁用 fixed-load/export DMA。
-- 第三步才放到 F2：同一 AGFI 上分别跑 `force_direct=1` 的正常路径和 no-DMA compute 路径，比较 backtrace
+- 第二步做 baremetal/metasim 小负载：按“数据已在 SPM”的前提执行一个单 stage / 单 manager conv 或 pointwise，
+  禁用 fixed-load/export DMA，不准备真实输入/权重数值，也不做 golden 对比。
+- 第三步才放到 F2：同一 AGFI 上分别跑默认 direct DMA 正常路径和 no-DMA compute 路径，比较 backtrace
   与 breadcrumb。
 
 当前可以并行推进的是第一步 host/CPU 调度干跑；后两步依赖可用 target workload 或新的 F2 运行窗口。
+
+2026-05-09 更新：
+
+- host/CPU no-DMA dry-run 已通过。
+- cfg32/NIC/noTrace F2 目标 `agfi-077451484fe3b63c3` 上，batch8 pairdummy
+  `PIPELINE_RUNTIME_NO_DMA_COMPUTE_ENABLE=1` 已完整 PASS：
+  `Simulation complete` / `*** PASSED *** after 22734035102 cycles`。
+- 因此当前二分结论是“no-DMA 通过”：后续优先查真实 DMA/completion/direct DMA，而不是继续
+  怀疑 artifact 读取、Gemmini compute 或 no-DMA pipebuf 控制流。
 
 ## P2：HybridMapper artifact 合同化
 
@@ -198,8 +219,12 @@ F2 现场；若 backtrace 显示卡点就是 xlate bind/flush，再把阶段 A/B
 在正确性稳定后再做：
 
 - DMA manager 位置纳入 HybridMapper cost model，避免不必要的 A->C->B NoC 绕路。
-- 对可安全 direct 的 host/SPM copy，减少 bounce。
-- 对 misaligned direct 依赖 optimized DMA 硬件能力，并用 forced direct 回归验证。
+- Direct DMA 优化已经完成，runtime 策略必须取消 bounce：host/SPM copy 全部走 direct DMA，
+  不再把 bounce 作为 fallback 或性能优化目标。
+- 如果 direct DMA 的地址范围、对齐、PA 转换或硬件能力检查失败，必须 fail-fast 或输出明确错误，
+  不允许静默回退到 bounce。
+- misaligned direct 依赖 optimized DMA 硬件能力；回归目标改为验证 direct-only 路径覆盖所有
+  aligned/misaligned host/SPM copy case。
 - stage overlap 只在冲突表证明安全时开启。
 - 对固定 weight 支持跨 action 缓存，但必须由 artifact 显式声明 lifetime 和共享关系。
 
@@ -210,7 +235,7 @@ F2 现场；若 backtrace 显示卡点就是 xlate bind/flush，再把阶段 A/B
 3. 用 gdbserver 定位当前卡死点。
 4. 做 no-DMA compute 二分。
 5. 收敛 action 级 ownership 和 SPM 稳定绑定。
-6. 再打开 DMA/Gemmini overlap 和 direct path 性能优化。
+6. 再打开 DMA/Gemmini overlap 和 direct DMA 性能回归/调优。
 
 ## 2026-05-05 当前执行状态
 
