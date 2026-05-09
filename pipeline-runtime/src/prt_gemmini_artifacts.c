@@ -19,6 +19,8 @@
 #define PRT_MAPPING_CACHE_SUFFIX ".cache.bin"
 #define PRT_MAPPING_PARSE_PROGRESS_INTERVAL 2048U
 #define PRT_MAPPING_SCAN_PROGRESS_INTERVAL 2048U
+#define PRT_ARTIFACT_FILE_READ_CHUNK_BYTES_DEFAULT 8192U
+#define PRT_ARTIFACT_FILE_READ_CHUNK_BYTES_MAX (1U << 20)
 
 typedef struct {
   uint32_t layer_id;
@@ -125,6 +127,16 @@ static uint32_t prt_env_u32_default(const char *name, uint32_t default_value) {
   return (uint32_t)parsed;
 }
 
+static size_t artifact_file_read_chunk_bytes(void) {
+  uint32_t chunk = prt_env_u32_default("PIPELINE_RUNTIME_ARTIFACT_FILE_READ_CHUNK_BYTES",
+                                       PRT_ARTIFACT_FILE_READ_CHUNK_BYTES_DEFAULT);
+  if (chunk == 0U) chunk = PRT_ARTIFACT_FILE_READ_CHUNK_BYTES_DEFAULT;
+  if (chunk > PRT_ARTIFACT_FILE_READ_CHUNK_BYTES_MAX) {
+    chunk = PRT_ARTIFACT_FILE_READ_CHUNK_BYTES_MAX;
+  }
+  return (size_t)chunk;
+}
+
 static int parse_u32_token_advance(char *p, char **out_next, uint32_t *out) {
   char *end = NULL;
   unsigned long x;
@@ -145,6 +157,7 @@ static int load_file(const char *path, char **out_buf, size_t *out_len) {
   size_t sz;
   char *buf;
   size_t off = 0U;
+  const size_t read_chunk_limit = artifact_file_read_chunk_bytes();
   if (!path || !out_buf) return PRT_ERR_INVAL;
 
   PRT_PROGRESS_LOG("artifacts file open begin path=%s", path);
@@ -180,7 +193,8 @@ static int load_file(const char *path, char **out_buf, size_t *out_len) {
   }
   PRT_PROGRESS_LOG("artifacts file alloc end path=%s bytes=%zu", path, sz + 1U);
 
-  PRT_PROGRESS_LOG("artifacts file read begin path=%s bytes=%zu", path, sz);
+  PRT_PROGRESS_LOG("artifacts file read begin path=%s bytes=%zu chunk_limit=%zu",
+                   path, sz, read_chunk_limit);
   if (lseek(fd, 0, SEEK_SET) < 0) {
     PRT_PROGRESS_LOG("artifacts file seek-begin fail path=%s errno=%d", path, errno);
     free(buf);
@@ -191,7 +205,7 @@ static int load_file(const char *path, char **out_buf, size_t *out_len) {
     size_t chunk = sz - off;
     ssize_t n;
 
-    if (chunk > (1U << 20)) chunk = (1U << 20);
+    if (chunk > read_chunk_limit) chunk = read_chunk_limit;
     PRT_PROGRESS_LOG("artifacts file read chunk-begin path=%s off=%zu chunk=%zu", path, off, chunk);
     n = read(fd, buf + off, chunk);
     if (n > 0) {

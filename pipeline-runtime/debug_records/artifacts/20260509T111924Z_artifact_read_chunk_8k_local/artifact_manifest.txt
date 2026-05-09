@@ -1,0 +1,24 @@
+artifact: 20260509T111924Z_artifact_read_chunk_8k_local
+purpose: local validation of 8 KiB generic artifact file read chunk
+
+change:
+  file: pipeline-runtime/src/prt_gemmini_artifacts.c
+  env_override: PIPELINE_RUNTIME_ARTIFACT_FILE_READ_CHUNK_BYTES
+  default_chunk_bytes: 8192
+  max_chunk_bytes: 1048576
+
+validation:
+  build: make -C generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime all PIPELINE_RUNTIME_PROGRESS=1 PIPELINE_RUNTIME_MLOCKALL_MODE=0
+  dry_run: host CPU backend, bertmini dummy8x8/sbus64 ours2, batch 8, no-DMA compute, mapping cache enabled
+  result: pass
+  exit_code: 0
+
+key_lines:
+  - artifacts file read begin ... bytes=3908768 chunk_limit=8192
+  - artifacts file read chunk-end ... off=3908768 read=1184
+  - artifacts mapping cache load end ... entries=16848
+  - runtime end run_rc=0 rc=0
+
+files:
+  - local-host-no-dma-small-chunk.log
+  - local-host-no-dma-small-chunk.log.sha256
