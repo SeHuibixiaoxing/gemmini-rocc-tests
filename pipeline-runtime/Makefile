@@ -26,6 +26,7 @@ LDLIBS ?= -lpthread
 SRC := $(wildcard src/*.c)
 OBJ := $(SRC:.c=.o)
 BIN := pipeline_runtime
+HEADERS := $(wildcard include/*.h ../include/*.h)
 
 .PHONY: all clean
 
@@ -34,7 +35,7 @@ all: $(BIN)
 $(BIN): $(OBJ)
 	$(CC) $(CFLAGS) $(PIPELINE_RUNTIME_DEBUG_CFLAGS) $(OBJ) $(LDFLAGS) $(LDLIBS) -o $@
 
-src/%.o: src/%.c
+src/%.o: src/%.c $(HEADERS)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $(PIPELINE_RUNTIME_DEBUG_CFLAGS) -c $< -o $@
 
 clean:

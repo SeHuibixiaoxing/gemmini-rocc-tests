@@ -285,7 +285,13 @@ int prt_process_c1(prt_runtime_t *rt, prt_pipebuf_t *buf, uint32_t idx, uint64_t
                                          &buf->slot_pages[idx])
             : pipebuf_transport_bytes_rt(rt, buf, NULL, &buf->slot_pages[idx]);
 
-  if (buf->ring && buf->kind == PRT_BUF_C1_ENTRY_DRAM_OR_DEPEN && buf->dram_base_addr[idx] == 0) {
+  if (prt_no_dma_compute_enabled(rt)) {
+    PRT_PROGRESS_LOG("no-dma-compute c1-skip stage=%u tensor=%u idx=%u subbatch=%u bytes=%llu ring=%u",
+                     buf->stage_idx, buf->tensor_id, idx, buf->subbatch_offset,
+                     (unsigned long long)bytes,
+                     (uint32_t)(buf->ring != NULL));
+    rc = PRT_OK;
+  } else if (buf->ring && buf->kind == PRT_BUF_C1_ENTRY_DRAM_OR_DEPEN && buf->dram_base_addr[idx] == 0) {
     rc = prt_dma_copy_spm_pages_prefix(rt, &buf->slot_pages[idx],
                                        &buf->ring->slot_pages[buf->subbatch_offset % buf->ring->size],
                                        bytes, buf->cmd_acc[idx], buf->stage_idx,
@@ -319,6 +325,18 @@ int prt_progress_export_dma(prt_runtime_t *rt, prt_pipebuf_t *buf, uint64_t time
   if (!rt || !buf) return PRT_ERR_INVAL;
   if (buf->kind != PRT_BUF_C2_EXPORT_DRAM_OR_DEPEN &&
       buf->kind != PRT_BUF_C6_EXPORT_ISOLATE_WITH_RING) {
+    return PRT_OK;
+  }
+  if (prt_no_dma_compute_enabled(rt)) {
+    int has_live;
+    pthread_mutex_lock(&buf->lock);
+    has_live = buf->dma_token_live[0] || buf->dma_token_live[1];
+    pthread_mutex_unlock(&buf->lock);
+    if (has_live) {
+      PRT_PROGRESS_LOG("no-dma-compute unexpected-live-export-dma stage=%u tensor=%u",
+                       buf->stage_idx, buf->tensor_id);
+      return PRT_ERR_STATE;
+    }
     return PRT_OK;
   }
 
@@ -420,7 +438,9 @@ int prt_process_c2(prt_runtime_t *rt, prt_pipebuf_t *buf, uint32_t idx, uint64_t
   }
 
   to_ring = (buf->ring && buf->kind == PRT_BUF_C2_EXPORT_DRAM_OR_DEPEN && buf->dram_base_addr[idx] == 0);
-  allow_overlap = export_overlap_enabled(rt) && can_submit_overlap_single_req(rt, buf, idx, to_ring);
+  allow_overlap = !prt_no_dma_compute_enabled(rt) &&
+                  export_overlap_enabled(rt) &&
+                  can_submit_overlap_single_req(rt, buf, idx, to_ring);
   transfer_bytes = to_ring
                      ? pipebuf_transport_bytes_rt(rt, buf, &buf->slot_pages[idx],
                                                   &buf->ring->slot_pages[buf->subbatch_offset % buf->ring->size])
@@ -443,6 +463,37 @@ int prt_process_c2(prt_runtime_t *rt, prt_pipebuf_t *buf, uint32_t idx, uint64_t
   buf->cmd_running[idx] = 1;
   buf->cmd_count[idx] = 1;
   pthread_mutex_unlock(&buf->lock);
+
+  if (prt_no_dma_compute_enabled(rt)) {
+    int rc = PRT_OK;
+    if (sparse_export_probe) {
+      PRT_PROGRESS_LOG("c2-export stage=%u tensor=%u phase=no-dma-skip idx=%u subbatch=%u bytes=%llu to_ring=%u",
+                       buf->stage_idx, buf->tensor_id, idx, submit_sbatch,
+                       (unsigned long long)transfer_bytes,
+                       (uint32_t)to_ring);
+    }
+    pthread_mutex_lock(&buf->lock);
+    buf->cmd_count[idx] = 0;
+    buf->cmd_running[idx] = 0;
+    if (buf->ring) {
+      pthread_mutex_lock(&buf->ring->lock);
+      rc = ring_fill_locked(buf->ring, submit_sbatch);
+      pthread_mutex_unlock(&buf->ring->lock);
+      if (rc != PRT_OK) {
+        buf->state_epoch += 1;
+        pthread_cond_broadcast(&buf->cv);
+        pthread_mutex_unlock(&buf->lock);
+        return rc;
+      }
+    }
+    buf->full[idx] = 0;
+    if (buf->subbatch_offset == submit_sbatch) buf->subbatch_offset += 1;
+    else if (buf->subbatch_offset < submit_sbatch) buf->subbatch_offset = submit_sbatch + 1U;
+    buf->state_epoch += 1;
+    pthread_cond_broadcast(&buf->cv);
+    pthread_mutex_unlock(&buf->lock);
+    return PRT_OK;
+  }
 
   req.dst_addr = buf->dram_base_addr[idx];
   if (buf->ring && buf->kind == PRT_BUF_C2_EXPORT_DRAM_OR_DEPEN && req.dst_addr == 0) {
@@ -571,14 +622,24 @@ int prt_process_c3(prt_runtime_t *rt, prt_isolate_pair_t *pair, uint64_t timeout
   transfer_bytes = pipebuf_transport_bytes_rt(rt, pair->pre_export,
                                               &pair->pre_export->slot_pages[pre_idx],
                                               &pair->nxt_entry->slot_pages[nxt_idx]);
-  int rc = prt_dma_copy_spm_pages_prefix(rt,
-                                         &pair->nxt_entry->slot_pages[nxt_idx],
-                                         &pair->pre_export->slot_pages[pre_idx],
-                                         transfer_bytes,
-                                         pair->pre_export->cmd_acc[pre_idx],
-                                         pair->pre_export->stage_idx,
-                                         pair->pre_export->tensor_id,
-                                         timeout_ns);
+  int rc;
+  if (prt_no_dma_compute_enabled(rt)) {
+    PRT_PROGRESS_LOG("no-dma-compute c3-skip pre_stage=%u tensor=%u pre_idx=%u nxt_stage=%u nxt_idx=%u subbatch=%u bytes=%llu",
+                     pair->pre_export->stage_idx, pair->pre_export->tensor_id,
+                     pre_idx, pair->nxt_entry->stage_idx, nxt_idx,
+                     pair->pre_export->subbatch_offset,
+                     (unsigned long long)transfer_bytes);
+    rc = PRT_OK;
+  } else {
+    rc = prt_dma_copy_spm_pages_prefix(rt,
+                                       &pair->nxt_entry->slot_pages[nxt_idx],
+                                       &pair->pre_export->slot_pages[pre_idx],
+                                       transfer_bytes,
+                                       pair->pre_export->cmd_acc[pre_idx],
+                                       pair->pre_export->stage_idx,
+                                       pair->pre_export->tensor_id,
+                                       timeout_ns);
+  }
 
   pthread_mutex_lock(&pair->pre_export->lock);
   pthread_mutex_lock(&pair->nxt_entry->lock);
@@ -692,11 +753,18 @@ int prt_process_c5(prt_runtime_t *rt, prt_pipebuf_t *buf, uint32_t idx, uint64_t
   transfer_bytes = pipebuf_transport_bytes_rt(rt, buf,
                                               &buf->ring->slot_pages[buf->subbatch_offset % buf->ring->size],
                                               &buf->slot_pages[idx]);
-  rc = prt_dma_copy_spm_pages_prefix(rt,
-                                     &buf->slot_pages[idx],
-                                     &buf->ring->slot_pages[buf->subbatch_offset % buf->ring->size],
-                                     transfer_bytes, buf->cmd_acc[idx], buf->stage_idx,
-                                     buf->tensor_id, timeout_ns);
+  if (prt_no_dma_compute_enabled(rt)) {
+    PRT_PROGRESS_LOG("no-dma-compute c5-skip stage=%u tensor=%u idx=%u subbatch=%u bytes=%llu",
+                     buf->stage_idx, buf->tensor_id, idx, buf->subbatch_offset,
+                     (unsigned long long)transfer_bytes);
+    rc = PRT_OK;
+  } else {
+    rc = prt_dma_copy_spm_pages_prefix(rt,
+                                       &buf->slot_pages[idx],
+                                       &buf->ring->slot_pages[buf->subbatch_offset % buf->ring->size],
+                                       transfer_bytes, buf->cmd_acc[idx], buf->stage_idx,
+                                       buf->tensor_id, timeout_ns);
+  }
 
   pthread_mutex_lock(&buf->lock);
   if (rc == PRT_OK) {
@@ -728,7 +796,9 @@ int prt_process_c6(prt_runtime_t *rt, prt_pipebuf_t *buf, uint32_t idx, uint64_t
   }
   pthread_mutex_unlock(&buf->lock);
 
-  allow_overlap = export_overlap_enabled(rt) && can_submit_overlap_single_req(rt, buf, idx, 1);
+  allow_overlap = !prt_no_dma_compute_enabled(rt) &&
+                  export_overlap_enabled(rt) &&
+                  can_submit_overlap_single_req(rt, buf, idx, 1);
   transfer_bytes = pipebuf_transport_bytes_rt(rt, buf,
                                               &buf->slot_pages[idx],
                                               &buf->ring->slot_pages[buf->subbatch_offset % buf->ring->size]);
@@ -749,6 +819,27 @@ int prt_process_c6(prt_runtime_t *rt, prt_pipebuf_t *buf, uint32_t idx, uint64_t
   buf->cmd_running[idx] = 1;
   buf->cmd_count[idx] = 1;
   pthread_mutex_unlock(&buf->lock);
+
+  if (prt_no_dma_compute_enabled(rt)) {
+    PRT_PROGRESS_LOG("no-dma-compute c6-skip stage=%u tensor=%u idx=%u subbatch=%u bytes=%llu",
+                     buf->stage_idx, buf->tensor_id, idx, submit_sbatch,
+                     (unsigned long long)transfer_bytes);
+    pthread_mutex_lock(&buf->lock);
+    pthread_mutex_lock(&buf->ring->lock);
+    rc = ring_fill_locked(buf->ring, submit_sbatch);
+    pthread_mutex_unlock(&buf->ring->lock);
+    if (rc == PRT_OK) {
+      buf->full[idx] = 0;
+      if (buf->subbatch_offset == submit_sbatch) buf->subbatch_offset += 1;
+      else if (buf->subbatch_offset < submit_sbatch) buf->subbatch_offset = submit_sbatch + 1U;
+    }
+    buf->cmd_running[idx] = 0;
+    buf->cmd_count[idx] = 0;
+    buf->state_epoch += 1;
+    pthread_cond_broadcast(&buf->cv);
+    pthread_mutex_unlock(&buf->lock);
+    return rc;
+  }
 
   prt_dma_req_t req;
   req.src_addr = pages_addr_base_rt(rt, &buf->slot_pages[idx]);

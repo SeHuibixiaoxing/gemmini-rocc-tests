@@ -164,6 +164,10 @@ typedef struct prt_runtime_s {
   volatile uint32_t trace_event_drop_count;
 } prt_runtime_t;
 
+static inline int prt_no_dma_compute_enabled(const prt_runtime_t *rt) {
+  return rt && rt->cfg.no_dma_compute_enable != 0U;
+}
+
 int prt_runtime_init(const prt_runtime_cfg_t *cfg, prt_runtime_t *rt);
 int prt_runtime_run(prt_runtime_t *rt, const prt_run_args_t *args);
 int prt_runtime_destroy(prt_runtime_t *rt);

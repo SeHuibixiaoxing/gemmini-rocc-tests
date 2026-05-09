@@ -5,7 +5,7 @@ set -euo pipefail
 # Do not override these ad hoc in the shell. If this profile needs to change,
 # edit this file, rebuild the image, and let freshness checks propagate it.
 
-export PIPELINE_RUNTIME_PROFILE_ID="pairdummy-sbus128-fixed-v27"
+export PIPELINE_RUNTIME_PROFILE_ID="pairdummy-sbus128-fixed-v28"
 
 export ENABLE_PIPELINE_RUNTIME="1"
 export TARGET_KEY="rerocc_globalnoc_pairmanager_dummy16x16_c4_g12_d12_spad1024kb_dram19_noc64_mac256_sbus128"
@@ -24,6 +24,7 @@ export DUMMY_GEMMINI_MODE="1"
 export PIPELINE_RUNTIME_SKIP_MODEL_BIN_LOAD="1"
 export PIPELINE_RUNTIME_SKIP_INPUT_LOAD="1"
 export PIPELINE_RUNTIME_SKIP_GOLDEN_CHECK="1"
+export PIPELINE_RUNTIME_NO_DMA_COMPUTE_ENABLE="${PIPELINE_RUNTIME_NO_DMA_COMPUTE_ENABLE-0}"
 
 export PIPELINE_RUNTIME_PROGRESS="1"
 export PIPELINE_RUNTIME_PROGRESS_RAW="0"

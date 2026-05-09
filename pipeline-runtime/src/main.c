@@ -40,6 +40,17 @@ static void prt_early_progress(const char *msg) {
 }
 #endif
 
+static int prt_env_flag_enabled(const char *name) {
+  const char *v = getenv(name);
+  if (!v || !*v) return 0;
+  if (!strcmp(v, "0") || !strcmp(v, "false") || !strcmp(v, "FALSE") ||
+      !strcmp(v, "no") || !strcmp(v, "NO") ||
+      !strcmp(v, "off") || !strcmp(v, "OFF")) {
+    return 0;
+  }
+  return 1;
+}
+
 static void prt_enable_live_stdio(void) {
   /* Keep guest logs visible immediately in FireSim/UART captures. */
   (void)setvbuf(stdout, NULL, _IONBF, 0);
@@ -107,7 +118,7 @@ static void prt_try_lock_process_memory(void) {
 
 static void usage(const char *prog) {
   fprintf(stderr,
-    "Usage: %s --backend <cpu|fpga> --model-yaml <path> --layer-mapping-yaml <path> [--model-bin <path>] [--model-offset <bytes>] [--skip-model-bin-load] --pipeline-yaml <path> [--num-cores <n>] [--num-gemmini-mgrs <n>] [--num-dma-mgrs <n>] [--gemmini-base-id <n>] [--dma-base-id <n>] [--pair-manager-mode <0|1>] [--sync-mode <async|blocking_debug>] [--pages-per-acc <n>] [--spm-page-bytes <n>] [--spm-xlate-enable <0|1>] [--spm-xlate-range-base <hex>] [--spm-xlate-range-size <bytes>] [--spm-pt-pool-prealloc-hugepages <n>] [--spm-pt-pool-max-hugepages <n>] [--spm-pt-require-hugetlb <0|1>] [--watchdog-ms <n>] [--export-dma-timeout-ms <n>] [--hw-validate-only] [--input <path>] [--skip-input-load] [--golden <path>] [--skip-golden-check] [--golden-out <path>] [--batch <n>] [--trace <path>]\\n"
+    "Usage: %s --backend <cpu|fpga> --model-yaml <path> --layer-mapping-yaml <path> [--model-bin <path>] [--model-offset <bytes>] [--skip-model-bin-load] --pipeline-yaml <path> [--num-cores <n>] [--num-gemmini-mgrs <n>] [--num-dma-mgrs <n>] [--gemmini-base-id <n>] [--dma-base-id <n>] [--pair-manager-mode <0|1>] [--sync-mode <async|blocking_debug>] [--pages-per-acc <n>] [--spm-page-bytes <n>] [--spm-xlate-enable <0|1>] [--spm-xlate-range-base <hex>] [--spm-xlate-range-size <bytes>] [--spm-pt-pool-prealloc-hugepages <n>] [--spm-pt-pool-max-hugepages <n>] [--spm-pt-require-hugetlb <0|1>] [--watchdog-ms <n>] [--export-dma-timeout-ms <n>] [--no-dma-compute] [--hw-validate-only] [--input <path>] [--skip-input-load] [--golden <path>] [--skip-golden-check] [--golden-out <path>] [--batch <n>] [--trace <path>]\\n"
     "       [--deep-log-enable <0|1>] [--deep-log-segment <n>] [--deep-log-global-stage <n>] [--deep-log-local-stage <n>] [--deep-log-subbatch <n>] [--deep-log-stage-radius <n>] [--deep-log-subbatch-radius <n>]\\n"
     "       %s --hw-validate-only [runtime knobs above]\\n",
     prog, prog);
@@ -172,6 +183,7 @@ int prt_main_entry(int argc, char **argv) {
   cfg.sync_mode = PRT_SYNC_MODE_ASYNC;
   cfg.watchdog_timeout_ms = 5000;
   cfg.export_dma_timeout_ms = 5000;
+  cfg.no_dma_compute_enable = prt_env_flag_enabled("PIPELINE_RUNTIME_NO_DMA_COMPUTE_ENABLE") ? 1U : 0U;
   cfg.deep_log_gate_enable = 0;
   cfg.deep_log_segment = PRT_LOG_GATE_ANY_U32;
   cfg.deep_log_global_stage = PRT_LOG_GATE_ANY_U32;
@@ -265,6 +277,8 @@ int prt_main_entry(int argc, char **argv) {
       watchdog_set = 1;
     } else if (!strcmp(argv[i], "--export-dma-timeout-ms") && i + 1 < argc) {
       cfg.export_dma_timeout_ms = (uint32_t)strtoul(argv[++i], NULL, 10);
+    } else if (!strcmp(argv[i], "--no-dma-compute")) {
+      cfg.no_dma_compute_enable = 1U;
     } else if (!strcmp(argv[i], "--deep-log-enable") && i + 1 < argc) {
       cfg.deep_log_gate_enable = (uint32_t)strtoul(argv[++i], NULL, 10) ? 1U : 0U;
     } else if (!strcmp(argv[i], "--deep-log-segment") && i + 1 < argc) {
@@ -302,6 +316,10 @@ int prt_main_entry(int argc, char **argv) {
     return 2;
   }
   prt_early_progress("[prt-early] required args ready");
+  if (cfg.no_dma_compute_enable && args.golden_path && !args.skip_golden_check) {
+    fprintf(stderr, "--no-dma-compute requires --skip-golden-check when --golden is present\n");
+    return 2;
+  }
   if (!user_set_dma_base) {
     if (cfg.pair_manager_mode) {
       cfg.dma_mgr_base_id = cfg.gemmini_mgr_base_id;
@@ -321,10 +339,11 @@ int prt_main_entry(int argc, char **argv) {
     prt_early_progress("[prt-early] after process memory lock");
   }
 
-  PRT_MARKER_LOG("main runtime-init-begin backend=%u cores=%u gemmini=%u dma=%u pair=%u gemmini_base=%u dma_base=%u spm_xlate=%u pages_per_acc=%u export_dma_timeout_ms=%u",
+  PRT_MARKER_LOG("main runtime-init-begin backend=%u cores=%u gemmini=%u dma=%u pair=%u gemmini_base=%u dma_base=%u spm_xlate=%u pages_per_acc=%u export_dma_timeout_ms=%u no_dma_compute=%u",
                  (uint32_t)cfg.backend, cfg.num_cores, cfg.num_gemmini_mgrs, cfg.num_dma_mgrs,
                  cfg.pair_manager_mode, cfg.gemmini_mgr_base_id, cfg.dma_mgr_base_id,
-                 cfg.spm_xlate_enable, cfg.pages_per_acc, cfg.export_dma_timeout_ms);
+                 cfg.spm_xlate_enable, cfg.pages_per_acc, cfg.export_dma_timeout_ms,
+                 cfg.no_dma_compute_enable);
   prt_early_progress("[prt-early] calling runtime_init");
   rc = prt_runtime_init(&cfg, &rt);
   if (rc != PRT_OK) {

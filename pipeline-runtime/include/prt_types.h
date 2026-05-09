@@ -412,6 +412,7 @@ typedef struct {
   uint32_t deep_log_subbatch;
   uint32_t deep_log_stage_radius;
   uint32_t deep_log_subbatch_radius;
+  uint32_t no_dma_compute_enable;
   const char *trace_path;
 } prt_runtime_cfg_t;
 

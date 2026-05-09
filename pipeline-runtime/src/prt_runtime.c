@@ -1863,6 +1863,11 @@ static void tensor_debug_log_spm_export_source(prt_runtime_t *rt,
   int rc;
   if (!rt || !pages || !pages->data || pages->size == 0U || src_size == 0U || !view_prefix) return;
   if (!prt_log_gate_allow_deep_logs()) return;
+  if (prt_no_dma_compute_enabled(rt)) {
+    PRT_MARKER_LOG("tensor-digest stage=%u tensor=%u view=%s detail=spm-src no-dma-compute-skip bytes=%llu",
+                   stage_id, tensor_id, view_prefix, (unsigned long long)src_size);
+    return;
+  }
   if (timeout_ns == 0ULL && rt->cfg.watchdog_timeout_ms != 0U) {
     timeout_ns = (uint64_t)rt->cfg.watchdog_timeout_ms * 1000000ULL;
   }
@@ -1945,6 +1950,12 @@ static int copy_tensor_pages_to_model_alias_target(prt_runtime_t *rt, uint32_t t
   const uint32_t breadcrumb_token_id = target_seq + 1U;
   int rc;
   if (!rt || !pages || !target_kind || src_size == 0U) return PRT_ERR_INVAL;
+  if (prt_no_dma_compute_enabled(rt)) {
+    PRT_MARKER_LOG("export-target stage=%u tensor=%u layer=%u slot=%u target=%s target_slot=%u bytes=%llu pages=%u dma=%u no-dma-compute-skip",
+                   stage_id, tensor_id, layer_index, slot, target_kind, target_slot,
+                   (unsigned long long)src_size, pages ? pages->size : 0U, manager_id);
+    return PRT_ERR_STATE;
+  }
   if (stage_id == 0U && tensor_id == 2U) {
     PRT_PROGRESS_LOG("export-target-dispatch stage=%u tensor=%u target_seq=%u layer=%u slot=%u target=%s target_slot=%u dst=0x%llx bytes=%llu pages=%u dma=%u timeout_ms=%u phase=begin",
                      stage_id, tensor_id, target_seq, layer_index, slot, target_kind, target_slot,
@@ -2226,8 +2237,19 @@ static int stage_prepare_exec_views(prt_runtime_t *rt, uint32_t stage_id, const 
                          (unsigned long long)(timeout_ns / 1000000ULL),
                          (unsigned long long)(uintptr_t)src);
         }
-        rc = prt_dma_copy_dram_to_spm_pages(rt, pages, (uint64_t)(uintptr_t)src,
-                                            exec->stage_dma_ids[stage_id], stage_id, tensor_id, timeout_ns);
+        if (prt_no_dma_compute_enabled(rt)) {
+          PRT_MARKER_LOG("stage-fixed-load action=%u segment=%u stage=%u slot=%u tensor=%u pages=%u bytes=%u lazy=%u reuse=%u dma=%u timeout_ms=%llu no-dma-compute-skip",
+                         action ? action->action_id : UINT32_MAX,
+                         action ? action->segment_idx : UINT32_MAX,
+                         stage_id, slot, tensor_id,
+                         pages ? pages->size : 0U, local_bytes, lazy_fetch, (uint32_t)reuse_loaded,
+                         exec->stage_dma_ids[stage_id],
+                         (unsigned long long)(timeout_ns / 1000000ULL));
+          rc = PRT_OK;
+        } else {
+          rc = prt_dma_copy_dram_to_spm_pages(rt, pages, (uint64_t)(uintptr_t)src,
+                                              exec->stage_dma_ids[stage_id], stage_id, tensor_id, timeout_ns);
+        }
         if (action && should_log_exec_view_steps(action, stage_id)) {
           PRT_MARKER_LOG("stage-fixed-load action=%u segment=%u stage=%u slot=%u tensor=%u pages=%u bytes=%u lazy=%u reuse=%u dma=%u timeout_ms=%llu rc=%d end",
                          action->action_id, action->segment_idx, stage_id, slot, tensor_id,
@@ -2648,14 +2670,22 @@ static int sync_stage_export_aliases(prt_runtime_t *rt, uint32_t segment_idx,
                      (unsigned long long)src_size, pages ? pages->size : 0U,
                      exec->stage_dma_ids[stage_id], stage->local_spm_tensor_addr[slot],
                      rt->cfg.export_dma_timeout_ms);
-      prt_runtime_gdb_marker(PRT_GDB_MARKER_SITE_EXPORT_SYNC_TENSOR,
-                             segment_idx, global_stage_id, stage_id, subbatch_id,
-                             exec->stage_dma_ids[stage_id], stage->exports[i].tensor_id,
-                             PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE, PRT_OK,
-                             (uint64_t)(pages ? pages->size : 0U),
-                             (uint64_t)src_size, __LINE__);
-      rc = copy_tensor_pages_to_model_aliases(rt, stage->exports[i].tensor_id, pages,
-                                              src_size, exec->stage_dma_ids[stage_id], stage_id);
+      if (prt_no_dma_compute_enabled(rt)) {
+        PRT_MARKER_LOG("export-sync stage=%u tensor=%u slot=%u path=spm-pages no-dma-compute-skip bytes=%llu pages=%u dma=%u",
+                       stage_id, stage->exports[i].tensor_id, slot,
+                       (unsigned long long)src_size, pages ? pages->size : 0U,
+                       exec->stage_dma_ids[stage_id]);
+        rc = PRT_OK;
+      } else {
+        prt_runtime_gdb_marker(PRT_GDB_MARKER_SITE_EXPORT_SYNC_TENSOR,
+                               segment_idx, global_stage_id, stage_id, subbatch_id,
+                               exec->stage_dma_ids[stage_id], stage->exports[i].tensor_id,
+                               PRT_DEBUG_U32_NONE, PRT_DEBUG_U32_NONE, PRT_OK,
+                               (uint64_t)(pages ? pages->size : 0U),
+                               (uint64_t)src_size, __LINE__);
+        rc = copy_tensor_pages_to_model_aliases(rt, stage->exports[i].tensor_id, pages,
+                                                src_size, exec->stage_dma_ids[stage_id], stage_id);
+      }
       PRT_MARKER_LOG("export-sync stage=%u tensor=%u slot=%u path=spm-pages end rc=%d bytes=%llu pages=%u dma=%u",
                      stage_id, stage->exports[i].tensor_id, slot, rc,
                      (unsigned long long)src_size, pages ? pages->size : 0U,
@@ -4877,7 +4907,16 @@ static void runtime_release_topology(prt_runtime_t *rt) {
   if (!action || !action->exec) return;
   exec = action->exec;
 
-  if (exec->pipebufs && rt->cfg.dma_backend == PRT_DMA_BACKEND_POLL_PROGRESS_THREAD) {
+  if (exec->pipebufs && prt_no_dma_compute_enabled(rt)) {
+    for (uint32_t i = 0; i < exec->pipebuf_count; ++i) {
+      prt_pipebuf_t *b = &exec->pipebufs[i];
+      if (b->dma_token_live[0] || b->dma_token_live[1]) {
+        PRT_PROGRESS_LOG("no-dma-compute unexpected-live-token release stage=%u tensor=%u live0=%d live1=%d",
+                         b->stage_idx, b->tensor_id,
+                         b->dma_token_live[0], b->dma_token_live[1]);
+      }
+    }
+  } else if (exec->pipebufs && rt->cfg.dma_backend == PRT_DMA_BACKEND_POLL_PROGRESS_THREAD) {
     uint64_t timeout_ns = (uint64_t)rt->cfg.watchdog_timeout_ms * 1000000ULL;
     if (timeout_ns == 0) timeout_ns = 5000000000ULL;
     for (uint32_t i = 0; i < exec->pipebuf_count; ++i) {
@@ -5001,11 +5040,12 @@ int prt_runtime_run(prt_runtime_t *rt, const prt_run_args_t *args) {
   prt_trace_run_start(rt);
   rt->stop_requested = 0;
   rt->fatal_error = 0;
-  PRT_MARKER_LOG("runtime begin backend=%u batch=%u watchdog_ms=%u export_dma_timeout_ms=%u",
+  PRT_MARKER_LOG("runtime begin backend=%u batch=%u watchdog_ms=%u export_dma_timeout_ms=%u no_dma_compute=%u",
                  (uint32_t)rt->cfg.backend, args->batch, rt->cfg.watchdog_timeout_ms,
-                 rt->cfg.export_dma_timeout_ms);
-  PRT_PROGRESS_LOG("runtime begin backend=%u batch=%u watchdog_ms=%u model_yaml=%s pipeline_yaml=%s layer_mapping_yaml=%s",
+                 rt->cfg.export_dma_timeout_ms, rt->cfg.no_dma_compute_enable);
+  PRT_PROGRESS_LOG("runtime begin backend=%u batch=%u watchdog_ms=%u no_dma_compute=%u model_yaml=%s pipeline_yaml=%s layer_mapping_yaml=%s",
                    (uint32_t)rt->cfg.backend, args->batch, rt->cfg.watchdog_timeout_ms,
+                   rt->cfg.no_dma_compute_enable,
                    args->model_yaml ? args->model_yaml : "(null)",
                    args->pipeline_yaml ? args->pipeline_yaml : "(null)",
                    args->layer_mapping_yaml ? args->layer_mapping_yaml : "(null)");
