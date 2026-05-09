@@ -6,6 +6,9 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 caller_pipeline_runtime_guest_log_enable="${PIPELINE_RUNTIME_GUEST_LOG_ENABLE-}"
 caller_pipeline_runtime_guest_deep_log_enable="${PIPELINE_RUNTIME_GUEST_DEEP_LOG_ENABLE-}"
 caller_pipeline_runtime_breadcrumb_enable="${PIPELINE_RUNTIME_BREADCRUMB_ENABLE-}"
+caller_pipeline_runtime_runner_stage_sync_enable="${PIPELINE_RUNTIME_RUNNER_STAGE_SYNC_ENABLE-}"
+caller_capture_periodic_sync_enable="${CAPTURE_PERIODIC_SYNC_ENABLE-}"
+caller_capture_periodic_sync_seconds="${CAPTURE_PERIODIC_SYNC_SECONDS-}"
 
 # Reuse the low-noise pairdummy defaults, then pin the hardware-dependent
 # fields to the current dummy8x8/sbus64 cfg32 NIC noTrace AGFI.
@@ -33,7 +36,9 @@ export PAGES_PER_ACC="1024"
 export PIPELINE_RUNTIME_GUEST_LOG_ENABLE="${PAIRDUMMY_SBUS64_GUEST_LOG_ENABLE:-${caller_pipeline_runtime_guest_log_enable:-0}}"
 export PIPELINE_RUNTIME_GUEST_DEEP_LOG_ENABLE="${PAIRDUMMY_SBUS64_GUEST_DEEP_LOG_ENABLE:-${caller_pipeline_runtime_guest_deep_log_enable:-0}}"
 export PIPELINE_RUNTIME_STDIO_CAPTURE_MODE="uart"
-export CAPTURE_PERIODIC_SYNC_ENABLE="0"
+export CAPTURE_PERIODIC_SYNC_ENABLE="${PAIRDUMMY_SBUS64_PERIODIC_SYNC_ENABLE:-${caller_capture_periodic_sync_enable:-0}}"
+export CAPTURE_PERIODIC_SYNC_SECONDS="${PAIRDUMMY_SBUS64_PERIODIC_SYNC_SECONDS:-${caller_capture_periodic_sync_seconds:-${CAPTURE_PERIODIC_SYNC_SECONDS:-1}}}"
+export PIPELINE_RUNTIME_RUNNER_STAGE_SYNC_ENABLE="${PAIRDUMMY_SBUS64_RUNNER_STAGE_SYNC_ENABLE:-${caller_pipeline_runtime_runner_stage_sync_enable:-${PIPELINE_RUNTIME_RUNNER_STAGE_SYNC_ENABLE:-0}}}"
 export PIPELINE_RUNTIME_CHILD_PROC_DIAG_ENABLE="0"
 export PIPELINE_RUNTIME_BREADCRUMB_ENABLE="${PAIRDUMMY_SBUS64_BREADCRUMB_ENABLE:-${caller_pipeline_runtime_breadcrumb_enable:-0}}"
 
