@@ -21,6 +21,7 @@
 #define PRT_MAPPING_SCAN_PROGRESS_INTERVAL 2048U
 #define PRT_ARTIFACT_FILE_READ_CHUNK_BYTES_DEFAULT 8192U
 #define PRT_ARTIFACT_FILE_READ_CHUNK_BYTES_MAX (1U << 20)
+#define PRT_ARTIFACT_FILE_READ_LOG_STRIDE_BYTES_DEFAULT (1U << 20)
 
 typedef struct {
   uint32_t layer_id;
@@ -137,6 +138,20 @@ static size_t artifact_file_read_chunk_bytes(void) {
   return (size_t)chunk;
 }
 
+static size_t artifact_file_read_log_stride_bytes(void) {
+  uint32_t stride = prt_env_u32_default("PIPELINE_RUNTIME_ARTIFACT_FILE_READ_LOG_STRIDE_BYTES",
+                                        PRT_ARTIFACT_FILE_READ_LOG_STRIDE_BYTES_DEFAULT);
+  return (size_t)stride;
+}
+
+static int artifact_file_read_log_chunk(size_t off, size_t sz, size_t chunk, size_t log_stride) {
+  if (log_stride == 0U) return 0;
+  if (off == 0U) return 1;
+  if (off + chunk >= sz) return 1;
+  if ((off % log_stride) == 0U) return 1;
+  return (off / log_stride) != ((off + chunk - 1U) / log_stride);
+}
+
 static int parse_u32_token_advance(char *p, char **out_next, uint32_t *out) {
   char *end = NULL;
   unsigned long x;
@@ -158,6 +173,7 @@ static int load_file(const char *path, char **out_buf, size_t *out_len) {
   char *buf;
   size_t off = 0U;
   const size_t read_chunk_limit = artifact_file_read_chunk_bytes();
+  const size_t read_log_stride = artifact_file_read_log_stride_bytes();
   if (!path || !out_buf) return PRT_ERR_INVAL;
 
   PRT_PROGRESS_LOG("artifacts file open begin path=%s", path);
@@ -193,8 +209,8 @@ static int load_file(const char *path, char **out_buf, size_t *out_len) {
   }
   PRT_PROGRESS_LOG("artifacts file alloc end path=%s bytes=%zu", path, sz + 1U);
 
-  PRT_PROGRESS_LOG("artifacts file read begin path=%s bytes=%zu chunk_limit=%zu",
-                   path, sz, read_chunk_limit);
+  PRT_PROGRESS_LOG("artifacts file read begin path=%s bytes=%zu chunk_limit=%zu log_stride=%zu",
+                   path, sz, read_chunk_limit, read_log_stride);
   if (lseek(fd, 0, SEEK_SET) < 0) {
     PRT_PROGRESS_LOG("artifacts file seek-begin fail path=%s errno=%d", path, errno);
     free(buf);
@@ -203,15 +219,22 @@ static int load_file(const char *path, char **out_buf, size_t *out_len) {
   }
   while (off < sz) {
     size_t chunk = sz - off;
+    int log_chunk;
     ssize_t n;
 
     if (chunk > read_chunk_limit) chunk = read_chunk_limit;
-    PRT_PROGRESS_LOG("artifacts file read chunk-begin path=%s off=%zu chunk=%zu", path, off, chunk);
+    log_chunk = artifact_file_read_log_chunk(off, sz, chunk, read_log_stride);
+    if (log_chunk) {
+      PRT_PROGRESS_LOG("artifacts file read chunk-begin off=%zu chunk=%zu total=%zu",
+                       off, chunk, sz);
+    }
     n = read(fd, buf + off, chunk);
     if (n > 0) {
       off += (size_t)n;
-      PRT_PROGRESS_LOG("artifacts file read chunk-end path=%s off=%zu read=%lld",
-                       path, off, (long long)n);
+      if (log_chunk) {
+        PRT_PROGRESS_LOG("artifacts file read chunk-end off=%zu read=%lld total=%zu",
+                         off, (long long)n, sz);
+      }
       continue;
     }
     if (n < 0 && errno == EINTR) {
