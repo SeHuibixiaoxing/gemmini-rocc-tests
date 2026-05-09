@@ -1,6 +1,6 @@
 # Pipeline Runtime gdbserver Integration SOP
 
-更新时间：`2026-05-09 01:48 UTC`
+更新时间：`2026-05-09 04:20 UTC`
 
 ## 1. 目标
 
@@ -206,12 +206,43 @@ helper 不是必须的。helper 的价值是把已经稳定的测试矩阵固化
 2026-05-09 的 live-GDB negative record：
 
 - [`20260509T014823Z_sbus64_live_gdb_ctrlc_disconnect_before_after_build.md`](/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/20260509T014823Z_sbus64_live_gdb_ctrlc_disconnect_before_after_build.md)
+- [`20260509T042039Z_sbus64_live_gdb_token5514_postwait_watchdog.md`](/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/20260509T042039Z_sbus64_live_gdb_token5514_postwait_watchdog.md)
 
 这条记录是关键反例：GDB 首连成功、`gdbserver` 进入 inferior，但 late marker
 `worker-after-build-stage-task` 未命中；Ctrl-C 没有返回 stop prompt，第二次 Ctrl-C 得到
 `Disconnected from target`。因此“卡住后接入或 Ctrl-C 一定能拿到调用栈”不是当前硬件/软件
 组合的可靠前提。后续 live GDB 调试应优先预放更早的阶段边界断点，而不是长时间 `continue`
 后再指望 interrupt。
+
+2026-05-09 的 token 5514 记录给出两个新的正向约束和三个 SOP 修正：
+
+- 正向约束：`segment=2/global_stage=3/local_stage=1` 的 `token=5514`
+  已通过 `dma-wait-after-fence -> before-shared-fence -> after-shared-fence ->
+  after-release -> after-complete -> after-trace-complete -> wait-return ->
+  submitwait-after-cleanup`。对该 token，卡点不在 `hw_dma_fence()`、shared
+  fence、release、`dma_token_complete()`、trace complete 或 submitwait cleanup。
+- 正向约束：之前“观测到的 shared fence 本身卡住”的假设已经继续后移；下一轮应看后续
+  token/page 或 worker-level marker。
+- ELF 校验：live GDB 必须默认使用
+  `/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/build/rerocc-linux-tests/rerocc_pipeline_runtime-linux`。
+  不要使用源码树下 stale 的
+  `rerocc-linux-tests/rerocc_pipeline_runtime-linux`。连接后立刻确认：
+
+  ```gdb
+  p/x &g_prt_gdb_marker_state
+  disassemble prt_gdb_marker_stop
+  ```
+
+  若地址与本轮 ELF 不符，先 `symbol-file <correct-build-elf>` 再删旧断点。错 ELF 的
+  `prt_gdb_marker_stop` 可能落到正确二进制的 `prt_gdb_marker_note` 中间，栈和
+  `g_prt_gdb_marker_state` 都会变成假证据。
+- marker 断点：不要在高频 `prt_gdb_marker_note` 入口放 GDB conditional breakpoint。
+  软件断点会先让所有 marker 调用陷入 GDB，再判断条件，扰动很大。应让 runtime 自己的
+  `g_prt_gdb_marker_filter` 过滤上下文，只在 `prt_gdb_marker_stop` 放一个断点。
+- watchdog：low-log live-GDB profile 下，目标停在 GDB 时 heartbeat 也会停。若 host
+  watchdog idle timeout 仍是 600s，长时间人工检查会被 watchdog 判为无进展并
+  `terminaterunfarm`。交互式 live-GDB 轮次必须设置足够大的有限
+  `FIRESIM_RUNWORKLOAD_IDLE_TIMEOUT_SECONDS`，并在结束后手动确认/终止 F2。
 
 ### 3.2.1 卡死后能否再接入
 

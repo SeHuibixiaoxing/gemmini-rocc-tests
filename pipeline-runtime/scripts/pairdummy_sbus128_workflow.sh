@@ -235,6 +235,7 @@ network_target_audit_enforced=$([[ "${PIPELINE_RUNTIME_GDBSERVER_ENABLE:-0}" != 
 network_target_audit_skip=${PAIRDUMMY_SKIP_NETWORK_GDBSERVER_TARGET_AUDIT:-0}
 guest_entrypoint=/firemarshal.sh
 note=do-not-infer-entrypoint-from-workload-overlay-root-firemarshal.sh
+firesim_idle_timeout_seconds=${FIRESIM_RUNWORKLOAD_IDLE_TIMEOUT_SECONDS:-}
 firesim_live_idle_timeout_seconds=${FIRESIM_RUNWORKLOAD_LIVE_IDLE_TIMEOUT_SECONDS:-}
 methods=${METHODS}
 target_batch=${TARGET_BATCH}
