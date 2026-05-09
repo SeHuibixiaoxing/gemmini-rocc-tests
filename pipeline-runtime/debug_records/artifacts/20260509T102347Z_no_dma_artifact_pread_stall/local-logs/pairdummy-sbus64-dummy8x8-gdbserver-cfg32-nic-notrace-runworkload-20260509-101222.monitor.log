@@ -1,0 +1,18 @@
+[prt-host-watchdog] started at 2026-05-09T10:12:22Z
+[prt-host-watchdog] runtime_config=/home/ubuntu/chipyard/sims/firesim/deploy/config_runtime_f2_gemmini_rerocc_pairmanager_dummy8x8_4c12p12_sbus64_linux_bertmini_pipeline_runtime_batch8_fileonly_sync_gdbserver_cfg32_nic_notrace.yaml
+[prt-host-watchdog] idle_timeout_seconds=7200 live_idle_timeout_seconds=10800 poll_seconds=30
+[prt-host-watchdog] ssh_connect_timeout_seconds=10 probe_timeout_seconds=20 capture_timeout_seconds=180
+[prt-host-watchdog] heartbeat_liveness_enable=1
+[prt-host-watchdog] arm_on_guest_status_nonzero=1
+[prt-host-watchdog] monitoring instance=i-0e3edebdabf8e333e private_ip=192.168.1.127
+[prt-host-watchdog] guest-status arm observed at 2026-05-09T10:19:42Z hb='Target Cycle (fastest), Seconds Since Start' guest_status=1725
+[prt-host-watchdog] progress hb='Target Cycle (fastest), Seconds Since Start' uart=20701 guest_log=0 guest_sparse=0 guest_checkpoint=0 guest_trigger=0 guest_status=1725 guest_proc=0 guest_runner=322 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=3894
+[prt-host-watchdog] hb='Target Cycle (fastest), Seconds Since Start' idle=0s hb_idle=31s uart=20701 guest_log=0 guest_sparse=0 guest_checkpoint=0 guest_trigger=0 guest_status=1725 guest_proc=0 guest_runner=322 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=3894
+[prt-host-watchdog] progress hb='Target Cycle (fastest), Seconds Since Start' uart=21191 guest_log=0 guest_sparse=53496 guest_checkpoint=0 guest_trigger=0 guest_status=1725 guest_proc=0 guest_runner=495 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=9340
+[prt-host-watchdog] hb='Target Cycle (fastest), Seconds Since Start' idle=0s hb_idle=62s uart=21191 guest_log=0 guest_sparse=53496 guest_checkpoint=0 guest_trigger=0 guest_status=1725 guest_proc=0 guest_runner=495 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=9340
+[prt-host-watchdog] hb='Target Cycle (fastest), Seconds Since Start' idle=31s hb_idle=93s uart=21191 guest_log=0 guest_sparse=53496 guest_checkpoint=0 guest_trigger=0 guest_status=1725 guest_proc=0 guest_runner=495 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=9340
+[prt-host-watchdog] hb='Target Cycle (fastest), Seconds Since Start' idle=63s hb_idle=125s uart=21191 guest_log=0 guest_sparse=53496 guest_checkpoint=0 guest_trigger=0 guest_status=1725 guest_proc=0 guest_runner=495 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=9340
+[prt-host-watchdog] hb='Target Cycle (fastest), Seconds Since Start' idle=94s hb_idle=156s uart=21191 guest_log=0 guest_sparse=53496 guest_checkpoint=0 guest_trigger=0 guest_status=1725 guest_proc=0 guest_runner=495 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=9340
+[prt-host-watchdog] hb='Target Cycle (fastest), Seconds Since Start' idle=125s hb_idle=187s uart=21191 guest_log=0 guest_sparse=53496 guest_checkpoint=0 guest_trigger=0 guest_status=1725 guest_proc=0 guest_runner=495 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=9340
+[prt-host-watchdog] hb='Target Cycle (fastest), Seconds Since Start' idle=156s hb_idle=218s uart=21191 guest_log=0 guest_sparse=53496 guest_checkpoint=0 guest_trigger=0 guest_status=1725 guest_proc=0 guest_runner=495 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=9340
+[prt-host-watchdog] hb='Target Cycle (fastest), Seconds Since Start' idle=188s hb_idle=250s uart=21191 guest_log=0 guest_sparse=53496 guest_checkpoint=0 guest_trigger=0 guest_status=1725 guest_proc=0 guest_runner=495 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=9340
