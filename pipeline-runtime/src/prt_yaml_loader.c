@@ -182,6 +182,18 @@ static int parse_accutil_anywhere(char *line, uint32_t *out) {
   return PRT_OK;
 }
 
+static int yaml_line_log_enabled(void) {
+  static int enabled = -1;
+  const char *v;
+
+  if (enabled >= 0) return enabled;
+  v = getenv("PIPELINE_RUNTIME_YAML_LINE_LOG_ENABLE");
+  enabled = (v && *v && strcmp(v, "0") != 0 &&
+             strcmp(v, "false") != 0 && strcmp(v, "FALSE") != 0 &&
+             strcmp(v, "off") != 0 && strcmp(v, "OFF") != 0) ? 1 : 0;
+  return enabled;
+}
+
 static int parse_int_list_from_value(char *v, uint32_t **out, uint32_t *out_n) {
   uint32_t *arr = NULL;
   uint32_t n = 0;
@@ -1008,7 +1020,9 @@ int prt_load_pipeline_yaml(const char *path, prt_pipeline_desc_t *out) {
     indent = count_indent(line);
     char *t = ltrim(line);
     if (*t == '\0' || *t == '#') continue;
-    PRT_PROGRESS_LOG("yaml pipeline parse line=%u indent=%d text=%.160s", line_no, indent, t);
+    if (yaml_line_log_enabled()) {
+      PRT_PROGRESS_LOG("yaml pipeline parse line=%u indent=%d text=%.160s", line_no, indent, t);
+    }
 
     if (in_stage_spm_util_list && cur_seg) {
       if (indent <= stage_spm_util_indent && *t != '-') {
