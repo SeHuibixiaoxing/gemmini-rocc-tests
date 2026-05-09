@@ -1,0 +1,17 @@
+debugfs 1.47.0 (5-Feb-2023)
+   2181   40755 (2)      0      0    4096  1-Jan-1970 00:00 .
+    186   40700 (2)   1000   1000    4096  1-Jan-1970 00:00 ..
+   2182   40755 (2)      0      0    4096  1-Jan-1970 00:00 traces
+   2183  100644 (1)      0      0   165433  1-Jan-1970 00:00 bertmini-batch8.log
+   2184  100644 (1)      0      0       0  1-Jan-1970 00:00 bertmini-batch8.deep.log
+   2185  100644 (1)      0      0       0  1-Jan-1970 00:00 bertmini-batch8.audit.log
+   2186  100644 (1)      0      0       0  1-Jan-1970 00:00 bertmini-batch8.checkpoint.log
+   2187  100644 (1)      0      0       0  1-Jan-1970 00:00 bertmini-batch8.gdbserver.info
+   2188  100644 (1)      0      0       0  1-Jan-1970 00:00 bertmini-batch8.gdbserver.log
+   2189  100644 (1)      0      0     487  1-Jan-1970 00:00 bertmini-batch8.runner-early.stage
+   2190  100644 (1)      0      0     495  1-Jan-1970 00:00 bertmini-batch8.runner.stage
+   2191  100644 (1)      0      0    9336  1-Jan-1970 00:00 bertmini-batch8.runner-proc.stage
+   2192  100644 (1)      0      0     433  1-Jan-1970 00:00 bertmini-batch8.wrapper.stage
+   2193  100644 (1)      0      0       0  1-Jan-1970 00:00 bertmini-batch8.wrapper-proc.stage
+   2194  100644 (1)      0      0    1702  1-Jan-1970 00:00 bertmini-batch8.status
+
