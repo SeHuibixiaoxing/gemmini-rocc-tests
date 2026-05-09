@@ -244,6 +244,25 @@ helper 不是必须的。helper 的价值是把已经稳定的测试矩阵固化
   `terminaterunfarm`。交互式 live-GDB 轮次必须设置足够大的有限
   `FIRESIM_RUNWORKLOAD_IDLE_TIMEOUT_SECONDS`，并在结束后手动确认/终止 F2。
 
+2026-05-09 后续 worker-level ladder 记录把 frontier 继续推进到 task construction：
+
+- 参考记录：
+  [`20260509T044644Z_sbus64_live_gdb_worker_build_task_frontier.md`](/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/20260509T044644Z_sbus64_live_gdb_worker_build_task_frontier.md)
+- 对 `segment=2/global_stage=3/local_stage=1/subbatch=0/manager=4`，以下 marker 已按顺序命中：
+  `worker-entry`、`worker-entry-process-return`、`worker-entry-full-return`、
+  `worker-before-exports-ready`、`worker-after-exports-ready`、
+  `worker-before-build-stage-task`。
+- 因此当前正向约束是：entry wait、exports-ready wait 和 token 5514 的 DMA wait/fence
+  cleanup 都不是该轮观测到的 frontier。新的 source window 是
+  `stage_worker_main()` 中 `worker-before-build-stage-task` 到
+  `worker-after-build-stage-task` 之间，也就是
+  `build_stage_task_desc(rt, ctx->stage_id, ...)` 及其 callee。
+- `worker-after-build-stage-task` 未命中后，live GDB `Ctrl-C` 只回显 `^C`，短窗口内没有回到
+  prompt。不要把这类路径的 PC/栈采样建立在“卡住后再 interrupt 一定可抢停”上。下一轮要在
+  `build_stage_task_desc()`、`build_stage_conv_desc()` / `build_stage_resadd_desc()`、
+  `stage_prepare_exec_views()`、`prt_dma_copy_dram_to_spm_pages()`、
+  `runtime_flush_stage_spm_xlate()` 等内部边界预放断点或更细 marker。
+
 ### 3.2.1 卡死后能否再接入
 
 当前 workflow 的 remote 调试入口是 `gdbserver --once :2345 <program>`。它有三个直接后果：
