@@ -320,6 +320,11 @@ helper 不是必须的。helper 的价值是把已经稳定的测试矩阵固化
 - `g_prt_debug_state` 和 `g_prt_gdb_marker_state` 是全局状态，可能被其它 worker 改写。
   它们适合作为 coarse gate，但命中后要结合当前 selected thread，并打开
   `set scheduler-locking on` 后再单步。
+- 不要在动态加载器入口、`main` 前，或 marker 尚未命中时就打开
+  `set scheduler-locking on`。2026-05-09 06:41 UTC 的无效轮次在
+  `ld-linux-riscv64-lp64d.so.1` 停住时提前开启 scheduler locking，然后 `continue`
+  等待 `prt_gdb_marker_stop`，marker 未命中且 Ctrl-C 只回显 `^C`。这不能解释为目标代码
+  新卡点；它只说明 scheduler locking 应在 marker 命中、确认已选中目标 worker thread 后再打开。
 - 用 `advance` 判断某条 custom/RoCC instruction 是否返回时，先禁掉内部 helper breakpoint。
   否则 `advance prt_rerocc.c:519` 会被 `prt_spm_xlate_acquire_scope()` 这类内层断点打断，
   结论容易被误读。
@@ -331,7 +336,6 @@ helper 不是必须的。helper 的价值是把已经稳定的测试矩阵固化
 下一轮从 `site=23` 进入后，若要复现本轮 ladder，推荐顺序是：
 
 ```gdb
-set scheduler-locking on
 break build_stage_task_desc
 break build_stage_conv_desc
 break build_stage_resadd_desc
@@ -341,6 +345,15 @@ break prt_spm_bind_vpages_ctx
 break runtime_flush_stage_spm_xlate
 break prt_gemmini_spm_xlate_flush
 continue
+```
+
+注意：上面的 `continue` 用于到达 marker 或后续边界时，先不要启用 scheduler locking。
+在 `prt_gdb_marker_stop` 或目标 worker 边界真正命中后，再执行：
+
+```gdb
+info threads
+thread <target-worker-thread>
+set scheduler-locking on
 ```
 
 当确认 fixed-load DMA、bind 和 manager 4/5/6/7 flush 都返回后，下一步不要再停在这些已排除
