@@ -1,0 +1,66 @@
+Artifact: generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/artifacts/20260509T113650Z_no_dma_chunk8k_sparse_log_write_stall
+Generated: 2026-05-09T11:42:30Z
+Run host: i-03ce2c06e6b01d953 192.168.1.202
+AGFI: agfi-077451484fe3b63c3
+
+Files:
+  - artifact_manifest.txt 266 bytes
+  - local/gemmini-head.txt 41 bytes
+  - local/rerocc_pipeline_runtime-linux.sha256 132 bytes
+  - local/rocc-tests-head.txt 41 bytes
+  - local/top-head.txt 41 bytes
+  - manager/ec2-after-terminate.yaml 3 bytes
+  - manager/ec2-before-terminate.yaml 165 bytes
+  - manager/host-watchdog.log 4667 bytes
+  - manager/runworkload-manager.log 400774 bytes
+  - manager/runworkload.pane.log 143168 bytes
+  - manager/terminaterunfarm-manager.log 15579 bytes
+  - manager/terminaterunfarm.pane.log 3559 bytes
+  - remote-capture.tgz 21462 bytes
+  - remote-debugfs-files/bertmini-batch8.audit.log 0 bytes
+  - remote-debugfs-files/bertmini-batch8.checkpoint.log 0 bytes
+  - remote-debugfs-files/bertmini-batch8.deep.log 0 bytes
+  - remote-debugfs-files/bertmini-batch8.gdbserver.info 0 bytes
+  - remote-debugfs-files/bertmini-batch8.gdbserver.log 0 bytes
+  - remote-debugfs-files/bertmini-batch8.log 114688 bytes
+  - remote-debugfs-files/bertmini-batch8.runner-early.stage 487 bytes
+  - remote-debugfs-files/bertmini-batch8.runner-proc.stage 9336 bytes
+  - remote-debugfs-files/bertmini-batch8.runner.stage 495 bytes
+  - remote-debugfs-files/bertmini-batch8.status 1725 bytes
+  - remote-debugfs-files/bertmini-batch8.wrapper-proc.stage 0 bytes
+  - remote-debugfs-files/bertmini-batch8.wrapper.stage 433 bytes
+  - remote-debugfs-files/dump-bertmini-batch8.audit.log.stderr 28 bytes
+  - remote-debugfs-files/dump-bertmini-batch8.audit.log.stdout 0 bytes
+  - remote-debugfs-files/dump-bertmini-batch8.checkpoint.log.stderr 28 bytes
+  - remote-debugfs-files/dump-bertmini-batch8.checkpoint.log.stdout 0 bytes
+  - remote-debugfs-files/dump-bertmini-batch8.deep.log.stderr 28 bytes
+  - remote-debugfs-files/dump-bertmini-batch8.deep.log.stdout 0 bytes
+  - remote-debugfs-files/dump-bertmini-batch8.gdbserver.info.stderr 28 bytes
+  - remote-debugfs-files/dump-bertmini-batch8.gdbserver.info.stdout 0 bytes
+  - remote-debugfs-files/dump-bertmini-batch8.gdbserver.log.stderr 28 bytes
+  - remote-debugfs-files/dump-bertmini-batch8.gdbserver.log.stdout 0 bytes
+  - remote-debugfs-files/dump-bertmini-batch8.log.stderr 28 bytes
+  - remote-debugfs-files/dump-bertmini-batch8.log.stdout 0 bytes
+  - remote-debugfs-files/dump-bertmini-batch8.runner-early.stage.stderr 28 bytes
+  - remote-debugfs-files/dump-bertmini-batch8.runner-early.stage.stdout 0 bytes
+  - remote-debugfs-files/dump-bertmini-batch8.runner-proc.stage.stderr 28 bytes
+  - remote-debugfs-files/dump-bertmini-batch8.runner-proc.stage.stdout 0 bytes
+  - remote-debugfs-files/dump-bertmini-batch8.runner.stage.stderr 28 bytes
+  - remote-debugfs-files/dump-bertmini-batch8.runner.stage.stdout 0 bytes
+  - remote-debugfs-files/dump-bertmini-batch8.status.stderr 28 bytes
+  - remote-debugfs-files/dump-bertmini-batch8.status.stdout 0 bytes
+  - remote-debugfs-files/dump-bertmini-batch8.wrapper-proc.stage.stderr 28 bytes
+  - remote-debugfs-files/dump-bertmini-batch8.wrapper-proc.stage.stdout 0 bytes
+  - remote-debugfs-files/dump-bertmini-batch8.wrapper.stage.stderr 28 bytes
+  - remote-debugfs-files/dump-bertmini-batch8.wrapper.stage.stdout 0 bytes
+  - remote-debugfs-files/pipeline-runtime-debug.ls.stderr 28 bytes
+  - remote-debugfs-files/pipeline-runtime-debug.ls.txt 1263 bytes
+  - remote-debugfs-files/runtime-binary.stat.txt 809 bytes
+  - remote-sim-slot/blkdev-log0 0 bytes
+  - remote-sim-slot/fpga-describe.txt 323 bytes
+  - remote-sim-slot/guest-ping.txt 150 bytes
+  - remote-sim-slot/heartbeat.csv 44 bytes
+  - remote-sim-slot/niclog0 0 bytes
+  - remote-sim-slot/ps.txt 20216 bytes
+  - remote-sim-slot/sim-slot-ls.txt 1630 bytes
+  - remote-sim-slot/uartlog 21191 bytes

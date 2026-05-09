@@ -1,0 +1,152 @@
+2026-05-09 11:42:00,654 [main        ] [INFO ]  FireSim Manager. Docs: https://docs.fires.im
+Running: terminaterunfarm
+
+2026-05-09 11:42:00,655 [__init__    ] [DEBUG]  RuntimeHWConfig self.platform f2
+2026-05-09 11:42:00,656 [__init__    ] [DEBUG]  {'config_file_name': '/home/ubuntu/chipyard/sims/firesim/deploy/config_hwdb_f2_gemmini_rerocc_pairmanager_dummy8x8_4c12p12_sbus64_bertmini_cfg32_nic_notrace.yaml',
+ 'hwconf_dict': {'firesim_gemmini_rerocc_pairmanager_dummy8x8_4c12p12_sbus64_cfg32_nic_notrace': <runtools.runtime_config.RuntimeHWConfig object at 0x739e0e18d2d0>},
+ 'simulation_mode_string': 'FPGA simulation'}
+2026-05-09 11:42:00,677 [get_localhos] [DEBUG]  i-08b9950158e875a41
+2026-05-09 11:42:00,677 [get_localhos] [DEBUG]  
+2026-05-09 11:42:00,677 [get_localhos] [DEBUG]  AWS Host Detected
+2026-05-09 11:42:00,677 [get_localhos] [DEBUG]  i-08b9950158e875a41
+2026-05-09 11:42:00,800 [_new_conn   ] [DEBUG]  Starting new HTTPS connection (1): ec2.us-west-2.amazonaws.com:443
+2026-05-09 11:42:00,902 [_make_reques] [DEBUG]  https://ec2.us-west-2.amazonaws.com:443 "POST / HTTP/1.1" 200 352
+2026-05-09 11:42:00,905 [get_localhos] [DEBUG]  {'Name': 'firesim-manager-wzy'}
+2026-05-09 11:42:00,906 [__init__    ] [DEBUG]  {'autocounter_config': AutoCounterConfig(readrate=0),
+ 'default_plusarg_passthrough': '+simplenic-relaxed-required-bytes=1 '
+                                '+simplenic-empty-switch-poll-interval=1024 '
+                                '+simplenic-token-debug=0 '
+                                '+cpu-managed-stream-debug=0 '
+                                '+heartbeat-polling-interval=100000000',
+ 'defaulthwconfig': 'firesim_gemmini_rerocc_pairmanager_dummy8x8_4c12p12_sbus64_cfg32_nic_notrace',
+ 'hostdebug_config': HostDebugConfig(zero_out_dram=False,
+                                     disable_synth_asserts=False),
+ 'linklatency': 6405,
+ 'metasimulation_enabled': False,
+ 'metasimulation_host_simulator': 'verilator',
+ 'metasimulation_only_plusargs': '+fesvr-step-size=128 +max-cycles=100000000',
+ 'metasimulation_only_vcs_plusargs': '+vcs+initreg+0 +vcs+initmem+0',
+ 'netbandwidth': 200,
+ 'no_net_num_nodes': 1,
+ 'partition_config': PartitionConfig(node=None,
+                                     fpga_cnt=1,
+                                     pidx_to_slotid={},
+                                     pcim_slot_offset=[],
+                                     mode=<PartitionMode.FAST_MODE: 0>),
+ 'profileinterval': -1,
+ 'run_farm_dispatcher': <runtools.run_farm.AWSEC2F2 object at 0x739e0e18d390>,
+ 'suffixtag': 'f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace',
+ 'switchinglatency': 10,
+ 'synthprint_config': SynthPrintConfig(start=0, end=-1, cycle_prefix=True),
+ 'terminateoncompletion': False,
+ 'topology': 'example_1config',
+ 'tracerv_config': TracerVConfig(enable=False,
+                                 select=1,
+                                 start=0,
+                                 end=-1,
+                                 output_format=0),
+ 'workload_name': 'rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver.json'}
+2026-05-09 11:42:00,947 [__init__    ] [DEBUG]  {'config_file_name': '/home/ubuntu/chipyard/sims/firesim-staging/sample_config_build_recipes.yaml',
+ 'hwconf_dict': {'alveo_u200_firesim_rocket_singlecore_no_nic': <runtools.runtime_config.RuntimeBuildRecipeConfig object at 0x739dfd0744f0>,
+                 'alveo_u250_firesim_boom_singlecore_no_nic': <runtools.runtime_config.RuntimeBuildRecipeConfig object at 0x739dfd074430>,
+                 'alveo_u250_firesim_gemmini_rocket_singlecore_no_nic': <runtools.runtime_config.RuntimeBuildRecipeConfig object at 0x739dfd074190>,
+                 'alveo_u250_firesim_rocket_quadcore_no_nic': <runtools.runtime_config.RuntimeBuildRecipeConfig object at 0x739dfd0740d0>,
+                 'alveo_u250_firesim_rocket_singlecore_nic': <runtools.runtime_config.RuntimeBuildRecipeConfig object at 0x739dfd074460>,
+                 'alveo_u250_firesim_rocket_singlecore_no_nic': <runtools.runtime_config.RuntimeBuildRecipeConfig object at 0x739dfd074250>,
+                 'alveo_u280_firesim_rocket_singlecore_no_nic': <runtools.runtime_config.RuntimeBuildRecipeConfig object at 0x739dfd074310>,
+                 'f1_firesim_rocket_soc_exact': <runtools.runtime_config.RuntimeBuildRecipeConfig object at 0x739dfd0745b0>,
+                 'f1_firesim_rocket_tile_exact': <runtools.runtime_config.RuntimeBuildRecipeConfig object at 0x739dfd074580>,
+                 'f1_rocket_split_soc_fast': <runtools.runtime_config.RuntimeBuildRecipeConfig object at 0x739dfd074340>,
+                 'f1_rocket_split_tile_fast': <runtools.runtime_config.RuntimeBuildRecipeConfig object at 0x739dfd074640>,
+                 'firesim_boom_singlecore_nic_l2_llc4mb_ddr3': <runtools.runtime_config.RuntimeBuildRecipeConfig object at 0x739e0e1be8c0>,
+                 'firesim_boom_singlecore_no_nic_l2_llc4mb_ddr3': <runtools.runtime_config.RuntimeBuildRecipeConfig object at 0x739e0e1bd720>,
+                 'firesim_boom_singlecore_no_nic_l2_llc4mb_ddr3_ramopts': <runtools.runtime_config.RuntimeBuildRecipeConfig object at 0x739dfd074220>,
+                 'firesim_cva6_singlecore_no_nic_l2_llc4mb_ddr3': <runtools.runtime_config.RuntimeBuildRecipeConfig object at 0x739dfd074100>,
+                 'firesim_gemmini_printf_rocket_singlecore_no_nic': <runtools.runtime_config.RuntimeBuildRecipeConfig object at 0x739dfd0743a0>,
+                 'firesim_gemmini_rocket_singlecore_no_nic': <runtools.runtime_config.RuntimeBuildRecipeConfig object at 0x739dfd074370>,
+                 'firesim_rocket_quadcore_nic_l2_llc4mb_ddr3': <runtools.runtime_config.RuntimeBuildRecipeConfig object at 0x739e0e1be800>,
+                 'firesim_rocket_quadcore_no_nic_l2_llc4mb_ddr3': <runtools.runtime_config.RuntimeBuildRecipeConfig object at 0x739e0e1be7d0>,
+                 'firesim_rocket_singlecore_gemmini_no_nic_l2_llc4mb_ddr3': <runtools.runtime_config.RuntimeBuildRecipeConfig object at 0x739dfd074070>,
+                 'firesim_rocket_singlecore_no_nic_l2_lbp': <runtools.runtime_config.RuntimeBuildRecipeConfig object at 0x739dfd074040>,
+                 'firesim_rocket_singlecore_sha3_nic_l2_llc4mb_ddr3': <runtools.runtime_config.RuntimeBuildRecipeConfig object at 0x739dfd0742b0>,
+                 'firesim_rocket_singlecore_sha3_no_nic_l2_llc4mb_ddr3': <runtools.runtime_config.RuntimeBuildRecipeConfig object at 0x739dfd0742e0>,
+                 'firesim_rocket_singlecore_sha3_no_nic_l2_llc4mb_ddr3_printf': <runtools.runtime_config.RuntimeBuildRecipeConfig object at 0x739dfd074160>,
+                 'firesim_supernode_rocket_singlecore_nic_l2_lbp': <runtools.runtime_config.RuntimeBuildRecipeConfig object at 0x739dfd0740a0>,
+                 'nitefury_firesim_rocket_singlecore_no_nic': <runtools.runtime_config.RuntimeBuildRecipeConfig object at 0x739dfd0741c0>,
+                 'vitis_firesim_rocket_singlecore_no_nic': <runtools.runtime_config.RuntimeBuildRecipeConfig object at 0x739dfd0741f0>,
+                 'xilinx_u250_firesim_dual_rocket_split_0': <runtools.runtime_config.RuntimeBuildRecipeConfig object at 0x739dfd0746a0>,
+                 'xilinx_u250_firesim_dual_rocket_split_1': <runtools.runtime_config.RuntimeBuildRecipeConfig object at 0x739dfd075a80>,
+                 'xilinx_u250_firesim_dual_rocket_split_base': <runtools.runtime_config.RuntimeBuildRecipeConfig object at 0x739dfd074490>,
+                 'xilinx_u250_quad_rocket_ring_0': <runtools.runtime_config.RuntimeBuildRecipeConfig object at 0x739dfd074790>,
+                 'xilinx_u250_quad_rocket_ring_1': <runtools.runtime_config.RuntimeBuildRecipeConfig object at 0x739dfd0747c0>,
+                 'xilinx_u250_quad_rocket_ring_base': <runtools.runtime_config.RuntimeBuildRecipeConfig object at 0x739dfd074400>,
+                 'xilinx_vcu118_firesim_rocket_singlecore_4GB_no_nic': <runtools.runtime_config.RuntimeBuildRecipeConfig object at 0x739dfd074520>},
+ 'simulation_mode_string': 'Metasimulation'}
+2026-05-09 11:42:00,948 [allocate_sim] [INFO ]  run_farm_hosts_dict defaultdict(<class 'list'>, {'f2.6xlarge': [(<runtools.run_farm.Inst object at 0x739dfd197b20>, None)], 'f2.12xlarge': [], 'f2.48xlarge': [], 'm4.16xlarge': [], 'z1d.3xlarge': [], 'z1d.6xlarge': [], 'z1d.12xlarge': []})
+2026-05-09 11:42:00,948 [pass_apply_d] [DEBUG]  pass_apply_default_hwconfig, RuntimeHWConfig: firesim_gemmini_rerocc_pairmanager_dummy8x8_4c12p12_sbus64_cfg32_nic_notrace
+DeployQuintuplet: None
+DeployMakefrag: None
+AGFI: agfi-077451484fe3b63c3
+Bitstream tar: None
+CustomRuntimeConf: None
+2026-05-09 11:42:00,948 [set_server_h] [INFO ]  set_server_hardware_config 0 None
+2026-05-09 11:42:00,951 [decorator   ] [DEBUG]  deprecate positional args: graphviz.backend.piping.pipe(['renderer', 'formatter', 'neato_no_op', 'quiet'])
+2026-05-09 11:42:00,952 [decorator   ] [DEBUG]  deprecate positional args: graphviz.backend.rendering.render(['renderer', 'formatter', 'neato_no_op', 'quiet'])
+2026-05-09 11:42:00,952 [decorator   ] [DEBUG]  deprecate positional args: graphviz.backend.unflattening.unflatten(['stagger', 'fanout', 'chain', 'encoding'])
+2026-05-09 11:42:00,952 [decorator   ] [DEBUG]  deprecate positional args: graphviz.backend.viewing.view(['quiet'])
+2026-05-09 11:42:00,954 [decorator   ] [DEBUG]  deprecate positional args: graphviz.quoting.quote(['is_html_string', 'is_valid_id', 'dot_keywords', 'endswith_odd_number_of_backslashes', 'escape_unescaped_quotes'])
+2026-05-09 11:42:00,954 [decorator   ] [DEBUG]  deprecate positional args: graphviz.quoting.a_list(['kwargs', 'attributes'])
+2026-05-09 11:42:00,954 [decorator   ] [DEBUG]  deprecate positional args: graphviz.quoting.attr_list(['kwargs', 'attributes'])
+2026-05-09 11:42:00,955 [decorator   ] [DEBUG]  deprecate positional args: graphviz.dot.Dot.clear(['keep_attrs'])
+2026-05-09 11:42:00,955 [decorator   ] [DEBUG]  deprecate positional args: graphviz.dot.Dot.__iter__(['subgraph'])
+2026-05-09 11:42:00,955 [decorator   ] [DEBUG]  deprecate positional args: graphviz.dot.Dot.node(['_attributes'])
+2026-05-09 11:42:00,955 [decorator   ] [DEBUG]  deprecate positional args: graphviz.dot.Dot.edge(['_attributes'])
+2026-05-09 11:42:00,955 [decorator   ] [DEBUG]  deprecate positional args: graphviz.dot.Dot.attr(['_attributes'])
+2026-05-09 11:42:00,955 [decorator   ] [DEBUG]  deprecate positional args: graphviz.dot.Dot.subgraph(['name', 'comment', 'graph_attr', 'node_attr', 'edge_attr', 'body'])
+2026-05-09 11:42:00,955 [decorator   ] [DEBUG]  deprecate positional args: graphviz.piping.Pipe._pipe_legacy(['renderer', 'formatter', 'neato_no_op', 'quiet'])
+2026-05-09 11:42:00,956 [decorator   ] [DEBUG]  deprecate positional args: graphviz.saving.Save.save(['directory'])
+2026-05-09 11:42:00,956 [decorator   ] [DEBUG]  deprecate positional args: graphviz.rendering.Render.render(['directory', 'view', 'cleanup', 'format', 'renderer', 'formatter', 'neato_no_op', 'quiet', 'quiet_view'])
+2026-05-09 11:42:00,956 [decorator   ] [DEBUG]  deprecate positional args: graphviz.rendering.Render.view(['directory', 'cleanup', 'quiet', 'quiet_view'])
+2026-05-09 11:42:00,957 [decorator   ] [DEBUG]  deprecate positional args: graphviz.unflattening.Unflatten.unflatten(['stagger', 'fanout', 'chain'])
+2026-05-09 11:42:00,957 [decorator   ] [DEBUG]  deprecate positional args: graphviz.graphs.BaseGraph.__init__(['comment', 'filename', 'directory', 'format', 'engine', 'encoding', 'graph_attr', 'node_attr', 'edge_attr', 'body', 'strict'])
+2026-05-09 11:42:00,957 [decorator   ] [DEBUG]  deprecate positional args: graphviz.sources.Source.from_file(['directory', 'format', 'engine', 'encoding', 'renderer', 'formatter'])
+2026-05-09 11:42:00,958 [decorator   ] [DEBUG]  deprecate positional args: graphviz.sources.Source.__init__(['filename', 'directory', 'format', 'engine', 'encoding'])
+2026-05-09 11:42:00,958 [decorator   ] [DEBUG]  deprecate positional args: graphviz.sources.Source.save(['directory'])
+2026-05-09 11:42:00,958 [mkdirs      ] [DEBUG]  os.makedirs('generated-topology-diagrams')
+2026-05-09 11:42:00,958 [save        ] [DEBUG]  write lines to 'generated-topology-diagrams/firesim_topologyexample_1config.gv'
+2026-05-09 11:42:00,959 [run_check   ] [DEBUG]  run [PosixPath('dot'), '-Kdot', '-Tpdf', '-O', 'firesim_topologyexample_1config.gv']
+2026-05-09 11:42:00,995 [_new_conn   ] [DEBUG]  Starting new HTTPS connection (1): ec2.us-west-2.amazonaws.com:443
+2026-05-09 11:42:01,066 [_make_reques] [DEBUG]  https://ec2.us-west-2.amazonaws.com:443 "POST / HTTP/1.1" 200 219
+2026-05-09 11:42:01,079 [_new_conn   ] [DEBUG]  Starting new HTTPS connection (1): ec2.us-west-2.amazonaws.com:443
+2026-05-09 11:42:01,158 [_make_reques] [DEBUG]  https://ec2.us-west-2.amazonaws.com:443 "POST / HTTP/1.1" 200 219
+2026-05-09 11:42:01,169 [_new_conn   ] [DEBUG]  Starting new HTTPS connection (1): ec2.us-west-2.amazonaws.com:443
+2026-05-09 11:42:01,242 [_make_reques] [DEBUG]  https://ec2.us-west-2.amazonaws.com:443 "POST / HTTP/1.1" 200 5084
+2026-05-09 11:42:01,256 [_new_conn   ] [DEBUG]  Starting new HTTPS connection (1): ec2.us-west-2.amazonaws.com:443
+2026-05-09 11:42:01,339 [_make_reques] [DEBUG]  https://ec2.us-west-2.amazonaws.com:443 "POST / HTTP/1.1" 200 219
+2026-05-09 11:42:01,398 [_new_conn   ] [DEBUG]  Starting new HTTPS connection (1): ec2.us-west-2.amazonaws.com:443
+2026-05-09 11:42:01,469 [_make_reques] [DEBUG]  https://ec2.us-west-2.amazonaws.com:443 "POST / HTTP/1.1" 200 219
+2026-05-09 11:42:01,481 [_new_conn   ] [DEBUG]  Starting new HTTPS connection (1): ec2.us-west-2.amazonaws.com:443
+2026-05-09 11:42:01,549 [_make_reques] [DEBUG]  https://ec2.us-west-2.amazonaws.com:443 "POST / HTTP/1.1" 200 219
+2026-05-09 11:42:01,561 [_new_conn   ] [DEBUG]  Starting new HTTPS connection (1): ec2.us-west-2.amazonaws.com:443
+2026-05-09 11:42:01,639 [_make_reques] [DEBUG]  https://ec2.us-west-2.amazonaws.com:443 "POST / HTTP/1.1" 200 219
+2026-05-09 11:42:01,641 [terminate_ru] [CRITI]  IMPORTANT!: This will terminate the following instances:
+2026-05-09 11:42:01,642 [terminate_ru] [CRITI]  f2.12xlarge
+2026-05-09 11:42:01,642 [terminate_ru] [CRITI]  []
+2026-05-09 11:42:01,642 [terminate_ru] [CRITI]  f2.48xlarge
+2026-05-09 11:42:01,642 [terminate_ru] [CRITI]  []
+2026-05-09 11:42:01,642 [terminate_ru] [CRITI]  f2.6xlarge
+2026-05-09 11:42:01,642 [terminate_ru] [CRITI]  ['i-03ce2c06e6b01d953']
+2026-05-09 11:42:01,642 [terminate_ru] [CRITI]  m4.16xlarge
+2026-05-09 11:42:01,642 [terminate_ru] [CRITI]  []
+2026-05-09 11:42:01,642 [terminate_ru] [CRITI]  z1d.12xlarge
+2026-05-09 11:42:01,642 [terminate_ru] [CRITI]  []
+2026-05-09 11:42:01,642 [terminate_ru] [CRITI]  z1d.3xlarge
+2026-05-09 11:42:01,642 [terminate_ru] [CRITI]  []
+2026-05-09 11:42:01,642 [terminate_ru] [CRITI]  z1d.6xlarge
+2026-05-09 11:42:01,642 [terminate_ru] [CRITI]  []
+2026-05-09 11:42:01,651 [_new_conn   ] [DEBUG]  Starting new HTTPS connection (1): ec2.us-west-2.amazonaws.com:443
+2026-05-09 11:42:01,738 [_make_reques] [DEBUG]  https://ec2.us-west-2.amazonaws.com:443 "POST / HTTP/1.1" 200 5084
+2026-05-09 11:42:02,137 [_make_reques] [DEBUG]  https://ec2.us-west-2.amazonaws.com:443 "POST / HTTP/1.1" 200 426
+2026-05-09 11:42:02,139 [terminate_ru] [CRITI]  Instances terminated. Please confirm in your AWS Management Console.
+2026-05-09 11:42:02,141 [<module>    ] [INFO ]  The full log of this run is:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--11-42-00-terminaterunfarm-RQYZ0K3MZGOT20M9.log
