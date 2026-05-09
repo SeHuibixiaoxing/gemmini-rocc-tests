@@ -1,6 +1,6 @@
 # Pipeline Runtime gdbserver Integration SOP
 
-更新时间：`2026-05-09 04:20 UTC`
+更新时间：`2026-05-09 05:18 UTC`
 
 ## 1. 目标
 
@@ -262,6 +262,34 @@ helper 不是必须的。helper 的价值是把已经稳定的测试矩阵固化
   `build_stage_task_desc()`、`build_stage_conv_desc()` / `build_stage_resadd_desc()`、
   `stage_prepare_exec_views()`、`prt_dma_copy_dram_to_spm_pages()`、
   `runtime_flush_stage_spm_xlate()` 等内部边界预放断点或更细 marker。
+
+2026-05-09 05:18 UTC 的复跑记录确认了这个 frontier 是稳定前沿，而不是单次偶然：
+
+- 参考记录：
+  [`20260509T051806Z_sbus64_live_gdb_build_task_reconfirm_ctrlc_timeout.md`](/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/20260509T051806Z_sbus64_live_gdb_build_task_reconfirm_ctrlc_timeout.md)
+- 本轮开始时 `worker-before-build-stage-task` 未立即命中，第一次 Ctrl-C 停在较早的
+  `stage0/tensor0/page26/token1632` fixed-load DMA submit 栈：
+  `dma_blocking_submit() -> dma_submit_wait_annotated_scoped() ->
+  dma_copy_host_to_spm_pages_linux() -> prt_process_c1() -> stage_worker_main()`。
+  继续一个有界窗口后，该早期 DMA 路径返回，目标仍然命中
+  `site=23 worker-before-build-stage-task`。因此不要把第一次随机 stack sample 直接当成
+  最终 frontier；要看它是否能继续到已知 marker。
+- 命中 `site=23` 后，在同一个 stopped GDB session 中把 runtime filter 改成
+  `site=24 worker-after-build-stage-task` 并继续运行。`site=24` 未命中；随后 Ctrl-C 只回显
+  `^C`，没有返回 GDB prompt。这再次说明 `site=23 -> site=24` 窗口内不能依赖事后
+  interrupt 取栈。
+- host 侧只能稳定看到 run-host 文件、UART、heartbeat 和 manager 状态；如果 guest 已经进入
+  remote interrupt 不响应路径，且没有预置 guest shell/JTAG/TraceV/AutoCounter/MMIO snapshot，
+  不能从单个 UART 旁路直接读取当前 PC 或最后退休 PC。
+- live GDB 必须使用绝对路径
+  `/home/ubuntu/chipyard/.conda-env/riscv-tools/bin/riscv64-unknown-linux-gnu-gdb`。
+  本轮直接调用 `riscv64-unknown-linux-gnu-gdb` 因 `PATH` 不含该工具而失败；不要把这种启动失败
+  误记成 GDB attach 失败。
+
+下一轮进入 `site=23` 后，应在继续前先预放内部边界断点或切换到更细 marker ladder。优先顺序：
+`build_stage_task_desc(stage_id=1)`、`build_stage_conv_desc()` / `build_stage_resadd_desc()`、
+`stage_prepare_exec_views()`、其中的 fixed-load DMA entry/return、SPM bind，以及
+`runtime_flush_stage_spm_xlate()` begin/end。
 
 ### 3.2.1 卡死后能否再接入
 
