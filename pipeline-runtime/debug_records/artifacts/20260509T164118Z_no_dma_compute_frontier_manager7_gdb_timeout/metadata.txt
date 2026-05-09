@@ -1,0 +1,4 @@
+AGFI=agfi-077451484fe3b63c3
+AFI=afi-07989ce9ce725a690
+run_host=192.168.1.27
+gdb_out=/home/ubuntu/chipyard/tmp/firesim-aws-f2/gdbserver-tests/pairdummy-cfg32-marker-frontier-expect-20260509T161944Z-192_168_1_27-172_16_0_2

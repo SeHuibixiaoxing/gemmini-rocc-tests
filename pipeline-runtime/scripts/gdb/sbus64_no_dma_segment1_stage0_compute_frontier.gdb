@@ -264,18 +264,6 @@ bt 10
 continue
 end
 
-break /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_rerocc.c:403
-commands
-silent
-printf "\n--- BP rr_release readback returned ---\n"
-info args
-if scope != 0
-  print *scope
-end
-bt 10
-continue
-end
-
 break flush_scope_after_drain
 commands
 silent
