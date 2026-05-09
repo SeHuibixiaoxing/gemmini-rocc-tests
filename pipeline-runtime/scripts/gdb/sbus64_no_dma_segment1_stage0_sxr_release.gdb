@@ -1,5 +1,5 @@
 printf "\n--- sbus64 no-DMA segment1/stage0 SPM xlate release probe ---\n"
-printf "Goal: after worker-before-build-stage-task at segment=1/stage=0/subbatch=3, split cfg31 release write from post-release readback.\n"
+printf "Goal: after worker-before-build-stage-task at segment=1/stage=0/subbatch=3, split cfg31 release write, post-release readback, opcode restore, and flush return.\n"
 
 printf "\n--- deleting initial marker breakpoint and locking selected worker thread ---\n"
 delete 1
@@ -40,12 +40,46 @@ info registers pc sp ra
 x/12i $pc-24
 
 printf "\n--- arm after release readback breakpoint ---\n"
-tbreak /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_rerocc.c:403 if scope && scope->cfg_id == 31 && scope->manager_id == 6
+tbreak /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_rerocc.c:403
 continue
 
-printf "\n--- release readback returned; cfg31 release path is not the stuck instruction in this run ---\n"
-info args
-print *scope
+printf "\n--- release readback returned; cfg31 release CSR readback is not the stuck instruction in this run ---\n"
+bt 10
+info registers pc sp ra
+x/12i $pc-24
+
+printf "\n--- arm release-end log boundary after prt_rr_release_scope returns ---\n"
+tbreak /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_rerocc.c:181
+continue
+
+printf "\n--- prt_rr_release_scope returned to prt_spm_xlate_release_scope ---\n"
+bt 10
+info registers pc sp ra
+x/12i $pc-24
+
+printf "\n--- arm opcode restore write boundary ---\n"
+tbreak /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_rerocc.c:194
+continue
+
+printf "\n--- about to restore opcode3 binding after SPM xlate release ---\n"
+bt 10
+info registers pc sp ra
+x/12i $pc-24
+
+printf "\n--- arm after opcode restore boundary ---\n"
+tbreak /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_rerocc.c:195
+continue
+
+printf "\n--- opcode restore returned ---\n"
+bt 10
+info registers pc sp ra
+x/12i $pc-24
+
+printf "\n--- arm return from prt_gemmini_spm_xlate_flush ---\n"
+tbreak /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_rerocc.c:531
+continue
+
+printf "\n--- prt_gemmini_spm_xlate_flush returned from release/restore path ---\n"
 bt 10
 info registers pc sp ra
 x/12i $pc-24

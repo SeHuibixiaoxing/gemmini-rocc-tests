@@ -19,7 +19,8 @@ segment1/stage0/subbatch3 worker-before-build-stage-task marker:
 The helper reuses run_pairdummy_cfg32_gdbserver_marker_stop.sh, then runs a
 narrow post-marker GDB ladder that stops only on
 prt_rr_release_scope(scope={manager=6,cfg=31,opcode=3}) and separates the
-release CSR write from the post-release CSR readback.
+release CSR write, post-release CSR readback, opcode restore, and xlate flush
+return boundaries.
 
 It does not probe the guest TCP port; the first TCP client remains GDB.
 EOF
