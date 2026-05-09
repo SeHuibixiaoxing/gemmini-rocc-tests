@@ -368,6 +368,35 @@ finish   # see whether build_stage_task_desc returns before worker-after-build-s
 
 若任一步不返回，再用 `Ctrl-C` 只作为补充证据；不要把后验 interrupt 当作主路径。
 
+2026-05-09 07:13 UTC 的有效 negative 轮次补充了一个重要边界：
+
+- 参考记录：
+  [`20260509T071328Z_sbus64_live_gdb_site23_miss_interrupt_timeout.md`](/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/20260509T071328Z_sbus64_live_gdb_site23_miss_interrupt_timeout.md)
+- 该轮没有提前开启 `scheduler-locking`，只设置 `break prt_gdb_marker_stop` 后
+  `continue`，guest env 仍是
+  `worker-before-build-stage-task / segment=2 / global_stage=3 / local_stage=1 /
+  subbatch=0 / manager=4`。
+- `gdbserver` 已进入 inferior，符号校验正确，但 `site=23` 未在观察窗口内命中。
+  之后一次受控 Ctrl-C 只回显 `^C`，没有返回 GDB prompt。
+- 结论：`site=23` 是已经被正向走通过的有用窗口入口，但它不是每轮都可靠的首个停点。
+  存在 fresh run 在 `site=23` 之前进入 remote-interrupt-unresponsive 路径的模式。
+
+因此下一轮如果目标是稳定重建 post-flush ladder，不要直接把
+`worker-before-build-stage-task` 当作第一站。优先把第一站前移到已经在前序记录中命中过的
+worker ladder：
+
+```text
+worker-entry-process-return
+worker-entry-full-return
+worker-before-exports-ready
+worker-after-exports-ready
+```
+
+到达这些早期停点后，再在同一个 GDB session 内动态设置
+`build_stage_task_desc()` / `stage_prepare_exec_views()` / `runtime_flush_stage_spm_xlate()`
+等内部断点，并继续到 `site=23` 或直接进入 build-task callee。若早期 worker marker 也不命中，
+再前移到 `worker-entry` 或 `segment-begin`，不要等待卡住后再指望 Ctrl-C 取栈。
+
 ### 3.2.1 卡死后能否再接入
 
 当前 workflow 的 remote 调试入口是 `gdbserver --once :2345 <program>`。它有三个直接后果：
