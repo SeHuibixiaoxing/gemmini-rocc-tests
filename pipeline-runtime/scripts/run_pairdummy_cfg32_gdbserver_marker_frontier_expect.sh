@@ -351,6 +351,11 @@ proc continue_frontier {frontier_timeout} {
     puts "GDB_FRONTIER_CONTINUE"
     send -- "continue\r"
     expect {
+        -re "Error in testing condition|value has been optimized out|Bad format string|No symbol|Cannot access memory" {
+            puts stderr "gdb frontier command or breakpoint condition failed"
+            need_prompt
+            exit 21
+        }
         -re "Breakpoint \[0-9\]+, .*|Temporary breakpoint \[0-9\]+, .*|Program received signal SIGTRAP|Thread .* received signal SIGTRAP" {
             need_prompt
             set ::timeout $old_timeout

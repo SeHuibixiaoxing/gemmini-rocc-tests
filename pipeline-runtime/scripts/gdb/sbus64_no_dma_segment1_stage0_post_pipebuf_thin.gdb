@@ -11,35 +11,37 @@ print g_prt_gdb_marker_state
 print g_prt_debug_state
 
 printf "\n--- arming post-sync return milestone ---\n"
-tbreak /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4609 if ctx != 0 && ctx->stage_id == 0 && progress_sbatch == 3
+tbreak /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4609 if ctx != 0 && ctx->stage_id == 0
 commands
 silent
 printf "\n--- thin BP post-sync returned; about to wrk-postcmp ---\n"
-printf "stage=%u subbatch=%u rc=%d entry_count=%u export_count=%u\n", ctx->stage_id, progress_sbatch, rc, entry_count, export_count
 print g_prt_debug_state
+bt 6
 continue
 end
 
 printf "\n--- arming p1 entry-release milestone ---\n"
-tbreak /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4622 if ctx != 0 && ctx->stage_id == 0 && progress_sbatch == 3
+tbreak /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4622 if ctx != 0 && ctx->stage_id == 0
 commands
 silent
 printf "\n--- thin BP p1 entry-release begin ---\n"
-printf "stage=%u subbatch=%u entry_i=%u kind=%u idx=%u tensor=%u full0=%d full1=%d sbatch_off=%u\n", ctx->stage_id, progress_sbatch, i, (unsigned)b->kind, idx, b->tensor_id, b->full[0], b->full[1], b->subbatch_offset
+print g_prt_debug_state
+bt 6
 continue
 end
 
 printf "\n--- arming p2 export-publish milestone ---\n"
-tbreak /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4650 if ctx != 0 && ctx->stage_id == 0 && progress_sbatch == 3
+tbreak /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4650 if ctx != 0 && ctx->stage_id == 0
 commands
 silent
 printf "\n--- thin BP p2 export-publish begin ---\n"
-printf "stage=%u subbatch=%u export_i=%u kind=%u idx=%u tensor=%u full0=%d full1=%d sbatch_off=%u fanout=%u/%u ring=%p\n", ctx->stage_id, progress_sbatch, i, (unsigned)b->kind, idx, b->tensor_id, b->full[0], b->full[1], b->subbatch_offset, b->fanout_pending, b->fanout_total, b->ring
+print g_prt_debug_state
+bt 6
 continue
 end
 
 printf "\n--- arming final wrk-done stop ---\n"
-tbreak /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4712 if ctx != 0 && ctx->stage_id == 0 && progress_sbatch == 3
+tbreak /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4712 if ctx != 0 && ctx->stage_id == 0
 
 printf "\n--- thin post-pipebuf frontier breakpoints armed ---\n"
 info breakpoints
