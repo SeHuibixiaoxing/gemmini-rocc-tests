@@ -1,6 +1,6 @@
 # Pipeline Runtime gdbserver Integration SOP
 
-更新时间：`2026-05-09 05:18 UTC`
+更新时间：`2026-05-09 06:10 UTC`
 
 ## 1. 目标
 
@@ -290,6 +290,70 @@ helper 不是必须的。helper 的价值是把已经稳定的测试矩阵固化
 `build_stage_task_desc(stage_id=1)`、`build_stage_conv_desc()` / `build_stage_resadd_desc()`、
 `stage_prepare_exec_views()`、其中的 fixed-load DMA entry/return、SPM bind，以及
 `runtime_flush_stage_spm_xlate()` begin/end。
+
+2026-05-09 06:10 UTC 的 live interactive GDB 记录把这个窗口继续推进到了
+`stage_prepare_exec_views()` 的 SPM xlate flush 返回后：
+
+- 参考记录：
+  [`20260509T061047Z_sbus64_live_gdb_build_task_flush_frontier.md`](/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/20260509T061047Z_sbus64_live_gdb_build_task_flush_frontier.md)
+- 对 `segment=2/global_stage=3/local_stage=1/subbatch=0/manager=4`，GDB 已进入
+  `build_stage_task_desc(stage_id=1)`，确认任务走 `build_stage_conv_desc()`，layer 为
+  `index=3/type="conv"`，不是 resadd。
+- `stage_prepare_exec_views()` 中，tensor 集合为 `{1000006, 2, 3, 6}`，local page count 为
+  `{8, 64, 64, 512}`，`spm_xlate_enable=1`，`page_size_bytes=1024`。
+- fixed tensor load `tensor_id=1000006` 的 8 个 1024B page 全部返回 `rc=0`，token 为
+  `5586..5593`。因此下一轮不要先回头查这 8 个 fixed-load DMA page，除非 repro 改变。
+- 四组 `prt_spm_bind_vpages_ctx()` 已返回 `rc=0`，覆盖 `vpage_start=193/201/265/329`
+  和 `page_count=8/64/64/512`。
+- `runtime_flush_stage_spm_xlate(stage_id=1)` 中，manager `4/5/6/7` 的
+  `prt_gemmini_spm_xlate_flush()` 均跨过 `prt_rerocc.c:519`
+  `rerocc_gemmini_spm_xlate_flush()` 并返回 0；`scope.valid=1`、`cfg_id=31`、
+  `opcode_id=3`、`prev_binding=0x1`。因此本轮已排除 per-manager SPM xlate flush 是第一卡点。
+- 当前新 frontier 是：
+  `stage_prepare_exec_views()` 中 `runtime_flush_stage_spm_xlate()` 返回后的
+  `prt_runtime.c:2319 prt_log_gate_clear_context()`。
+
+这个记录也固化了几条 live-GDB 操作坑点：
+
+- 不要在优化后的局部变量上依赖 GDB 条件断点。`stage_id` 等局部量可能是
+  `optimized out`；先用函数/行号停住，再读 `info args`、结构体字段或全局 marker state。
+- `g_prt_debug_state` 和 `g_prt_gdb_marker_state` 是全局状态，可能被其它 worker 改写。
+  它们适合作为 coarse gate，但命中后要结合当前 selected thread，并打开
+  `set scheduler-locking on` 后再单步。
+- 用 `advance` 判断某条 custom/RoCC instruction 是否返回时，先禁掉内部 helper breakpoint。
+  否则 `advance prt_rerocc.c:519` 会被 `prt_spm_xlate_acquire_scope()` 这类内层断点打断，
+  结论容易被误读。
+- 一条路径被排除后，及时 `disable` 对应低层断点。DMA/bind/acquire-scope 断点继续开着会把
+  后续现场变得很吵，也会拖慢 live session。
+- DMA doneflag polling 不能作为 pass/fail 依据。本轮采用的是函数返回值、wrapper return、
+  scope 状态，以及是否跨过精确 custom instruction 行号。
+
+下一轮从 `site=23` 进入后，若要复现本轮 ladder，推荐顺序是：
+
+```gdb
+set scheduler-locking on
+break build_stage_task_desc
+break build_stage_conv_desc
+break build_stage_resadd_desc
+break stage_prepare_exec_views
+break prt_dma_copy_dram_to_spm_pages
+break prt_spm_bind_vpages_ctx
+break runtime_flush_stage_spm_xlate
+break prt_gemmini_spm_xlate_flush
+continue
+```
+
+当确认 fixed-load DMA、bind 和 manager 4/5/6/7 flush 都返回后，下一步不要再停在这些已排除
+边界；应直接从 `prt_runtime.c:2319` 之后继续：
+
+```gdb
+finish   # finish runtime_flush_stage_spm_xlate, if still inside it
+next     # step over prt_log_gate_clear_context(), or use finish from stage_prepare_exec_views
+finish   # see whether stage_prepare_exec_views returns to build_stage_conv_desc
+finish   # see whether build_stage_task_desc returns before worker-after-build-stage-task
+```
+
+若任一步不返回，再用 `Ctrl-C` 只作为补充证据；不要把后验 interrupt 当作主路径。
 
 ### 3.2.1 卡死后能否再接入
 
