@@ -3697,6 +3697,7 @@ static int dma_blocking_wait(prt_runtime_t *rt, prt_dma_token_t *tok, uint64_t t
                                            PRT_DMA_TRACERV_MARKER_WAIT_AFTER_FENCE);
   }
   dma_completion_flag_refresh(tok);
+  dma_gdb_marker_token(PRT_GDB_MARKER_SITE_DMA_WAIT_AFTER_FENCE, tok, PRT_OK, __LINE__);
   if (checkpoint_wait) {
     PRT_CHECKPOINT_LOG("dma stage=%u checkpoint=wait-fence-done tensor=%u token=%u status=%llu hw_done=%d",
                        tok->stage_idx, tok->tensor_id, tok->id,
@@ -3771,7 +3772,11 @@ static int dma_blocking_wait(prt_runtime_t *rt, prt_dma_token_t *tok, uint64_t t
                         __LINE__);
     dma_tracerv_dma_window_marker_if_scope(tok->stage_idx, tok->tensor_id,
                                            PRT_DMA_TRACERV_MARKER_WAIT_BEFORE_SHARED_FENCE);
+    dma_gdb_marker_token(PRT_GDB_MARKER_SITE_DMA_WAIT_BEFORE_SHARED_FENCE,
+                         tok, PRT_OK, __LINE__);
     (void)dma_token_fence_scope(tok);
+    dma_gdb_marker_token(PRT_GDB_MARKER_SITE_DMA_WAIT_AFTER_SHARED_FENCE,
+                         tok, PRT_OK, __LINE__);
     dma_tracerv_dma_window_marker_if_scope(tok->stage_idx, tok->tensor_id,
                                            PRT_DMA_TRACERV_MARKER_WAIT_AFTER_SHARED_FENCE);
     if (sparse_wait_probe) {
@@ -3812,6 +3817,7 @@ static int dma_blocking_wait(prt_runtime_t *rt, prt_dma_token_t *tok, uint64_t t
   } else {
     dma_token_release_scope(tok, 1);
   }
+  dma_gdb_marker_token(PRT_GDB_MARKER_SITE_DMA_WAIT_AFTER_RELEASE, tok, PRT_OK, __LINE__);
   if (sparse_wait_probe) {
     PRT_PROGRESS_LOG("dma-wait-inner phase=after-release token=%u stage=%u tensor=%u valid=%u",
                      tok->id,
@@ -3850,6 +3856,7 @@ static int dma_blocking_wait(prt_runtime_t *rt, prt_dma_token_t *tok, uint64_t t
 #endif
 
   dma_token_complete(tok, PRT_OK);
+  dma_gdb_marker_token(PRT_GDB_MARKER_SITE_DMA_WAIT_AFTER_COMPLETE, tok, PRT_OK, __LINE__);
   prt_breadcrumb_note(PRT_BREADCRUMB_KIND_DMA,
                       PRT_BREADCRUMB_PHASE_DMA_WAIT_AFTER_COMPLETE,
                       tok->tensor_id,
@@ -3864,6 +3871,8 @@ static int dma_blocking_wait(prt_runtime_t *rt, prt_dma_token_t *tok, uint64_t t
                       0ULL,
                       __LINE__);
   dma_trace_complete_once(rt, tok);
+  dma_gdb_marker_token(PRT_GDB_MARKER_SITE_DMA_WAIT_AFTER_TRACE_COMPLETE,
+                       tok, PRT_OK, __LINE__);
   prt_breadcrumb_note(PRT_BREADCRUMB_KIND_DMA,
                       PRT_BREADCRUMB_PHASE_DMA_WAIT_AFTER_TRACE_COMPLETE,
                       tok->tensor_id,

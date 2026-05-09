@@ -161,6 +161,30 @@ static uint32_t prt_gdb_marker_site_from_env(void) {
   }
   if (strcmp(value, "dma-wait-enter") == 0) return PRT_GDB_MARKER_SITE_DMA_WAIT_ENTER;
   if (strcmp(value, "dma-wait-return") == 0) return PRT_GDB_MARKER_SITE_DMA_WAIT_RETURN;
+  if (strcmp(value, "dma-wait-after-fence") == 0 ||
+      strcmp(value, "wait-after-fence") == 0) {
+    return PRT_GDB_MARKER_SITE_DMA_WAIT_AFTER_FENCE;
+  }
+  if (strcmp(value, "dma-wait-before-shared-fence") == 0 ||
+      strcmp(value, "wait-before-shared-fence") == 0) {
+    return PRT_GDB_MARKER_SITE_DMA_WAIT_BEFORE_SHARED_FENCE;
+  }
+  if (strcmp(value, "dma-wait-after-shared-fence") == 0 ||
+      strcmp(value, "wait-after-shared-fence") == 0) {
+    return PRT_GDB_MARKER_SITE_DMA_WAIT_AFTER_SHARED_FENCE;
+  }
+  if (strcmp(value, "dma-wait-after-release") == 0 ||
+      strcmp(value, "wait-after-release") == 0) {
+    return PRT_GDB_MARKER_SITE_DMA_WAIT_AFTER_RELEASE;
+  }
+  if (strcmp(value, "dma-wait-after-complete") == 0 ||
+      strcmp(value, "wait-after-complete") == 0) {
+    return PRT_GDB_MARKER_SITE_DMA_WAIT_AFTER_COMPLETE;
+  }
+  if (strcmp(value, "dma-wait-after-trace-complete") == 0 ||
+      strcmp(value, "wait-after-trace-complete") == 0) {
+    return PRT_GDB_MARKER_SITE_DMA_WAIT_AFTER_TRACE_COMPLETE;
+  }
   if (strcmp(value, "worker-entry-process-return") == 0 ||
       strcmp(value, "entry-process-return") == 0) {
     return PRT_GDB_MARKER_SITE_WORKER_ENTRY_PROCESS_RETURN;
