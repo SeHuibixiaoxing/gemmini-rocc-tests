@@ -1,0 +1,56 @@
+==== /root/pipeline-runtime-debug/bertmini-batch8.status
+state=running
+exit_code=
+log_path=/root/pipeline-runtime-debug/bertmini-batch8.log
+deep_log_path=/root/pipeline-runtime-debug/bertmini-batch8.deep.log
+audit_log_path=/root/pipeline-runtime-debug/bertmini-batch8.audit.log
+checkpoint_log_path=/root/pipeline-runtime-debug/bertmini-batch8.checkpoint.log
+breadcrumb_path=/root/pipeline-runtime-debug/bertmini-batch8.breadcrumb.bin
+status_path=/root/pipeline-runtime-debug/bertmini-batch8.status
+runner_early_stage_path=/root/pipeline-runtime-debug/bertmini-batch8.runner-early.stage
+runner_stage_path=/root/pipeline-runtime-debug/bertmini-batch8.runner.stage
+runner_proc_stage_path=/root/pipeline-runtime-debug/bertmini-batch8.runner-proc.stage
+wrapper_stage_path=/root/pipeline-runtime-debug/bertmini-batch8.wrapper.stage
+wrapper_proc_stage_path=/root/pipeline-runtime-debug/bertmini-batch8.wrapper-proc.stage
+trace_dir=/root/pipeline-runtime-debug/traces
+profile_id=pairdummy-sbus64-dummy8x8-fixed-v5-gdbonly
+periodic_sync_enable=0
+periodic_sync_seconds=1
+progress_ping_enable=0
+progress_ping_seconds=30
+child_proc_diag_enable=0
+child_proc_poll_seconds=5
+uart_log_enable=0
+guest_log_enable=0
+guest_deep_log_enable=0
+audit_log_enable=0
+checkpoint_log_enable=0
+yaml_line_log_enable=0
+breadcrumb_enable=0
+log_profile=coarse
+stdio_capture_mode=uart
+dummy_gemmini_mode=1
+mlockall_mode=2
+skip_model_bin_load=1
+skip_input_load=1
+skip_golden_check=1
+no_dma_compute_enable=1
+trace_enable=0
+dma_force_direct_enable=1
+gdbserver_enable=1
+gdbserver_bind_addr=0.0.0.0
+gdbserver_port=2345
+gdbserver_info_path=/root/pipeline-runtime-debug/bertmini-batch8.gdbserver.info
+gdbserver_log_path=/root/pipeline-runtime-debug/bertmini-batch8.gdbserver.log
+auto_poweroff=1
+shutdown_hint=sync; poweroff
+==== /root/pipeline-runtime-debug/bertmini-batch8.wrapper.stage
+[firemarshal-stage] wrapper-enter log_dir=/root/pipeline-runtime-debug ts=1970-01-01T00:00:02Z
+[firemarshal-stage] after-log-preamble ts=1970-01-01T00:00:02Z
+[firemarshal-stage] before-child-spawn runner=/root/rerocc-linux-tests/run_rerocc_pipeline_runtime_bertmini.sh ts=1970-01-01T00:00:02Z
+[firemarshal-stage] after-child-spawn pid=143 ts=1970-01-01T00:00:03Z
+==== /root/pipeline-runtime-debug/bertmini-batch8.runner.stage
+==== /root/pipeline-runtime-debug/bertmini-batch8.wrapper-proc.stage
+==== /root/pipeline-runtime-debug/bertmini-batch8.runner-proc.stage
+==== /root/pipeline-runtime-debug/bertmini-batch8.gdbserver.info
+==== /root/pipeline-runtime-debug/bertmini-batch8.gdbserver.log
