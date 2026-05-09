@@ -18,6 +18,10 @@ Environment:
   PRT_GDB_TAP_DEV           Run-host tap device. Default: tap0.
   PRT_GDB_STATIC_NEIGH_MAC  Optional static neighbor MAC for the guest.
   PRT_GDB_MARKER_TIMEOUT    Seconds before killing GDB. Default: 1200.
+  PRT_GDB_INITIAL_CONTINUE_TIMEOUT
+                            Optional seconds before GDB interrupts the initial
+                            continue while waiting for prt_gdb_marker_stop().
+                            Default: 0, disabled.
   PRT_GDB_MARKER_DETACH     Detach after collecting marker state. Default: 1.
   PRT_GDB_MARKER_DELETE_AFTER_HIT
                             Delete breakpoint 1 after the marker hit. Default: 0.
@@ -62,6 +66,7 @@ out_root="${PRT_GDB_OUT_ROOT:-${cy_dir}/tmp/firesim-aws-f2/gdbserver-tests}"
 tap_dev="${PRT_GDB_TAP_DEV:-tap0}"
 static_neigh_mac="${PRT_GDB_STATIC_NEIGH_MAC:-}"
 marker_timeout="${PRT_GDB_MARKER_TIMEOUT:-1200}"
+initial_continue_timeout="${PRT_GDB_INITIAL_CONTINUE_TIMEOUT:-0}"
 marker_detach="${PRT_GDB_MARKER_DETACH:-1}"
 marker_delete_after_hit="${PRT_GDB_MARKER_DELETE_AFTER_HIT:-0}"
 post_marker_gdb_cmds="${PRT_GDB_POST_MARKER_GDB_CMDS:-}"
@@ -76,6 +81,10 @@ mkdir -p "${out_dir}"
 
 if [[ ! "${marker_timeout}" =~ ^[0-9]+$ || "${marker_timeout}" -lt 1 ]]; then
   echo "invalid PRT_GDB_MARKER_TIMEOUT=${marker_timeout}" >&2
+  exit 2
+fi
+if [[ ! "${initial_continue_timeout}" =~ ^[0-9]+$ ]]; then
+  echo "invalid PRT_GDB_INITIAL_CONTINUE_TIMEOUT=${initial_continue_timeout}" >&2
   exit 2
 fi
 case "${marker_detach}" in
@@ -161,17 +170,77 @@ set remotetimeout 120
 set tcp connect-timeout 60
 target remote :${local_port}
 break prt_gdb_marker_stop
+set \$prt_initial_continue_timeout = 0
+EOF
+
+if [[ "${initial_continue_timeout}" -gt 0 ]]; then
+  cat >> "${gdb_cmds}" <<EOF
+python
+import gdb
+import threading
+
+_prt_initial_continue_cancel = threading.Event()
+
+def _prt_initial_continue_stop_handler(event):
+    _prt_initial_continue_cancel.set()
+
+gdb.events.stop.connect(_prt_initial_continue_stop_handler)
+
+def _prt_interrupt_initial_continue():
+    if _prt_initial_continue_cancel.wait(${initial_continue_timeout}):
+        return
+    def _do_interrupt():
+        try:
+            gdb.execute("set \$prt_initial_continue_timeout = 1")
+            gdb.execute("interrupt")
+        except Exception as exc:
+            try:
+                gdb.write("[prt-gdb] initial continue interrupt failed: %s\\n" % exc)
+            except Exception:
+                pass
+    try:
+        gdb.post_event(_do_interrupt)
+    except Exception as exc:
+        try:
+            gdb.write("[prt-gdb] initial continue post_event failed: %s\\n" % exc)
+        except Exception:
+            pass
+
+threading.Thread(target=_prt_interrupt_initial_continue, daemon=True).start()
+end
+EOF
+fi
+
+cat >> "${gdb_cmds}" <<'EOF'
 continue
-printf "\\n--- marker state ---\\n"
+if $prt_initial_continue_timeout
+  printf "\n--- initial continue timeout before marker ---\n"
+  x/i $pc
+  printf "\n--- current bt at initial-timeout stop ---\n"
+  bt
+  printf "\n--- all thread bt at initial-timeout stop ---\n"
+  thread apply all bt
+  printf "\n--- debug states at initial-timeout stop ---\n"
+  print g_prt_debug_state
+  print g_prt_debug_tls_state
+  print g_prt_gdb_marker_state
+  printf "\n--- registers at initial-timeout stop ---\n"
+  info registers
+  printf "\n--- pc window at initial-timeout stop ---\n"
+  x/16i $pc-32
+  detach
+  quit 20
+end
+printf "\n--- marker state ---\n"
 print g_prt_gdb_marker_state
-printf "\\n--- current bt ---\\n"
+printf "\n--- current bt ---\n"
 bt
-printf "\\n--- all thread bt ---\\n"
+printf "\n--- all thread bt ---\n"
 thread apply all bt
-printf "\\n--- registers ---\\n"
+printf "\n--- registers ---\n"
 info registers
-printf "\\n--- pc window ---\\n"
-x/16i \$pc-32
+printf "\n--- pc window ---\n"
+x/16i $pc-32
 EOF
 
 if [[ "${marker_delete_after_hit}" == "1" ]]; then
