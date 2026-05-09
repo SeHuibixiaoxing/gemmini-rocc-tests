@@ -1,0 +1,60 @@
+artifact: 20260509T111143Z_no_dma_bulk_read_chunk1m_stall
+purpose: no-DMA F2 validation of mapping-cache bulk-read loader
+
+workflow:
+  script: generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdummy_sbus64_dummy8x8_gdbserver_cfg32_nic_notrace_workflow.sh
+  commands: image-closure, launch, infrasetup, remote-freshness, run 192.168.1.43, terminate
+  runtime_config: sims/firesim/deploy/config_runtime_f2_gemmini_rerocc_pairmanager_dummy8x8_4c12p12_sbus64_linux_bertmini_pipeline_runtime_batch8_fileonly_sync_gdbserver_cfg32_nic_notrace.yaml
+  hwdb_config: sims/firesim/deploy/config_hwdb_f2_gemmini_rerocc_pairmanager_dummy8x8_4c12p12_sbus64_bertmini_cfg32_nic_notrace.yaml
+  build_recipes: sims/firesim-staging/sample_config_build_recipes.yaml
+
+hardware:
+  agfi: agfi-077451484fe3b63c3
+  instance: i-007db2f231b4d9942
+  private_ip: 192.168.1.43
+
+environment:
+  PAIRDUMMY_SBUS64_DISABLE_MAPPING_CACHE: 0
+  PIPELINE_RUNTIME_NO_DMA_COMPUTE_ENABLE: 1
+  PIPELINE_RUNTIME_GDBSERVER_ENABLE: 0
+  PAIRDUMMY_SBUS64_GUEST_LOG_ENABLE: 1
+  PAIRDUMMY_SBUS64_GUEST_DEEP_LOG_ENABLE: 0
+  PAIRDUMMY_SBUS64_YAML_LINE_LOG_ENABLE: 0
+  PAIRDUMMY_SBUS64_PERIODIC_SYNC_ENABLE: 1
+  PAIRDUMMY_SBUS64_PERIODIC_SYNC_SECONDS: 5
+  PAIRDUMMY_SBUS64_RUNNER_STAGE_SYNC_ENABLE: 1
+
+freshness:
+  guest_env_sha256: 9da9f9c4a85f122efca984d1cdeb229a3cb570ec8912ba4bdcbdbc29d80829c7
+  local_remote_image_sha256_before_boot: 1cf7584c4f73ce179af506f633d104991772fddcbf9cdec1d801f48039ad427e
+  runtime_binary_sha256: 0783d9bef041f7cb55dd231dee68a66abc236dad5f58a8068b1764129c1cd836
+
+result:
+  status: stalled
+  last_sparse_log_size: 53433
+  last_uartlog_size: 21192
+  last_frontier: artifacts file read chunk-begin off=1048576 chunk=1048576
+  prior_frontier_avoided: mapping cache entry-by-entry pread entries=2048
+  pass_marker_seen: no
+  fail_marker_seen: no
+  completion_signal: none
+  doneflag_used: no
+
+key_files:
+  - remote-debugfs-files/bertmini-batch8.log
+  - remote-debugfs-files/bertmini-batch8.status
+  - remote-debugfs-files/bertmini-batch8.runner-proc.stage
+  - remote-debugfs-files/bertmini-batch8.runner.stage
+  - remote-debugfs-files/bertmini-batch8.runner-early.stage
+  - remote-sim-slot/uartlog
+  - remote-sim-slot/heartbeat.csv
+  - remote-sim-slot/ps.txt
+  - remote-sim-slot/fpga-describe.txt
+  - 2026-05-09--11-01-44-runworkload-DFGU9WY29BCWQZOW.log
+  - pairdummy-sbus64-dummy8x8-gdbserver-cfg32-nic-notrace-runworkload-20260509-110143.host-watchdog.log
+  - pairdummy-sbus64-dummy8x8-gdbserver-cfg32-nic-notrace-runworkload-20260509-110143.pane.log
+  - f2_instance_i-007db2f231b4d9942.json
+  - f2_instances_after_terminate.json
+  - f2_active_after_terminate.json
+  - local_sha256.txt
+  - remote_sha256.txt

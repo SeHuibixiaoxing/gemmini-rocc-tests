@@ -1,0 +1,598 @@
+[prt-progress] init begin backend=0 cores=4 gemmini=12 dma=12 pair=1 gemmini_base=0 dma_base=0 spm_mgrs=12 pages_per_acc=1024 page_bytes=1024 spm_xlate=1 range_base=0x0 range_size=100663296
+[prt-progress] init deep-log-gate enabled=0 segment=4294967295 global_stage=4294967295 local_stage=4294967295 subbatch=4294967295 stage_radius=0 subbatch_radius=0
+[prt-progress] init page-table begin
+[prt-progress] spm-pt pool init chunk_bytes=2097152 spm_mgrs=12 total_pages=12288 host_page=4096
+[prt-progress] init page-table end pt_chunks=0 chunk_bytes=2097152 prealloc=0 max=0 require_hugetlb=1
+[prt-progress] init dma-backend begin backend=0
+[prt-progress] dma-completion-pool before-prefault ptr=0x5f000 size=4096 page_bytes=4096
+[prt-progress] dma-completion-pool after-prefault ptr=0x5f000 size=4096 page_bytes=4096
+[prt-progress] dma-completion-pool before-mlock ptr=0x5f000 size=4096
+[prt-progress] dma-completion-pool after-mlock rc=0 errno=0 ptr=0x5f000 size=4096
+[prt-progress] dma-completion-pool ready slots=1024 bytes=4096 va=0x5f000 pa0=0x102d99000 palast=0x102d99ffc
+[prt-progress] dma-backend using blocking_fence completion via hw_dma_fence + rr_fence_scope
+[prt-progress] init dma-backend end
+[prt-progress] init gemmini-backend begin mode=0
+[prt-progress] init gemmini-backend end
+[prt-progress] init spm-xlate begin
+[prt-progress] spm-xlate-program mgr=0 cfg=31 prev_opc3=0x0 ptbr=0x0 ptes=0 page_shift=10 enable=0 base=0x0 bytes=0
+[prt-progress] spm-xlate-release mgr=0 cfg=31 phase=fence-begin prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=0 cfg=31 phase=fence-end prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=0 cfg=31 phase=release-begin prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=0 cfg=31 phase=release-end prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=0 cfg=31 phase=restore-begin prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=0 cfg=31 phase=restore-end prev_opc3=0x0
+[prt-progress] spm-xlate-program-restore mgr=0 opc3=0x0
+[prt-progress] spm-xlate-program mgr=1 cfg=31 prev_opc3=0x0 ptbr=0x0 ptes=0 page_shift=10 enable=0 base=0x0 bytes=0
+[prt-progress] spm-xlate-release mgr=1 cfg=31 phase=fence-begin prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=1 cfg=31 phase=fence-end prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=1 cfg=31 phase=release-begin prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=1 cfg=31 phase=release-end prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=1 cfg=31 phase=restore-begin prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=1 cfg=31 phase=restore-end prev_opc3=0x0
+[prt-progress] spm-xlate-program-restore mgr=1 opc3=0x0
+[prt-progress] spm-xlate-program mgr=2 cfg=31 prev_opc3=0x0 ptbr=0x0 ptes=0 page_shift=10 enable=0 base=0x0 bytes=0
+[prt-progress] spm-xlate-release mgr=2 cfg=31 phase=fence-begin prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=2 cfg=31 phase=fence-end prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=2 cfg=31 phase=release-begin prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=2 cfg=31 phase=release-end prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=2 cfg=31 phase=restore-begin prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=2 cfg=31 phase=restore-end prev_opc3=0x0
+[prt-progress] spm-xlate-program-restore mgr=2 opc3=0x0
+[prt-progress] spm-xlate-program mgr=3 cfg=31 prev_opc3=0x0 ptbr=0x0 ptes=0 page_shift=10 enable=0 base=0x0 bytes=0
+[prt-progress] spm-xlate-release mgr=3 cfg=31 phase=fence-begin prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=3 cfg=31 phase=fence-end prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=3 cfg=31 phase=release-begin prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=3 cfg=31 phase=release-end prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=3 cfg=31 phase=restore-begin prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=3 cfg=31 phase=restore-end prev_opc3=0x0
+[prt-progress] spm-xlate-program-restore mgr=3 opc3=0x0
+[prt-progress] spm-xlate-program mgr=4 cfg=31 prev_opc3=0x0 ptbr=0x0 ptes=0 page_shift=10 enable=0 base=0x0 bytes=0
+[prt-progress] spm-xlate-release mgr=4 cfg=31 phase=fence-begin prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=4 cfg=31 phase=fence-end prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=4 cfg=31 phase=release-begin prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=4 cfg=31 phase=release-end prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=4 cfg=31 phase=restore-begin prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=4 cfg=31 phase=restore-end prev_opc3=0x0
+[prt-progress] spm-xlate-program-restore mgr=4 opc3=0x0
+[prt-progress] spm-xlate-program mgr=5 cfg=31 prev_opc3=0x0 ptbr=0x0 ptes=0 page_shift=10 enable=0 base=0x0 bytes=0
+[prt-progress] spm-xlate-release mgr=5 cfg=31 phase=fence-begin prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=5 cfg=31 phase=fence-end prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=5 cfg=31 phase=release-begin prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=5 cfg=31 phase=release-end prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=5 cfg=31 phase=restore-begin prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=5 cfg=31 phase=restore-end prev_opc3=0x0
+[prt-progress] spm-xlate-program-restore mgr=5 opc3=0x0
+[prt-progress] spm-xlate-program mgr=6 cfg=31 prev_opc3=0x0 ptbr=0x0 ptes=0 page_shift=10 enable=0 base=0x0 bytes=0
+[prt-progress] spm-xlate-release mgr=6 cfg=31 phase=fence-begin prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=6 cfg=31 phase=fence-end prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=6 cfg=31 phase=release-begin prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=6 cfg=31 phase=release-end prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=6 cfg=31 phase=restore-begin prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=6 cfg=31 phase=restore-end prev_opc3=0x0
+[prt-progress] spm-xlate-program-restore mgr=6 opc3=0x0
+[prt-progress] spm-xlate-program mgr=7 cfg=31 prev_opc3=0x0 ptbr=0x0 ptes=0 page_shift=10 enable=0 base=0x0 bytes=0
+[prt-progress] spm-xlate-release mgr=7 cfg=31 phase=fence-begin prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=7 cfg=31 phase=fence-end prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=7 cfg=31 phase=release-begin prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=7 cfg=31 phase=release-end prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=7 cfg=31 phase=restore-begin prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=7 cfg=31 phase=restore-end prev_opc3=0x0
+[prt-progress] spm-xlate-program-restore mgr=7 opc3=0x0
+[prt-progress] spm-xlate-program mgr=8 cfg=31 prev_opc3=0x0 ptbr=0x0 ptes=0 page_shift=10 enable=0 base=0x0 bytes=0
+[prt-progress] spm-xlate-release mgr=8 cfg=31 phase=fence-begin prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=8 cfg=31 phase=fence-end prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=8 cfg=31 phase=release-begin prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=8 cfg=31 phase=release-end prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=8 cfg=31 phase=restore-begin prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=8 cfg=31 phase=restore-end prev_opc3=0x0
+[prt-progress] spm-xlate-program-restore mgr=8 opc3=0x0
+[prt-progress] spm-xlate-program mgr=9 cfg=31 prev_opc3=0x0 ptbr=0x0 ptes=0 page_shift=10 enable=0 base=0x0 bytes=0
+[prt-progress] spm-xlate-release mgr=9 cfg=31 phase=fence-begin prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=9 cfg=31 phase=fence-end prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=9 cfg=31 phase=release-begin prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=9 cfg=31 phase=release-end prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=9 cfg=31 phase=restore-begin prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=9 cfg=31 phase=restore-end prev_opc3=0x0
+[prt-progress] spm-xlate-program-restore mgr=9 opc3=0x0
+[prt-progress] spm-xlate-program mgr=10 cfg=31 prev_opc3=0x0 ptbr=0x0 ptes=0 page_shift=10 enable=0 base=0x0 bytes=0
+[prt-progress] spm-xlate-release mgr=10 cfg=31 phase=fence-begin prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=10 cfg=31 phase=fence-end prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=10 cfg=31 phase=release-begin prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=10 cfg=31 phase=release-end prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=10 cfg=31 phase=restore-begin prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=10 cfg=31 phase=restore-end prev_opc3=0x0
+[prt-progress] spm-xlate-program-restore mgr=10 opc3=0x0
+[prt-progress] spm-xlate-program mgr=11 cfg=31 prev_opc3=0x0 ptbr=0x0 ptes=0 page_shift=10 enable=0 base=0x0 bytes=0
+[prt-progress] spm-xlate-release mgr=11 cfg=31 phase=fence-begin prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=11 cfg=31 phase=fence-end prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=11 cfg=31 phase=release-begin prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=11 cfg=31 phase=release-end prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=11 cfg=31 phase=restore-begin prev_opc3=0x0
+[prt-progress] spm-xlate-release mgr=11 cfg=31 phase=restore-end prev_opc3=0x0
+[prt-progress] spm-xlate-program-restore mgr=11 opc3=0x0
+[prt-progress] init spm-xlate end
+[prt-progress] init trace-calibrate begin
+[prt-progress] init trace-calibrate end
+[prt-progress] init done
+[prt-progress] runtime begin backend=0 batch=8 watchdog_ms=600000 no_dma_compute=1 model_yaml=/root/rerocc-linux-tests/pipeline-runtime/bertmini/model.layers.yaml pipeline_yaml=/root/rerocc-linux-tests/pipeline-runtime/bertmini/pipeline_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.ours2.yaml layer_mapping_yaml=/root/rerocc-linux-tests/pipeline-runtime/bertmini/gemmini_layer_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.yaml
+[prt-progress] init load-model-yaml begin path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/model.layers.yaml
+[prt-progress] yaml model load begin path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/model.layers.yaml
+[prt-progress] yaml file open begin path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/model.layers.yaml
+[prt-progress] yaml file open end path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/model.layers.yaml
+[prt-progress] yaml file seek-end begin path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/model.layers.yaml
+[prt-progress] yaml file seek-end end path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/model.layers.yaml
+[prt-progress] yaml file ftell begin path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/model.layers.yaml
+[prt-progress] yaml file ftell end path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/model.layers.yaml bytes=18518
+[prt-progress] yaml file read-mode path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/model.layers.yaml mode=pread
+[prt-progress] yaml file alloc begin path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/model.layers.yaml bytes=18518
+[prt-progress] yaml file alloc end path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/model.layers.yaml bytes=18518
+[prt-progress] yaml file read begin path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/model.layers.yaml bytes=18518
+[prt-progress] yaml file read end path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/model.layers.yaml bytes=18518
+[prt-progress] yaml file close end path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/model.layers.yaml
+[prt-progress] yaml model file read path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/model.layers.yaml bytes=18518
+[prt-progress] yaml model parse begin path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/model.layers.yaml bytes=18518
+[prt-progress] yaml model parse line=1 indent=0 list=0 text=address: [0, 17055744]
+[prt-progress] yaml model parse line=2 indent=0 list=0 text=layers:
+[prt-progress] yaml model parse line=3 indent=0 list=1 text=- address: [0, 1024, 66560, 132096]
+[prt-progress] yaml model layer-push line=3 reason=address layers=1
+[prt-progress] yaml model parse line=4 indent=2 list=0 text=address2: [8527872, 8528896, 8594432, 8659968]
+[prt-progress] yaml model parse line=5 indent=2 list=0 text=compute: 16777216
+[prt-progress] yaml model parse line=6 indent=2 list=0 text=data_size: {0: 65536, 2: 65536, 1000000: 1024, 1000001: 65536}
+[prt-progress] yaml model parse line=7 indent=2 list=0 text=index: 0
+[prt-progress] yaml model layer-index line=7 layers=1 index=0
+[prt-progress] yaml model parse line=8 indent=2 list=0 text=input_ids: [0]
+[prt-progress] yaml model parse line=9 indent=2 list=0 text=layerGroupType: head
+[prt-progress] yaml model parse line=10 indent=2 list=0 text=output_ids: [2]
+[prt-progress] yaml model parse line=11 indent=2 list=0 text=param: [1, 256, 256, 256, 1, 1, 1, 1, 1, 1]
+[prt-progress] yaml model parse line=12 indent=2 list=0 text=tensorIds: [1000000, 1000001, 0, 2]
+[prt-progress] yaml model layer-push line=17 reason=address layers=2
+[prt-progress] yaml model layer-index line=21 layers=2 index=1
+[prt-progress] yaml model layer-push line=31 reason=address layers=3
+[prt-progress] yaml model layer-index line=35 layers=3 index=2
+[prt-progress] yaml model layer-push line=45 reason=address layers=4
+[prt-progress] yaml model layer-index line=49 layers=4 index=3
+[prt-progress] yaml model layer-push line=59 reason=address layers=5
+[prt-progress] yaml model layer-index line=63 layers=5 index=4
+[prt-progress] yaml model parse line=64 indent=2 list=0 text=input_ids: [6]
+[prt-progress] yaml model layer-push line=73 reason=address layers=6
+[prt-progress] yaml model layer-index line=77 layers=6 index=5
+[prt-progress] yaml model layer-push line=87 reason=address layers=7
+[prt-progress] yaml model layer-index line=91 layers=7 index=6
+[prt-progress] yaml model layer-push line=101 reason=address layers=8
+[prt-progress] yaml model layer-index line=105 layers=8 index=7
+[prt-progress] yaml model parse line=128 indent=2 list=0 text=type: conv
+[prt-progress] yaml model parse line=192 indent=2 list=0 text=output_ids: [18]
+[prt-progress] yaml model layer-push line=213 reason=address layers=16
+[prt-progress] yaml model layer-index line=217 layers=16 index=15
+[prt-progress] yaml model parse line=256 indent=2 list=0 text=address2: [12430336, 12431360, 12168192, 12693504]
+[prt-progress] yaml model parse line=320 indent=2 list=0 text=tensorIds: [1000032, 1000033, 24, 28]
+[prt-progress] yaml model layer-push line=325 reason=address layers=24
+[prt-progress] yaml model layer-index line=329 layers=24 index=23
+[prt-progress] yaml model parse line=384 indent=2 list=0 text=data_size: {33: 65536, 34: 262144, 1000038: 4096, 1000039: 262144}
+[prt-progress] yaml model layer-push line=437 reason=address layers=32
+[prt-progress] yaml model layer-index line=441 layers=32 index=31
+[prt-progress] yaml model parse line=448 indent=2 list=0 text=tensorSize: [1024, 65536, 65536, 65536]
+[prt-progress] yaml model parse line=512 indent=2 list=0 text=input_ids: [36, 44]
+[prt-progress] yaml model layer-push line=549 reason=address layers=40
+[prt-progress] yaml model layer-index line=553 layers=40 index=39
+[prt-progress] yaml model parse end path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/model.layers.yaml lines=562 layers=40
+[prt-progress] yaml model load end path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/model.layers.yaml layers=40 tensors=0 stages=0
+[prt-progress] init load-model-yaml end elapsed_ms=8 layers=40 tensors=0 stages=0 addr=[0x0,0x1044000]
+[prt-progress] init collect-model-io begin layers=40
+[prt-progress] init collect-model-io end elapsed_ms=0 inputs=1 outputs=1
+[prt-progress] init load-pipeline-yaml begin path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/pipeline_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.ours2.yaml
+[prt-progress] yaml pipeline load begin path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/pipeline_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.ours2.yaml
+[prt-progress] yaml file open begin path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/pipeline_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.ours2.yaml
+[prt-progress] yaml file open end path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/pipeline_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.ours2.yaml
+[prt-progress] yaml file seek-end begin path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/pipeline_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.ours2.yaml
+[prt-progress] yaml file seek-end end path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/pipeline_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.ours2.yaml
+[prt-progress] yaml file ftell begin path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/pipeline_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.ours2.yaml
+[prt-progress] yaml file ftell end path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/pipeline_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.ours2.yaml bytes=59138
+[prt-progress] yaml file read-mode path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/pipeline_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.ours2.yaml mode=pread
+[prt-progress] yaml file alloc begin path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/pipeline_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.ours2.yaml bytes=59138
+[prt-progress] yaml file alloc end path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/pipeline_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.ours2.yaml bytes=59138
+[prt-progress] yaml file read begin path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/pipeline_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.ours2.yaml bytes=59138
+[prt-progress] yaml file read end path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/pipeline_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.ours2.yaml bytes=59138
+[prt-progress] yaml file close end path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/pipeline_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.ours2.yaml
+[prt-progress] yaml pipeline file read path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/pipeline_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.ours2.yaml bytes=59138
+[prt-progress] yaml pipeline parse begin path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/pipeline_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.ours2.yaml bytes=59138
+[prt-progress] yaml pipeline segment-push line=10 segments=1
+[prt-progress] yaml pipeline ignore-scalar line=11 key=cost value=317328
+[prt-progress] yaml pipeline ignore-scalar line=12 key=end_layer_idx value=0
+[prt-progress] yaml pipeline segment-idx line=16 segment=0
+[prt-progress] yaml pipeline shared-read-first begin line=17 segment=0
+[prt-progress] yaml pipeline shared-read-first parsed line=17 segment=0 count=0
+[prt-progress] yaml pipeline shared-read-first stored line=17 segment=0 count=0
+[prt-progress] yaml pipeline stage-push line=19 segment=0 local_stage=0 acc=8
+[prt-progress] yaml pipeline global-stage line=29 segment=0 local_stage=0 global_stage=0
+[prt-progress] yaml pipeline ignore-scalar line=53 key=start_layer_idx value=0
+[prt-progress] yaml pipeline ignore-scalar line=59 key=total_spm_util value=193
+[prt-progress] yaml pipeline segment-span line=60 segment=0 pages=193
+[prt-progress] yaml pipeline binding-ids line=61 segment=0 count=4
+[prt-progress] yaml pipeline binding-tensor-ids line=62 segment=0 count=4
+[prt-progress] yaml pipeline binding-stage-local-ids line=63 segment=0 count=4
+[prt-progress] yaml pipeline binding-is-entry line=64 segment=0 count=4
+[prt-progress] yaml pipeline binding-kinds line=65 segment=0 count=4
+[prt-progress] yaml pipeline binding-slot-count line=66 segment=0 count=4
+[prt-progress] yaml pipeline binding-pages-per-slot line=67 segment=0 count=4
+[prt-progress] yaml pipeline binding-alias-group line=68 segment=0 count=4
+[prt-progress] yaml pipeline segment-push line=71 segments=2
+[prt-progress] yaml pipeline ignore-scalar line=72 key=cost value=317328
+[prt-progress] yaml pipeline ignore-scalar line=73 key=end_layer_idx value=1
+[prt-progress] yaml pipeline segment-idx line=77 segment=1
+[prt-progress] yaml pipeline shared-read-first begin line=78 segment=1
+[prt-progress] yaml pipeline shared-read-first parsed line=78 segment=1 count=0
+[prt-progress] yaml pipeline shared-read-first stored line=78 segment=1 count=0
+[prt-progress] yaml pipeline stage-push line=80 segment=1 local_stage=0 acc=8
+[prt-progress] yaml pipeline global-stage line=90 segment=1 local_stage=0 global_stage=1
+[prt-progress] yaml pipeline ignore-scalar line=114 key=start_layer_idx value=1
+[prt-progress] yaml pipeline ignore-scalar line=120 key=total_spm_util value=193
+[prt-progress] yaml pipeline segment-span line=121 segment=1 pages=193
+[prt-progress] yaml pipeline binding-ids line=122 segment=1 count=4
+[prt-progress] yaml pipeline binding-tensor-ids line=123 segment=1 count=4
+[prt-progress] yaml pipeline binding-stage-local-ids line=124 segment=1 count=4
+[prt-progress] yaml pipeline binding-is-entry line=125 segment=1 count=4
+[prt-progress] yaml pipeline binding-kinds line=126 segment=1 count=4
+[prt-progress] yaml pipeline binding-slot-count line=127 segment=1 count=4
+[prt-progress] yaml pipeline binding-pages-per-slot line=128 segment=1 count=4
+[prt-progress] yaml pipeline binding-alias-group line=129 segment=1 count=4
+[prt-progress] yaml pipeline segment-push line=132 segments=3
+[prt-progress] yaml pipeline ignore-scalar line=133 key=cost value=793330
+[prt-progress] yaml pipeline ignore-scalar line=134 key=end_layer_idx value=4
+[prt-progress] yaml pipeline segment-idx line=138 segment=2
+[prt-progress] yaml pipeline shared-read-first begin line=139 segment=2
+[prt-progress] yaml pipeline shared-read-first parsed line=139 segment=2 count=1
+[prt-progress] yaml pipeline shared-read-first stored line=139 segment=2 count=1
+[prt-progress] yaml pipeline stage-push line=141 segment=2 local_stage=0 acc=4
+[prt-progress] yaml pipeline global-stage line=151 segment=2 local_stage=0 global_stage=2
+[prt-progress] yaml pipeline stage-push line=175 segment=2 local_stage=1 acc=4
+[prt-progress] yaml pipeline global-stage line=185 segment=2 local_stage=1 global_stage=3
+[prt-progress] yaml pipeline stage-push line=209 segment=2 local_stage=2 acc=4
+[prt-progress] yaml pipeline global-stage line=219 segment=2 local_stage=2 global_stage=4
+[prt-progress] yaml pipeline ignore-scalar line=243 key=start_layer_idx value=2
+[prt-progress] yaml pipeline ignore-scalar line=251 key=total_spm_util value=1482
+[prt-progress] yaml pipeline segment-span line=252 segment=2 pages=1482
+[prt-progress] yaml pipeline binding-ids line=253 segment=2 count=13
+[prt-progress] yaml pipeline binding-tensor-ids line=254 segment=2 count=13
+[prt-progress] yaml pipeline binding-stage-local-ids line=255 segment=2 count=13
+[prt-progress] yaml pipeline binding-is-entry line=256 segment=2 count=13
+[prt-progress] yaml pipeline binding-kinds line=257 segment=2 count=13
+[prt-progress] yaml pipeline binding-slot-count line=258 segment=2 count=13
+[prt-progress] yaml pipeline binding-pages-per-slot line=259 segment=2 count=13
+[prt-progress] yaml pipeline binding-alias-group line=260 segment=2 count=13
+[prt-progress] yaml pipeline segment-push line=263 segments=4
+[prt-progress] yaml pipeline ignore-scalar line=264 key=cost value=2694465
+[prt-progress] yaml pipeline ignore-scalar line=265 key=end_layer_idx value=9
+[prt-progress] yaml pipeline segment-idx line=269 segment=3
+[prt-progress] yaml pipeline shared-read-first begin line=270 segment=3
+[prt-progress] yaml pipeline shared-read-first parsed line=270 segment=3 count=1
+[prt-progress] yaml pipeline shared-read-first stored line=270 segment=3 count=1
+[prt-progress] yaml pipeline stage-push line=272 segment=3 local_stage=0 acc=2
+[prt-progress] yaml pipeline global-stage line=282 segment=3 local_stage=0 global_stage=5
+[prt-progress] yaml pipeline stage-push line=306 segment=3 local_stage=1 acc=1
+[prt-progress] yaml pipeline global-stage line=316 segment=3 local_stage=1 global_stage=6
+[prt-progress] yaml pipeline stage-push line=340 segment=3 local_stage=2 acc=4
+[prt-progress] yaml pipeline global-stage line=350 segment=3 local_stage=2 global_stage=7
+[prt-progress] yaml pipeline stage-push line=374 segment=3 local_stage=3 acc=4
+[prt-progress] yaml pipeline global-stage line=384 segment=3 local_stage=3 global_stage=8
+[prt-progress] yaml pipeline stage-push line=408 segment=3 local_stage=4 acc=1
+[prt-progress] yaml pipeline global-stage line=418 segment=3 local_stage=4 global_stage=9
+[prt-progress] yaml pipeline ignore-scalar line=442 key=start_layer_idx value=5
+[prt-progress] yaml pipeline ignore-scalar line=452 key=total_spm_util value=2054
+[prt-progress] yaml pipeline segment-span line=453 segment=3 pages=1734
+[prt-progress] yaml pipeline binding-ids line=454 segment=3 count=19
+[prt-progress] yaml pipeline binding-tensor-ids line=455 segment=3 count=19
+[prt-progress] yaml pipeline binding-stage-local-ids line=456 segment=3 count=19
+[prt-progress] yaml pipeline binding-is-entry line=457 segment=3 count=19
+[prt-progress] yaml pipeline binding-kinds line=458 segment=3 count=19
+[prt-progress] yaml pipeline binding-slot-count line=459 segment=3 count=19
+[prt-progress] yaml pipeline binding-pages-per-slot line=460 segment=3 count=19
+[prt-progress] yaml pipeline binding-alias-group line=461 segment=3 count=19
+[prt-progress] yaml pipeline segment-push line=464 segments=5
+[prt-progress] yaml pipeline ignore-scalar line=465 key=cost value=862310
+[prt-progress] yaml pipeline ignore-scalar line=466 key=end_layer_idx value=12
+[prt-progress] yaml pipeline segment-idx line=470 segment=4
+[prt-progress] yaml pipeline shared-read-first begin line=471 segment=4
+[prt-progress] yaml pipeline shared-read-first parsed line=471 segment=4 count=0
+[prt-progress] yaml pipeline shared-read-first stored line=471 segment=4 count=0
+[prt-progress] yaml pipeline stage-push line=473 segment=4 local_stage=0 acc=4
+[prt-progress] yaml pipeline global-stage line=483 segment=4 local_stage=0 global_stage=10
+[prt-progress] yaml pipeline stage-push line=507 segment=4 local_stage=1 acc=4
+[prt-progress] yaml pipeline global-stage line=517 segment=4 local_stage=1 global_stage=11
+[prt-progress] yaml pipeline stage-push line=541 segment=4 local_stage=2 acc=4
+[prt-progress] yaml pipeline global-stage line=551 segment=4 local_stage=2 global_stage=12
+[prt-progress] yaml pipeline ignore-scalar line=575 key=start_layer_idx value=10
+[prt-progress] yaml pipeline ignore-scalar line=583 key=total_spm_util value=579
+[prt-progress] yaml pipeline segment-span line=584 segment=4 pages=579
+[prt-progress] yaml pipeline binding-ids line=585 segment=4 count=12
+[prt-progress] yaml pipeline binding-tensor-ids line=586 segment=4 count=12
+[prt-progress] yaml pipeline binding-stage-local-ids line=587 segment=4 count=12
+[prt-progress] yaml pipeline binding-is-entry line=588 segment=4 count=12
+[prt-progress] yaml pipeline binding-kinds line=589 segment=4 count=12
+[prt-progress] yaml pipeline binding-slot-count line=590 segment=4 count=12
+[prt-progress] yaml pipeline binding-pages-per-slot line=591 segment=4 count=12
+[prt-progress] yaml pipeline binding-alias-group line=592 segment=4 count=12
+[prt-progress] yaml pipeline segment-push line=595 segments=6
+[prt-progress] yaml pipeline ignore-scalar line=596 key=cost value=793330
+[prt-progress] yaml pipeline ignore-scalar line=597 key=end_layer_idx value=15
+[prt-progress] yaml pipeline segment-idx line=601 segment=5
+[prt-progress] yaml pipeline shared-read-first begin line=602 segment=5
+[prt-progress] yaml pipeline shared-read-first parsed line=602 segment=5 count=1
+[prt-progress] yaml pipeline shared-read-first stored line=602 segment=5 count=1
+[prt-progress] yaml pipeline stage-push line=604 segment=5 local_stage=0 acc=4
+[prt-progress] yaml pipeline global-stage line=614 segment=5 local_stage=0 global_stage=13
+[prt-progress] yaml pipeline stage-push line=638 segment=5 local_stage=1 acc=4
+[prt-progress] yaml pipeline global-stage line=648 segment=5 local_stage=1 global_stage=14
+[prt-progress] yaml pipeline stage-push line=672 segment=5 local_stage=2 acc=4
+[prt-progress] yaml pipeline global-stage line=682 segment=5 local_stage=2 global_stage=15
+[prt-progress] yaml pipeline ignore-scalar line=706 key=start_layer_idx value=13
+[prt-progress] yaml pipeline ignore-scalar line=714 key=total_spm_util value=1482
+[prt-progress] yaml pipeline segment-span line=715 segment=5 pages=1482
+[prt-progress] yaml pipeline binding-ids line=716 segment=5 count=13
+[prt-progress] yaml pipeline binding-tensor-ids line=717 segment=5 count=13
+[prt-progress] yaml pipeline binding-stage-local-ids line=718 segment=5 count=13
+[prt-progress] yaml pipeline binding-is-entry line=719 segment=5 count=13
+[prt-progress] yaml pipeline binding-kinds line=720 segment=5 count=13
+[prt-progress] yaml pipeline binding-slot-count line=721 segment=5 count=13
+[prt-progress] yaml pipeline binding-pages-per-slot line=722 segment=5 count=13
+[prt-progress] yaml pipeline binding-alias-group line=723 segment=5 count=13
+[prt-progress] yaml pipeline segment-push line=726 segments=7
+[prt-progress] yaml pipeline ignore-scalar line=727 key=cost value=2379990
+[prt-progress] yaml pipeline ignore-scalar line=728 key=end_layer_idx value=19
+[prt-progress] yaml pipeline segment-idx line=732 segment=6
+[prt-progress] yaml pipeline shared-read-first begin line=733 segment=6
+[prt-progress] yaml pipeline shared-read-first parsed line=733 segment=6 count=1
+[prt-progress] yaml pipeline shared-read-first stored line=733 segment=6 count=1
+[prt-progress] yaml pipeline stage-push line=735 segment=6 local_stage=0 acc=2
+[prt-progress] yaml pipeline global-stage line=745 segment=6 local_stage=0 global_stage=16
+[prt-progress] yaml pipeline stage-push line=769 segment=6 local_stage=1 acc=4
+[prt-progress] yaml pipeline global-stage line=779 segment=6 local_stage=1 global_stage=17
+[prt-progress] yaml pipeline stage-push line=803 segment=6 local_stage=2 acc=4
+[prt-progress] yaml pipeline global-stage line=813 segment=6 local_stage=2 global_stage=18
+[prt-progress] yaml pipeline stage-push line=837 segment=6 local_stage=3 acc=2
+[prt-progress] yaml pipeline global-stage line=847 segment=6 local_stage=3 global_stage=19
+[prt-progress] yaml pipeline ignore-scalar line=871 key=start_layer_idx value=16
+[prt-progress] yaml pipeline ignore-scalar line=880 key=total_spm_util value=1989
+[prt-progress] yaml pipeline segment-span line=881 segment=6 pages=1541
+[prt-progress] yaml pipeline binding-ids line=882 segment=6 count=16
+[prt-progress] yaml pipeline binding-tensor-ids line=883 segment=6 count=16
+[prt-progress] yaml pipeline binding-stage-local-ids line=884 segment=6 count=16
+[prt-progress] yaml pipeline binding-is-entry line=885 segment=6 count=16
+[prt-progress] yaml pipeline binding-kinds line=886 segment=6 count=16
+[prt-progress] yaml pipeline binding-slot-count line=887 segment=6 count=16
+[prt-progress] yaml pipeline binding-pages-per-slot line=888 segment=6 count=16
+[prt-progress] yaml pipeline binding-alias-group line=889 segment=6 count=16
+[prt-progress] yaml pipeline segment-push line=892 segments=8
+[prt-progress] yaml pipeline ignore-scalar line=893 key=cost value=862310
+[prt-progress] yaml pipeline ignore-scalar line=894 key=end_layer_idx value=22
+[prt-progress] yaml pipeline segment-idx line=898 segment=7
+[prt-progress] yaml pipeline shared-read-first begin line=899 segment=7
+[prt-progress] yaml pipeline shared-read-first parsed line=899 segment=7 count=0
+[prt-progress] yaml pipeline shared-read-first stored line=899 segment=7 count=0
+[prt-progress] yaml pipeline stage-push line=901 segment=7 local_stage=0 acc=4
+[prt-progress] yaml pipeline global-stage line=911 segment=7 local_stage=0 global_stage=20
+[prt-progress] yaml pipeline stage-push line=935 segment=7 local_stage=1 acc=4
+[prt-progress] yaml pipeline global-stage line=945 segment=7 local_stage=1 global_stage=21
+[prt-progress] yaml pipeline stage-push line=969 segment=7 local_stage=2 acc=4
+[prt-progress] yaml pipeline global-stage line=979 segment=7 local_stage=2 global_stage=22
+[prt-progress] yaml pipeline ignore-scalar line=1003 key=start_layer_idx value=20
+[prt-progress] yaml pipeline ignore-scalar line=1011 key=total_spm_util value=579
+[prt-progress] yaml pipeline segment-span line=1012 segment=7 pages=579
+[prt-progress] yaml pipeline binding-ids line=1013 segment=7 count=12
+[prt-progress] yaml pipeline binding-tensor-ids line=1014 segment=7 count=12
+[prt-progress] yaml pipeline binding-stage-local-ids line=1015 segment=7 count=12
+[prt-progress] yaml pipeline binding-is-entry line=1016 segment=7 count=12
+[prt-progress] yaml pipeline binding-kinds line=1017 segment=7 count=12
+[prt-progress] yaml pipeline binding-slot-count line=1018 segment=7 count=12
+[prt-progress] yaml pipeline binding-pages-per-slot line=1019 segment=7 count=12
+[prt-progress] yaml pipeline binding-alias-group line=1020 segment=7 count=12
+[prt-progress] yaml pipeline segment-push line=1023 segments=9
+[prt-progress] yaml pipeline ignore-scalar line=1024 key=cost value=793330
+[prt-progress] yaml pipeline ignore-scalar line=1025 key=end_layer_idx value=25
+[prt-progress] yaml pipeline segment-idx line=1029 segment=8
+[prt-progress] yaml pipeline shared-read-first begin line=1030 segment=8
+[prt-progress] yaml pipeline shared-read-first parsed line=1030 segment=8 count=1
+[prt-progress] yaml pipeline shared-read-first stored line=1030 segment=8 count=1
+[prt-progress] yaml pipeline stage-push line=1032 segment=8 local_stage=0 acc=4
+[prt-progress] yaml pipeline global-stage line=1042 segment=8 local_stage=0 global_stage=23
+[prt-progress] yaml pipeline stage-push line=1066 segment=8 local_stage=1 acc=4
+[prt-progress] yaml pipeline global-stage line=1076 segment=8 local_stage=1 global_stage=24
+[prt-progress] yaml pipeline stage-push line=1100 segment=8 local_stage=2 acc=4
+[prt-progress] yaml pipeline global-stage line=1110 segment=8 local_stage=2 global_stage=25
+[prt-progress] yaml pipeline ignore-scalar line=1134 key=start_layer_idx value=23
+[prt-progress] yaml pipeline ignore-scalar line=1142 key=total_spm_util value=1482
+[prt-progress] yaml pipeline segment-span line=1143 segment=8 pages=1482
+[prt-progress] yaml pipeline binding-ids line=1144 segment=8 count=13
+[prt-progress] yaml pipeline binding-tensor-ids line=1145 segment=8 count=13
+[prt-progress] yaml pipeline binding-stage-local-ids line=1146 segment=8 count=13
+[prt-progress] yaml pipeline binding-is-entry line=1147 segment=8 count=13
+[prt-progress] yaml pipeline binding-kinds line=1148 segment=8 count=13
+[prt-progress] yaml pipeline binding-slot-count line=1149 segment=8 count=13
+[prt-progress] yaml pipeline binding-pages-per-slot line=1150 segment=8 count=13
+[prt-progress] yaml pipeline binding-alias-group line=1151 segment=8 count=13
+[prt-progress] yaml pipeline segment-push line=1154 segments=10
+[prt-progress] yaml pipeline ignore-scalar line=1155 key=cost value=82776
+[prt-progress] yaml pipeline ignore-scalar line=1156 key=end_layer_idx value=26
+[prt-progress] yaml pipeline segment-idx line=1160 segment=9
+[prt-progress] yaml pipeline shared-read-first begin line=1161 segment=9
+[prt-progress] yaml pipeline shared-read-first parsed line=1161 segment=9 count=0
+[prt-progress] yaml pipeline shared-read-first stored line=1161 segment=9 count=0
+[prt-progress] yaml pipeline stage-push line=1163 segment=9 local_stage=0 acc=8
+[prt-progress] yaml pipeline global-stage line=1173 segment=9 local_stage=0 global_stage=26
+[prt-progress] yaml pipeline ignore-scalar line=1197 key=start_layer_idx value=26
+[prt-progress] yaml pipeline ignore-scalar line=1203 key=total_spm_util value=192
+[prt-progress] yaml pipeline segment-span line=1204 segment=9 pages=192
+[prt-progress] yaml pipeline binding-ids line=1205 segment=9 count=3
+[prt-progress] yaml pipeline binding-tensor-ids line=1206 segment=9 count=3
+[prt-progress] yaml pipeline binding-stage-local-ids line=1207 segment=9 count=3
+[prt-progress] yaml pipeline binding-is-entry line=1208 segment=9 count=3
+[prt-progress] yaml pipeline binding-kinds line=1209 segment=9 count=3
+[prt-progress] yaml pipeline binding-slot-count line=1210 segment=9 count=3
+[prt-progress] yaml pipeline binding-pages-per-slot line=1211 segment=9 count=3
+[prt-progress] yaml pipeline binding-alias-group line=1212 segment=9 count=3
+[prt-progress] yaml pipeline segment-push line=1215 segments=11
+[prt-progress] yaml pipeline ignore-scalar line=1216 key=cost value=2290306
+[prt-progress] yaml pipeline ignore-scalar line=1217 key=end_layer_idx value=28
+[prt-progress] yaml pipeline segment-idx line=1221 segment=10
+[prt-progress] yaml pipeline shared-read-first begin line=1222 segment=10
+[prt-progress] yaml pipeline shared-read-first parsed line=1222 segment=10 count=1
+[prt-progress] yaml pipeline shared-read-first stored line=1222 segment=10 count=1
+[prt-progress] yaml pipeline stage-push line=1224 segment=10 local_stage=0 acc=4
+[prt-progress] yaml pipeline global-stage line=1234 segment=10 local_stage=0 global_stage=27
+[prt-progress] yaml pipeline stage-push line=1258 segment=10 local_stage=1 acc=8
+[prt-progress] yaml pipeline global-stage line=1268 segment=10 local_stage=1 global_stage=28
+[prt-progress] yaml pipeline ignore-scalar line=1292 key=start_layer_idx value=27
+[prt-progress] yaml pipeline ignore-scalar line=1299 key=total_spm_util value=1157
+[prt-progress] yaml pipeline segment-span line=1300 segment=10 pages=1157
+[prt-progress] yaml pipeline binding-ids line=1301 segment=10 count=8
+[prt-progress] yaml pipeline binding-tensor-ids line=1302 segment=10 count=8
+[prt-progress] yaml pipeline binding-stage-local-ids line=1303 segment=10 count=8
+[prt-progress] yaml pipeline binding-is-entry line=1304 segment=10 count=8
+[prt-progress] yaml pipeline binding-kinds line=1305 segment=10 count=8
+[prt-progress] yaml pipeline binding-slot-count line=1306 segment=10 count=8
+[prt-progress] yaml pipeline binding-pages-per-slot line=1307 segment=10 count=8
+[prt-progress] yaml pipeline binding-alias-group line=1308 segment=10 count=8
+[prt-progress] yaml pipeline segment-push line=1311 segments=12
+[prt-progress] yaml pipeline ignore-scalar line=1312 key=cost value=355267
+[prt-progress] yaml pipeline ignore-scalar line=1313 key=end_layer_idx value=30
+[prt-progress] yaml pipeline segment-idx line=1317 segment=11
+[prt-progress] yaml pipeline shared-read-first begin line=1318 segment=11
+[prt-progress] yaml pipeline shared-read-first parsed line=1318 segment=11 count=1
+[prt-progress] yaml pipeline shared-read-first stored line=1318 segment=11 count=1
+[prt-progress] yaml pipeline stage-push line=1320 segment=11 local_stage=0 acc=4
+[prt-progress] yaml pipeline global-stage line=1330 segment=11 local_stage=0 global_stage=29
+[prt-progress] yaml pipeline stage-push line=1354 segment=11 local_stage=1 acc=8
+[prt-progress] yaml pipeline global-stage line=1364 segment=11 local_stage=1 global_stage=30
+[prt-progress] yaml pipeline ignore-scalar line=1388 key=start_layer_idx value=29
+[prt-progress] yaml pipeline ignore-scalar line=1395 key=total_spm_util value=385
+[prt-progress] yaml pipeline segment-span line=1396 segment=11 pages=385
+[prt-progress] yaml pipeline binding-ids line=1397 segment=11 count=7
+[prt-progress] yaml pipeline binding-tensor-ids line=1398 segment=11 count=7
+[prt-progress] yaml pipeline binding-stage-local-ids line=1399 segment=11 count=7
+[prt-progress] yaml pipeline binding-is-entry line=1400 segment=11 count=7
+[prt-progress] yaml pipeline binding-kinds line=1401 segment=11 count=7
+[prt-progress] yaml pipeline binding-slot-count line=1402 segment=11 count=7
+[prt-progress] yaml pipeline binding-pages-per-slot line=1403 segment=11 count=7
+[prt-progress] yaml pipeline binding-alias-group line=1404 segment=11 count=7
+[prt-progress] yaml pipeline segment-push line=1407 segments=13
+[prt-progress] yaml pipeline ignore-scalar line=1408 key=cost value=317328
+[prt-progress] yaml pipeline ignore-scalar line=1409 key=end_layer_idx value=31
+[prt-progress] yaml pipeline segment-idx line=1413 segment=12
+[prt-progress] yaml pipeline shared-read-first begin line=1414 segment=12
+[prt-progress] yaml pipeline shared-read-first parsed line=1414 segment=12 count=0
+[prt-progress] yaml pipeline shared-read-first stored line=1414 segment=12 count=0
+[prt-progress] yaml pipeline stage-push line=1416 segment=12 local_stage=0 acc=8
+[prt-progress] yaml pipeline global-stage line=1426 segment=12 local_stage=0 global_stage=31
+[prt-progress] yaml pipeline ignore-scalar line=1450 key=start_layer_idx value=31
+[prt-progress] yaml pipeline ignore-scalar line=1456 key=total_spm_util value=193
+[prt-progress] yaml pipeline segment-span line=1457 segment=12 pages=193
+[prt-progress] yaml pipeline binding-ids line=1458 segment=12 count=4
+[prt-progress] yaml pipeline binding-tensor-ids line=1459 segment=12 count=4
+[prt-progress] yaml pipeline binding-stage-local-ids line=1460 segment=12 count=4
+[prt-progress] yaml pipeline binding-is-entry line=1461 segment=12 count=4
+[prt-progress] yaml pipeline binding-kinds line=1462 segment=12 count=4
+[prt-progress] yaml pipeline binding-slot-count line=1463 segment=12 count=4
+[prt-progress] yaml pipeline binding-pages-per-slot line=1464 segment=12 count=4
+[prt-progress] yaml pipeline binding-alias-group line=1465 segment=12 count=4
+[prt-progress] yaml pipeline segment-push line=1468 segments=14
+[prt-progress] yaml pipeline ignore-scalar line=1469 key=cost value=793330
+[prt-progress] yaml pipeline ignore-scalar line=1470 key=end_layer_idx value=34
+[prt-progress] yaml pipeline segment-idx line=1474 segment=13
+[prt-progress] yaml pipeline shared-read-first begin line=1475 segment=13
+[prt-progress] yaml pipeline shared-read-first parsed line=1475 segment=13 count=1
+[prt-progress] yaml pipeline shared-read-first stored line=1475 segment=13 count=1
+[prt-progress] yaml pipeline stage-push line=1477 segment=13 local_stage=0 acc=4
+[prt-progress] yaml pipeline global-stage line=1487 segment=13 local_stage=0 global_stage=32
+[prt-progress] yaml pipeline stage-push line=1511 segment=13 local_stage=1 acc=4
+[prt-progress] yaml pipeline global-stage line=1521 segment=13 local_stage=1 global_stage=33
+[prt-progress] yaml pipeline stage-push line=1545 segment=13 local_stage=2 acc=4
+[prt-progress] yaml pipeline global-stage line=1555 segment=13 local_stage=2 global_stage=34
+[prt-progress] yaml pipeline ignore-scalar line=1579 key=start_layer_idx value=32
+[prt-progress] yaml pipeline ignore-scalar line=1587 key=total_spm_util value=1482
+[prt-progress] yaml pipeline segment-span line=1588 segment=13 pages=1482
+[prt-progress] yaml pipeline binding-ids line=1589 segment=13 count=13
+[prt-progress] yaml pipeline binding-tensor-ids line=1590 segment=13 count=13
+[prt-progress] yaml pipeline binding-stage-local-ids line=1591 segment=13 count=13
+[prt-progress] yaml pipeline binding-is-entry line=1592 segment=13 count=13
+[prt-progress] yaml pipeline binding-kinds line=1593 segment=13 count=13
+[prt-progress] yaml pipeline binding-slot-count line=1594 segment=13 count=13
+[prt-progress] yaml pipeline binding-pages-per-slot line=1595 segment=13 count=13
+[prt-progress] yaml pipeline binding-alias-group line=1596 segment=13 count=13
+[prt-progress] yaml pipeline segment-push line=1599 segments=15
+[prt-progress] yaml pipeline ignore-scalar line=1600 key=cost value=2685249
+[prt-progress] yaml pipeline ignore-scalar line=1601 key=end_layer_idx value=39
+[prt-progress] yaml pipeline segment-idx line=1605 segment=14
+[prt-progress] yaml pipeline shared-read-first begin line=1606 segment=14
+[prt-progress] yaml pipeline shared-read-first parsed line=1606 segment=14 count=0
+[prt-progress] yaml pipeline shared-read-first stored line=1606 segment=14 count=0
+[prt-progress] yaml pipeline stage-push line=1608 segment=14 local_stage=0 acc=2
+[prt-progress] yaml pipeline global-stage line=1618 segment=14 local_stage=0 global_stage=35
+[prt-progress] yaml pipeline stage-push line=1642 segment=14 local_stage=1 acc=1
+[prt-progress] yaml pipeline global-stage line=1652 segment=14 local_stage=1 global_stage=36
+[prt-progress] yaml pipeline stage-push line=1676 segment=14 local_stage=2 acc=4
+[prt-progress] yaml pipeline global-stage line=1686 segment=14 local_stage=2 global_stage=37
+[prt-progress] yaml pipeline stage-push line=1710 segment=14 local_stage=3 acc=4
+[prt-progress] yaml pipeline global-stage line=1720 segment=14 local_stage=3 global_stage=38
+[prt-progress] yaml pipeline stage-push line=1744 segment=14 local_stage=4 acc=1
+[prt-progress] yaml pipeline global-stage line=1754 segment=14 local_stage=4 global_stage=39
+[prt-progress] yaml pipeline ignore-scalar line=1778 key=start_layer_idx value=35
+[prt-progress] yaml pipeline ignore-scalar line=1788 key=total_spm_util value=2246
+[prt-progress] yaml pipeline segment-span line=1789 segment=14 pages=1734
+[prt-progress] yaml pipeline binding-ids line=1790 segment=14 count=19
+[prt-progress] yaml pipeline binding-tensor-ids line=1791 segment=14 count=19
+[prt-progress] yaml pipeline binding-stage-local-ids line=1792 segment=14 count=19
+[prt-progress] yaml pipeline binding-is-entry line=1793 segment=14 count=19
+[prt-progress] yaml pipeline binding-kinds line=1794 segment=14 count=19
+[prt-progress] yaml pipeline binding-slot-count line=1795 segment=14 count=19
+[prt-progress] yaml pipeline binding-pages-per-slot line=1796 segment=14 count=19
+[prt-progress] yaml pipeline binding-alias-group line=1797 segment=14 count=19
+[prt-progress] yaml pipeline parse end path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/pipeline_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.ours2.yaml lines=1799 segments=15
+[prt-progress] yaml pipeline validate begin path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/pipeline_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.ours2.yaml segments=15
+[prt-progress] yaml pipeline validate segment-begin seg=0 stages=1 bindings=4 stage_spm_util=1
+[prt-progress] yaml pipeline validate segment-end seg=0 stages=1 span=193 bindings=4
+[prt-progress] yaml pipeline validate segment-begin seg=1 stages=1 bindings=4 stage_spm_util=1
+[prt-progress] yaml pipeline validate segment-end seg=1 stages=1 span=193 bindings=4
+[prt-progress] yaml pipeline validate segment-begin seg=2 stages=3 bindings=13 stage_spm_util=3
+[prt-progress] yaml pipeline validate segment-end seg=2 stages=3 span=1482 bindings=13
+[prt-progress] yaml pipeline validate segment-begin seg=3 stages=5 bindings=19 stage_spm_util=5
+[prt-progress] yaml pipeline validate segment-end seg=3 stages=5 span=1734 bindings=19
+[prt-progress] yaml pipeline validate segment-begin seg=4 stages=3 bindings=12 stage_spm_util=3
+[prt-progress] yaml pipeline validate segment-end seg=4 stages=3 span=579 bindings=12
+[prt-progress] yaml pipeline validate segment-begin seg=5 stages=3 bindings=13 stage_spm_util=3
+[prt-progress] yaml pipeline validate segment-end seg=5 stages=3 span=1482 bindings=13
+[prt-progress] yaml pipeline validate segment-begin seg=6 stages=4 bindings=16 stage_spm_util=4
+[prt-progress] yaml pipeline validate segment-end seg=6 stages=4 span=1541 bindings=16
+[prt-progress] yaml pipeline validate segment-begin seg=7 stages=3 bindings=12 stage_spm_util=3
+[prt-progress] yaml pipeline validate segment-end seg=7 stages=3 span=579 bindings=12
+[prt-progress] yaml pipeline validate segment-begin seg=8 stages=3 bindings=13 stage_spm_util=3
+[prt-progress] yaml pipeline validate segment-end seg=8 stages=3 span=1482 bindings=13
+[prt-progress] yaml pipeline validate segment-begin seg=9 stages=1 bindings=3 stage_spm_util=1
+[prt-progress] yaml pipeline validate segment-end seg=9 stages=1 span=192 bindings=3
+[prt-progress] yaml pipeline validate segment-begin seg=10 stages=2 bindings=8 stage_spm_util=2
+[prt-progress] yaml pipeline validate segment-end seg=10 stages=2 span=1157 bindings=8
+[prt-progress] yaml pipeline validate segment-begin seg=11 stages=2 bindings=7 stage_spm_util=2
+[prt-progress] yaml pipeline validate segment-end seg=11 stages=2 span=385 bindings=7
+[prt-progress] yaml pipeline validate segment-begin seg=12 stages=1 bindings=4 stage_spm_util=1
+[prt-progress] yaml pipeline validate segment-end seg=12 stages=1 span=193 bindings=4
+[prt-progress] yaml pipeline validate segment-begin seg=13 stages=3 bindings=13 stage_spm_util=3
+[prt-progress] yaml pipeline validate segment-end seg=13 stages=3 span=1482 bindings=13
+[prt-progress] yaml pipeline validate segment-begin seg=14 stages=5 bindings=19 stage_spm_util=5
+[prt-progress] yaml pipeline validate segment-end seg=14 stages=5 span=1734 bindings=19
+[prt-progress] yaml pipeline validate end path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/pipeline_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.ours2.yaml segments=15 total_stages=40
+[prt-progress] yaml pipeline load end path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/pipeline_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.ours2.yaml segments=15 total_stages=40 subbatch_size=1
+[prt-progress] init load-pipeline-yaml end elapsed_ms=47 segments=15 subbatch_size=1
+[prt-progress] init validate-artifacts begin layer_mapping=/root/rerocc-linux-tests/pipeline-runtime/bertmini/gemmini_layer_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.yaml segments=15
+[prt-progress] artifacts validate begin model=/root/rerocc-linux-tests/pipeline-runtime/bertmini/model.layers.yaml layer_mapping=/root/rerocc-linux-tests/pipeline-runtime/bertmini/gemmini_layer_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.yaml segments=15
+[prt-progress] artifacts mapping cache load begin cache=/root/rerocc-linux-tests/pipeline-runtime/bertmini/gemmini_layer_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.yaml.cache.bin
+[prt-progress] artifacts mapping cache read-mode cache=/root/rerocc-linux-tests/pipeline-runtime/bertmini/gemmini_layer_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.yaml.cache.bin mode=bulk-read
+[prt-progress] artifacts file open begin path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/gemmini_layer_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.yaml.cache.bin
+[prt-progress] artifacts file open end path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/gemmini_layer_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.yaml.cache.bin
+[prt-progress] artifacts file seek-end begin path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/gemmini_layer_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.yaml.cache.bin
+[prt-progress] artifacts file seek-end end path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/gemmini_layer_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.yaml.cache.bin
+[prt-progress] artifacts file size path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/gemmini_layer_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.yaml.cache.bin bytes=3908768
+[prt-progress] artifacts file alloc begin path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/gemmini_layer_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.yaml.cache.bin bytes=3908769
+[prt-progress] artifacts file alloc end path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/gemmini_layer_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.yaml.cache.bin bytes=3908769
+[prt-progress] artifacts file read begin path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/gemmini_layer_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.yaml.cache.bin bytes=3908768
+[prt-progress] artifacts file read chunk-begin path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/gemmini_layer_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.yaml.cache.bin off=0 chunk=1048576
+[prt-progress] artifacts file read chunk-end path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/gemmini_layer_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.yaml.cache.bin off=1048576 read=1048576
+[prt-progress] artifacts file read chunk-begin path=/root/rerocc-linux-tests/pipeline-runtime/bertmini/gemmini_layer_mapping.rerocc_globalnoc_pairmanager_dummy8x8_c4_g12_d12_spad1024kb_dram19_noc64_mac64_sbus64.yaml.cache.bin off=1048576 chunk=1048576

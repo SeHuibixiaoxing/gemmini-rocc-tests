@@ -1,0 +1,3 @@
+1cf7584c4f73ce179af506f633d104991772fddcbf9cdec1d801f48039ad427e  software/firemarshal/images/firechip/rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver/rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver.img
+0783d9bef041f7cb55dd231dee68a66abc236dad5f58a8068b1764129c1cd836  generators/gemmini/software/gemmini-rocc-tests/build/rerocc-linux-tests/rerocc_pipeline_runtime-linux
+714f20ed05333e6e1ff26ebc31a980d972adf874faea62f1410f1f1f7055ef55  generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/artifacts/20260509T111143Z_no_dma_bulk_read_chunk1m_stall/remote-debugfs-files/bertmini-batch8.log
