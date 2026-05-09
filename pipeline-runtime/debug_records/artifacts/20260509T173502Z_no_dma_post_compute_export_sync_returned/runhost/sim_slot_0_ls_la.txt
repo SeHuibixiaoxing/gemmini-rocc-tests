@@ -1,0 +1,22 @@
+total 619912
+drwxrwxr-x 3 ubuntu ubuntu      4096 May  9 17:22 .
+drwxr-x--- 8 ubuntu ubuntu      4096 May  9 17:22 ..
+-rwxrwxr-x 1 ubuntu ubuntu  13276432 May  7 04:41 FireSim-f2
+-rw-r--r-- 1 root   root           0 May  9 17:22 blkdev-log0
+-rw-rw-r-- 1 ubuntu ubuntu  80847631 May  9 17:19 driver-bundle.tar.gz
+-rw-r--r-- 1 root   root          61 May  9 17:38 heartbeat.csv
+-rwxrwxr-x 1 ubuntu ubuntu    486200 May  7 04:42 libdwarf.so.1
+-rwxrwxr-x 1 ubuntu ubuntu    117872 May  7 04:42 libelf.so.1
+-rw-rw-r-- 1 ubuntu ubuntu    649032 May  7 04:42 libgcc_s.so.1
+-rwxrwxr-x 1 ubuntu ubuntu    749064 May  7 04:42 libgmp.so.10
+-rw-r--r-- 1 ubuntu ubuntu 177767520 May  7 04:42 libriscv.so
+-rwxrwxr-x 1 ubuntu ubuntu  13988848 May  7 04:42 libstdc++.so.6
+-rwxrwxr-x 1 ubuntu ubuntu    112800 May  7 04:42 libz.so.1
+-rw-r--r-- 1 root   root         688 May  9 17:22 memory_stats0.csv
+-rw-r--r-- 1 root   root         688 May  9 17:22 memory_stats1.csv
+-rw-r--r-- 1 root   root           0 May  9 17:22 niclog0
+-rwxrwxr-x 1 ubuntu ubuntu  20957176 May  9 17:19 rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-bin
+-rw-r--r-- 1 ubuntu ubuntu 325746688 May  9 17:38 rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver.img
+drwxrwxr-x 2 ubuntu ubuntu      4096 May  9 17:19 rsyncdir
+-rwxrwxr-x 1 ubuntu ubuntu      1279 May  9 17:22 sim-run.sh
+-rw-rw-r-- 1 ubuntu ubuntu     21006 May  9 17:31 uartlog
