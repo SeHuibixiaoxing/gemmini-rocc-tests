@@ -180,32 +180,38 @@ static int load_file(const char *path, char **out_buf, size_t *out_len) {
   }
   PRT_PROGRESS_LOG("artifacts file alloc end path=%s bytes=%zu", path, sz + 1U);
 
-  PRT_PROGRESS_LOG("artifacts file pread begin path=%s bytes=%zu", path, sz);
+  PRT_PROGRESS_LOG("artifacts file read begin path=%s bytes=%zu", path, sz);
+  if (lseek(fd, 0, SEEK_SET) < 0) {
+    PRT_PROGRESS_LOG("artifacts file seek-begin fail path=%s errno=%d", path, errno);
+    free(buf);
+    close(fd);
+    return PRT_ERR_IO;
+  }
   while (off < sz) {
     size_t chunk = sz - off;
     ssize_t n;
 
     if (chunk > (1U << 20)) chunk = (1U << 20);
-    PRT_PROGRESS_LOG("artifacts file pread chunk-begin path=%s off=%zu chunk=%zu", path, off, chunk);
-    n = pread(fd, buf + off, chunk, (off_t)off);
+    PRT_PROGRESS_LOG("artifacts file read chunk-begin path=%s off=%zu chunk=%zu", path, off, chunk);
+    n = read(fd, buf + off, chunk);
     if (n > 0) {
       off += (size_t)n;
-      PRT_PROGRESS_LOG("artifacts file pread chunk-end path=%s off=%zu read=%lld",
+      PRT_PROGRESS_LOG("artifacts file read chunk-end path=%s off=%zu read=%lld",
                        path, off, (long long)n);
       continue;
     }
     if (n < 0 && errno == EINTR) {
-      PRT_PROGRESS_LOG("artifacts file pread chunk-retry path=%s off=%zu errno=%d",
+      PRT_PROGRESS_LOG("artifacts file read chunk-retry path=%s off=%zu errno=%d",
                        path, off, errno);
       continue;
     }
-    PRT_PROGRESS_LOG("artifacts file pread fail path=%s off=%zu rc=%lld errno=%d",
+    PRT_PROGRESS_LOG("artifacts file read fail path=%s off=%zu rc=%lld errno=%d",
                      path, off, (long long)n, errno);
     free(buf);
     close(fd);
     return PRT_ERR_IO;
   }
-  PRT_PROGRESS_LOG("artifacts file pread end path=%s bytes=%zu", path, sz);
+  PRT_PROGRESS_LOG("artifacts file read end path=%s bytes=%zu", path, sz);
   buf[sz] = '\0';
   PRT_PROGRESS_LOG("artifacts file close begin path=%s", path);
   close(fd);
@@ -649,8 +655,10 @@ static int mapping_entry_from_cache(mapping_entry_t *entry, const mapping_cache_
 }
 
 static int load_mapping_cache_file(const char *cache_path, mapping_db_t *db) {
-  int fd = -1;
+  char *cache_buf = NULL;
+  size_t cache_len = 0U;
   mapping_cache_header_t header;
+  size_t expected_len;
   uint64_t load_start_ms;
   uint64_t parse_start_ms;
   const uint32_t probe_start = prt_env_u32_default("PIPELINE_RUNTIME_MAPPING_CACHE_PROBE_START",
@@ -664,23 +672,37 @@ static int load_mapping_cache_file(const char *cache_path, mapping_db_t *db) {
   load_start_ms = monotonic_ms();
   (void)load_start_ms;
   PRT_PROGRESS_LOG("artifacts mapping cache load begin cache=%s", cache_path);
-  PRT_PROGRESS_LOG("artifacts mapping cache read-mode cache=%s mode=pread", cache_path);
+  PRT_PROGRESS_LOG("artifacts mapping cache read-mode cache=%s mode=bulk-read", cache_path);
   if (probe_enabled) {
     PRT_PROGRESS_LOG("artifacts mapping cache probe-range cache=%s start=%u end=%u",
                      cache_path, probe_start, probe_end);
   }
 
-  fd = open(cache_path, O_RDONLY | O_CLOEXEC);
-  if (fd < 0) return PRT_ERR_IO;
-  if (read_full_pread_at(fd, (char *)&header, sizeof(header), 0) != PRT_OK) {
+  rc = load_file(cache_path, &cache_buf, &cache_len);
+  if (rc != PRT_OK) goto out;
+  if (cache_len < sizeof(header)) {
     rc = PRT_ERR_PARSE;
     goto out;
   }
+  memcpy(&header, cache_buf, sizeof(header));
   if (header.magic0 != PRT_MAPPING_CACHE_MAGIC0 ||
       header.magic1 != PRT_MAPPING_CACHE_MAGIC1 ||
       header.version != PRT_MAPPING_CACHE_VERSION ||
       header.max_layer_tensors != PRT_MAX_LAYER_TENSORS ||
       header.entry_words != PRT_MAPPING_CACHE_ENTRY_WORDS) {
+    rc = PRT_ERR_PARSE;
+    goto out;
+  }
+#if SIZE_MAX < UINT64_MAX
+  if ((size_t)header.entry_count > (SIZE_MAX - sizeof(header)) / sizeof(mapping_cache_entry_t)) {
+    rc = PRT_ERR_PARSE;
+    goto out;
+  }
+#endif
+  expected_len = sizeof(header) + (size_t)header.entry_count * sizeof(mapping_cache_entry_t);
+  if (cache_len != expected_len) {
+    PRT_PROGRESS_LOG("artifacts mapping cache size mismatch cache=%s bytes=%zu expected=%zu entries=%u",
+                     cache_path, cache_len, expected_len, header.entry_count);
     rc = PRT_ERR_PARSE;
     goto out;
   }
@@ -694,20 +716,16 @@ static int load_mapping_cache_file(const char *cache_path, mapping_db_t *db) {
   for (uint32_t entry_idx = 0; entry_idx < header.entry_count; ++entry_idx) {
     mapping_cache_entry_t cached;
     mapping_entry_t entry;
-    const off_t entry_off =
-      (off_t)sizeof(header) + (off_t)entry_idx * (off_t)sizeof(cached);
+    const size_t entry_off = sizeof(header) + (size_t)entry_idx * sizeof(cached);
     const int trace_entry = probe_enabled && entry_idx >= probe_start && entry_idx <= probe_end;
     if (trace_entry) {
-      PRT_PROGRESS_LOG("artifacts mapping cache probe idx=%u step=before-read off=%lld",
-                       entry_idx, (long long)entry_off);
+      PRT_PROGRESS_LOG("artifacts mapping cache probe idx=%u step=before-decode off=%zu",
+                       entry_idx, entry_off);
     }
-    if (read_full_pread_at(fd, (char *)&cached, sizeof(cached), entry_off) != PRT_OK) {
-      rc = PRT_ERR_PARSE;
-      goto out;
-    }
+    memcpy(&cached, cache_buf + entry_off, sizeof(cached));
     if (trace_entry) {
       PRT_PROGRESS_LOG(
-        "artifacts mapping cache probe idx=%u step=after-read layer=%u acc=%u split=%u active=%u counts=%u/%u/%u/%u/%u/%u",
+        "artifacts mapping cache probe idx=%u step=after-copy layer=%u acc=%u split=%u active=%u counts=%u/%u/%u/%u/%u/%u",
         entry_idx, cached.layer_id, cached.target_accel, cached.split_kind, cached.active,
         cached.dram_n, cached.spm_n, cached.spm_addr_n,
         cached.first_vpage_n, cached.page_count_n, cached.spm_bytes_n);
@@ -741,7 +759,7 @@ static int load_mapping_cache_file(const char *cache_path, mapping_db_t *db) {
   rc = PRT_OK;
 
 out:
-  if (fd >= 0) close(fd);
+  free(cache_buf);
   if (rc != PRT_OK) {
     mapping_db_reset(db);
     fprintf(stderr, "mapping cache load failed: cache=%s rc=%d\n", cache_path, rc);

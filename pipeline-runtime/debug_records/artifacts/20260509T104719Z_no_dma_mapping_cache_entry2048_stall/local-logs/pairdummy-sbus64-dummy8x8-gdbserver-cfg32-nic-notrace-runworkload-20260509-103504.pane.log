@@ -1,0 +1,2131 @@
+[firesim-tmux] started at 2026-05-09T10:35:05Z
+[firesim-tmux] working directory: /home/ubuntu/chipyard/sims/firesim/deploy
+[firesim-tmux] command: firesim runworkload -c /home/ubuntu/chipyard/sims/firesim/deploy/config_runtime_f2_gemmini_rerocc_pairmanager_dummy8x8_4c12p12_sbus64_linux_bertmini_pipeline_runtime_batch8_fileonly_sync_gdbserver_cfg32_nic_notrace.yaml -a /home/ubuntu/chipyard/sims/firesim/deploy/config_hwdb_f2_gemmini_rerocc_pairmanager_dummy8x8_4c12p12_sbus64_bertmini_cfg32_nic_notrace.yaml -r /home/ubuntu/chipyard/sims/firesim-staging/sample_config_build_recipes.yaml
+[firesim-tmux] propagated FIRESIM env vars: DMA_BASE_ID FIRESIM_RUNWORKLOAD_IDLE_TIMEOUT_SECONDS FIRESIM_RUNWORKLOAD_LIVE_IDLE_TIMEOUT_SECONDS FIRESIM_RUNWORKLOAD_MONITOR_SCRIPT GEMMINI_BASE_ID NUM_CORES NUM_DMA NUM_GEMMINI PAIR_MANAGER_MODE PIPELINE_RUNTIME_BREADCRUMB_ENABLE PIPELINE_RUNTIME_BREADCRUMB_GLOBAL_STAGE PIPELINE_RUNTIME_BREADCRUMB_LOCAL_STAGE PIPELINE_RUNTIME_BREADCRUMB_PATH PIPELINE_RUNTIME_BREADCRUMB_SEGMENT PIPELINE_RUNTIME_BREADCRUMB_STAGE_RADIUS PIPELINE_RUNTIME_BREADCRUMB_SUBBATCH PIPELINE_RUNTIME_BREADCRUMB_SUBBATCH_RADIUS PIPELINE_RUNTIME_DEBUG_TRIGGER_ENABLE PIPELINE_RUNTIME_DEBUG_TRIGGER_GLOBAL_STAGE PIPELINE_RUNTIME_DEBUG_TRIGGER_KIND PIPELINE_RUNTIME_DEBUG_TRIGGER_LOCAL_STAGE PIPELINE_RUNTIME_DEBUG_TRIGGER_LOG_PATH PIPELINE_RUNTIME_DEBUG_TRIGGER_MANAGER PIPELINE_RUNTIME_DEBUG_TRIGGER_MATCH_ONCE PIPELINE_RUNTIME_DEBUG_TRIGGER_PAGE PIPELINE_RUNTIME_DEBUG_TRIGGER_POST_BUDGET PIPELINE_RUNTIME_DEBUG_TRIGGER_PRE_RING PIPELINE_RUNTIME_DEBUG_TRIGGER_SEGMENT PIPELINE_RUNTIME_DEBUG_TRIGGER_SUBBATCH PIPELINE_RUNTIME_DEBUG_TRIGGER_TENSOR_ID PIPELINE_RUNTIME_DEBUG_TRIGGER_TOKEN PIPELINE_RUNTIME_DMA_BLOCKING_WAIT_POLL_TIMEOUT_ENABLE PIPELINE_RUNTIME_DMA_BOUNCE_BYPASS_ENABLE PIPELINE_RUNTIME_DMA_EXPORT_PAGE_END PIPELINE_RUNTIME_DMA_EXPORT_PAGE_START PIPELINE_RUNTIME_DMA_EXPORT_PROBE_ENABLE PIPELINE_RUNTIME_DMA_EXPORT_PROBE_TOKEN_END PIPELINE_RUNTIME_DMA_EXPORT_PROBE_TOKEN_START PIPELINE_RUNTIME_DMA_FIXED_LOAD_CHECKPOINT_ENABLE PIPELINE_RUNTIME_DMA_FIXED_LOAD_MONITOR_PROBE_ENABLE PIPELINE_RUNTIME_DMA_FIXED_LOAD_PAGE_END PIPELINE_RUNTIME_DMA_FIXED_LOAD_PAGE_START PIPELINE_RUNTIME_DMA_FIXED_LOAD_PRE_SRC_NOPS PIPELINE_RUNTIME_DMA_FIXED_LOAD_PROBE_ENABLE PIPELINE_RUNTIME_DMA_FIXED_LOAD_PROBE_STAGE_ID PIPELINE_RUNTIME_DMA_FIXED_LOAD_PROBE_TENSOR_ID PIPELINE_RUNTIME_DMA_FIXED_LOAD_PROBE_TOKEN_END PIPELINE_RUNTIME_DMA_FIXED_LOAD_PROBE_TOKEN_START PIPELINE_RUNTIME_DMA_FORCE_DIRECT_ENABLE PIPELINE_RUNTIME_DMA_SUBMIT_TRACE_ENABLE PIPELINE_RUNTIME_NO_DMA_COMPUTE_ENABLE 
+[firesim-watchdog] armed timeout=10800s log=/home/ubuntu/chipyard/tmp/firesim-aws-f2/tmux/pairdummy-sbus64-dummy8x8-gdbserver-cfg32-nic-notrace-runworkload-20260509-103504.watchdog.log
+[firesim-monitor] starting /home/ubuntu/chipyard/scripts/firesim-prt-host-watchdog.sh
+[prt-host-watchdog] started at 2026-05-09T10:35:05Z
+[prt-host-watchdog] runtime_config=/home/ubuntu/chipyard/sims/firesim/deploy/config_runtime_f2_gemmini_rerocc_pairmanager_dummy8x8_4c12p12_sbus64_linux_bertmini_pipeline_runtime_batch8_fileonly_sync_gdbserver_cfg32_nic_notrace.yaml
+[prt-host-watchdog] idle_timeout_seconds=7200 live_idle_timeout_seconds=10800 poll_seconds=30
+[prt-host-watchdog] ssh_connect_timeout_seconds=10 probe_timeout_seconds=20 capture_timeout_seconds=180
+[prt-host-watchdog] heartbeat_liveness_enable=1
+[prt-host-watchdog] arm_on_guest_status_nonzero=1
+/home/ubuntu/chipyard/.conda-env/lib/python3.10/site-packages/paramiko/transport.py:178: CryptographyDeprecationWarning: Blowfish has been deprecated
+  'class': algorithms.Blowfish,
+FireSim Manager. Docs: https://docs.fires.im
+Running: runworkload
+
+run_farm_hosts_dict defaultdict(<class 'list'>, {'f2.6xlarge': [(<runtools.run_farm.Inst object at 0x7357eb757b20>, None)], 'f2.12xlarge': [], 'f2.48xlarge': [], 'm4.16xlarge': [], 'z1d.3xlarge': [], 'z1d.6xlarge': [], 'z1d.12xlarge': []})
+set_server_hardware_config 0 None
+[prt-host-watchdog] monitoring instance=i-0cae2541a905134e2 private_ip=192.168.1.164
+Creating the directory: /home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+[192.168.1.164] Checking if host instance is up...
+[192.168.1.164] Starting switch simulation for switch slot: 0.
+start_simulations_instance 1
+[192.168.1.164] Starting FPGA simulation for slot: 0.
+[192.168.1.164] Preflighting FireSim driver readiness for slot 0 (attempt 1/3).
+Warning: run() received nonzero return code 1 while executing 'sudo pkill -SIGKILL FireSim-f2'!
+[192.168.1.164] FireSim driver readiness preflight passed for slot 0.
+start_sim_slot slotno: 0 server_id 0 remote_sim_dir /home/ubuntu/sim_slot_0/ /home/ubuntu
+ul <runtools.firesim_topology_elements.FireSimLink object at 0x7357eb6347f0>, ul.uplink_size <runtools.firesim_topology_elements.FireSimSwitchNode object at 0x7357eb634610>
+self <runtools.firesim_topology_elements.FireSimServerNode object at 0x7357eb634760> id_internal 0  [] slotno 0
+[2J
+FireSim Simulation Status @ 2026-05-09 10:35:16.218199
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:35:26.536885
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:35:36.841293
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:35:47.382298
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:35:57.701411
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:36:08.000803
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:36:18.309519
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:36:28.608251
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:36:38.917315
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:36:49.454873
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:36:59.755339
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:37:10.071050
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:37:20.378201
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:37:30.679284
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:37:40.985981
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:37:51.526574
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:38:01.829952
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:38:12.149062
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:38:22.451345
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:38:32.760884
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:38:43.062174
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:38:53.585209
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:39:03.893752
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:39:14.202127
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:39:24.510725
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:39:34.818038
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:39:45.113082
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:39:55.663488
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:40:05.981671
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:40:16.287281
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:40:26.595423
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:40:36.901894
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:40:47.208114
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:40:57.744923
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:41:08.051335
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:41:18.359691
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:41:28.658363
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:41:38.960466
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:41:49.278766
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:41:59.823759
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:42:10.122204
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:42:20.428279
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[prt-host-watchdog] guest-status arm observed at 2026-05-09T10:42:24Z hb='Target Cycle (fastest), Seconds Since Start' guest_status=1725
+[2J
+FireSim Simulation Status @ 2026-05-09 10:42:30.736771
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:42:41.045031
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:42:51.345898
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[prt-host-watchdog] progress hb='Target Cycle (fastest), Seconds Since Start' uart=20701 guest_log=0 guest_sparse=0 guest_checkpoint=0 guest_trigger=0 guest_status=1725 guest_proc=0 guest_runner=322 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=3894
+[prt-host-watchdog] hb='Target Cycle (fastest), Seconds Since Start' idle=0s hb_idle=31s uart=20701 guest_log=0 guest_sparse=0 guest_checkpoint=0 guest_trigger=0 guest_status=1725 guest_proc=0 guest_runner=322 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=3894
+[2J
+FireSim Simulation Status @ 2026-05-09 10:43:01.896682
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:43:12.203317
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:43:22.511840
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[prt-host-watchdog] progress hb='Target Cycle (fastest), Seconds Since Start' uart=21191 guest_log=0 guest_sparse=51123 guest_checkpoint=0 guest_trigger=0 guest_status=1725 guest_proc=0 guest_runner=495 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=9340
+[prt-host-watchdog] hb='Target Cycle (fastest), Seconds Since Start' idle=0s hb_idle=62s uart=21191 guest_log=0 guest_sparse=51123 guest_checkpoint=0 guest_trigger=0 guest_status=1725 guest_proc=0 guest_runner=495 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=9340
+[2J
+FireSim Simulation Status @ 2026-05-09 10:43:32.817071
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:43:43.120870
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:43:53.431682
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[prt-host-watchdog] hb='Target Cycle (fastest), Seconds Since Start' idle=32s hb_idle=94s uart=21191 guest_log=0 guest_sparse=51123 guest_checkpoint=0 guest_trigger=0 guest_status=1725 guest_proc=0 guest_runner=495 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=9340
+[2J
+FireSim Simulation Status @ 2026-05-09 10:44:03.968047
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:44:14.276334
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:44:24.584024
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[prt-host-watchdog] hb='Target Cycle (fastest), Seconds Since Start' idle=63s hb_idle=125s uart=21191 guest_log=0 guest_sparse=51123 guest_checkpoint=0 guest_trigger=0 guest_status=1725 guest_proc=0 guest_runner=495 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=9340
+[2J
+FireSim Simulation Status @ 2026-05-09 10:44:34.893337
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:44:45.201927
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:44:55.519996
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[prt-host-watchdog] hb='Target Cycle (fastest), Seconds Since Start' idle=94s hb_idle=156s uart=21191 guest_log=0 guest_sparse=51123 guest_checkpoint=0 guest_trigger=0 guest_status=1725 guest_proc=0 guest_runner=495 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=9340
+[2J
+FireSim Simulation Status @ 2026-05-09 10:45:06.070747
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:45:16.389610
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:45:26.688356
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[prt-host-watchdog] hb='Target Cycle (fastest), Seconds Since Start' idle=125s hb_idle=187s uart=21191 guest_log=0 guest_sparse=51123 guest_checkpoint=0 guest_trigger=0 guest_status=1725 guest_proc=0 guest_runner=495 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=9340
+[2J
+FireSim Simulation Status @ 2026-05-09 10:45:36.996959
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:45:47.302386
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:45:57.604469
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[prt-host-watchdog] hb='Target Cycle (fastest), Seconds Since Start' idle=157s hb_idle=219s uart=21191 guest_log=0 guest_sparse=51123 guest_checkpoint=0 guest_trigger=0 guest_status=1725 guest_proc=0 guest_runner=495 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=9340
+[2J
+FireSim Simulation Status @ 2026-05-09 10:46:08.154929
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:46:18.453098
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:46:28.741339
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[prt-host-watchdog] hb='Target Cycle (fastest), Seconds Since Start' idle=188s hb_idle=250s uart=21191 guest_log=0 guest_sparse=51123 guest_checkpoint=0 guest_trigger=0 guest_status=1725 guest_proc=0 guest_runner=495 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=9340
+[2J
+FireSim Simulation Status @ 2026-05-09 10:46:39.052302
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:46:49.361140
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:46:59.672690
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[prt-host-watchdog] hb='Target Cycle (fastest), Seconds Since Start' idle=219s hb_idle=281s uart=21191 guest_log=0 guest_sparse=51123 guest_checkpoint=0 guest_trigger=0 guest_status=1725 guest_proc=0 guest_runner=495 guest_runner_post=433 guest_runner_early=487 guest_binary=0 guest_runner_proc=9340
+[2J
+FireSim Simulation Status @ 2026-05-09 10:47:10.206253
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:47:20.523047
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------
+[2J
+FireSim Simulation Status @ 2026-05-09 10:47:30.838108
+--------------------------------------------------------------------------------
+This workload's output is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--10-35-05-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace/
+This run's log is located in:
+/home/ubuntu/chipyard/sims/firesim/deploy/logs/2026-05-09--10-35-05-runworkload-NMUPEMTDWOFBPGKB.log
+This status will update every 10s.
+--------------------------------------------------------------------------------
+Instances
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Terminated: [33mFalse[0m
+--------------------------------------------------------------------------------
+Simulated Switches
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Switch name: switch0 | Switch running: [32mTrue [0m
+--------------------------------------------------------------------------------
+Simulated Pipes
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+Simulated Nodes/Jobs
+--------------------------------------------------------------------------------
+Hostname/IP: 192.168.1.164 | Job: rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver0 | Sim running: [33mTrue [0m
+--------------------------------------------------------------------------------
+Summary
+--------------------------------------------------------------------------------
+1/1 instances are still running.
+1/1 simulations are still running.
+--------------------------------------------------------------------------------

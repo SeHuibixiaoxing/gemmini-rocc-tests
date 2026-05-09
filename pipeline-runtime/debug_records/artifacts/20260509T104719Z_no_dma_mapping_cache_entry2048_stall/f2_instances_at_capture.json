@@ -1,0 +1,173 @@
+{
+    "Reservations": [
+        {
+            "ReservationId": "r-0c144ca45d7fd61b2",
+            "OwnerId": "930030326150",
+            "Groups": [],
+            "Instances": [
+                {
+                    "Architecture": "x86_64",
+                    "BlockDeviceMappings": [
+                        {
+                            "DeviceName": "/dev/sda1",
+                            "Ebs": {
+                                "AttachTime": "2026-05-09T10:29:18+00:00",
+                                "DeleteOnTermination": true,
+                                "Status": "attached",
+                                "VolumeId": "vol-0189b33e7d7550e69"
+                            }
+                        },
+                        {
+                            "DeviceName": "/dev/sdm",
+                            "Ebs": {
+                                "AttachTime": "2026-05-09T10:29:17.606000+00:00",
+                                "DeleteOnTermination": true,
+                                "Status": "attached",
+                                "VolumeId": "vol-0a57225500434691f"
+                            }
+                        }
+                    ],
+                    "ClientToken": "01243531-36af-4061-9018-cbc1979ed1b9",
+                    "EbsOptimized": true,
+                    "EnaSupport": true,
+                    "Hypervisor": "xen",
+                    "NetworkInterfaces": [
+                        {
+                            "Association": {
+                                "IpOwnerId": "amazon",
+                                "PublicDnsName": "",
+                                "PublicIp": "100.23.178.151"
+                            },
+                            "Attachment": {
+                                "AttachTime": "2026-05-09T10:29:17+00:00",
+                                "AttachmentId": "eni-attach-0d1eb30e03e0689fd",
+                                "DeleteOnTermination": true,
+                                "DeviceIndex": 0,
+                                "Status": "attached",
+                                "NetworkCardIndex": 0
+                            },
+                            "Description": "",
+                            "Groups": [
+                                {
+                                    "GroupId": "sg-08b5c402f8c99027f",
+                                    "GroupName": "for-farms-only-firesim"
+                                }
+                            ],
+                            "Ipv6Addresses": [],
+                            "MacAddress": "02:47:72:46:c0:c1",
+                            "NetworkInterfaceId": "eni-05b53aaa1255650f5",
+                            "OwnerId": "930030326150",
+                            "PrivateIpAddress": "192.168.1.164",
+                            "PrivateIpAddresses": [
+                                {
+                                    "Association": {
+                                        "IpOwnerId": "amazon",
+                                        "PublicDnsName": "",
+                                        "PublicIp": "100.23.178.151"
+                                    },
+                                    "Primary": true,
+                                    "PrivateIpAddress": "192.168.1.164"
+                                }
+                            ],
+                            "SourceDestCheck": true,
+                            "Status": "in-use",
+                            "SubnetId": "subnet-0c591ac34405cea97",
+                            "VpcId": "vpc-03c3879399ff70392",
+                            "InterfaceType": "interface",
+                            "Operator": {
+                                "Managed": false
+                            }
+                        }
+                    ],
+                    "RootDeviceName": "/dev/sda1",
+                    "RootDeviceType": "ebs",
+                    "SecurityGroups": [
+                        {
+                            "GroupId": "sg-08b5c402f8c99027f",
+                            "GroupName": "for-farms-only-firesim"
+                        }
+                    ],
+                    "SourceDestCheck": true,
+                    "Tags": [
+                        {
+                            "Key": "fsimcluster",
+                            "Value": "pairbertb8d12s64gdbcfg32nicnt"
+                        }
+                    ],
+                    "VirtualizationType": "hvm",
+                    "CpuOptions": {
+                        "CoreCount": 12,
+                        "ThreadsPerCore": 2
+                    },
+                    "CapacityReservationSpecification": {
+                        "CapacityReservationPreference": "open"
+                    },
+                    "HibernationOptions": {
+                        "Configured": false
+                    },
+                    "MetadataOptions": {
+                        "State": "applied",
+                        "HttpTokens": "required",
+                        "HttpPutResponseHopLimit": 2,
+                        "HttpEndpoint": "enabled",
+                        "HttpProtocolIpv6": "disabled",
+                        "InstanceMetadataTags": "disabled"
+                    },
+                    "EnclaveOptions": {
+                        "Enabled": false
+                    },
+                    "BootMode": "uefi-preferred",
+                    "PlatformDetails": "Linux/UNIX",
+                    "UsageOperation": "RunInstances",
+                    "UsageOperationUpdateTime": "2026-05-09T10:29:17+00:00",
+                    "PrivateDnsNameOptions": {
+                        "HostnameType": "ip-name",
+                        "EnableResourceNameDnsARecord": false,
+                        "EnableResourceNameDnsAAAARecord": false
+                    },
+                    "MaintenanceOptions": {
+                        "AutoRecovery": "default"
+                    },
+                    "CurrentInstanceBootMode": "uefi",
+                    "NetworkPerformanceOptions": {
+                        "BandwidthWeighting": "default"
+                    },
+                    "Operator": {
+                        "Managed": false
+                    },
+                    "InstanceId": "i-0cae2541a905134e2",
+                    "ImageId": "ami-0d7cdfb6b3ce5b5e0",
+                    "State": {
+                        "Code": 16,
+                        "Name": "running"
+                    },
+                    "PrivateDnsName": "ip-192-168-1-164.us-west-2.compute.internal",
+                    "PublicDnsName": "",
+                    "StateTransitionReason": "",
+                    "KeyName": "firesim",
+                    "AmiLaunchIndex": 0,
+                    "ProductCodes": [
+                        {
+                            "ProductCodeId": "e4txuxx6uz6371b7tgmotozac",
+                            "ProductCodeType": "marketplace"
+                        }
+                    ],
+                    "InstanceType": "f2.6xlarge",
+                    "LaunchTime": "2026-05-09T10:29:17+00:00",
+                    "Placement": {
+                        "GroupName": "",
+                        "Tenancy": "default",
+                        "AvailabilityZone": "us-west-2b"
+                    },
+                    "Monitoring": {
+                        "State": "disabled"
+                    },
+                    "SubnetId": "subnet-0c591ac34405cea97",
+                    "VpcId": "vpc-03c3879399ff70392",
+                    "PrivateIpAddress": "192.168.1.164",
+                    "PublicIpAddress": "100.23.178.151"
+                }
+            ]
+        }
+    ]
+}
