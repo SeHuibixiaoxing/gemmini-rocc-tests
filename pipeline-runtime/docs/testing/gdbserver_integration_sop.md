@@ -195,6 +195,17 @@ helper 不是必须的。helper 的价值是把已经稳定的测试矩阵固化
 - 对优化后的局部变量加条件要谨慎。比如 `prt_runtime.c:5386` 的 `seg_idx` 在实测中被
   optimized out，条件断点会报错并提前停住。优先用函数参数、结构体字段或
   `g_prt_gdb_marker_state` / `g_prt_debug_state` 这类 volatile 全局状态过滤。
+- 为了加速 live GDB，不要在大函数上连续 `next` / `step`。优先使用少量阶段边界断点加
+  `continue`，例如 worker entry、before/after build-stage-task、GEMM_RUN 和 GEMM
+  return；只在已知很短、确定会返回的 callee 上用 `finish`。一旦某条低层路径被证明返回，
+  立即 `disable` 相关 helper breakpoint。
+- 函数入口 conditional breakpoint 也有成本。即使条件为 false，software breakpoint 仍会
+  让 remote target 陷入 GDB 后再由 host 判条件。不要把热函数
+  `prt_debug_state_set_worker()` 当作长期过滤器；若必须使用，只用于短窗口。更稳的是在
+  `stage_worker_main()` 的低频源码边界设条件，或启用 runtime 自己的 marker filter 后只断在
+  `prt_gdb_marker_stop`。
+- 为了让其它 worker/main thread 前进，跨阶段 `continue` 前保持 `scheduler-locking off`。
+  只在已经选中目标线程并做短窗口局部检查时打开 scheduler locking。
 - live GDB 现场如果形成新的关键证据，必须立刻归档 GDB log、uartlog、heartbeat 和
   run config，并按仓库约束做 checkpoint commit。
 
