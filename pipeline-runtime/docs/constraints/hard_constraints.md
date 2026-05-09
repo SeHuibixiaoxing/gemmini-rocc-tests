@@ -42,6 +42,11 @@
 - SSH / live 检查一律使用私网 IP，不允许使用公网 IP。
 - guest 文件必须通过 run host 上的 guest image + `debugfs` 读取。
 - 不要把 run host 的 `/dev/root` 当成 guest image。
+- 当前 remote gdbserver workload 默认只保证 UART、run-host 文件、`heartbeat.csv` 和
+  gdbserver TCP 调试入口；不要把 guest `/proc/<pid>/...` 当成未预置的旁路能力。
+- 如果需要卡死后读取 guest `/proc/<pid>/task/*/{stack,wchan,syscall,status}`，必须提前提供
+  guest 登录通道、guest-side sampler，或先由 GDB 成功停住目标。仅凭一个 UART 口不能在
+  host 侧事后任意读取 guest `/proc`。
 - Linux boot 阶段只要没有明确 boot error / panic / crash，
   且仍停留在早期启动过程，
   就不要把静默窗口记成新的异常或 blocker。
@@ -80,6 +85,14 @@
 
 - 主观测面是 guest 文件系统日志与 breadcrumb，不是 `uartlog`。
 - `uartlog` 只用于 boot 活性、panic、manager verdict 辅助。
+- `gdbserver --once` 的第一条 TCP 连接必须来自 GDB；不要用 `nc`、telnet、curl 或端口探测
+  触碰 guest gdbserver 端口。
+- live GDB 的 Ctrl-C/interrupt 不是必然可用的卡死现场采样手段。若目标进入 custom
+  instruction、fence、MMIO 或其它硬件等待路径，GDB 可能不能返回 prompt，甚至会
+  `Disconnected from target`。这类结果要记录为有效证据，不要伪造成调用栈缺失的测试失败。
+- noTrace FPGA bitstream 不能在运行后事后读取 Rocket 内部 PC、最后退休 PC 或未退休 stalled
+  instruction。若需要 PC/retire 级证据，必须在构建前加入 TracerV、AutoCounter 或定制
+  ready-valid / busy / token / manager 状态观测点。
 - 仅凭 `uartlog` 在 Linux boot 早期变慢或静默，
   不能直接判为异常；
   必须结合 `heartbeat.csv` 和是否已经进入用户态一起判断。

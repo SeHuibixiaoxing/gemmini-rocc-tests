@@ -1,6 +1,6 @@
 # Pipeline Runtime gdbserver Integration SOP
 
-更新时间：`2026-05-08 12:18 UTC`
+更新时间：`2026-05-09 01:48 UTC`
 
 ## 1. 目标
 
@@ -202,6 +202,52 @@ helper 不是必须的。helper 的价值是把已经稳定的测试矩阵固化
 
 - [`20260508T113624Z_dummy8x8_sbus64_gdb_export_alias_progress.md`](/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/20260508T113624Z_dummy8x8_sbus64_gdb_export_alias_progress.md)
 - [`20260508T120934Z_dummy8x8_sbus64_live_gdb_build_task_frontier.md`](/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/20260508T120934Z_dummy8x8_sbus64_live_gdb_build_task_frontier.md)
+
+2026-05-09 的 live-GDB negative record：
+
+- [`20260509T014823Z_sbus64_live_gdb_ctrlc_disconnect_before_after_build.md`](/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/20260509T014823Z_sbus64_live_gdb_ctrlc_disconnect_before_after_build.md)
+
+这条记录是关键反例：GDB 首连成功、`gdbserver` 进入 inferior，但 late marker
+`worker-after-build-stage-task` 未命中；Ctrl-C 没有返回 stop prompt，第二次 Ctrl-C 得到
+`Disconnected from target`。因此“卡住后接入或 Ctrl-C 一定能拿到调用栈”不是当前硬件/软件
+组合的可靠前提。后续 live GDB 调试应优先预放更早的阶段边界断点，而不是长时间 `continue`
+后再指望 interrupt。
+
+### 3.2.1 卡死后能否再接入
+
+当前 workflow 的 remote 调试入口是 `gdbserver --once :2345 <program>`。它有三个直接后果：
+
+- GDB 必须是第一条 TCP 连接；`nc`、telnet、curl 或端口扫描会消费/破坏本轮调试入口。
+- 一旦 GDB detach、quit、remote disconnect，`--once` 通常已经结束或不可复用，不能假设能
+  再用同一个 guest 端口补连。
+- 若程序已经进入对 remote interrupt 不响应的路径，GDB Ctrl-C 可能拿不到用户态栈，甚至
+  直接断开连接。
+
+“卡死后再接入看栈”只有在额外条件满足时才成立：guest 内仍有可达登录通道，且能执行
+`gdbserver --attach <pid>` 或 `gdb -p <pid>`，并且目标 hart/Linux 调度仍能响应 ptrace stop。
+当前 pairdummy gdbserver workload 默认没有提供这种 guest shell 旁路；host 侧可稳定访问的是
+run-host 文件、`uartlog`、`heartbeat.csv` 和 FireSim manager 状态。
+
+### 3.2.2 UART、guest `/proc` 与硬件 PC 观测
+
+不要把 UART 当作 guest 文件系统旁路。只有一个 UART 控制台时，host 不能凭空读取
+`/proc/<pid>/task/*/{stack,wchan,syscall,status}`。这些 guest `/proc` 采样只有在以下条件之一
+成立时才可用：
+
+- guest 网络和登录通道已经预置并保持可达；
+- workload 预装了 guest-side sampler，把 `/proc` 状态写到 UART 或 guest image；
+- GDB 已经成功停住目标，并能通过 inferior/gdbserver 间接读取状态。
+
+对于 noTrace FPGA bitstream，也不能在构建后事后读取 Rocket 内部当前 PC、最后退休 PC 或
+未退休 stalled instruction。FireSim FPGA 不是 Verilator 进程，运行时不能随意窥探内部信号。
+如果 remote GDB 无法 interrupt，PC/retire 级证据必须在下一版 bitstream 里预先加入，例如：
+
+- TracerV 最后退休 PC；
+- AutoCounter 计数；
+- 小型 MMIO debug snapshot；
+- Rocket/RoCC/DMA/NoC ready-valid、busy、token、manager 状态计数器。
+
+这些硬件观测点要在 buildbitstream 前冻结，避免构建后才发现缺少关键信号。
 
 ### 3.3 DMA frontier 定点采样
 
