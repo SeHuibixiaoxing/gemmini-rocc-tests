@@ -3,6 +3,10 @@ set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+caller_pipeline_runtime_guest_log_enable="${PIPELINE_RUNTIME_GUEST_LOG_ENABLE-}"
+caller_pipeline_runtime_guest_deep_log_enable="${PIPELINE_RUNTIME_GUEST_DEEP_LOG_ENABLE-}"
+caller_pipeline_runtime_breadcrumb_enable="${PIPELINE_RUNTIME_BREADCRUMB_ENABLE-}"
+
 # Reuse the low-noise pairdummy defaults, then pin the hardware-dependent
 # fields to the current dummy8x8/sbus64 cfg32 NIC noTrace AGFI.
 # shellcheck disable=SC1091
@@ -26,11 +30,12 @@ export PAGES_PER_ACC="1024"
 # - keep wrapper/stdout traffic on UART instead of the block image;
 # - avoid background sync, child /proc polling, and breadcrumb mmap writes while
 #   GDB is moving the frontier.
-export PIPELINE_RUNTIME_GUEST_LOG_ENABLE="0"
+export PIPELINE_RUNTIME_GUEST_LOG_ENABLE="${PAIRDUMMY_SBUS64_GUEST_LOG_ENABLE:-${caller_pipeline_runtime_guest_log_enable:-0}}"
+export PIPELINE_RUNTIME_GUEST_DEEP_LOG_ENABLE="${PAIRDUMMY_SBUS64_GUEST_DEEP_LOG_ENABLE:-${caller_pipeline_runtime_guest_deep_log_enable:-0}}"
 export PIPELINE_RUNTIME_STDIO_CAPTURE_MODE="uart"
 export CAPTURE_PERIODIC_SYNC_ENABLE="0"
 export PIPELINE_RUNTIME_CHILD_PROC_DIAG_ENABLE="0"
-export PIPELINE_RUNTIME_BREADCRUMB_ENABLE="0"
+export PIPELINE_RUNTIME_BREADCRUMB_ENABLE="${PAIRDUMMY_SBUS64_BREADCRUMB_ENABLE:-${caller_pipeline_runtime_breadcrumb_enable:-0}}"
 
 # Manual live-GDB stops freeze the guest heartbeat, and this low-log profile does
 # not produce enough file growth for the host watchdog to infer progress. Keep a
