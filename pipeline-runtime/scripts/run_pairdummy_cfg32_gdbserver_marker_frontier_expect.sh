@@ -222,6 +222,22 @@ proc gdb_cmd {cmd {timeout_s 300}} {
     set ::timeout $old_timeout
 }
 
+proc gdb_cmd_checked {cmd {timeout_s 300}} {
+    set old_timeout $::timeout
+    set ::timeout $timeout_s
+    send -- "$cmd\r"
+    expect {
+        -re "Error in sourced command file|Bad format string|No symbol|No source file|No line|Cannot access memory|Remote connection closed|Target disconnected|Disconnected from target|Connection reset by peer" {
+            puts stderr "gdb command failed: $cmd"
+            exit 19
+        }
+        -re "\\(gdb\\) $" {}
+        timeout { puts stderr "timeout waiting for checked gdb command: $cmd"; exit 3 }
+        eof { puts stderr "gdb exited during checked gdb command: $cmd"; exit 4 }
+    }
+    set ::timeout $old_timeout
+}
+
 proc target_remote {port {timeout_s 300}} {
     set old_timeout $::timeout
     set ::timeout $timeout_s
@@ -399,7 +415,7 @@ if {$marker_delete_after_hit == 1} {
 
 if {$has_frontier == 1} {
     gdb_cmd "printf \"\\n--- arming frontier commands ---\\n\"" 120
-    gdb_cmd "source $frontier_cmds_file" 300
+    gdb_cmd_checked "source $frontier_cmds_file" 300
     set frontier_outcome [continue_frontier $frontier_timeout]
     if {$frontier_outcome == 0} {
         puts "GDB_FRONTIER_STOPPED"
