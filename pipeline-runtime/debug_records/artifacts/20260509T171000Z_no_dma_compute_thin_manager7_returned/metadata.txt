@@ -1,0 +1,6 @@
+AGFI=agfi-077451484fe3b63c3
+AFI=afi-07989ce9ce725a690
+instance=i-0e6eece903e7f2c9b
+run_host=192.168.1.21
+gdb_out=/home/ubuntu/chipyard/tmp/firesim-aws-f2/gdbserver-tests/pairdummy-cfg32-marker-frontier-expect-20260509T170400Z-192_168_1_21-172_16_0_2
+runworkload_result_dir=/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-09--16-55-45-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-gdbserver-f2-gemmini-rerocc-pairmanager-dummy8x8-4c12p12-sbus64-linux-bertmini-batch8-fileonly-sync-gdbserver-cfg32-nic-notrace

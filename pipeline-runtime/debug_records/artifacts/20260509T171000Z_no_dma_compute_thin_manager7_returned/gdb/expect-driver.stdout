@@ -1,0 +1,1017 @@
+spawn /home/ubuntu/chipyard/.conda-env/riscv-tools/bin/riscv64-unknown-linux-gnu-gdb -q /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/build/rerocc-linux-tests/rerocc_pipeline_runtime-linux
+Reading symbols from /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/build/rerocc-linux-tests/rerocc_pipeline_runtime-linux...
+[?2004h(gdb) set pagination off
+[?2004l[?2004h(gdb) set confirm off
+[?2004l[?2004h(gdb) set print pretty on
+[?2004l[?2004h(gdb) set print thread-events off
+[?2004l[?2004h(gdb) set breakpoint pending off
+[?2004l[?2004h(gdb) set debuginfod enabled off
+[?2004l[?2004h(gdb) set auto-load safe-path /
+[?2004l[?2004h(gdb) set remotetimeout 180
+[?2004l[?2004h(gdb) target remote :32345
+[?2004lRemote debugging using :32345
+Reading symbols from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/ld-linux-riscv64-lp64d.so.1...
+(No debugging symbols found in /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/ld-linux-riscv64-lp64d.so.1)
+0x0000003ff7fec386 in ?? ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/ld-linux-riscv64-lp64d.so.1
+[?2004h(gdb) GDB_MARK_CONNECTED
+break prt_gdb_marker_stop
+[?2004lBreakpoint 1 at 0x146de: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_debug_state.c, line 420.
+[?2004h(gdb) GDB_MARKER_CONTINUE
+continue
+[?2004lContinuing.
+[Switching to Thread 215.240]
+
+Thread 2 "rerocc_pipeline" hit Breakpoint 1, prt_gdb_marker_stop ()
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_debug_state.c:420
+420	  g_prt_gdb_marker_state.hit_count = g_prt_gdb_marker_state.hit_count + 1ULL;
+[?2004h[?2004l[?2004h(gdb) GDB_MARKER_HIT
+printf "\n--- marker state ---\n"
+[?2004l
+--- marker state ---
+[?2004h(gdb) print g_prt_gdb_marker_state
+[?2004l$1 = {
+  site_id = 5,
+  segment_idx = 1,
+  global_stage_id = 1,
+  local_stage_id = 0,
+  subbatch_id = 3,
+  manager_id = 0,
+  tensor_id = 4294967295,
+  page_idx = 4294967295,
+  token_id = 4294967295,
+  rc = 0,
+  aux0 = 1,
+  aux1 = 8,
+  hit_count = 0,
+  line = 4543
+}
+[?2004h(gdb) bt 16
+[?2004l#0  prt_gdb_marker_stop ()
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_debug_state.c:420
+#1  0x00000000000148a0 in prt_gdb_marker_note (site_id=site_id@entry=5, 
+    segment_idx=<optimized out>, segment_idx@entry=1, 
+    global_stage_id=<optimized out>, global_stage_id@entry=1, 
+    local_stage_id=<optimized out>, subbatch_id=<optimized out>, 
+    subbatch_id@entry=3, manager_id=<optimized out>, 
+    tensor_id=tensor_id@entry=4294967295, page_idx=page_idx@entry=4294967295, 
+    token_id=token_id@entry=4294967295, rc=rc@entry=0, aux0=1, aux1=8, 
+    line=line@entry=4543)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_debug_state.c:416
+#2  0x0000000000030b9c in prt_runtime_gdb_marker (line=4543, 
+    aux1=<optimized out>, aux0=<optimized out>, rc=0, token_id=4294967295, 
+    page_idx=4294967295, tensor_id=4294967295, manager_id=<optimized out>, 
+    subbatch_id=3, local_stage_id=<optimized out>, 
+    global_stage_id=<optimized out>, segment_idx=<optimized out>, site_id=5)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:110
+#3  stage_worker_main (arg=0x84960)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4538
+#4  0x0000003ff7e6cf46 in ?? ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#5  0x0000003ff7eb5fcc in ?? ()
+   from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+[?2004h(gdb) thread apply all bt
+[?2004l
+Thread 2 (Thread 215.240 "rerocc_pipeline"):
+#0  prt_gdb_marker_stop () at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_debug_state.c:420
+#1  0x00000000000148a0 in prt_gdb_marker_note (site_id=site_id@entry=5, segment_idx=<optimized out>, segment_idx@entry=1, global_stage_id=<optimized out>, global_stage_id@entry=1, local_stage_id=<optimized out>, subbatch_id=<optimized out>, subbatch_id@entry=3, manager_id=<optimized out>, tensor_id=tensor_id@entry=4294967295, page_idx=page_idx@entry=4294967295, token_id=token_id@entry=4294967295, rc=rc@entry=0, aux0=1, aux1=8, line=line@entry=4543) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_debug_state.c:416
+#2  0x0000000000030b9c in prt_runtime_gdb_marker (line=4543, aux1=<optimized out>, aux0=<optimized out>, rc=0, token_id=4294967295, page_idx=4294967295, tensor_id=4294967295, manager_id=<optimized out>, subbatch_id=3, local_stage_id=<optimized out>, global_stage_id=<optimized out>, segment_idx=<optimized out>, site_id=5) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:110
+#3  stage_worker_main (arg=0x84960) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4538
+#4  0x0000003ff7e6cf46 in ?? () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#5  0x0000003ff7eb5fcc in ?? () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+
+Thread 1 (Thread 215.215 "rerocc_pipeline"):
+#0  0x0000003ff7e952a6 in clock_nanosleep () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#1  0x0000003ff7e9c262 in nanosleep () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#2  0x00000000000351a0 in prt_runtime_run (rt=rt@entry=0x3fffffde28, args=args@entry=0x3fffffdd38) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:5448
+#3  0x000000000001249e in prt_main_entry (argc=35, argv=0x3fffffe488) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/main.c:360
+#4  0x0000003ff7e2b636 in ?? () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#5  0x0000003ff7e2b6de in __libc_start_main () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+#6  0x00000000000120cc in _start ()
+[?2004h(gdb) delete 1
+[?2004l[?2004h(gdb) printf "\n--- arming frontier commands ---\n"
+[?2004l
+--- arming frontier commands ---
+[?2004h(gdb) source /home/ubuntu/chipyard/tmp/firesim-aws-f2/gdbserver-tests/pairdummy-cfg32-marker-frontier-expect-20260509T170400Z-192_168_1_21-172_16_0_2/frontier.gdb
+[?2004l
+--- sbus64 no-DMA segment1/stage0 compute thin frontier ---
+Goal: after worker-gemm-run at segment=1/global_stage=1/local_stage=0/subbatch=3, follow manager 7 with minimal GDB overhead.
+
+--- current marker state ---
+$2 = {
+  site_id = 5,
+  segment_idx = 1,
+  global_stage_id = 1,
+  local_stage_id = 0,
+  subbatch_id = 3,
+  manager_id = 0,
+  tensor_id = 4294967295,
+  page_idx = 4294967295,
+  token_id = 4294967295,
+  rc = 0,
+  aux0 = 1,
+  aux1 = 8,
+  hit_count = 0,
+  line = 4543
+}
+$3 = {
+  segment_idx = 1,
+  global_stage_id = 1,
+  local_stage_id = 0,
+  subbatch_id = 3,
+  phase_id = 5,
+  wait_phase_id = 0,
+  tensor_id = 4294967295,
+  pipebuf_idx = 4294967295,
+  pipebuf_kind = 4294967295,
+  pipebuf_in_use_idx = 4294967295,
+  pipebuf_no_use_idx = 4294967295,
+  pipebuf_addr = 0,
+  ring_addr = 0,
+  manager_id = 7,
+  opcode_id = 3,
+  rr_stage_id = 4294967295,
+  rr_manager_id = 7,
+  rr_opcode_id = 3,
+  rr_cfg_id = 31,
+  last_rc = 0,
+  event_seq = 86
+}
+
+--- arming final compute return stop ---
+Temporary breakpoint 2 at 0x30bb4: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c, line 4545.
+
+--- arming manager 7 issue milestones ---
+Breakpoint 3 at 0x20856: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_gemmini_adapter.c, line 2306.
+Breakpoint 4 at 0x1e9b0: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_gemmini_adapter.c, line 921.
+Breakpoint 5 at 0x1ee02: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_gemmini_adapter.c, line 1029.
+Breakpoint 6 at 0x1f826: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_gemmini_adapter.c, line 1036.
+
+--- arming manager 7 post-issue milestones ---
+Breakpoint 7 at 0x2a208: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_rerocc.c, line 371.
+Breakpoint 8 at 0x1e5d8: flush_scope_after_drain. (5 locations)
+Breakpoint 9 at 0x2a23a: file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_rerocc.c, line 389.
+
+--- thin compute frontier breakpoints armed ---
+Num     Type           Disp Enb Address            What
+2       breakpoint     del  y   0x0000000000030bb4 in stage_worker_main 
+                                                   at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4545
+3       breakpoint     keep y   0x0000000000020856 in conv_call_for_manager_sync_strided 
+                                                   at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_gemmini_adapter.c:2306
+	ignore next 7 hits
+        silent
+        printf "\n--- thin BP manager7 conv_call_for_manager_sync_strided entry ---\n"
+        info args
+        print g_prt_debug_state
+        continue
+4       breakpoint     keep y   0x000000000001e9b0 in prt_run_pointwise_matmul_fallback_strided_impl 
+                                                   at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_gemmini_adapter.c:921
+	ignore next 7 hits
+        silent
+        printf "\n--- thin BP manager7 pointwise strided impl entry ---\n"
+        info args
+        print g_prt_debug_state
+        continue
+5       breakpoint     keep y   0x000000000001ee02 in prt_run_pointwise_matmul_fallback_strided_impl 
+                                                   at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_gemmini_adapter.c:1029
+	ignore next 7 hits
+        silent
+        printf "\n--- thin BP manager7 tiled_matmul_nn_stride_auto call begin ---\n"
+        info args
+        print g_prt_debug_state
+        continue
+6       breakpoint     keep y   0x000000000001f826 in prt_run_pointwise_matmul_fallback_strided_impl 
+                                                   at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_gemmini_adapter.c:1036
+	ignore next 7 hits
+        silent
+        printf "\n--- thin BP manager7 tiled_matmul_nn_stride_auto returned ---\n"
+        info args
+        print g_prt_debug_state
+        continue
+7       breakpoint     keep y   0x000000000002a208 in prt_rr_fence_scope 
+                                                   at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_rerocc.c:371
+	stop only if scope != 0 && scope->manager_id == 7 (host evals)
+        silent
+        printf "\n--- thin BP manager7 prt_rr_fence_scope entry ---\n"
+        printf "scope valid=%u cfg=%u opcode=%u manager=%u\n", scope->valid, scope->cfg_id, scope->opcode_id, scope->manager_id
+        print g_prt_debug_state
+        continue
+8       breakpoint     keep y   <MULTIPLE>         
+	stop only if scope != 0 && scope->manager_id == 7 (host evals)
+        silent
+        printf "\n--- thin BP manager7 flush_scope_after_drain entry ---\n"
+        printf "scope valid=%u cfg=%u opcode=%u manager=%u\n", scope->valid, scope->cfg_id, scope->opcode_id, scope->manager_id
+        print g_prt_debug_state
+        continue
+8.1                         y   0x000000000001e5d8 in flush_scope_after_drain 
+                                                   at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_gemmini_adapter.c:452
+8.2                         y   0x000000000001ea72 in flush_scope_after_drain 
+                                                   at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_gemmini_adapter.c:452
+8.3                         y   0x00000000000207b2 in flush_scope_after_drain 
+                                                   at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_gemmini_adapter.c:452
+8.4                         y   0x0000000000020e72 in flush_scope_after_drain 
+                                                   at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_gemmini_adapter.c:452
+8.5                         y   0x0000000000021516 in flush_scope_after_drain 
+                                                   at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_gemmini_adapter.c:452
+9       breakpoint     keep y   0x000000000002a23a in prt_rr_release_scope 
+                                                   at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_rerocc.c:389
+	stop only if scope != 0 && scope->manager_id == 7 (host evals)
+        silent
+        printf "\n--- thin BP manager7 prt_rr_release_scope entry ---\n"
+        printf "scope valid=%u cfg=%u opcode=%u manager=%u\n", scope->valid, scope->cfg_id, scope->opcode_id, scope->manager_id
+        print g_prt_debug_state
+        continue
+[?2004h(gdb) GDB_FRONTIER_CONTINUE
+continue
+[?2004lContinuing.
+
+--- thin BP manager7 conv_call_for_manager_sync_strided entry ---
+stage_id = 0
+manager_id = 7
+conv = 0x3ff6d76ea0
+in_stride = 256
+weight_stride = 256
+out_stride = 256
+$4 = {
+  segment_idx = 1,
+  global_stage_id = 1,
+  local_stage_id = 0,
+  subbatch_id = 3,
+  phase_id = 8,
+  wait_phase_id = 0,
+  tensor_id = 4294967295,
+  pipebuf_idx = 4294967295,
+  pipebuf_kind = 4294967295,
+  pipebuf_in_use_idx = 4294967295,
+  pipebuf_no_use_idx = 4294967295,
+  pipebuf_addr = 0,
+  ring_addr = 0,
+  manager_id = 6,
+  opcode_id = 3,
+  rr_stage_id = 0,
+  rr_manager_id = 6,
+  rr_opcode_id = 3,
+  rr_cfg_id = 1,
+  last_rc = 0,
+  event_seq = 93
+}
+
+--- thin BP manager7 pointwise strided impl entry ---
+stage_id = 0
+manager_id = 7
+conv = 0x3ff6d76ea0
+tiled_type = WS
+in_stride = 256
+weight_stride = 256
+out_stride = 256
+emit_logs = 1
+scope = 0x3ff6d76cc8
+$5 = {
+  segment_idx = 1,
+  global_stage_id = 1,
+  local_stage_id = 0,
+  subbatch_id = 3,
+  phase_id = 8,
+  wait_phase_id = 0,
+  tensor_id = 4294967295,
+  pipebuf_idx = 4294967295,
+  pipebuf_kind = 4294967295,
+  pipebuf_in_use_idx = 4294967295,
+  pipebuf_no_use_idx = 4294967295,
+  pipebuf_addr = 0,
+  ring_addr = 0,
+  manager_id = 7,
+  opcode_id = 3,
+  rr_stage_id = 0,
+  rr_manager_id = 7,
+  rr_opcode_id = 3,
+  rr_cfg_id = 1,
+  last_rc = 0,
+  event_seq = 94
+}
+
+--- thin BP manager7 tiled_matmul_nn_stride_auto call begin ---
+stage_id = 0
+manager_id = 7
+conv = 0x3ff6d76ea0
+tiled_type = WS
+in_stride = 256
+weight_stride = 256
+out_stride = 256
+emit_logs = 1
+scope = 0x3ff6d76cc8
+$6 = {
+  segment_idx = 1,
+  global_stage_id = 1,
+  local_stage_id = 0,
+  subbatch_id = 3,
+  phase_id = 8,
+  wait_phase_id = 0,
+  tensor_id = 4294967295,
+  pipebuf_idx = 4294967295,
+  pipebuf_kind = 4294967295,
+  pipebuf_in_use_idx = 4294967295,
+  pipebuf_no_use_idx = 4294967295,
+  pipebuf_addr = 0,
+  ring_addr = 0,
+  manager_id = 7,
+  opcode_id = 3,
+  rr_stage_id = 0,
+  rr_manager_id = 7,
+  rr_opcode_id = 3,
+  rr_cfg_id = 1,
+  last_rc = 0,
+  event_seq = 94
+}
+
+--- thin BP manager7 tiled_matmul_nn_stride_auto returned ---
+stage_id = 0
+manager_id = 7
+conv = 0x3ff6d76ea0
+tiled_type = WS
+in_stride = 256
+weight_stride = 256
+out_stride = 256
+emit_logs = 1
+scope = 0x3ff6d76cc8
+$7 = {
+  segment_idx = 1,
+  global_stage_id = 1,
+  local_stage_id = 0,
+  subbatch_id = 3,
+  phase_id = 8,
+  wait_phase_id = 0,
+  tensor_id = 4294967295,
+  pipebuf_idx = 4294967295,
+  pipebuf_kind = 4294967295,
+  pipebuf_in_use_idx = 4294967295,
+  pipebuf_no_use_idx = 4294967295,
+  pipebuf_addr = 0,
+  ring_addr = 0,
+  manager_id = 7,
+  opcode_id = 3,
+  rr_stage_id = 0,
+  rr_manager_id = 7,
+  rr_opcode_id = 3,
+  rr_cfg_id = 1,
+  last_rc = 0,
+  event_seq = 94
+}
+
+--- thin BP manager7 prt_rr_fence_scope entry ---
+scope valid=1 cfg=1 opcode=3 manager=7
+$8 = {
+  segment_idx = 1,
+  global_stage_id = 1,
+  local_stage_id = 0,
+  subbatch_id = 3,
+  phase_id = 8,
+  wait_phase_id = 0,
+  tensor_id = 4294967295,
+  pipebuf_idx = 4294967295,
+  pipebuf_kind = 4294967295,
+  pipebuf_in_use_idx = 4294967295,
+  pipebuf_no_use_idx = 4294967295,
+  pipebuf_addr = 0,
+  ring_addr = 0,
+  manager_id = 7,
+  opcode_id = 3,
+  rr_stage_id = 0,
+  rr_manager_id = 7,
+  rr_opcode_id = 3,
+  rr_cfg_id = 1,
+  last_rc = 0,
+  event_seq = 94
+}
+
+--- thin BP manager7 prt_rr_fence_scope entry ---
+scope valid=1 cfg=1 opcode=3 manager=7
+$9 = {
+  segment_idx = 1,
+  global_stage_id = 1,
+  local_stage_id = 0,
+  subbatch_id = 3,
+  phase_id = 8,
+  wait_phase_id = 0,
+  tensor_id = 4294967295,
+  pipebuf_idx = 4294967295,
+  pipebuf_kind = 4294967295,
+  pipebuf_in_use_idx = 4294967295,
+  pipebuf_no_use_idx = 4294967295,
+  pipebuf_addr = 0,
+  ring_addr = 0,
+  manager_id = 7,
+  opcode_id = 3,
+  rr_stage_id = 0,
+  rr_manager_id = 7,
+  rr_opcode_id = 3,
+  rr_cfg_id = 1,
+  last_rc = 0,
+  event_seq = 94
+}
+
+--- thin BP manager7 prt_rr_release_scope entry ---
+scope valid=1 cfg=1 opcode=3 manager=7
+$10 = {
+  segment_idx = 1,
+  global_stage_id = 1,
+  local_stage_id = 0,
+  subbatch_id = 3,
+  phase_id = 8,
+  wait_phase_id = 0,
+  tensor_id = 4294967295,
+  pipebuf_idx = 4294967295,
+  pipebuf_kind = 4294967295,
+  pipebuf_in_use_idx = 4294967295,
+  pipebuf_no_use_idx = 4294967295,
+  pipebuf_addr = 0,
+  ring_addr = 0,
+  manager_id = 7,
+  opcode_id = 3,
+  rr_stage_id = 0,
+  rr_manager_id = 7,
+  rr_opcode_id = 3,
+  rr_cfg_id = 1,
+  last_rc = 0,
+  event_seq = 94
+}
+
+Thread 2 "rerocc_pipeline" hit Temporary breakpoint 2, stage_worker_main (
+    arg=0x84960)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4548
+4548	      if (rc != PRT_OK) {
+[?2004h[?2004l[?2004h(gdb) GDB_FRONTIER_STOPPED
+printf "\n--- frontier stop: threads ---\n"
+[?2004l
+--- frontier stop: threads ---
+[?2004h(gdb) info threads
+[?2004l  Id   Target Id                        Frame 
+  1    Thread 215.215 "rerocc_pipeline" 0x0000003ff7e952a6 in clock_nanosleep
+    () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+* 2    Thread 215.240 "rerocc_pipeline" stage_worker_main (arg=0x84960)
+    at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4548
+[?2004h(gdb) printf "\n--- frontier stop: all bt full ---\n"
+[?2004l
+--- frontier stop: all bt full ---
+[?2004h(gdb) thread apply all bt full
+[?2004l
+Thread 2 (Thread 215.240 "rerocc_pipeline"):
+#0  stage_worker_main (arg=0x84960) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4548
+        resadd_desc = {
+          I = 0,
+          J = 0,
+          A_scale = 0,
+          B_scale = 0,
+          C_scale = 0,
+          stride = 0,
+          A = 0x0,
+          B = 0x0,
+          C = 0x0,
+          relu = 0,
+          tiled_type = 0
+        }
+        task = {
+          stage_id = 0,
+          acc_id = 0,
+          num_managers = 8,
+          manager_ids = {0, 1, 2, 3, 4, 5, 6, 7, 0 <repeats 56 times>},
+          tile_count = 8,
+          split_kind = PRT_LAYER_SPLIT_OC,
+          op_kind = PRT_STAGE_OP_CONV,
+          opaque_task = 0x3ff6d77550
+        }
+        conv_desc = {
+          batch_size = 1,
+          in_row_dim = 256,
+          in_col_dim = 1,
+          in_channels = 256,
+          out_channels = 256,
+          out_row_dim = 256,
+          out_col_dim = 1,
+          in_stride = 256,
+          weight_stride = 256,
+          out_stride = 256,
+          groups = 1,
+          stride = 1,
+          input_dilation = 1,
+          kernel_dilation = 1,
+          padding = 0,
+          kernel_dim = 1,
+          wrot180 = 0,
+          trans_output_1203 = 0,
+          trans_input_3120 = 0,
+          trans_weight_1203 = 0,
+          trans_weight_0132 = 0,
+          input = 0x3ff6d95400,
+          weights = 0x3ff6d85400,
+          bias = 0x3ff6d85000,
+          output = 0x3ff6da5400,
+          act = 1,
+          output_scale = 1,
+          pool_size = 1,
+          pool_stride = 0,
+          pool_padding = 0,
+          tiled_type = 1
+        }
+        overlap_mode = <optimized out>
+        gemm_begin_ns = 5753774000
+        progress_sbatch = <optimized out>
+        segment_idx = <optimized out>
+        rc = 0
+        retry = <optimized out>
+        global_stage_id = <optimized out>
+        ctx = 0x84960
+        rt = 0x3fffffde28
+        exec = <optimized out>
+        timeout_ns = <optimized out>
+        wait_timeout_ns = <optimized out>
+        entry_bufs = {0x6dd60, 0x0 <repeats 1023 times>}
+        export_bufs = {0x6e078, 0x0 <repeats 1023 times>}
+        iso_pairs = {0x0 <repeats 1024 times>}
+        shared_pairs = {0x1, 0x0 <repeats 818 times>, 0x3ff7f10858, 0x3ff6d7f668, 0x17, 0x3, 0x3ff7e4a1c6, 0x0, 0x3ff7f06dd0, 0x1, 0x3ff6d7f750, 0x3ff6d7f668, 0x3ff7e4f71a, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0xa, 0x0, 0x20, 0x3ff6d7f5ed...}
+        entry_count = <optimized out>
+        export_count = <optimized out>
+        iso_pair_count = <optimized out>
+        shared_pair_count = <optimized out>
+        last_wait_log_ms = 0
+#1  0x0000003ff7e6cf46 in ?? () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+No symbol table info available.
+#2  0x0000003ff7eb5fcc in ?? () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+No symbol table info available.
+
+Thread 1 (Thread 215.215 "rerocc_pipeline"):
+#0  0x0000003ff7e952a6 in clock_nanosleep () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+No symbol table info available.
+#1  0x0000003ff7e9c262 in nanosleep () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+No symbol table info available.
+#2  0x00000000000351a0 in prt_runtime_run (rt=rt@entry=0x3fffffde28, args=args@entry=0x3fffffdd38) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:5448
+        done_subbatch = 3
+        now = 7772
+        ts = {
+          tv_sec = 0,
+          tv_nsec = 10000000
+        }
+        seg = 0x82c18
+        missing_model_sinks = <optimized out>
+        is_last_segment = 0
+        stage_thread_attr = {
+          __size = '\000' <repeats 17 times>, "\020", '\000' <repeats 16 times>...,
+          __align = 0
+        }
+        stage_thread_attr_ready = <optimized out>
+        stage_stack_bytes = <optimized out>
+        exec = 0x84960
+        start_ms = <optimized out>
+        last_watchdog_log_ms = 7772
+        init_step_start_ms = <optimized out>
+        model_input_ids = 0x66880
+        model_input_count = <optimized out>
+        model_output_ids = 0x622d0
+        model_output_count = 1
+        sink_bufs = 0x635d0
+        sink_count = 1
+        sink_cap = 4
+        subbatch_size = <optimized out>
+        target_batch = <optimized out>
+        target_subbatch = <optimized out>
+        input_blob = 0x0
+        input_blob_size = 0
+        golden_blob = 0x0
+        golden_blob_size = 0
+        created_threads = <optimized out>
+        all_segments = <optimized out>
+        all_num_segments = 15
+        all_subbatch_size = 1
+        seg_idx = <optimized out>
+        pipeline_swizzled = 1
+        run_rc = 0
+        action = 0x6b860
+        rc = <optimized out>
+#3  0x000000000001249e in prt_main_entry (argc=35, argv=0x3fffffe488) at /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/main.c:360
+        cfg = {
+          num_cores = 4,
+          num_gemmini_mgrs = 12,
+          num_dma_mgrs = 12,
+          gemmini_mgr_base_id = 0,
+          dma_mgr_base_id = 0,
+          pair_manager_mode = 1,
+          backend = PRT_BACKEND_FPGA,
+          page_size_bytes = 1024,
+          spm_xlate_enable = 1,
+          spm_page_shift = 0,
+          pages_per_acc = 1024,
+          spm_xlate_range_base = 0,
+          spm_xlate_range_size = 0,
+          spm_pt_pool_prealloc_hugepages = 0,
+          spm_pt_pool_max_hugepages = 0,
+          spm_pt_require_hugetlb = 1,
+          dma_backend = PRT_DMA_BACKEND_POLL_PROGRESS_THREAD,
+          gemmini_mode = PRT_GEMMINI_MODE_ASYNC_EXPERIMENTAL,
+          sync_mode = PRT_SYNC_MODE_ASYNC,
+          watchdog_timeout_ms = 600000,
+          export_dma_timeout_ms = 5000,
+          hw_validate_only = 0,
+          deep_log_gate_enable = 0,
+          deep_log_segment = 4294967295,
+          deep_log_global_stage = 4294967295,
+          deep_log_local_stage = 4294967295,
+          deep_log_subbatch = 4294967295,
+          deep_log_stage_radius = 0,
+          deep_log_subbatch_radius = 0,
+          no_dma_compute_enable = 1,
+          trace_path = 0x0
+        }
+        args = {
+          model_yaml = 0x3fffffeb58 "/root/rerocc-linux-tests/pipelin"...,
+          layer_mapping_yaml = 0x3fffffebb2 "/root/rerocc-linux-tests/pipelin"...,
+          model_bin = 0x0,
+          model_offset_bytes = 0,
+          skip_model_bin_load = 1,
+          pipeline_yaml = 0x3fffffec66 "/root/rerocc-linux-tests/pipelin"...,
+          input_path = 0x0,
+          skip_input_load = 1,
+          golden_path = 0x0,
+          skip_golden_check = 1,
+          golden_out_path = 0x0,
+          batch = 8
+        }
+        rt = {
+          cfg = {
+            num_cores = 4,
+            num_gemmini_mgrs = 12,
+            num_dma_mgrs = 12,
+            gemmini_mgr_base_id = 0,
+            dma_mgr_base_id = 0,
+            pair_manager_mode = 1,
+            backend = PRT_BACKEND_FPGA,
+            page_size_bytes = 1024,
+            spm_xlate_enable = 1,
+            spm_page_shift = 10,
+            pages_per_acc = 1024,
+            spm_xlate_range_base = 0,
+            spm_xlate_range_size = 100663296,
+            spm_pt_pool_prealloc_hugepages = 0,
+            spm_pt_pool_max_hugepages = 0,
+            spm_pt_require_hugetlb = 1,
+            dma_backend = PRT_DMA_BACKEND_BLOCKING_FENCE,
+            gemmini_mode = PRT_GEMMINI_MODE_BLOCKING_FENCE,
+            sync_mode = PRT_SYNC_MODE_BLOCKING_DEBUG,
+            watchdog_timeout_ms = 600000,
+            export_dma_timeout_ms = 5000,
+            hw_validate_only = 0,
+            deep_log_gate_enable = 0,
+            deep_log_segment = 4294967295,
+            deep_log_global_stage = 4294967295,
+            deep_log_local_stage = 4294967295,
+            deep_log_subbatch = 4294967295,
+            deep_log_stage_radius = 0,
+            deep_log_subbatch_radius = 0,
+            no_dma_compute_enable = 1,
+            trace_path = 0x0
+          },
+          dma_ops = {
+            submit = 0x16a64 <dma_blocking_submit>,
+            wait = 0x16356 <dma_blocking_wait>,
+            submit_and_wait = 0x183ac <dma_blocking_submit_and_wait>,
+            name = 0x3f910 "blocking_fence"
+          },
+          gemm_ops = {
+            conv_run = 0x22b38 <gemm_blocking_conv_run>,
+            fence = 0x1e660 <gemm_blocking_fence>,
+            name = 0x3f910 "blocking_fence"
+          },
+          state_lock = {
+            __data = {
+              __lock = 0,
+              __count = 0,
+              __owner = 0,
+              __nusers = 0,
+              __kind = 0,
+              __spins = 0,
+              __list = {
+                __prev = 0x0,
+                __next = 0x0
+              }
+            },
+            __size = '\000' <repeats 39 times>,
+            __align = 0
+          },
+          state_cv = {
+            __data = {
+              __wseq = {
+                __value64 = 0,
+                __value32 = {
+                  __low = 0,
+                  __high = 0
+                }
+              },
+              __g1_start = {
+                __value64 = 0,
+                __value32 = {
+                  __low = 0,
+                  __high = 0
+                }
+              },
+              __g_refs = {0, 0},
+              __g_size = {0, 0},
+              __g1_orig_size = 0,
+              __wrefs = 0,
+              __g_signals = {0, 0}
+            },
+            __size = '\000' <repeats 47 times>,
+            __align = 0
+          },
+          stop_requested = 0,
+          fatal_error = 0,
+          next_dma_token_id = 0,
+          model = {
+            addr_base = 0,
+            addr_end = 17055744,
+            num_layers = 40,
+            layers = 0x675e0,
+            num_tensors = 0,
+            tensors = 0x0,
+            num_stages = 0,
+            stages = 0x0
+          },
+          pipeline = {
+            num_segments = 15,
+            subbatch_size = 1,
+            segments = 0x82b70
+          },
+          model_blob = 0x3ff6db6000,
+          model_blob_size = 17055744,
+          model_blob_offset = 0,
+          model_blob_is_mmap = 1,
+          active_action = 0x6b860,
+          action_queue = {0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
+          action_count = 0,
+          action_to_hart = {0, 0, 0, 0, 0, 0},
+          action_queue_lock = {
+            __data = {
+              __lock = 0,
+              __count = 0,
+              __owner = 0,
+              __nusers = 0,
+              __kind = 0,
+              __spins = 0,
+              __list = {
+                __prev = 0x0,
+                __next = 0x0
+              }
+            },
+            __size = '\000' <repeats 39 times>,
+            __align = 0
+          },
+          progress_thread = {
+            thread = 0,
+            rt = 0x0,
+            stop = 0
+          },
+          progress_thread_enabled = 0,
+          dma_pending_lock = {
+            __data = {
+              __lock = 0,
+              __count = 0,
+              __owner = 0,
+              __nusers = 0,
+              __kind = 0,
+              __spins = 0,
+              __list = {
+                __prev = 0x0,
+                __next = 0x0
+              }
+            },
+            __size = '\000' <repeats 39 times>,
+            __align = 0
+          },
+          dma_pending_cv = {
+            __data = {
+              __wseq = {
+                __value64 = 0,
+                __value32 = {
+                  __low = 0,
+                  __high = 0
+                }
+              },
+              __g1_start = {
+                __value64 = 0,
+                __value32 = {
+                  __low = 0,
+                  __high = 0
+                }
+              },
+              __g_refs = {0, 0},
+              __g_size = {0, 0},
+              __g1_orig_size = 0,
+              __wrefs = 0,
+              __g_signals = {0, 0}
+            },
+            __size = '\000' <repeats 47 times>,
+            __align = 0
+          },
+          dma_pending_head = 0x0,
+          dma_pending_tail = 0x0,
+          dma_pending_count = 0,
+          dma_completion_lock = {
+            __data = {
+              __lock = 0,
+              __count = 0,
+              __owner = 0,
+              __nusers = 0,
+              __kind = 0,
+              __spins = 0,
+              __list = {
+                __prev = 0x0,
+                __next = 0x0
+              }
+            },
+            __size = '\000' <repeats 39 times>,
+            __align = 0
+          },
+          dma_completion_flags = 0x5f000,
+          dma_completion_flag_pas = 0x60010,
+          dma_completion_flag_used = 0x5e8a0 "",
+          dma_completion_flag_count = 1024,
+          dma_completion_flag_alloc_bytes = 4096,
+          page_lock = {
+            __data = {
+              __lock = 0,
+              __count = 0,
+              __owner = 0,
+              __nusers = 0,
+              __kind = 0,
+              __spins = 0,
+              __list = {
+                __prev = 0x0,
+                __next = 0x0
+              }
+            },
+            __size = '\000' <repeats 39 times>,
+            __align = 0
+          },
+          page_used = 0x5b2a0 '\001' <repeats 25 times>,
+          tensor_allocs = 0x6ad30,
+          tensor_alloc_count = 4,
+          tensor_alloc_cap = 64,
+          spm_pt_chunks = 0x81d00,
+          spm_pt_chunk_count = 1,
+          spm_pt_chunk_cap = 2,
+          spm_pt_hugepage_bytes = 2097152,
+          spm_pte = 0x0,
+          spm_pte_cap = 0,
+          spm_next_vpage = 0,
+          spm_free_vpages = 0x0,
+          spm_free_vpage_count = 0,
+          spm_free_vpage_cap = 0,
+          spm_ptbr_pa = 0,
+          spm_pte_alloc = 0x0,
+          spm_pte_alloc_bytes = 0,
+          spm_alias_map = 0x0,
+          spm_alias_map_bytes = 0,
+          spm_fault_count = 0,
+          spm_last_fault_vaddr = 0,
+          spm_last_fault_cause = 0,
+          spm_tensor_maps = 0x0,
+          spm_tensor_map_count = 0,
+          spm_tensor_map_cap = 0,
+          trace_run_start_ns = 4833473000,
+          trace_run_end_ns = 0,
+          trace_dma_submit_count = 0,
+          trace_dma_complete_count = 0,
+          trace_dma_inflight = 0,
+          trace_dma_inflight_peak = 0,
+          trace_dma_busy_ns = 0,
+          trace_gemm_issue_count = 13,
+          trace_gemm_fence_count = 0,
+          trace_gemm_busy_ns = 20962000,
+          trace_prefetch_attempt_count = 0,
+          trace_prefetch_success_count = 0,
+          trace_export_submit_ahead_count = 0,
+          trace_export_retire_count = 0,
+          trace_cycle_overhead = 0,
+          trace_cycle_ref = 5559715218,
+          trace_ns_ref = 4833473000,
+          trace_events = 0x0,
+          trace_event_cap = 0,
+          trace_event_count = 0,
+          trace_event_drop_count = 0
+        }
+        rc = <optimized out>
+        user_set_dma_base = 1
+        backend_set = 1
+        watchdog_set = 1
+#4  0x0000003ff7e2b636 in ?? () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+No symbol table info available.
+#5  0x0000003ff7e2b6de in __libc_start_main () from /home/ubuntu/chipyard/.conda-env/riscv-tools/sysroot/lib/libc.so.6
+No symbol table info available.
+#6  0x00000000000120cc in _start ()
+No symbol table info available.
+[?2004h(gdb) printf "\n--- frontier stop: registers ---\n"
+[?2004l
+--- frontier stop: registers ---
+[?2004h(gdb) info registers pc sp ra a0 a1 a2 a3 a4 a5 a6 a7
+[?2004lpc             0x30bb4	0x30bb4 <stage_worker_main+7042>
+sp             0x3ff6d77330	0x3ff6d77330
+ra             0x30bb4	0x30bb4 <stage_worker_main+7042>
+a0             0x0	0
+a1             0x44078	278648
+a2             0x3ff6d76d48	274724253000
+a3             0x8	8
+a4             0x0	0
+a5             0x1	1
+a6             0x20	32
+a7             0x0	0
+[?2004h(gdb) printf "\n--- frontier stop: pc window ---\n"
+[?2004l
+--- frontier stop: pc window ---
+[?2004h(gdb) x/32i $pc-64
+[?2004l   0x30b74 <stage_worker_main+6978>:	li	a4,-1
+   0x30b76 <stage_worker_main+6980>:	sd	a1,24(sp)
+   0x30b78 <stage_worker_main+6982>:	sd	a2,16(sp)
+   0x30b7a <stage_worker_main+6984>:	sd	a4,0(sp)
+   0x30b7c <stage_worker_main+6986>:	addi	a2,a0,-776
+   0x30b80 <stage_worker_main+6990>:	addi	a4,a0,-808
+   0x30b84 <stage_worker_main+6994>:	addi	a1,a0,-784
+   0x30b88 <stage_worker_main+6998>:	sd	zero,8(sp)
+   0x30b8a <stage_worker_main+7000>:	add	a4,a4,s0
+   0x30b8c <stage_worker_main+7002>:	add	a2,a2,s0
+   0x30b8e <stage_worker_main+7004>:	add	a1,a1,s0
+   0x30b90 <stage_worker_main+7006>:	ld	a2,0(a2)
+   0x30b92 <stage_worker_main+7008>:	ld	a1,0(a1)
+   0x30b94 <stage_worker_main+7010>:	ld	a4,0(a4)
+   0x30b96 <stage_worker_main+7012>:	li	a0,5
+   0x30b98 <stage_worker_main+7014>:	jal	0x146fc <prt_gdb_marker_note>
+   0x30b9c <stage_worker_main+7018>:	addi	a5,s1,-944
+   0x30ba0 <stage_worker_main+7022>:	add	a5,a5,s0
+   0x30ba2 <stage_worker_main+7024>:	lui	a1,0xffff8
+   0x30ba4 <stage_worker_main+7026>:	ld	a2,0(a5)
+   0x30ba6 <stage_worker_main+7028>:	addi	a5,a1,-400
+   0x30baa <stage_worker_main+7032>:	add	a1,a5,s0
+   0x30bae <stage_worker_main+7036>:	mv	a0,s6
+   0x30bb0 <stage_worker_main+7038>:	jal	0x2363a <prt_gemm_conv_run>
+=> 0x30bb4 <stage_worker_main+7042>:	
+    beqz	a0,0x30bba <stage_worker_main+7048>
+   0x30bb6 <stage_worker_main+7044>:	
+    j	0x3200e <stage_worker_main+12252>
+   0x30bba <stage_worker_main+7048>:	lui	a4,0xffff8
+   0x30bbc <stage_worker_main+7050>:	addi	a4,a4,-840
+   0x30bc0 <stage_worker_main+7054>:	add	a4,a4,s0
+   0x30bc2 <stage_worker_main+7056>:	ld	a4,0(a4)
+   0x30bc4 <stage_worker_main+7058>:	li	a5,1
+   0x30bc6 <stage_worker_main+7060>:	
+    beq	a4,a5,0x311f8 <stage_worker_main+8646>
+[?2004h(gdb) printf "\n--- frontier stop: marker/debug state ---\n"
+[?2004l
+--- frontier stop: marker/debug state ---
+[?2004h(gdb) print g_prt_gdb_marker_state
+[?2004l$11 = {
+  site_id = 5,
+  segment_idx = 1,
+  global_stage_id = 1,
+  local_stage_id = 0,
+  subbatch_id = 3,
+  manager_id = 0,
+  tensor_id = 4294967295,
+  page_idx = 4294967295,
+  token_id = 4294967295,
+  rc = 0,
+  aux0 = 1,
+  aux1 = 8,
+  hit_count = 1,
+  line = 4543
+}
+[?2004h(gdb) print g_prt_debug_state
+[?2004l$12 = {
+  segment_idx = 1,
+  global_stage_id = 1,
+  local_stage_id = 0,
+  subbatch_id = 3,
+  phase_id = 8,
+  wait_phase_id = 0,
+  tensor_id = 4294967295,
+  pipebuf_idx = 4294967295,
+  pipebuf_kind = 4294967295,
+  pipebuf_in_use_idx = 4294967295,
+  pipebuf_no_use_idx = 4294967295,
+  pipebuf_addr = 0,
+  ring_addr = 0,
+  manager_id = 7,
+  opcode_id = 3,
+  rr_stage_id = 0,
+  rr_manager_id = 7,
+  rr_opcode_id = 3,
+  rr_cfg_id = 1,
+  last_rc = 0,
+  event_seq = 94
+}
+[?2004h(gdb) print g_prt_debug_tls_state
+[?2004lCannot find thread-local storage for Thread 215.240, executable file /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/build/rerocc-linux-tests/rerocc_pipeline_runtime-linux:
+Remote target failed to process qGetTLSAddr request
+[?2004h(gdb) detach
+[?2004lDetaching from program: /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/build/rerocc-linux-tests/rerocc_pipeline_runtime-linux, process 215
+Ending remote debugging.
+[Inferior 1 (process 215) detached]
+[?2004h(gdb) GDB_MARK_DETACH_OK
+quit
+[?2004l
