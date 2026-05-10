@@ -42,9 +42,17 @@
   event ring、cycle 校准和 event dump。本地 CPU/no-DMA dry-run 已确认：
   `ours2`/`gemini2` 均 exit 0，`dma_submit_count=0`、`gemm_issue_count=320`、
   `trace_summary_only=1`、`trace_event_count=0`。
+- `image-closure` 已完成且 local image freshness PASS：
+  - guest env SHA:
+    `9b580a62b90d8e528d235462b4985e657ad6e9563f2eba980f2e70b1a26e707c`
+  - runtime binary SHA in image:
+    `0d126d06d4186316961aff539e9f72670fe8eabbd13a457a79172842f87e3a56`
+  - `/firemarshal.env` 已确认
+    `PIPELINE_RUNTIME_TRACE_SUMMARY_ONLY='1'`、
+    `PIPELINE_RUNTIME_DISABLE_MAPPING_CACHE='0'`。
 
-本地 dry-run 仅验证口径，不作为 F2 性能结论。下一步是重新 `image-closure`，然后只开一轮
-F2 run farm 顺序跑 `ours2` 与 `gemini2`，copy-back 后比较
+本地 dry-run 仅验证口径，不作为 F2 性能结论。下一步只开一轮 F2 run farm 顺序跑
+`ours2` 与 `gemini2`，copy-back 后比较
 `/root/pipeline-runtime-debug/traces/{ours2,gemini2}.trace` 中的
 `model_compute_ns` 与 `model_exec_ns`，最后立即 terminate run farm。
 

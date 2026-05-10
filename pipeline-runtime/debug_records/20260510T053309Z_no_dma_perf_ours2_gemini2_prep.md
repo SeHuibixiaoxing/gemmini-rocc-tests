@@ -227,3 +227,34 @@ Local validation:
 These local timings only validate the measurement path; they are not F2 performance results.
 Next F2 attempt must rebuild/patch the image, verify freshness, run once, copy traces, and
 terminate the run farm immediately.
+
+## 2026-05-10 image closure after summary-only trace
+
+`image-closure` completed locally without starting F2:
+
+```bash
+./pipeline-runtime/scripts/pairdummy_sbus64_dummy8x8_no_dma_perf_cfg32_nic_notrace_workflow.sh image-closure
+```
+
+Results:
+
+- clean tmux:
+  `pairdummy-sbus64-dummy8x8-no-dma-perf-cfg32-nic-notrace-clean-20260510-070832`
+- build tmux:
+  `pairdummy-sbus64-dummy8x8-no-dma-perf-cfg32-nic-notrace-build-20260510-070837`
+- install tmux:
+  `pairdummy-sbus64-dummy8x8-no-dma-perf-cfg32-nic-notrace-install-20260510-070947`
+- guest env SHA:
+  `9b580a62b90d8e528d235462b4985e657ad6e9563f2eba980f2e70b1a26e707c`
+- runtime binary SHA in image:
+  `0d126d06d4186316961aff539e9f72670fe8eabbd13a457a79172842f87e3a56`
+- local image freshness: PASS
+- `/firemarshal.env` confirms:
+  - `PIPELINE_RUNTIME_PROFILE_ID='pairdummy-sbus64-dummy8x8-no-dma-perf-v1'`
+  - `PIPELINE_RUNTIME_NO_DMA_COMPUTE_ENABLE='1'`
+  - `PIPELINE_RUNTIME_TRACE_SUMMARY_ONLY='1'`
+  - `PIPELINE_RUNTIME_DISABLE_MAPPING_CACHE='0'`
+  - `PIPELINE_RUNTIME_GDBSERVER_ENABLE='0'`
+
+Next F2 run should use this exact image state and compare
+`/root/pipeline-runtime-debug/traces/{ours2,gemini2}.trace`.
