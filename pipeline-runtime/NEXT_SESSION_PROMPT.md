@@ -1,5 +1,309 @@
 # Next Session Prompt
 
+## 2026-05-09 no-DMA PASS and current performance experiment
+
+当前接手 `pipeline-runtime` 时，顶部结论优先于下面旧线程：
+
+- `cfg32/NIC/noTrace + no-DMA compute` 已完整 PASS。
+- AGFI：`agfi-077451484fe3b63c3`
+- 运行结果：`Simulation complete` / `*** PASSED *** after 22734035102 cycles`
+- checkpoint commit：`9742924 Record cfg32 no-DMA compute pass`
+- 这已经排除 no-DMA 路线下的 artifact 读取、Gemmini compute、SPM xlate 和普通
+  pipebuf 控制流作为当前 blocker。
+- 真实正确性主线后续应回到 DMA submit/completion、`hw_dma_fence()` / blocking wait、
+  host buffer/direct DMA，以及依赖真实 DMA 完成的 producer publish。
+- `doneflag` 不能作为 DMA completion 证据。
+
+当前临时任务：
+
+1. 暂时保持 no-DMA，比较 HybridMapper 两类编排方法的执行模型时间。
+2. 用户口径 `ours` 对应当前 artifact 方法名 `ours2`；用户口径 `gemmini` 对应当前
+   HybridMapper/runtime artifact 方法名 `gemini2`。
+3. 本地已生成/审计 `ours2` 和 `gemini2` 的 dummy8x8/sbus64/cfg32 runtime artifacts；
+   两套 pipeline YAML 与当前 overlay 哈希一致，不需要覆盖 overlay。
+4. 计时口径必须排除预处理：不包含 HybridMapper 生成、YAML/artifact 读取校验、
+   model/input/golden load；优先使用 runtime 内模型执行窗口的 trace 字段。
+5. runtime trace 已有 `model_exec_ns`、`model_compute_ns`、`preprocess_ns`、
+   `postprocess_ns`；本地 CPU/no-DMA dry-run 已确认字段可用。
+6. 新增 perf workflow：
+   `scripts/pairdummy_sbus64_dummy8x8_no_dma_perf_cfg32_nic_notrace_workflow.sh`
+   ，profile 展开为 `METHODS="ours2 gemini2"`、`TRACE_ENABLE=1`、
+   `PIPELINE_RUNTIME_NO_DMA_COMPUTE_ENABLE=1`、`gdbserver=0`。
+7. 减少 F2 使用：下一步先 `image-closure`，然后同一 F2 run farm 连续跑两种
+   `METHODS`，完成后解析 trace、copy-back 并 terminate。
+
+详细记录：
+[`debug_records/20260509T193535Z_no_dma_compute_full_pass_cfg32_gdbserver.md`](/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/20260509T193535Z_no_dma_compute_full_pass_cfg32_gdbserver.md)
+[`debug_records/20260510T053309Z_no_dma_perf_ours2_gemini2_prep.md`](/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/20260510T053309Z_no_dma_perf_ours2_gemini2_prep.md)
+
+## 2026-04-27 Direct-Only cfg32_nic Local-GDB Thread
+
+当前接手 `pipeline-runtime` 时，优先执行这条最新线程：
+
+- 不构建新 bitstream。
+- 使用现有带 NIC、带 DMA 不对齐搬运优化的 cfg32_nic AGFI：
+  `agfi-02e18c6f7a7a95096`。
+- 不检查、不打断、不清理并行运行中的另一个 `buildbitstream` 任务。
+- `pipeline-runtime` 必须走 direct 软件路线：
+  - `PIPELINE_RUNTIME_DMA_FORCE_DIRECT_ENABLE=1`
+  - `PIPELINE_RUNTIME_DMA_BOUNCE_BYPASS_ENABLE=0`
+- 使用 wrapper：
+  `generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdummy_sbus128_local_gdb_cfg32_nic_workflow.sh`
+
+当前已完成：
+
+- README / local-GDB SOP / workflow / hwdb 已读。
+- `pairdummy-sbus128-fixed-v25` profile 已建立。
+- cfg32_nic local-GDB workload、runtime config、wrapper 已建立。
+- `show` / `debug-preflight` 已通过，env render 已确认 direct-only 和 local-GDB 变量。
+- `image-closure`、`launch`、`infrasetup`、`remote-freshness` 已通过。
+- runworkload 已执行并 terminate 本轮 run farm。
+
+本轮结果：
+
+- runworkload session:
+  `pairdummy-sbus128-local-gdb-cfg32-nic-runworkload-20260427-054907`
+- results:
+  `/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-04-27--05-49-08-rerocc-lc-linux-coupleddma-bertmini-pipeline-runtime-batch8-fileonly-sync-pairdummy-local-gdb-f2-gemmini-rerocc-pairmanager-dummy16x16-4c12p12-sbus128-linux-bertmini-batch8-fileonly-sync-local-gdb-cfg32-nic/`
+- `uartlog`:
+  `ERR MISMATCH! on writing tokens in. actually wrote in 0 bytes, wanted 58560 bytes.`
+- guest 没进入 Linux，local-GDB 文件不存在。
+- instance `i-0881a2d8250b28d6f` 已 terminate，最后确认到 `shutting-down`。
+
+当前结论：
+
+- 这是 boot 前 SimpleNIC / host bridge blocker，不是 `pipeline-runtime` 用户态卡点。
+- 当前源码已有 `push() == 0` retry/debug 逻辑，但 hwdb 部署的 cfg32_nic
+  `driver_tar` 里的 `FireSim-f2` 不包含这些新字符串，说明 driver bundle 仍旧。
+
+下一步：
+
+1. 不重复跑同一个旧 `driver_tar`。
+2. 不构建新 bitstream，不干扰并行 buildbitstream。
+3. 为同一 `agfi-02e18c6f7a7a95096` 找到或生成包含当前 SimpleNIC host-side 修改的
+   cfg32_nic driver bundle。
+4. 用临时 hwdb 指向该 driver bundle 后，再跑
+   `infrasetup -> remote-freshness -> run`。
+5. 只有 Linux/local-GDB 起得来后，才继续定位 `pipeline-runtime` direct DMA 卡点。
+
+详细记录：
+[`debug_records/20260427T053456Z.md`](/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/20260427T053456Z.md)
+
+## 2026-04-20 Mainline Override
+
+这条会话提示顶部内容优先于下面的旧摘要；当前活跃调试线程仍是：
+
+- `pipeline-runtime` 主线 `g6 bertmini`
+- FireSim FPGA artifact / capture / 源码静态复盘
+- 当前已结束最新一轮 run，下一轮 rerun 需用户再次同意
+
+当前硬约束：
+
+- 新的 `infrasetup` / `runworkload` 前，必须先向用户汇报：
+  - 当前结论
+  - 计划修改
+  - 预期判据
+  并等待用户同意。
+- 不清理环境。
+- 继续坚持：
+  - 先静态读代码
+  - 先读现有 capture / manager / watchdog artifact
+  - 最后才决定是否需要新的单变量 rerun
+- 不要再把单一 `guest_sparse` 尾部当成 authoritative frontier。
+
+### 2026-04-20 15:42 UTC Static-Audit Correction
+
+- 之前顶部把这轮 fresh rerun 直接写成：
+  **`page28 after_accounting` 之后、`page29 before_v2p` 之前**
+  ，这句需要降级。
+- 当前安全结论应改成：
+  - 最后一个**稳定偶数** breadcrumb 仍是
+    `page28 dma_page_after_accounting`
+  - 但 `page29` 证据本身是模糊的，因为：
+    - `slot14` 在两份 live capture 里都是同一个 odd torn state
+    - 该 odd raw slot 是
+      `page=19 tok=1176 phase=dma_submitwait_after_cleanup`
+    - `page29/token0` 的 page-level breadcrumb 也恰好哈希到 `slot14`
+    - breadcrumb slot key 不含 `phase`，也不含 alias `target_seq`
+- 所以不要再把
+  “当前 populated ring 中没有稳定的 `before_v2p`”
+  直接写成
+  “控制流一定还没到 `page29`”
+- 同时，静态代码审计表明：
+  `page29 before_v2p` 之前的 direct-path 只剩：
+  - 地址/长度重算
+  - `dma_trigger_export_host("pset", ...)`
+  - `dma_chunk_needs_bounce(...)`
+  而当前 run config 下：
+  - `debug_trigger_enable=0`
+  - `page29` 不是 sparse page probe
+  - `page29` 不是默认 chunk marker
+  - `src=0x40006000`
+    `dst=0x103b31800`
+    `chunk=0x400`
+    静态上应 direct，不应 bounce
+- 这意味着：
+  如果执行真的停在 `before_v2p(page29)` 之前，
+  它会停在一段几乎没有正常阻塞 helper 的极窄走廊里；
+  当前静态上并不好解释。
+
+当前 authoritative 结论：
+
+- 最新一轮 `g6 bertmini` FPGA run
+  已完成到人工 terminate 收尾。
+- runworkload session：
+  `pairdummy-sbus128-runworkload-20260420-141608`
+- 远端实例：
+  `i-01d398695bdc22fd6`
+  / `192.168.1.67`
+- live snapshots：
+  - `/home/ubuntu/chipyard/tmp/pipeline-runtime-live/20260420T143126Z-g6-live-capture`
+  - `/home/ubuntu/chipyard/tmp/pipeline-runtime-live/20260420T144843Z-g6-live-capture`
+- freshness 已通过；
+  这是带
+  `dma_page_before_v2p / dma_page_after_v2p`
+  probes 的第一轮有效 fresh rerun
+- `host-watchdog` 误杀已再次真实排除：
+  - `2026-04-20 14:22:57 UTC`
+    armed 后，
+    `guest_sparse`
+    从
+    `1011`
+    推进到
+    `323227`
+  - heartbeat 同时从
+    `425`
+    推进到
+    `1912`
+  - plateau 后 watchdog 仍记录：
+    - `idle=625s hb_idle=0s`
+    - `idle=844s hb_idle=0s`
+    - `idle=1063s hb_idle=0s`
+  - host 没有提前 terminate；
+    本轮停机是人工触发
+    `terminaterunfarm`
+- 因而当前主线 blocker
+  仍然是 guest 内部真实 stall，
+  不是 watchdog
+- 这轮 guest 已明确跑进
+  `rerocc_pipeline_runtime-linux`
+  - `status` 里仍是
+    `state=running`
+  - runtime binary pid：
+    `196`
+- 当前最新 run 的局部 authoritative frontier
+  是：
+  **`segment=0 stage=0 subbatch=3 tensor=2` export page loop，
+  最后稳定 breadcrumb 在 `page=28 dma_page_after_accounting`。**
+- 直接证据：
+  - breadcrumb decode：
+    - `kind=dma`
+    - `phase=dma_page_after_accounting`
+    - `seg=0 gstage=0 lstage=0 sb=3 tensor=2 page=28`
+    - `src=0x40005c00 dst=0x103b31400 aux0=0x400 line=1000`
+  - decode 文件：
+    - `/home/ubuntu/chipyard/tmp/pipeline-runtime-live/20260420T143126Z-g6-live-capture/breadcrumb.decode.txt`
+    - `/home/ubuntu/chipyard/tmp/pipeline-runtime-live/20260420T144843Z-g6-live-capture/breadcrumb.decode.txt`
+  - 这次 fresh binary 已经带上
+    [`change_records/20260420T121216Z.md`](/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/change_records/20260420T121216Z.md)
+    中加入的 export `v2p` probes
+  - 但这里不要再直接下结论说
+    “一定早于 `page29 before_v2p`”
+  - 因为 `slot14` 是 torn/collision slot，
+    当前 breadcrumb 对 `page29` 本身不够可信
+  - 所以当前更安全的写法是：
+    **最后稳定 even breadcrumb 在 `page28 after_accounting`；
+    `page29` 的 breadcrumb 证据是模糊的**
+- `trigger.log` 仍为 `0`，
+  但这轮
+  `debug_trigger_enable=0`
+  ，所以它是非诊断性结果
+- 当前 g6 mapping 已对齐到：
+  - `segment0`
+  - `globalStageId=0`
+  - `layerIdList=[0]`
+  - `exportTensorIdList=[2]`
+  - `vAccIdxList=[[0,1,2,3]]`
+  - RR cfg：
+    - DMA / opcode2 -> `cfg0`
+    - Gemmini / opcode3 -> `cfg1`
+- 重要：
+  不要把这轮
+  `page28 after_accounting`
+  误写成“全局上覆盖旧 run”的 frontier。
+  `pipeline-runtime` 的 segment/action 在
+  [`src/prt_runtime.c`](/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c#L4864)
+  到
+  [`src/prt_runtime.c`](/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c#L5111)
+  是串行推进的，
+  所以 older run 的
+  `segment=3 stage=2 compute-done`
+  明确比这轮
+  `segment=0 ... page28`
+  更靠后。
+  正确表述是：
+  新 breadcrumb 只锚定了**这轮 run 的局部冻结点**，
+  而“日志/探针改变了行为或时序”仍然是活跃假设。
+- 对这轮局部 frontier，
+  静态嫌疑顺序已改成：
+  1. 先承认当前 `page29` breadcrumb 证据有 torn/collision 歧义
+  2. `page29` 迭代开头的地址/长度重算
+  3. `dma_trigger_export_host("pset", ...)`
+  4. `dma_chunk_needs_bounce(...)`
+  5. 只有在真正证明控制流已到
+     `before_v2p`
+     之后，
+     才重新追
+     `prt_host_virt_to_phys(dst_ptr, &dst_pa)`
+     / `pread(/proc/self/pagemap)`
+- 当前可先降级的旧嫌疑：
+  - page28 前一页的
+    `hw_dma_fence()`
+    /
+    `rr_fence(cfg0)`
+    /
+    `release`
+    没退干净
+  - 直接把 stall 主因归到
+    `v2p`
+    内部
+  - bounce path
+    `src_mod64 == dst_mod64 == 0`
+    不应触发
+- `g6` artifact 仍已确认是：
+  - `num_gemmini=6`
+  - `num_dma=6`
+- `cfg15`
+  预算风险结论不变：
+  当前 g6 不是它的直接受害者；
+  它仍只是 future artifact risk
+- 当前最合理的下一步顺序：
+  1. 先静态审计
+     `segment0 stage0 tensor2`
+     的
+     `page28 after_accounting -> page29 before_v2p`
+     更窄走廊
+  2. 若做定向 probe，
+     下一轮优先设计一个
+     **不复用 `slot14` 等价类**
+     的低扰动判别点，
+     用来区分：
+     - 真没到 `page29 direct-path`
+     - 还是到了，但 breadcrumb 不可信
+  3. 若需要 rerun，
+     继续保持
+     `seg0/stage0`
+     focus，
+     不要再切回旧的 stage2 叙事
+  4. 只有在新证据表明控制流已进入
+     `before_v2p`
+     之后，
+     再继续追
+     `iv2p-b / iv2p-pb / iv2p-pe / iv2p-ok`
+  5. 在用户同意前，
+     不启动新的
+     `launchrunfarm / infrasetup / runworkload`
+
 接手 `pipeline-runtime` 时，先按这个顺序阅读：
 
 1. `/home/ubuntu/chipyard/AGENTS.md`
@@ -13,13 +317,15 @@
 9. `/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/docs/plans/runtime_alignment_plan.md`
 10. `/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/docs/plans/hybridmapper_alignment_plan.md`
 11. `/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/docs/plans/blocker_debug_sop_plan.md`
+12. `/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/docs/architecture/g6_stage2_post_compute_dma_rr_static_audit_20260420.md`
+13. `/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/docs/architecture/g6_segment0_tensor2_export_page28_page29_static_audit_20260420.md`
 
 固定入口：
 
 - profile：
-  `/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdummy_sbus128_fixed_env.sh`
+  `/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdummy_sbus128_g6_fixed_env.sh`
 - workflow：
-  `/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdummy_sbus128_workflow.sh`
+  `/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdummy_sbus128_g6_workflow.sh`
 - runbook：
   `/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/docs/workflows/pairdummy_sbus128.md`
 
@@ -46,10 +352,10 @@
      `triage_prt_capture.py --emit-trigger-env`
      生成 trigger overlay
   5. 最后才做单变量 rerun
-- 当前继续走 FPGA/FireSim 软件调试；
-  不做 bitstream 重建，
-  不走 metasim，
-  除非后续证据已经逼到必须改硬件。
+- 对本条 `TraceV local metasim` 线程，
+  以上旧限制已失效；
+  当前只走本机 metasim，
+  不开新 FPGA/CPU 机器。
 - 每一轮调试都写 `debug_records/<timestamp>.md`。
 - 每一轮实际修改都写 `change_records/<timestamp>.md`。
 
@@ -68,6 +374,12 @@
   - 仅允许对
     `PIPELINE_RUNTIME_DEBUG_TRIGGER_*`
     做受控 overlay
+- `firesim-tmux-run.sh`
+  现已显式透传
+  `PIPELINE_RUNTIME_DEBUG_TRIGGER_*`
+  到 detached `tmux` session；
+  以后若按 SOP 做 trigger overlay，
+  不会在 wrapper 边界被静默丢失
 - 当前 trigger 语义已做关键修正：
   命中前若事件不在目标维度内，
   `prt_trigger_log_note()`

@@ -471,6 +471,9 @@ void prt_trace_reset(prt_runtime_t *rt) {
   if (!rt) return;
   rt->trace_run_start_ns = 0;
   rt->trace_run_end_ns = 0;
+  rt->trace_model_exec_start_ns = 0;
+  rt->trace_model_exec_end_ns = 0;
+  rt->trace_model_compute_ns = 0;
   rt->trace_dma_submit_count = 0;
   rt->trace_dma_complete_count = 0;
   rt->trace_dma_inflight = 0;
@@ -615,6 +618,9 @@ void prt_trace_on_export_retire(prt_runtime_t *rt) {
 int prt_trace_dump(prt_runtime_t *rt) {
   FILE *fp;
   uint64_t run_ns;
+  uint64_t model_exec_ns;
+  uint64_t preprocess_ns;
+  uint64_t postprocess_ns;
   uint64_t overlap_est_ns;
   double dma_util;
   double gemm_util;
@@ -630,6 +636,18 @@ int prt_trace_dump(prt_runtime_t *rt) {
   if (rt->trace_run_end_ns > rt->trace_run_start_ns) {
     run_ns = rt->trace_run_end_ns - rt->trace_run_start_ns;
   }
+  model_exec_ns = 0;
+  if (rt->trace_model_exec_end_ns > rt->trace_model_exec_start_ns) {
+    model_exec_ns = rt->trace_model_exec_end_ns - rt->trace_model_exec_start_ns;
+  }
+  preprocess_ns = 0;
+  if (rt->trace_model_exec_start_ns > rt->trace_run_start_ns) {
+    preprocess_ns = rt->trace_model_exec_start_ns - rt->trace_run_start_ns;
+  }
+  postprocess_ns = 0;
+  if (rt->trace_run_end_ns > rt->trace_model_exec_end_ns) {
+    postprocess_ns = rt->trace_run_end_ns - rt->trace_model_exec_end_ns;
+  }
   overlap_est_ns = rt->trace_dma_busy_ns < rt->trace_gemm_busy_ns ?
                    rt->trace_dma_busy_ns : rt->trace_gemm_busy_ns;
   dma_util = run_ns ? (100.0 * (double)rt->trace_dma_busy_ns / (double)run_ns) : 0.0;
@@ -637,6 +655,10 @@ int prt_trace_dump(prt_runtime_t *rt) {
   overlap_ratio = run_ns ? (100.0 * (double)overlap_est_ns / (double)run_ns) : 0.0;
 
   fprintf(fp, "run_ns=%llu\n", (unsigned long long)run_ns);
+  fprintf(fp, "model_exec_ns=%llu\n", (unsigned long long)model_exec_ns);
+  fprintf(fp, "model_compute_ns=%llu\n", (unsigned long long)rt->trace_model_compute_ns);
+  fprintf(fp, "preprocess_ns=%llu\n", (unsigned long long)preprocess_ns);
+  fprintf(fp, "postprocess_ns=%llu\n", (unsigned long long)postprocess_ns);
   fprintf(fp, "dma_submit_count=%llu\n", (unsigned long long)rt->trace_dma_submit_count);
   fprintf(fp, "dma_complete_count=%llu\n", (unsigned long long)rt->trace_dma_complete_count);
   fprintf(fp, "dma_inflight_peak=%llu\n", (unsigned long long)rt->trace_dma_inflight_peak);
@@ -5199,6 +5221,10 @@ int prt_runtime_run(prt_runtime_t *rt, const prt_run_args_t *args) {
                          (uint64_t)all_num_segments, (uint64_t)all_subbatch_size,
                          __LINE__);
 
+  rt->trace_model_exec_start_ns = prt_now_ns();
+  rt->trace_model_exec_end_ns = 0;
+  rt->trace_model_compute_ns = 0;
+
   for (seg_idx = 0; seg_idx < all_num_segments && run_rc == PRT_OK; ++seg_idx) {
     const prt_segment_desc_t *seg = &all_segments[seg_idx];
     prt_action_exec_t *exec = NULL;
@@ -5319,7 +5345,14 @@ int prt_runtime_run(prt_runtime_t *rt, const prt_run_args_t *args) {
 #if !defined(__riscv)
     if (rt->cfg.backend == PRT_BACKEND_CPU || rt->cfg.backend == PRT_BACKEND_FPGA) {
       uint64_t timeout_ns = (uint64_t)rt->cfg.watchdog_timeout_ms * 1000000ULL;
+      uint64_t segment_compute_start_ns = prt_now_ns();
       run_rc = run_segment_host_serial(rt, seg, target_subbatch, timeout_ns);
+      {
+        uint64_t segment_compute_end_ns = prt_now_ns();
+        if (segment_compute_end_ns > segment_compute_start_ns) {
+          rt->trace_model_compute_ns += segment_compute_end_ns - segment_compute_start_ns;
+        }
+      }
       if (run_rc != PRT_OK) {
         fprintf(stderr, "segment[%u] failed: %s (%d)\n", seg_idx, prt_err_str(run_rc), run_rc);
       } else {
@@ -5361,6 +5394,7 @@ int prt_runtime_run(prt_runtime_t *rt, const prt_run_args_t *args) {
       }
     }
 
+    uint64_t segment_compute_start_ns = prt_now_ns();
     for (uint32_t i = 0; i < exec->stage_thread_count; ++i) {
       uint32_t stage_id = i;
       int create_rc;
@@ -5453,6 +5487,12 @@ int prt_runtime_run(prt_runtime_t *rt, const prt_run_args_t *args) {
       pthread_join(exec->stage_threads[i].thread, NULL);
     }
     run_rc = rt->fatal_error ? rt->fatal_error : PRT_OK;
+    {
+      uint64_t segment_compute_end_ns = prt_now_ns();
+      if (segment_compute_end_ns > segment_compute_start_ns) {
+        rt->trace_model_compute_ns += segment_compute_end_ns - segment_compute_start_ns;
+      }
+    }
     if (run_rc != PRT_OK) {
       fprintf(stderr, "segment[%u] failed: %s (%d)\n", seg_idx, prt_err_str(run_rc), run_rc);
     } else {
@@ -5479,6 +5519,9 @@ int prt_runtime_run(prt_runtime_t *rt, const prt_run_args_t *args) {
   prt_runtime_clear_thread_action(rt);
   rc = runtime_assert_page_allocator_idle(rt, "post_run_release");
   if (rc != PRT_OK && run_rc == PRT_OK) run_rc = rc;
+  if (rt->trace_model_exec_start_ns && !rt->trace_model_exec_end_ns) {
+    rt->trace_model_exec_end_ns = prt_now_ns();
+  }
 
   if (run_rc == PRT_OK && args->skip_golden_check) {
     PRT_PROGRESS_LOG("golden compare skipped reason=skip-golden-check path=%s",
@@ -5505,6 +5548,9 @@ int prt_runtime_run(prt_runtime_t *rt, const prt_run_args_t *args) {
 
 out:
 #undef PRT_GOTO_OUT_ON_ERR
+  if (rt && rt->trace_model_exec_start_ns && !rt->trace_model_exec_end_ns) {
+    rt->trace_model_exec_end_ns = prt_now_ns();
+  }
   prt_trace_run_end(rt);
   {
     int trc = prt_trace_dump(rt);

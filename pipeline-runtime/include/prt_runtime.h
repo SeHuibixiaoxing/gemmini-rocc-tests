@@ -143,6 +143,9 @@ typedef struct prt_runtime_s {
 
   volatile uint64_t trace_run_start_ns;
   volatile uint64_t trace_run_end_ns;
+  volatile uint64_t trace_model_exec_start_ns;
+  volatile uint64_t trace_model_exec_end_ns;
+  volatile uint64_t trace_model_compute_ns;
   volatile uint64_t trace_dma_submit_count;
   volatile uint64_t trace_dma_complete_count;
   volatile uint64_t trace_dma_inflight;
