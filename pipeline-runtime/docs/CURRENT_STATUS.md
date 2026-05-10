@@ -1,10 +1,10 @@
 # Current Status
 
-更新时间：`2026-05-10 08:50 UTC`
+更新时间：`2026-05-10 09:25 UTC`
 
 ## 2026-05-10 no-DMA performance prep for ours2 vs gemini2
 
-临时 no-DMA 性能实验已完成本地准备，尚未上 F2 采样：
+临时 no-DMA 性能实验已完成本地准备，但 F2 仍未拿到有效性能采样：
 
 - 用户口径 `ours` -> artifact 方法名 `ours2`。
 - 用户口径 `gemmini` -> artifact 方法名 `gemini2`。
@@ -128,15 +128,37 @@
   - 未生成 `ours2.trace` / `gemini2.trace`，因此没有性能数据。
   - 证据归档：
     `debug_records/artifacts/20260510T0843_no_dma_perf_stale_watchdog_terminate/`
+- stale manager 清理后的新一轮 F2 attempt 仍未产生性能 trace：
+  - runworkload：
+    `pairdummy-sbus64-dummy8x8-no-dma-perf-cfg32-nic-notrace-runworkload-20260510-090013`
+  - instance：`i-018ec159180f85f6c`, private IP `192.168.1.72`
+  - AGFI：`agfi-077451484fe3b63c3`
+  - profile 确认：
+    `METHODS='ours2 gemini2'`、`STDIO_CAPTURE_MODE=uart`、
+    `DISABLE_MAPPING_CACHE=1`、`TRACE_SUMMARY_ONLY=1`、no-DMA compute、gdbserver off。
+  - UART 到 `S99run`，进入 `ours2`，停在 `[prt-early] calling runtime_run` 后。
+  - heartbeat 只推进到 `18337109557, 965`；host watchdog 到 `hb_idle=313s` 仍未完成。
+    对照 2026-05-09 full PASS，类似 heartbeat `18276268247, 964` 后在 `hb_idle=187s`
+    已完成。
+  - debugfs：`state=running`、`runner.stage` 为空、trace 目录为空；没有
+    `ours2.trace` / `gemini2.trace`。
+  - 证据归档：
+    `debug_records/artifacts/20260510T0922_no_dma_perf_uart_cache_disabled_stall/`
+  - F2 已 terminate 到 `shutting-down`；同 tag runworkload tmux/manager 已清理；
+    running/pending F2 查询为空。
+- 当前判断：这轮不是性能证据。静态对比 `9742924..HEAD` 后，scheduler、artifact reader、
+  no-DMA transport 没有相关改动；差异集中在 trace summary/timing 字段和非 GDB perf
+  profile。下一步不要继续同形态盲跑 F2，应回 known-good gdbserver 低噪声 profile 做薄断点
+  frontier，或先本地审计 trace timing/summary-only 改动。
 - 已清理同 tag stale runworkload tmux/session 和 orphan FireSim manager 进程；running/pending
   F2 查询为空。
 - workflow 已加本地保护：`stale-runworkload-check`，且 `launch` / `infrasetup` / `run`
   前会 fail-fast，避免旧 watchdog 再杀新 run farm。
 
-本地 dry-run 仅验证口径，不作为 F2 性能结论。下一步若再花一次 F2，必须先通过
-`stale-runworkload-check`、确认无同 tag FireSim manager 进程和 running/pending F2，再
-`launchrunfarm -> infrasetup -> remote freshness -> runworkload`；若仍 stall，停止非 GDB perf profile 路线，
-回到 known-good gdbserver 薄断点追踪。
+本地 dry-run 仅验证口径，不作为 F2 性能结论。下一步不要继续同形态非 GDB perf 盲跑；
+优先回到 known-good gdbserver 薄断点追踪，或先本地审计 trace summary/timing 改动。若之后
+确实再花一次 F2，必须先通过 `stale-runworkload-check`、确认无同 tag FireSim manager
+进程和 running/pending F2，再 `launchrunfarm -> infrasetup -> remote freshness -> runworkload`。
 
 关联记录：
 [`debug_records/20260510T053309Z_no_dma_perf_ours2_gemini2_prep.md`](/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/20260510T053309Z_no_dma_perf_ours2_gemini2_prep.md)

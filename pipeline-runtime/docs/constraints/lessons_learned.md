@@ -154,3 +154,17 @@
 - 下一次 `launch` / `infrasetup` / `run` 前必须先确认没有同 tag 的旧 tmux session、
   orphan `firesim runworkload` 进程、以及 running/pending F2。workflow 已加入
   `stale-runworkload-check` fail-fast 防护。
+
+## 18. no-GDB perf profile 重复 18.3B/965s 卡点时不要继续盲跑 F2
+
+- 2026-05-10 清掉 stale manager 后，`uart` stdio、cache-disabled YAML 路径、
+  summary-only trace、gdbserver off 的 no-DMA perf profile 仍停在 `ours2` 的
+  `[prt-early] calling runtime_run` 后；heartbeat 固定在 `18337109557, 965`，没有
+  `ours2.trace` / `gemini2.trace`。
+- 这个形态已经越过 2026-05-09 full PASS 在相近 heartbeat 后的完成窗口；不能作为
+  ours/gemmini 性能证据。
+- 对 `9742924..HEAD` 的静态检查显示 scheduler、artifact reader、no-DMA transport
+  没有对应改动；当前差异集中在 trace summary/timing 记录和非 GDB perf profile 形态。
+- 后续不要继续上同形态 F2 盲跑。优先回 known-good gdbserver 低噪声 profile，用薄断点
+  定位 `runtime_run` / segment execution frontier，或先本地审计 trace timing/summary-only
+  改动是否有意外交互。

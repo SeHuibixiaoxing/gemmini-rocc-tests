@@ -477,3 +477,77 @@ Cleanup completed after the diagnosis:
 Workflow hardening: `pairdummy_sbus128_workflow.sh` now has a
 `stale-runworkload-check` command and runs that check before `launch`, `infrasetup`, and `run`.
 It refuses to proceed if a same-tag tmux session or FireSim runworkload process is still alive.
+
+## 2026-05-10T09:22Z stdio/cache-disabled no-DMA perf attempt still stalls
+
+After clearing the stale manager/watchdog state, a fresh F2 attempt was run with the intended
+low-noise performance profile:
+
+- launch:
+  `pairdummy-sbus64-dummy8x8-no-dma-perf-cfg32-nic-notrace-launchrunfarm-20260510-085540`
+- infrasetup:
+  `pairdummy-sbus64-dummy8x8-no-dma-perf-cfg32-nic-notrace-infrasetup-20260510-085611`
+- runworkload:
+  `pairdummy-sbus64-dummy8x8-no-dma-perf-cfg32-nic-notrace-runworkload-20260510-090013`
+- instance:
+  `i-018ec159180f85f6c`, private IP `192.168.1.72`
+- AGFI:
+  `agfi-077451484fe3b63c3`
+- remote/local image SHA before run:
+  `56b5ff0df550439d18a03fa44b98b0e527c4048d1decbdc6fb174838a2e58d54`
+- guest env SHA:
+  `77b573ce41e82b0b04ade8467b58918af2cc5d7672c25aa1e1c62bd95f2b191f`
+
+Effective guest config matched the intended no-DMA perf profile:
+
+- `METHODS='ours2 gemini2'`
+- `PIPELINE_RUNTIME_STDIO_CAPTURE_MODE='uart'`
+- `PIPELINE_RUNTIME_DISABLE_MAPPING_CACHE='1'`
+- `PIPELINE_RUNTIME_TRACE_SUMMARY_ONLY='1'`
+- `PIPELINE_RUNTIME_NO_DMA_COMPUTE_ENABLE='1'`
+- `PIPELINE_RUNTIME_GDBSERVER_ENABLE='0'`
+
+Live evidence:
+
+- UART reached `S99run`, started `ours2`, and reached `[prt-early] calling runtime_run`.
+- `heartbeat.csv` advanced once to `18337109557, 965` and then stopped.
+- The 2026-05-09 full PASS completed after the comparable heartbeat
+  `18276268247, 964` by watchdog `hb_idle=187s`; this run reached `hb_idle=313s`
+  at the same frozen heartbeat without completion.
+- debugfs showed:
+  - `state=running`
+  - empty `runner.stage`
+  - empty `/root/pipeline-runtime-debug/traces`
+  - no `ours2.trace` / `gemini2.trace`
+- Local result copy-back only had `HW_CFG_SUMMARY` and `sim-run.sh`.
+
+Archived evidence:
+
+```text
+pipeline-runtime/debug_records/artifacts/20260510T0922_no_dma_perf_uart_cache_disabled_stall/
+```
+
+This run is not performance evidence. It reproduces the non-GDB no-DMA perf stall even after
+returning to the known-good `uart` stdio path and cache-disabled YAML path.
+
+Static comparison against the authoritative no-DMA PASS checkpoint `9742924` showed that the
+runtime/scheduler/artifact-read surface has not been materially changed for no-DMA execution:
+
+- `prt_scheduler.c`, `prt_gemmini_artifacts.c`, and `main.c` have no diff from `9742924..HEAD`
+  in the inspected set.
+- The only runtime diffs are summary trace timing fields and trace-summary-only event-ring
+  suppression in `prt_runtime.c` / `prt_runtime.h`.
+
+So the current stall should not be treated as evidence that artifact reading or the no-DMA
+transport logic regressed. The next debugging step should avoid another blind non-GDB F2 perf run:
+use the known-good gdbserver low-noise profile and a thin breakpoint/frontier around
+`runtime_run` / segment execution, or locally inspect the summary trace timing additions for an
+unintended interaction before spending another F2 cycle.
+
+Cleanup:
+
+- `terminaterunfarm --forceterminate` targeted `i-018ec159180f85f6c` successfully.
+- The instance entered `shutting-down`.
+- The stale runworkload tmux session and FireSim manager processes for this runtime config were
+  killed locally.
+- A running/pending F2 query returned empty after cleanup.
