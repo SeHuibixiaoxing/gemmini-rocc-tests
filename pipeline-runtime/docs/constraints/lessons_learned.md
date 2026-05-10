@@ -209,3 +209,16 @@
 - 2026-05-10 的
   `segment2/global_stage4/local_stage2/worker-entry/subbatch0` timeout 因此是配置错误，
   不能作为“stage2 未创建/未进入”的证据。
+- 2026-05-10 后续 corrected run 已用 `SUBBATCH=any` 命中
+  `segment2/global_stage4/local_stage2` 的 `worker-entry`，且 marker state 里
+  `subbatch_id=4294967295`，直接验证了上述解释。
+
+## 22. remote gdbserver 下不要依赖 TLS 表达式
+
+- RISC-V Linux `gdbserver` 在当前环境下可能无法处理 TLS 地址查询：
+  `Remote target failed to process qGetTLSAddr request`。
+- 在 commands block 里打印 `g_prt_debug_tls_state` 这类 TLS 变量会中断自动化 frontier，
+  把目标停在 GDB prompt，形成调试脚本卡点。
+- 后续 GDB frontier 脚本优先打印函数参数、结构体指针、全局非 TLS marker state 和短
+  backtrace；需要线程本地状态时，优先让 runtime 把目标字段显式放入
+  `g_prt_gdb_marker_state` 或非 TLS debug snapshot，而不是让 GDB 解析 TLS。

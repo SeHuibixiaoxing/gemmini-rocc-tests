@@ -1,6 +1,50 @@
 # Current Status
 
-更新时间：`2026-05-10 11:42 UTC`
+更新时间：`2026-05-10 12:13 UTC`
+
+## 2026-05-10 no-DMA gdbserver segment2/stage2 worker-entry hit
+
+本轮 corrected marker 已完成，F2 已发起 terminate：
+
+- run host: `i-0c6463b5954ba38ec` / `192.168.1.123`
+- AGFI: `agfi-077451484fe3b63c3`
+- runworkload:
+  `pairdummy-sbus64-dummy8x8-gdbserver-cfg32-nic-notrace-runworkload-20260510-115137`
+- env confirmed in guest:
+  `PIPELINE_RUNTIME_NO_DMA_COMPUTE_ENABLE=1`、
+  `PIPELINE_RUNTIME_GDB_MARKER_SITE=worker-entry`、
+  `SEGMENT=2/GLOBAL_STAGE=4/LOCAL_STAGE=2/SUBBATCH=any`
+- GDB first connection was the first connection to `gdbserver --once`; no `nc` / `curl` /
+  `telnet` probe was used.
+
+### 本轮确认
+
+- Corrected `worker-entry/subbatch=any` marker **命中**：
+  `site_id=4`、`segment_idx=2`、`global_stage_id=4`、`local_stage_id=2`。
+- `g_prt_gdb_marker_state.subbatch_id=4294967295`，再次证明 `worker-entry` 处还没有
+  concrete subbatch，上一轮 `SUBBATCH=0` timeout 是配置错误。
+- 因此当前不能再怀疑“stage2 worker 没创建/没进入”。它已进入
+  `stage_worker_main()` 的 worker-entry marker。
+- 命中时其它线程已经在 segment2 并发推进：stage1 线程在
+  `stage_worker_main():4572` 下的 Gemmini pointwise path，stage0/state 也已推进到
+  segment2。
+
+### 本轮暴露的调试脚本问题
+
+- `sbus64_no_dma_segment2_stage2_c7_frontier.gdb` 在 C7 wait-enter 处打印
+  `g_prt_debug_tls_state`，remote gdbserver 返回
+  `Remote target failed to process qGetTLSAddr request`。
+- 这会中断 GDB commands block，把 helper 留在 prompt，不能作为 runtime 卡点。
+- 已本地修正 helper：C7 frontier 不再打印 TLS / global debug state，只打印函数参数
+  `offset`、`*rb`、`*buf`、`*buf->ring` 和短 `bt`。
+- heartbeat 停在 `18292942991, 965`；这与本轮 helper 中断后 GDB 停住目标一致，不作为
+  新 runtime blocker。
+
+下一轮若继续 no-DMA stage2 C7，应复用已修正 helper，不再重建镜像；只需要重新
+`launchrunfarm -> infrasetup -> runworkload`，并保持同一个 corrected guest env。
+
+关联记录：
+[`debug_records/20260510T121300Z_no_dma_segment2_stage2_worker_entry_any_hit.md`](/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/20260510T121300Z_no_dma_segment2_stage2_worker_entry_any_hit.md)
 
 ## 2026-05-10 no-DMA gdbserver segment2 marker filter correction
 

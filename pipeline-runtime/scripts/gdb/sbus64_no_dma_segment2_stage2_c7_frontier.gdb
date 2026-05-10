@@ -34,8 +34,6 @@ condition $bpnum $_thread == $prt_marker_thread
 commands
 silent
 printf "\n--- no-DMA s2/stage2 tensor4 C7 wait-enter ---\n"
-print g_prt_debug_state
-print g_prt_debug_tls_state
 print offset
 print *rb
 bt 6
@@ -48,7 +46,6 @@ condition $bpnum $_thread == $prt_marker_thread
 commands
 silent
 printf "\n--- no-DMA s2/stage2 C7 process enter ---\n"
-print g_prt_debug_state
 print *buf
 print *buf->ring
 bt 6
