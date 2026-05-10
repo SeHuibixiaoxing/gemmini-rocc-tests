@@ -26,8 +26,15 @@
 - `debug-preflight_status=pass`，profile 为 tier 1：
   `METHODS="ours2 gemini2"`、`PIPELINE_RUNTIME_NO_DMA_COMPUTE_ENABLE=1`、
   `TRACE_ENABLE=1`、`PIPELINE_RUNTIME_GDBSERVER_ENABLE=0`。
+- 第一轮 F2 perf attempt 已终止：它进入 guest wrapper 后停在
+  `[prt-early] calling runtime_init`，`ours2.trace` 仍为 `0`。heartbeat 已推进到
+  `37530897115, 1917`，所以不是 host 仿真未启动；问题是 profile 继承了 debug
+  配置的 `PIPELINE_RUNTIME_DISABLE_MAPPING_CACHE=1`，把时间烧在 runtime init/YAML
+  预处理上，和“不包括预处理”的实验目标相反。
+- perf profile 已改为 `PIPELINE_RUNTIME_DISABLE_MAPPING_CACHE=0`，下一轮应先
+  `image-closure`，确认 guest env hash 更新后再上 F2。
 
-本地 dry-run 仅验证口径，不作为 F2 性能结论。下一步是 `image-closure`，然后只开一轮
+本地 dry-run 仅验证口径，不作为 F2 性能结论。下一步是重新 `image-closure`，然后只开一轮
 F2 run farm 顺序跑 `ours2` 与 `gemini2`，copy-back 后比较
 `/root/pipeline-runtime-debug/traces/{ours2,gemini2}.trace` 中的
 `model_compute_ns` 与 `model_exec_ns`，最后立即 terminate run farm。

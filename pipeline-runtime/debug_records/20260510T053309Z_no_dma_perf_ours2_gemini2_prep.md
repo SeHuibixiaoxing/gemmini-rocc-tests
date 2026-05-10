@@ -125,3 +125,35 @@ RISC-V Linux runtime binary 已强制重建；`strings` 确认包含：
    - `/root/pipeline-runtime-debug/traces/gemini2.trace`
 5. 记录 `model_compute_ns` / `model_exec_ns` / `run_ns` / `preprocess_ns`。
 6. 立即 `terminaterunfarm --forceterminate` 并确认没有残留 `f2.*` 实例。
+
+## 2026-05-10 first F2 attempt
+
+第一轮 perf F2 attempt 暴露出 profile 问题，已终止：
+
+- session:
+  `pairdummy-sbus64-dummy8x8-no-dma-perf-cfg32-nic-notrace-runworkload-20260510-054251`
+- instance: `i-0b53ac2d9918a90c1`, private IP `192.168.1.192`
+- termination:
+  `pairdummy-sbus64-dummy8x8-no-dma-perf-cfg32-nic-notrace-terminaterunfarm-20260510-061959`
+- EC2 state after terminate command: `shutting-down`
+- evidence:
+  - remote image freshness matched local SHA.
+  - guest reached `/etc/init.d/S99run`.
+  - wrapper status showed `profile_id=pairdummy-sbus64-dummy8x8-no-dma-perf-v1`,
+    `no_dma_compute_enable=1`, `trace_enable=1`, `gdbserver_enable=0`.
+  - guest log reached `[prt-early] calling runtime_init`, but did not reach
+    `[prt-early] runtime_init done` before manual termination.
+  - heartbeat advanced to `37530897115, 1917`, so host simulation was alive.
+  - `ours2.trace` existed but size was still `0`, meaning runtime had not exited and had not
+    dumped model execution timing.
+
+Conclusion: this run was dominated by preprocessing/runtime init, not model execution. The perf
+profile inherited `PIPELINE_RUNTIME_DISABLE_MAPPING_CACHE=1` from the fixed debug profile, while
+the image already contained `gemmini_layer_mapping...yaml.cache.bin`. This is the wrong setting for
+the requested comparison because preprocessing is explicitly outside the timing target.
+
+Fix for the next attempt:
+
+- set `PIPELINE_RUNTIME_DISABLE_MAPPING_CACHE=0` in
+  `pairdummy_sbus64_dummy8x8_no_dma_perf_fixed_env.sh`.
+- rebuild/patch image, rerun freshness, then rerun one F2 attempt.

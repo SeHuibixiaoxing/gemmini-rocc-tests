@@ -29,7 +29,14 @@
    `scripts/pairdummy_sbus64_dummy8x8_no_dma_perf_cfg32_nic_notrace_workflow.sh`
    ，profile 展开为 `METHODS="ours2 gemini2"`、`TRACE_ENABLE=1`、
    `PIPELINE_RUNTIME_NO_DMA_COMPUTE_ENABLE=1`、`gdbserver=0`。
-7. 减少 F2 使用：下一步先 `image-closure`，然后同一 F2 run farm 连续跑两种
+7. 第一轮 F2 perf attempt 卡在 `[prt-early] calling runtime_init`，未进入
+   `runtime_run`，`ours2.trace` 为 0；heartbeat 推进到 `37530897115, 1917`，说明
+   host simulation alive。该轮已 terminate，instance `i-0b53ac2d9918a90c1` 最后确认
+   `shutting-down`。
+8. 原因判断：perf profile 继承 `PIPELINE_RUNTIME_DISABLE_MAPPING_CACHE=1`，F2 时间烧在
+   runtime init/YAML mapping 预处理上；这不属于用户要求的模型执行时间。已改成
+   `PIPELINE_RUNTIME_DISABLE_MAPPING_CACHE=0`。
+9. 减少 F2 使用：下一步先重新 `image-closure`，确认 guest env hash 更新，然后同一 F2 run farm 连续跑两种
    `METHODS`，完成后解析 trace、copy-back 并 terminate。
 
 详细记录：
