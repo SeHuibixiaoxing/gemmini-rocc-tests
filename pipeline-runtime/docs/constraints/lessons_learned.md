@@ -117,3 +117,13 @@
 - 下一轮主线应回到真实 DMA/completion：DMA submit/wait、`hw_dma_fence()` / blocking wait、
   host buffer/direct DMA，以及依赖真实 DMA 完成的 producer publish。不要再把 no-DMA 或
   artifact read 当成首要嫌疑。
+
+## 15. 性能实验优先用 summary-only trace
+
+- 2026-05-10 no-DMA perf 第二轮 F2 证明，`TRACE_ENABLE=1` 的事件级 trace 可能明显扰动
+  long-running compute：heartbeat 停在 `18317918397, 960` 后不再推进，UART 出现
+  `rerocc_pipeline` RCU stall。
+- 如果实验只需要 `model_compute_ns` / `model_exec_ns` / counter summary，不要开启
+  event ring；使用 `PIPELINE_RUNTIME_TRACE_SUMMARY_ONLY=1`。
+- summary-only trace 仍保留最终 trace 文件和 summary 字段，但跳过 `trace_events`
+  分配、cycle 校准和 event dump，适合 ours/gemmini no-DMA 编排性能对比。

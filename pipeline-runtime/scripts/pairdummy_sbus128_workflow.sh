@@ -244,6 +244,8 @@ skip_model_bin_load=${PIPELINE_RUNTIME_SKIP_MODEL_BIN_LOAD}
 skip_input_load=${PIPELINE_RUNTIME_SKIP_INPUT_LOAD}
 skip_golden_check=${PIPELINE_RUNTIME_SKIP_GOLDEN_CHECK}
 no_dma_compute_enable=${PIPELINE_RUNTIME_NO_DMA_COMPUTE_ENABLE:-0}
+trace_enable=${TRACE_ENABLE:-0}
+trace_summary_only=${PIPELINE_RUNTIME_TRACE_SUMMARY_ONLY:-0}
 num_cores=${NUM_CORES}
 num_gemmini=${NUM_GEMMINI}
 num_dma=${NUM_DMA}
@@ -380,6 +382,8 @@ debug_preflight() {
   echo "debug_preflight_dma_force_direct_enable=${PIPELINE_RUNTIME_DMA_FORCE_DIRECT_ENABLE:-0}"
   echo "debug_preflight_dma_blocking_wait_poll_timeout_enable=${PIPELINE_RUNTIME_DMA_BLOCKING_WAIT_POLL_TIMEOUT_ENABLE:-0}"
   echo "debug_preflight_no_dma_compute_enable=${PIPELINE_RUNTIME_NO_DMA_COMPUTE_ENABLE:-0}"
+  echo "debug_preflight_trace_enable=${TRACE_ENABLE:-0}"
+  echo "debug_preflight_trace_summary_only=${PIPELINE_RUNTIME_TRACE_SUMMARY_ONLY:-0}"
   echo "debug_preflight_export_dma_timeout_ms=${EXPORT_DMA_TIMEOUT_MS:-0}"
   echo "debug_preflight_dma_fixed_load_probe_enable=${PIPELINE_RUNTIME_DMA_FIXED_LOAD_PROBE_ENABLE}"
   echo "debug_preflight_dma_fixed_load_monitor_probe_enable=${PIPELINE_RUNTIME_DMA_FIXED_LOAD_MONITOR_PROBE_ENABLE}"

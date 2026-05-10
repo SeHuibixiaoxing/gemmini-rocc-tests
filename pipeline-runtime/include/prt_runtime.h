@@ -161,6 +161,7 @@ typedef struct prt_runtime_s {
   uint64_t trace_cycle_overhead;
   uint64_t trace_cycle_ref;
   uint64_t trace_ns_ref;
+  int trace_summary_only;
   prt_trace_event_t *trace_events;
   uint32_t trace_event_cap;
   volatile uint32_t trace_event_count;

@@ -496,6 +496,11 @@ void prt_trace_run_start(prt_runtime_t *rt) {
   if (!rt) return;
   rt->trace_run_start_ns = prt_now_ns();
   rt->trace_run_end_ns = 0;
+  if (rt->trace_summary_only) {
+    rt->trace_cycle_ref = 0;
+    rt->trace_ns_ref = 0;
+    return;
+  }
   rt->trace_cycle_ref = prt_now_cycle();
   rt->trace_ns_ref = rt->trace_run_start_ns;
   prt_trace_log_event(rt, UINT32_MAX, PRT_TRACE_EVT_RUN_START, 0, 0);
@@ -510,7 +515,7 @@ void prt_trace_run_end(prt_runtime_t *rt) {
 int prt_trace_calibrate_cycle(prt_runtime_t *rt) {
   uint64_t min_delta = ULLONG_MAX;
   if (!rt) return PRT_ERR_INVAL;
-  if (!rt->cfg.trace_path || rt->cfg.trace_path[0] == '\0') {
+  if (!rt->cfg.trace_path || rt->cfg.trace_path[0] == '\0' || rt->trace_summary_only) {
     rt->trace_cycle_overhead = 0;
     return PRT_OK;
   }
@@ -673,6 +678,7 @@ int prt_trace_dump(prt_runtime_t *rt) {
   fprintf(fp, "trace_cycle_overhead=%llu\n", (unsigned long long)rt->trace_cycle_overhead);
   fprintf(fp, "trace_cycle_ref=%llu\n", (unsigned long long)rt->trace_cycle_ref);
   fprintf(fp, "trace_ns_ref=%llu\n", (unsigned long long)rt->trace_ns_ref);
+  fprintf(fp, "trace_summary_only=%u\n", rt->trace_summary_only ? 1U : 0U);
   fprintf(fp, "spm_ptbr_pa=0x%llx\n", (unsigned long long)prt_spm_ptbr_pa(rt));
   fprintf(fp, "spm_pte_count=%u\n", prt_spm_pte_count(rt));
   fprintf(fp, "spm_fault_count=%llu\n", (unsigned long long)prt_spm_fault_count(rt));
@@ -685,9 +691,9 @@ int prt_trace_dump(prt_runtime_t *rt) {
   fprintf(fp, "dma_util_pct=%.3f\n", dma_util);
   fprintf(fp, "gemm_util_pct=%.3f\n", gemm_util);
   fprintf(fp, "overlap_est_pct=%.3f\n", overlap_ratio);
-  fprintf(fp, "event_format=idx,stage,kind,cycle,ns,aux0,aux1\n");
-  {
+  if (rt->trace_events && rt->trace_event_cap > 0U) {
     uint32_t n = rt->trace_event_count > rt->trace_event_cap ? rt->trace_event_cap : rt->trace_event_count;
+    fprintf(fp, "event_format=idx,stage,kind,cycle,ns,aux0,aux1\n");
     for (uint32_t i = 0; i < n; ++i) {
       const prt_trace_event_t *e = &rt->trace_events[i];
       fprintf(fp, "event_%u=%u,%u,%llu,%llu,%u,%u\n",
@@ -4754,6 +4760,7 @@ int prt_runtime_init(const prt_runtime_cfg_t *cfg, prt_runtime_t *rt) {
   prt_gdb_marker_init_from_env();
   prt_debug_state_reset_thread();
   rt->cfg = *cfg;
+  rt->trace_summary_only = prt_env_flag_enabled_impl("PIPELINE_RUNTIME_TRACE_SUMMARY_ONLY", 0);
   pthread_mutex_init(&rt->action_queue_lock, NULL);
 
   if (rt->cfg.num_cores == 0) rt->cfg.num_cores = PRT_MAX_CORES;
@@ -4897,7 +4904,7 @@ int prt_runtime_init(const prt_runtime_cfg_t *cfg, prt_runtime_t *rt) {
   }
   PRT_PROGRESS_LOG("init spm-xlate end");
 
-  if (rt->cfg.trace_path && rt->cfg.trace_path[0] != '\0') {
+  if (rt->cfg.trace_path && rt->cfg.trace_path[0] != '\0' && !rt->trace_summary_only) {
     rt->trace_event_cap = PRT_TRACE_EVENT_CAP_DEFAULT;
     rt->trace_events = (prt_trace_event_t *)calloc(rt->trace_event_cap, sizeof(prt_trace_event_t));
     if (!rt->trace_events) return PRT_ERR_NOMEM;

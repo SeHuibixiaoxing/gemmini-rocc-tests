@@ -1,6 +1,6 @@
 # Current Status
 
-更新时间：`2026-05-10 05:33 UTC`
+更新时间：`2026-05-10 07:06 UTC`
 
 ## 2026-05-10 no-DMA performance prep for ours2 vs gemini2
 
@@ -25,14 +25,23 @@
   `scripts/pairdummy_sbus64_dummy8x8_no_dma_perf_cfg32_nic_notrace_workflow.sh`
 - `debug-preflight_status=pass`，profile 为 tier 1：
   `METHODS="ours2 gemini2"`、`PIPELINE_RUNTIME_NO_DMA_COMPUTE_ENABLE=1`、
-  `TRACE_ENABLE=1`、`PIPELINE_RUNTIME_GDBSERVER_ENABLE=0`。
+  `TRACE_ENABLE=1`、`PIPELINE_RUNTIME_TRACE_SUMMARY_ONLY=1`、
+  `PIPELINE_RUNTIME_GDBSERVER_ENABLE=0`。
 - 第一轮 F2 perf attempt 已终止：它进入 guest wrapper 后停在
   `[prt-early] calling runtime_init`，`ours2.trace` 仍为 `0`。heartbeat 已推进到
   `37530897115, 1917`，所以不是 host 仿真未启动；问题是 profile 继承了 debug
   配置的 `PIPELINE_RUNTIME_DISABLE_MAPPING_CACHE=1`，把时间烧在 runtime init/YAML
   预处理上，和“不包括预处理”的实验目标相反。
-- perf profile 已改为 `PIPELINE_RUNTIME_DISABLE_MAPPING_CACHE=0`，下一轮应先
-  `image-closure`，确认 guest env hash 更新后再上 F2。
+- 第一轮 F2 perf attempt 卡在 `runtime_init`，根因是 perf profile 继承了 debug
+  配置的 `PIPELINE_RUNTIME_DISABLE_MAPPING_CACHE=1`；已改为 `0`。
+- 第二轮 F2 perf attempt 不再卡在 `runtime_init`，但 `TRACE_ENABLE=1` 的事件级
+  trace 下 heartbeat 停在 `18317918397, 960`，UART 出现 `rerocc_pipeline` RCU
+  stall；证据归档在
+  `debug_records/artifacts/20260510T0656_no_dma_perf_trace_event_stall/`。
+- 已新增 `PIPELINE_RUNTIME_TRACE_SUMMARY_ONLY=1`：保留 summary trace 字段，但跳过
+  event ring、cycle 校准和 event dump。本地 CPU/no-DMA dry-run 已确认：
+  `ours2`/`gemini2` 均 exit 0，`dma_submit_count=0`、`gemm_issue_count=320`、
+  `trace_summary_only=1`、`trace_event_count=0`。
 
 本地 dry-run 仅验证口径，不作为 F2 性能结论。下一步是重新 `image-closure`，然后只开一轮
 F2 run farm 顺序跑 `ours2` 与 `gemini2`，copy-back 后比较

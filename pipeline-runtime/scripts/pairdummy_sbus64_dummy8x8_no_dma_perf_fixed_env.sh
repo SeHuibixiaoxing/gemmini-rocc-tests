@@ -12,6 +12,7 @@ export PIPELINE_RUNTIME_PROFILE_ID="pairdummy-sbus64-dummy8x8-no-dma-perf-v1"
 export METHODS="ours2 gemini2"
 export PIPELINE_RUNTIME_NO_DMA_COMPUTE_ENABLE="1"
 export TRACE_ENABLE="1"
+export PIPELINE_RUNTIME_TRACE_SUMMARY_ONLY="1"
 export TRACE_DIR="/root/pipeline-runtime-debug/traces"
 
 export PIPELINE_RUNTIME_GDBSERVER_ENABLE="0"

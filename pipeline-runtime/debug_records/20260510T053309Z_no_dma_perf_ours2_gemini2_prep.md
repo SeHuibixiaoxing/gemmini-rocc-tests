@@ -157,3 +157,73 @@ Fix for the next attempt:
 - set `PIPELINE_RUNTIME_DISABLE_MAPPING_CACHE=0` in
   `pairdummy_sbus64_dummy8x8_no_dma_perf_fixed_env.sh`.
 - rebuild/patch image, rerun freshness, then rerun one F2 attempt.
+
+## 2026-05-10 second F2 attempt: trace event stall
+
+第二轮 F2 perf attempt 已终止；它不再卡在 `runtime_init`，但进入模型执行后长时间不前进：
+
+- runworkload session:
+  `pairdummy-sbus64-dummy8x8-no-dma-perf-cfg32-nic-notrace-runworkload-20260510-062722`
+- instance: `i-09ce8610ae68633f7`, private IP `192.168.1.113`
+- AGFI: `agfi-077451484fe3b63c3`
+- remote/local image SHA matched:
+  `aa49758c71edb1544a596e8b5b55bbd770fe9da1e2310cabc5f18f9ada78088b`
+- guest env SHA:
+  `97497d36763fe74a78c807a0a6a5a074881e8665824bd69bd73cafbb6c69c5f6`
+- guest env confirmed:
+  - `METHODS='ours2 gemini2'`
+  - `PIPELINE_RUNTIME_NO_DMA_COMPUTE_ENABLE='1'`
+  - `PIPELINE_RUNTIME_DISABLE_MAPPING_CACHE='0'`
+  - `TRACE_ENABLE='1'`
+  - `PIPELINE_RUNTIME_GDBSERVER_ENABLE='0'`
+- evidence:
+  - guest booted to `/etc/init.d/S99run`
+  - wrapper spawned child `pid=143`
+  - status showed `state=running`, `no_dma_compute_enable=1`, `trace_enable=1`
+  - heartbeat reached `18317918397, 960`, then stopped for more than 10 minutes
+  - UART showed RCU stall with running task `rerocc_pipeline`
+  - trace dir and runner stage files were still empty, but logging/sync were intentionally disabled;
+    the stronger evidence is stopped heartbeat plus RCU stall
+- termination:
+  `pairdummy-sbus64-dummy8x8-no-dma-perf-cfg32-nic-notrace-terminaterunfarm-20260510-065919`
+- archived evidence:
+  `debug_records/artifacts/20260510T0656_no_dma_perf_trace_event_stall/`
+
+Conclusion: this is not the earlier YAML/cache preprocessing problem. The important delta from the
+known-good noTrace no-DMA pass is `TRACE_ENABLE=1`, which allocated the event ring, performed
+cycle calibration, and enabled hot-path `prt_trace_log_event()` calls around GEMM/DMA/export
+events. For the perf comparison we only need summary fields, so event-level trace is unnecessary
+and risks perturbing the no-DMA compute path.
+
+## 2026-05-10 summary-only trace local validation
+
+Added `PIPELINE_RUNTIME_TRACE_SUMMARY_ONLY=1` for the no-DMA perf profile:
+
+- runtime keeps `run_ns`, `model_exec_ns`, `model_compute_ns`, `preprocess_ns`, counters, and SPM
+  summary fields.
+- runtime does not allocate `trace_events` in summary-only mode.
+- `prt_trace_calibrate_cycle()` returns immediately with overhead `0`.
+- `prt_trace_run_start()` does not read a cycle reference in summary-only mode.
+- `prt_trace_dump()` skips the event loop when no event ring exists and emits
+  `trace_summary_only=1`.
+
+Local validation:
+
+- `make -C pipeline-runtime -j$(nproc)`: pass.
+- workflow visibility:
+  - `show`: `trace_enable=1`, `trace_summary_only=1`,
+    `disable_mapping_cache=0`
+  - `debug-preflight`: `debug_preflight_status=pass`,
+    `debug_preflight_trace_summary_only=1`
+- rendered guest env includes:
+  `PIPELINE_RUNTIME_TRACE_SUMMARY_ONLY='1'`
+- CPU/no-DMA dry-run with summary-only trace:
+
+| method | model_exec_ns | model_compute_ns | preprocess_ns | dma_submit_count | gemm_issue_count | trace_summary_only | trace_event_count |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| ours2 | 22428985978 | 22426157291 | 68091939 | 0 | 320 | 1 | 0 |
+| gemini2 | 22486483797 | 22483266989 | 68838534 | 0 | 320 | 1 | 0 |
+
+These local timings only validate the measurement path; they are not F2 performance results.
+Next F2 attempt must rebuild/patch the image, verify freshness, run once, copy traces, and
+terminate the run farm immediately.
