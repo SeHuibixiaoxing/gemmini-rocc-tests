@@ -627,3 +627,45 @@ uartlog / guest files / trace / GDB log 路径：
 
 硬件可综合输出可以开始设计字段，但不应立即发起一天级 bitstream，除非下一轮证据已经把问题稳定压到
 某个硬件内部状态，且现有软件/GDB/no-DMA/micro-repro 都无法回答。
+
+## 14. 2026-05-10 1C1P 硬件观测验证记录
+
+当前按“小规模先验证工具链，再扩到 6pair2cpu”的顺序执行：
+
+- `1pair1cpu` baremetal + FireSim metasim 已通过。结果目录：
+  `sims/firesim/deploy/results-workload/2026-05-10--15-07-20-rerocc-lc-baremetal-cfg32-slot-smoke-quick-local-metasim-rerocc-baremetal-cfg32-slot-smoke-quick-1c1p1-hwdebug/`
+- UART 结束标记：`*** PASSED *** after 17410 cycles`。
+- 已确认 metasim 输出中能看到 `rrc-client-cmd`、`rrc-client-inst-beat`、
+  `rrc-manager-inst-enq`、`rrc-manager-cmd-fire`、`pair-wrapper-dma-cmd`、
+  `pair-wrapper-gemmini-cmd`、`coupled-dma-copy-start`、`coupled-dma-copy-done`、
+  `rrc-manager-release-resp`。
+- 限制：该 smoke 为观测链验证，不是 DMA completion 正确性证明；DMA completion 证据仍必须来自
+  `hw_dma_fence()` / blocking wait，不能用 doneflag。
+
+`1pair1cpu` Linux/F2 前置状态：
+
+- FireMarshal workload 已构建并 install 到 FireSim：
+  `sims/firesim/deploy/workloads/rerocc-lc-linux-coupleddma-dma-export-alias-uartprobe-1c1p1-hwdebug.json`
+- workload 使用 `host-init-1c1p-hwdebug-uartprobe.sh` 默认关闭 pipeline runtime artifact 检查，
+  避免本地旧 `HybridMapper/output/pipeline_runtime/bertmini` 误触发旧 mapping 校验。
+- bootbinary/rootfs 位于：
+  `software/firemarshal/images/firechip/rerocc-lc-linux-coupleddma-dma-export-alias-uartprobe-1c1p1-hwdebug/`
+
+`1pair1cpu` F2 bitstream 构建状态：
+
+- tmux session：`hwdebug-1c1p-f2-buildbitstream`
+- pane log：`tmp/firesim-aws-f2/tmux/hwdebug-1c1p-f2-buildbitstream.pane.log`
+- build config：
+  `sims/firesim/deploy/config_build_f2_gemmini_rerocc_pairmanager_dummy8x8_1c1p1_sbus64_nic_hwdebug.yaml`
+- recipe：
+  `sims/firesim/deploy/config_build_recipes_f2_gemmini_rerocc_pairmanager_dummy8x8_1c1p1_sbus64_nic_hwdebug.yaml`
+- 当前远端 build farm：`i-0452c39052811f732`，`z1d.3xlarge`，private IP `192.168.2.241`，
+  tag `fsimbuildcluster=pairdummy8x8sbus64c1p1hwdbg`。
+- Vivado log：
+  `/home/ubuntu/firesim-build/platforms/f2/aws-fpga-firesim-f2/hdk/cl/developer_designs/cl_f2-firesim-FireSim-FireSimGemminiReRoCCPairDummy8x8C1P1Sbus64NICDebugConfig-WithPrintfSynthesis_WithAutoCounter_WithSynthAsserts_FRFCFS16GBQuadRank_BaseF2Config/build/scripts/2026_05_10-152756.vivado.log`
+- 截至 2026-05-10 15:43 UTC，远端 Vivado 已进入整体综合并启动 parallel synth worker，尚无 AGFI。
+
+下一步：等待 1C1P F2 bitstream 结束。成功后更新
+`config_hwdb_f2_gemmini_rerocc_pairmanager_dummy8x8_1c1p1_sbus64_nic_hwdebug.yaml` 的 AGFI，并用同一
+runtime 三件套执行 `launchrunfarm -> infrasetup -> runworkload -> terminaterunfarm`。只有 1C1P Linux/F2
+小测确认可用后，再构建 6pair2cpu。
