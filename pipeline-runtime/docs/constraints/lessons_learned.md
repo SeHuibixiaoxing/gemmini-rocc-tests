@@ -194,3 +194,18 @@
   2026-05-09 同 AGFI no-DMA full PASS。
 - 下一轮 segment2 no-DMA 排查应优先用已存在的 marker/expect helper 和窄 frontier 脚本；
   不要长期保留早期广谱断点，也不要手工长时间 continue 后靠 Ctrl-C 抢栈。
+
+## 21. `worker-entry` marker 不能带精确 subbatch 过滤
+
+- `worker-entry` marker 在 `stage_worker_main()` 进入 worker loop 前触发；此时
+  `progress_sbatch` 还没有计算，线程 TLS 的 `subbatch_id` 也尚未设置。
+- 该 marker 传入的 subbatch 是 `PRT_DEBUG_U32_NONE`，`prt_gdb_marker_note()` 回退到 TLS
+  后仍是 `PRT_DEBUG_U32_NONE`。因此
+  `PIPELINE_RUNTIME_GDB_MARKER_SUBBATCH=0` 会静默过滤掉目标命中。
+- 要证明某个 stage 的线程是否进入，`worker-entry` 只能使用 subbatch any/空值；需要精确
+  subbatch 时，改用 loop 内之后的 marker，例如 `worker-entry-process-return`、
+  `worker-entry-full-return`、`worker-before-exports-ready`、`worker-after-build-stage-task`
+  或 `worker-gemm-run`。
+- 2026-05-10 的
+  `segment2/global_stage4/local_stage2/worker-entry/subbatch0` timeout 因此是配置错误，
+  不能作为“stage2 未创建/未进入”的证据。

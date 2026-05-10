@@ -1,6 +1,33 @@
 # Current Status
 
-更新时间：`2026-05-10 10:35 UTC`
+更新时间：`2026-05-10 11:42 UTC`
+
+## 2026-05-10 no-DMA gdbserver segment2 marker filter correction
+
+上一轮 `worker-entry segment=2/global_stage=4/local_stage=2/subbatch=0` 未命中，现已
+确认为无效配置证据，不说明 stage2 worker 没有创建或没有进入。
+
+静态确认：
+
+- `stage_worker_main()` 的 `worker-entry` marker 在 worker loop 之前触发，调用处传入的
+  `subbatch_id` 是 `PRT_DEBUG_U32_NONE`。
+- `prt_gdb_marker_note()` 会在 `subbatch_id == PRT_DEBUG_U32_NONE` 时回退到线程 TLS；
+  但此时 TLS 的 subbatch 也还没有由 loop-top 的 `prt_debug_state_set_worker()` 设置。
+- 因此 `PIPELINE_RUNTIME_GDB_MARKER_SUBBATCH=0` 会把目标 `worker-entry` 过滤掉。
+
+已做的本地修正只影响调试脚本/文档，不改 runtime 行为、不加新 guest 日志：
+
+- `run_pairdummy_cfg32_gdbserver_no_dma_segment2_stage2_c7_frontier.sh` 的用法改为
+  `PIPELINE_RUNTIME_GDB_MARKER_SUBBATCH=any`。
+- `sbus64_no_dma_segment2_stage2_c7_frontier.gdb` 的漂移源码行号已替换为当前可用的薄
+  函数/源码边界：`prt_ring_wait_ready`、`prt_process_c7`、`prt_runtime.c:4566`。
+
+下一轮仍按 known-good-like cfg32/NIC/noTrace gdbserver 低噪声 profile；启动 F2 前必须
+先做 `show` / `debug-preflight` / `image-closure`，确认 guest env 中 marker subbatch 为
+`any` 或空值。
+
+关联记录：
+[`debug_records/20260510T114225Z_no_dma_segment2_stage2_worker_entry_subbatch_filter_invalid.md`](/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/20260510T114225Z_no_dma_segment2_stage2_worker_entry_subbatch_filter_invalid.md)
 
 ## 2026-05-10 no-DMA performance prep for ours2 vs gemini2
 

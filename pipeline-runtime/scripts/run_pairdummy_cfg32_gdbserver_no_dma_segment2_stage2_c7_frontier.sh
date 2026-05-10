@@ -6,7 +6,7 @@ usage() {
 Usage: run_pairdummy_cfg32_gdbserver_no_dma_segment2_stage2_c7_frontier.sh <run-host-private-ip> <guest-ip-or-endpoint> [local-port]
 
 Attach to a pairdummy cfg32 gdbserver run prepared with no-DMA compute and the
-segment2/stage2/subbatch0 worker-entry marker:
+segment2/stage2 worker-entry marker:
 
   PIPELINE_RUNTIME_GDBSERVER_ENABLE=1
   PIPELINE_RUNTIME_NO_DMA_COMPUTE_ENABLE=1
@@ -15,11 +15,15 @@ segment2/stage2/subbatch0 worker-entry marker:
   PIPELINE_RUNTIME_GDB_MARKER_SEGMENT=2
   PIPELINE_RUNTIME_GDB_MARKER_GLOBAL_STAGE=4
   PIPELINE_RUNTIME_GDB_MARKER_LOCAL_STAGE=2
-  PIPELINE_RUNTIME_GDB_MARKER_SUBBATCH=0
+  PIPELINE_RUNTIME_GDB_MARKER_SUBBATCH=any
 
 This helper follows the stage2 worker through the tensor4 ALL_RINGBUFFER C7
 wait and also observes the stage0 tensor4 C8 producer if it runs in the same
 window. The final stop is the stage2 GEMM-run marker line.
+
+Do not use PIPELINE_RUNTIME_GDB_MARKER_SUBBATCH=0 with worker-entry. That
+marker fires before the worker loop installs a concrete subbatch id in TLS, so
+an exact subbatch filter can silently filter out the intended entry marker.
 EOF
 }
 

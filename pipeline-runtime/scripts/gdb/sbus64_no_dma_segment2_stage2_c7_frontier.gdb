@@ -1,5 +1,5 @@
 printf "\n--- sbus64 no-DMA segment2/stage2 C7 ring frontier ---\n"
-printf "Goal: after worker-entry at segment=2/global_stage=4/local_stage=2/subbatch=0, check the tensor4 ALL_RINGBUFFER producer/consumer handoff.\n"
+printf "Goal: after worker-entry at segment=2/global_stage=4/local_stage=2/subbatch=any, check the tensor4 ALL_RINGBUFFER producer/consumer handoff.\n"
 
 set breakpoint pending on
 set print pretty on
@@ -29,39 +29,34 @@ continue
 end
 
 printf "\n--- arming stage2 C7 wait-enter milestone ---\n"
-tbreak /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4313
+tbreak prt_ring_wait_ready
 condition $bpnum $_thread == $prt_marker_thread
 commands
 silent
 printf "\n--- no-DMA s2/stage2 tensor4 C7 wait-enter ---\n"
 print g_prt_debug_state
-print b->tensor_id
-print b->kind
-print b->subbatch_offset
-print b->full[0]
-print *b->ring
+print g_prt_debug_tls_state
+print offset
+print *rb
 bt 6
 continue
 end
 
 printf "\n--- arming stage2 C7 process-return milestone ---\n"
-tbreak /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4326
+tbreak prt_process_c7
 condition $bpnum $_thread == $prt_marker_thread
 commands
 silent
-printf "\n--- no-DMA s2/stage2 C7 process returned ---\n"
+printf "\n--- no-DMA s2/stage2 C7 process enter ---\n"
 print g_prt_debug_state
-print b->tensor_id
-print b->kind
-print b->subbatch_offset
-print b->full[0]
-print *b->ring
+print *buf
+print *buf->ring
 bt 6
 continue
 end
 
 printf "\n--- arming stage2 GEMM run final stop ---\n"
-tbreak /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4538
+tbreak /home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/src/prt_runtime.c:4566
 condition $bpnum $_thread == $prt_marker_thread
 
 printf "\n--- thin segment2/stage2 C7 frontier breakpoints armed ---\n"
