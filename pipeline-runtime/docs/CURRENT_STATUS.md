@@ -1,6 +1,6 @@
 # Current Status
 
-更新时间：`2026-05-10 08:20 UTC`
+更新时间：`2026-05-10 08:27 UTC`
 
 ## 2026-05-10 no-DMA performance prep for ours2 vs gemini2
 
@@ -99,10 +99,23 @@
   `PIPELINE_RUNTIME_STDIO_CAPTURE_MODE=uart`，而 perf profile 使用 `log`，把
   wrapper/runner stdout 写进 guest rootfs log；当前前沿正好在 child spawn 后、runner
   stage 可见前。perf profile 已改回 `PIPELINE_RUNTIME_STDIO_CAPTURE_MODE=uart`。
+- stdio 回滚后的 `image-closure` 已完成且 local freshness PASS：
+  - guest env SHA:
+    `77b573ce41e82b0b04ade8467b58918af2cc5d7672c25aa1e1c62bd95f2b191f`
+  - runtime binary SHA in image:
+    `0d126d06d4186316961aff539e9f72670fe8eabbd13a457a79172842f87e3a56`
+  - local image SHA:
+    `6d47ec5297274bc32f66966450b44eab78d50b6ca504c7fdbe939e9ca27e6514`
+  - rendered `/firemarshal.env` 确认
+    `PIPELINE_RUNTIME_STDIO_CAPTURE_MODE='uart'`、
+    `PIPELINE_RUNTIME_DISABLE_MAPPING_CACHE='1'`、
+    `PIPELINE_RUNTIME_TRACE_SUMMARY_ONLY='1'`、
+    `PIPELINE_RUNTIME_NO_DMA_COMPUTE_ENABLE='1'`、
+    `PIPELINE_RUNTIME_GDBSERVER_ENABLE='0'`。
 
-本地 dry-run 仅验证口径，不作为 F2 性能结论。下一步先做 `show` / `debug-preflight` /
-`image-closure`，确认 `/firemarshal.env` 中 `STDIO_CAPTURE_MODE=uart`、`DISABLE_MAPPING_CACHE=1`、
-`TRACE_SUMMARY_ONLY=1`。再决定是否开下一轮 F2；若仍 stall，停止非 GDB perf profile 路线，
+本地 dry-run 仅验证口径，不作为 F2 性能结论。下一步若花一次 F2，应先
+`launchrunfarm -> infrasetup`，做 remote freshness，确认远端 image/env SHA 匹配后再
+`runworkload`；若仍 stall，停止非 GDB perf profile 路线，
 回到 known-good gdbserver 薄断点追踪。
 
 关联记录：

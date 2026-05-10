@@ -390,3 +390,38 @@ exactly while the child is launched, and the current frontier is before any runn
 The perf profile now switches stdio back to `uart`. This is not meant to add new hot-path logging;
 the known-good run's UART was only about 21 KiB, and `preprocess_ns` remains separate from
 `model_compute_ns`.
+
+## 2026-05-10 image closure after stdio rollback
+
+Ran:
+
+```bash
+./pipeline-runtime/scripts/pairdummy_sbus64_dummy8x8_no_dma_perf_cfg32_nic_notrace_workflow.sh image-closure
+```
+
+Results:
+
+- clean tmux:
+  `pairdummy-sbus64-dummy8x8-no-dma-perf-cfg32-nic-notrace-clean-20260510-082543`
+- build tmux:
+  `pairdummy-sbus64-dummy8x8-no-dma-perf-cfg32-nic-notrace-build-20260510-082548`
+- install tmux:
+  `pairdummy-sbus64-dummy8x8-no-dma-perf-cfg32-nic-notrace-install-20260510-082658`
+- guest env SHA:
+  `77b573ce41e82b0b04ade8467b58918af2cc5d7672c25aa1e1c62bd95f2b191f`
+- runtime binary SHA in image:
+  `0d126d06d4186316961aff539e9f72670fe8eabbd13a457a79172842f87e3a56`
+- local image SHA:
+  `6d47ec5297274bc32f66966450b44eab78d50b6ca504c7fdbe939e9ca27e6514`
+- local image freshness: PASS.
+- rendered env confirms:
+  - `PIPELINE_RUNTIME_STDIO_CAPTURE_MODE='uart'`
+  - `PIPELINE_RUNTIME_DISABLE_MAPPING_CACHE='1'`
+  - `PIPELINE_RUNTIME_TRACE_SUMMARY_ONLY='1'`
+  - `PIPELINE_RUNTIME_NO_DMA_COMPUTE_ENABLE='1'`
+  - `PIPELINE_RUNTIME_GDBSERVER_ENABLE='0'`
+
+No F2 instance was launched for this checkpoint. If one more non-GDB perf run is spent, the next
+required sequence is `launchrunfarm -> infrasetup -> remote freshness -> runworkload -> copy traces
+or live evidence -> terminate`. If it still stops before `runner.stage`, stop this perf profile path
+and return to the known-good gdbserver thin-breakpoint flow.
