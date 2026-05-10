@@ -20,7 +20,9 @@ export PIPELINE_RUNTIME_LOCAL_GDB_ENABLE="0"
 export PIPELINE_RUNTIME_GDB_MARKER_ENABLE="0"
 
 export PIPELINE_RUNTIME_LOG_PROFILE="coarse"
-export PIPELINE_RUNTIME_STDIO_CAPTURE_MODE="log"
+# Match the known-good no-DMA cfg32/noTrace profile: keep runner/runtime stdout
+# on UART instead of redirecting it into the guest rootfs log file.
+export PIPELINE_RUNTIME_STDIO_CAPTURE_MODE="uart"
 export PIPELINE_RUNTIME_UART_LOG_ENABLE="0"
 export PIPELINE_RUNTIME_GUEST_LOG_ENABLE="0"
 export PIPELINE_RUNTIME_GUEST_DEEP_LOG_ENABLE="0"

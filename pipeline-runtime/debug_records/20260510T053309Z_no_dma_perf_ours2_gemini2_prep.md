@@ -349,3 +349,44 @@ Results:
   - `PIPELINE_RUNTIME_GDBSERVER_ENABLE='0'`
 
 No F2 instance was launched for this checkpoint.
+
+## 2026-05-10 fourth F2 attempt: cache-disabled profile still early-stalls
+
+The cache-disabled summary-only perf profile did not produce performance traces:
+
+- launch session:
+  `pairdummy-sbus64-dummy8x8-no-dma-perf-cfg32-nic-notrace-launchrunfarm-20260510-075330`
+- infrasetup session:
+  `pairdummy-sbus64-dummy8x8-no-dma-perf-cfg32-nic-notrace-infrasetup-20260510-075410`
+- runworkload session:
+  `pairdummy-sbus64-dummy8x8-no-dma-perf-cfg32-nic-notrace-runworkload-20260510-075758`
+- instance: `i-0e51e94770ad722c1`, private IP `192.168.1.205`
+- AGFI: `agfi-077451484fe3b63c3`
+- remote/local image SHA matched:
+  `d82ab86239590c2d56893671ad464a089e1d60a6150815bc79f40650751db6fd`
+- guest env SHA:
+  `c97f389e837ddfcb456b87c2f8116b5fdf62715ddae1c500e5e85a7c20e61866`
+- guest status confirmed:
+  `profile_id=pairdummy-sbus64-dummy8x8-no-dma-perf-v2-cache-disabled`,
+  `no_dma_compute_enable=1`, `trace_enable=1`, `gdbserver_enable=0`.
+- evidence:
+  - UART reached `running /etc/init.d/S99run`.
+  - wrapper reached `after-child-spawn pid=143`.
+  - `runner.stage` stayed empty and no `ours2.trace` / `gemini2.trace` was emitted.
+  - heartbeat eventually produced one sample, then stopped at `18326725699, 965`.
+  - UART did not show the later RCU stall seen in the prior summary-only/cache-enabled attempt.
+- archived evidence:
+  `debug_records/artifacts/20260510T0820_no_dma_perf_cache_disabled_early_stall/`
+- termination:
+  `pairdummy-sbus64-dummy8x8-no-dma-perf-cfg32-nic-notrace-terminaterunfarm-20260510-082057`.
+  Instance `i-0e51e94770ad722c1` was observed as `shutting-down`; later running-F2 query returned
+  empty.
+
+Conclusion: reverting the mapping-cache path was not enough. The remaining high-confidence
+configuration delta from the known-good full no-DMA pass is stdio routing: known-good used
+`PIPELINE_RUNTIME_STDIO_CAPTURE_MODE=uart`, while the perf profile used `log`, redirecting
+wrapper/runner stdout into the guest rootfs log file. That keeps the run inside a file-backed path
+exactly while the child is launched, and the current frontier is before any runner stage is visible.
+The perf profile now switches stdio back to `uart`. This is not meant to add new hot-path logging;
+the known-good run's UART was only about 21 KiB, and `preprocess_ns` remains separate from
+`model_compute_ns`.

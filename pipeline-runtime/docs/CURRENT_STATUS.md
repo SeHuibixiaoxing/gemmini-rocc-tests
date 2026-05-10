@@ -1,6 +1,6 @@
 # Current Status
 
-更新时间：`2026-05-10 07:47 UTC`
+更新时间：`2026-05-10 08:20 UTC`
 
 ## 2026-05-10 no-DMA performance prep for ours2 vs gemini2
 
@@ -84,11 +84,25 @@
     `PIPELINE_RUNTIME_TRACE_SUMMARY_ONLY='1'`、
     `PIPELINE_RUNTIME_NO_DMA_COMPUTE_ENABLE='1'`、
     `PIPELINE_RUNTIME_GDBSERVER_ENABLE='0'`。
+- cache-disabled profile 的 F2 attempt 仍未产生性能 trace：
+  - session:
+    `pairdummy-sbus64-dummy8x8-no-dma-perf-cfg32-nic-notrace-runworkload-20260510-075758`
+  - instance: `i-0e51e94770ad722c1`, private IP `192.168.1.205`
+  - remote/local image SHA:
+    `d82ab86239590c2d56893671ad464a089e1d60a6150815bc79f40650751db6fd`
+  - 现场：UART 到 `S99run`；wrapper 到 `after-child-spawn pid=143`；runner stage 为空；
+    trace 目录没有 `ours2.trace` / `gemini2.trace`；heartbeat 停在 `18326725699, 965`。
+  - 证据归档：
+    `debug_records/artifacts/20260510T0820_no_dma_perf_cache_disabled_early_stall/`
+  - F2 已 terminate；之后 running-F2 查询为空。
+- 新的静态判断：剩余高风险差异是 stdio 路径。known-good 完整 no-DMA pass 使用
+  `PIPELINE_RUNTIME_STDIO_CAPTURE_MODE=uart`，而 perf profile 使用 `log`，把
+  wrapper/runner stdout 写进 guest rootfs log；当前前沿正好在 child spawn 后、runner
+  stage 可见前。perf profile 已改回 `PIPELINE_RUNTIME_STDIO_CAPTURE_MODE=uart`。
 
-本地 dry-run 仅验证口径，不作为 F2 性能结论。下一步只开一轮 F2 run farm 顺序跑
-`ours2` 与 `gemini2`；launch/infrasetup 后先做 remote freshness，copy-back 后比较
-`/root/pipeline-runtime-debug/traces/{ours2,gemini2}.trace` 中的 `model_compute_ns` 与
-`model_exec_ns`，最后立即 terminate run farm。若仍 stall，停止非 GDB perf profile 路线，
+本地 dry-run 仅验证口径，不作为 F2 性能结论。下一步先做 `show` / `debug-preflight` /
+`image-closure`，确认 `/firemarshal.env` 中 `STDIO_CAPTURE_MODE=uart`、`DISABLE_MAPPING_CACHE=1`、
+`TRACE_SUMMARY_ONLY=1`。再决定是否开下一轮 F2；若仍 stall，停止非 GDB perf profile 路线，
 回到 known-good gdbserver 薄断点追踪。
 
 关联记录：

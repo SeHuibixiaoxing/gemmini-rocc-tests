@@ -131,3 +131,14 @@
   `PIPELINE_RUNTIME_DISABLE_MAPPING_CACHE=0` 的 no-DMA perf profile 能完成。若 summary-only
   仍出现 RCU stall 且没有 trace 落盘，先回到 known-good 的 cache-disabled/YAML 路径；
   `preprocess_ns` 与 `model_compute_ns` 分开记录，不要为了节省预处理时间牺牲可完成性。
+
+## 16. perf profile 不要把 runner stdout 写进 guest rootfs
+
+- 2026-05-10 cache-disabled no-DMA perf F2 仍 early-stall：UART 到 `S99run`，wrapper 到
+  `after-child-spawn`，但 runner stage 和 trace 都没有出现，heartbeat 固定在
+  `18326725699, 965`。
+- 该轮和 2026-05-09 完整 PASS 的显著剩余差异之一是：
+  perf 使用 `PIPELINE_RUNTIME_STDIO_CAPTURE_MODE=log`，known-good 使用 `uart`。
+- 性能/profile 路线应默认保留 `uart`，避免把 wrapper/runner stdout 追加到 guest rootfs
+  文件；最终性能比较仍看 trace summary 的 `model_compute_ns` / `model_exec_ns`，不是
+  UART/log 预处理时间。
