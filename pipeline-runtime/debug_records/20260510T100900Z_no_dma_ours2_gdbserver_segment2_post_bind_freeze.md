@@ -135,3 +135,59 @@ manual long-continue sessions that lose the only `gdbserver --once` attach.
 
 The no-GDB perf profile should not be rerun blindly until this segment2
 frontier is reconciled with the 2026-05-09 full no-DMA PASS.
+
+## Next-Run Local Preparation
+
+Local `show` and `debug-preflight` were run for the recommended narrow marker:
+
+```text
+PIPELINE_RUNTIME_NO_DMA_COMPUTE_ENABLE=1
+PIPELINE_RUNTIME_GDB_MARKER_ENABLE=1
+PIPELINE_RUNTIME_GDB_MARKER_SITE=worker-gemm-run
+PIPELINE_RUNTIME_GDB_MARKER_SEGMENT=2
+PIPELINE_RUNTIME_GDB_MARKER_GLOBAL_STAGE=3
+PIPELINE_RUNTIME_GDB_MARKER_LOCAL_STAGE=1
+PIPELINE_RUNTIME_GDB_MARKER_SUBBATCH=0
+```
+
+The profile remained low-noise:
+
+```text
+TRACE_ENABLE=0
+breadcrumb_enable=0
+guest_log_enable=0
+guest_deep_log_enable=0
+stdio_capture_mode=uart
+disable_mapping_cache=1
+debug_preflight_probe_tier=1
+debug_preflight_status=pass
+```
+
+`image-closure` then completed locally without starting F2. Freshness results:
+
+```text
+firemarshal-env sha256=3389b14dcfc5aa2ac0692950338ff14313a7d7d20c6b02d707a95029e0e351b2
+runtime-binary sha256=0d126d06d4186316961aff539e9f72670fe8eabbd13a457a79172842f87e3a56
+```
+
+The patched image `/firemarshal.env` confirmed:
+
+```text
+PIPELINE_RUNTIME_NO_DMA_COMPUTE_ENABLE='1'
+PIPELINE_RUNTIME_GDBSERVER_ENABLE='1'
+PIPELINE_RUNTIME_GDB_MARKER_ENABLE='1'
+PIPELINE_RUNTIME_GDB_MARKER_SITE='worker-gemm-run'
+PIPELINE_RUNTIME_GDB_MARKER_SEGMENT='2'
+PIPELINE_RUNTIME_GDB_MARKER_GLOBAL_STAGE='3'
+PIPELINE_RUNTIME_GDB_MARKER_LOCAL_STAGE='1'
+PIPELINE_RUNTIME_GDB_MARKER_SUBBATCH='0'
+```
+
+If the next run is authorized, it should start from this image state and attach
+with:
+
+```bash
+PRT_GDB_STATIC_NEIGH_MAC=00:12:6d:00:00:02 \
+pipeline-runtime/scripts/run_pairdummy_cfg32_gdbserver_no_dma_segment2_stage1_gemm_frontier.sh \
+  <run-host-private-ip> 172.16.0.2:2345 <local-port>
+```

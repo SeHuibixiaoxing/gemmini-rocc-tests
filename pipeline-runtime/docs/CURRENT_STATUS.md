@@ -208,6 +208,18 @@
   frontier 是 `ours2` no-DMA 在 segment2 bind 后继续运行时 heartbeat 冻住。由于
   2026-05-09 同 AGFI no-DMA 完整 PASS 更强，下一轮不要复用 broad manual breakpoint；
   应使用现有 segment2 marker/expect helper 做窄窗口验证，优先排除 GDB 扰动。
+- 已本地准备下一轮窄 marker image，不启动 F2：
+  - marker:
+    `worker-gemm-run segment=2 global_stage=3 local_stage=1 subbatch=0`
+  - `show` / `debug-preflight`: pass，probe tier 1，trace/breadcrumb/deep log 均关闭。
+  - `image-closure`: PASS
+  - guest env SHA:
+    `3389b14dcfc5aa2ac0692950338ff14313a7d7d20c6b02d707a95029e0e351b2`
+  - runtime binary SHA:
+    `0d126d06d4186316961aff539e9f72670fe8eabbd13a457a79172842f87e3a56`
+  - 若下一轮获准开 F2，应使用
+    `run_pairdummy_cfg32_gdbserver_no_dma_segment2_stage1_gemm_frontier.sh`
+    连接本轮 image，而不是手工 broad breakpoint。
 
 本地 dry-run 仅验证口径，不作为 F2 性能结论。下一步不要继续同形态非 GDB perf 盲跑；
 优先回到 known-good gdbserver 薄断点追踪，或先本地审计 trace summary/timing 改动。若之后
