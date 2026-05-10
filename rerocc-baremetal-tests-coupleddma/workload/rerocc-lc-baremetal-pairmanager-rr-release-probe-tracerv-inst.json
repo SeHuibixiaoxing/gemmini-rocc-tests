@@ -1,0 +1,16 @@
+{
+  "name" : "rerocc-lc-baremetal-pairmanager-rr-release-probe-tracerv-inst",
+  "base" : "bare-base.json",
+  "workdir" : ".",
+  "host-init" : "host-init-pairmanager-rr-release-probe.sh",
+  "bin" : "rerocc_lc_pairmanager_rr_release_probe_tracerv_inst.riscv",
+  "firesim" : {
+    "simulation_outputs" : [
+      "uartlog",
+      "memory_stats*.csv",
+      "TRACEFILE*",
+      "AUTOCOUNTERFILE*",
+      "metasim_stderr.out"
+    ]
+  }
+}
