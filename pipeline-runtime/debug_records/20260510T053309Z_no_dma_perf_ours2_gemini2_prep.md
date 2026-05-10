@@ -425,3 +425,55 @@ No F2 instance was launched for this checkpoint. If one more non-GDB perf run is
 required sequence is `launchrunfarm -> infrasetup -> remote freshness -> runworkload -> copy traces
 or live evidence -> terminate`. If it still stops before `runner.stage`, stop this perf profile path
 and return to the known-good gdbserver thin-breakpoint flow.
+
+## 2026-05-10 fifth F2 attempt invalidated by stale watchdog
+
+After cleaning up local state only partially, one more F2 attempt was launched:
+
+- launch:
+  `pairdummy-sbus64-dummy8x8-no-dma-perf-cfg32-nic-notrace-launchrunfarm-20260510-082953`
+- infrasetup:
+  `pairdummy-sbus64-dummy8x8-no-dma-perf-cfg32-nic-notrace-infrasetup-20260510-083015`
+- runworkload:
+  `pairdummy-sbus64-dummy8x8-no-dma-perf-cfg32-nic-notrace-runworkload-20260510-083515`
+- instance:
+  `i-06c55736f7b960139`, private IP `192.168.1.39`
+- AGFI:
+  `agfi-077451484fe3b63c3`
+- remote/local image SHA before run:
+  `d2c02a5c8aee3fb79674a38d942c0f347c41239d73ec2c270b2522ea60eb7f05`
+- guest env SHA:
+  `77b573ce41e82b0b04ade8467b58918af2cc5d7672c25aa1e1c62bd95f2b191f`
+- UART reached `S99run` and confirmed:
+  `stdio capture mode: uart`, `no-dma compute enable: 1`, `trace enable: 1`,
+  and `gdbserver enable: 0`.
+
+This run is invalid as performance evidence. The instance was terminated by a stale local
+runworkload watchdog from the earlier `20260510-054251` session, not by the current no-DMA runtime:
+
+- old watchdog timeout:
+  `2026-05-10T08:42:52Z`
+- old watchdog action:
+  `terminaterunfarm --forceterminate`
+- old terminaterunfarm target:
+  `i-06c55736f7b960139`
+- CloudTrail:
+  `TerminateInstances` at `2026-05-10T08:43:09Z`, source IP `54.68.14.45`
+  (the current FireSim manager).
+- current run status before termination:
+  `guest_status=1738`, `guest_runner_post=363`, `guest_runner=0`; no `ours2.trace` /
+  `gemini2.trace`.
+- local copied results:
+  only `HW_CFG_SUMMARY` and `sim-run.sh`.
+- archived evidence:
+  `debug_records/artifacts/20260510T0843_no_dma_perf_stale_watchdog_terminate/`
+
+Cleanup completed after the diagnosis:
+
+- killed stale same-tag no-DMA perf `runworkload` tmux sessions.
+- killed orphan FireSim `runworkload` manager processes for the same runtime config.
+- running/pending F2 query returned empty.
+
+Workflow hardening: `pairdummy_sbus128_workflow.sh` now has a
+`stale-runworkload-check` command and runs that check before `launch`, `infrasetup`, and `run`.
+It refuses to proceed if a same-tag tmux session or FireSim runworkload process is still alive.

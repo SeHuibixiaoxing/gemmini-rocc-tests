@@ -1,6 +1,6 @@
 # Current Status
 
-更新时间：`2026-05-10 08:27 UTC`
+更新时间：`2026-05-10 08:50 UTC`
 
 ## 2026-05-10 no-DMA performance prep for ours2 vs gemini2
 
@@ -112,10 +112,30 @@
     `PIPELINE_RUNTIME_TRACE_SUMMARY_ONLY='1'`、
     `PIPELINE_RUNTIME_NO_DMA_COMPUTE_ENABLE='1'`、
     `PIPELINE_RUNTIME_GDBSERVER_ENABLE='0'`。
+- 第五轮 F2 attempt 已作废：它不是 runtime/no-DMA 性能结论，而是被旧本地 watchdog 终止。
+  - 新实例：`i-06c55736f7b960139`, private IP `192.168.1.39`
+  - runworkload：`pairdummy-sbus64-dummy8x8-no-dma-perf-cfg32-nic-notrace-runworkload-20260510-083515`
+  - 远端 freshness 通过，remote/local image SHA:
+    `d2c02a5c8aee3fb79674a38d942c0f347c41239d73ec2c270b2522ea60eb7f05`
+  - UART 到 `S99run`，确认 `stdio_capture_mode=uart`、no-DMA compute、trace enabled、
+    gdbserver disabled。
+  - 旧 session
+    `pairdummy-sbus64-dummy8x8-no-dma-perf-cfg32-nic-notrace-runworkload-20260510-054251`
+    在 `2026-05-10T08:42:52Z` watchdog 超时，调用
+    `terminaterunfarm --forceterminate`，并终止了新实例 `i-06c55736f7b960139`。
+  - CloudTrail 确认 `TerminateInstances` at `2026-05-10T08:43:09Z`，source IP 是当前
+    manager `54.68.14.45`。
+  - 未生成 `ours2.trace` / `gemini2.trace`，因此没有性能数据。
+  - 证据归档：
+    `debug_records/artifacts/20260510T0843_no_dma_perf_stale_watchdog_terminate/`
+- 已清理同 tag stale runworkload tmux/session 和 orphan FireSim manager 进程；running/pending
+  F2 查询为空。
+- workflow 已加本地保护：`stale-runworkload-check`，且 `launch` / `infrasetup` / `run`
+  前会 fail-fast，避免旧 watchdog 再杀新 run farm。
 
-本地 dry-run 仅验证口径，不作为 F2 性能结论。下一步若花一次 F2，应先
-`launchrunfarm -> infrasetup`，做 remote freshness，确认远端 image/env SHA 匹配后再
-`runworkload`；若仍 stall，停止非 GDB perf profile 路线，
+本地 dry-run 仅验证口径，不作为 F2 性能结论。下一步若再花一次 F2，必须先通过
+`stale-runworkload-check`、确认无同 tag FireSim manager 进程和 running/pending F2，再
+`launchrunfarm -> infrasetup -> remote freshness -> runworkload`；若仍 stall，停止非 GDB perf profile 路线，
 回到 known-good gdbserver 薄断点追踪。
 
 关联记录：

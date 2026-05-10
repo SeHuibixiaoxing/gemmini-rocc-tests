@@ -55,6 +55,8 @@ Commands:
   remote-freshness [ip] Verify remote image freshness over a private IP
   network-audit         Audit whether the generated target actually exposes a guest NIC
   network-prepare [ip]  Prepare SSHPort switch/tap0 for example_1config gdbserver attach
+  stale-runworkload-check
+                        Fail if an old same-tag runworkload manager is still alive
   run [ip]              Remote freshness, then runworkload with the host watchdog
   terminate             Force-terminate the run farm
   current-private-ip    Print the sole running private IP if exactly one exists
@@ -179,6 +181,42 @@ run_firesim_async() {
     -a "${hwdb_cfg}" \
     -r "${build_recipes_cfg}" \
     "$@"
+}
+
+check_no_stale_runworkload() {
+  local stale=0
+  local tmux_prefix="${workflow_tag}-runworkload-"
+  local stale_tmux=()
+  local stale_ps=()
+
+  mapfile -t stale_tmux < <(
+    tmux ls 2>/dev/null \
+      | awk -F: -v prefix="${tmux_prefix}" 'index($1, prefix) == 1 { print $1 }'
+  )
+  mapfile -t stale_ps < <(
+    ps -eo pid=,ppid=,stat=,etime=,args= \
+      | awk -v cfg="${runtime_cfg}" '$0 ~ /[f]iresim runworkload/ && index($0, cfg) { print }'
+  )
+
+  if [[ "${#stale_tmux[@]}" -gt 0 ]]; then
+    stale=1
+    echo "stale runworkload tmux sessions for workflow_tag=${workflow_tag}:" >&2
+    printf '  %s\n' "${stale_tmux[@]}" >&2
+  fi
+
+  if [[ "${#stale_ps[@]}" -gt 0 ]]; then
+    stale=1
+    echo "stale FireSim runworkload manager processes for runtime_cfg=${runtime_cfg}:" >&2
+    printf '  %s\n' "${stale_ps[@]}" >&2
+  fi
+
+  if [[ "${stale}" -ne 0 ]]; then
+    echo "refusing to continue: stale runworkload managers can terminate a new run farm with the same run_farm_tag=${run_farm_tag}" >&2
+    echo "clean them up, verify no f2 instances are running, then rerun the workflow command" >&2
+    return 3
+  fi
+
+  echo "stale_runworkload_check=pass"
 }
 
 is_networked_gdbserver_topology() {
@@ -438,11 +476,16 @@ case "${command_name}" in
   local-freshness)
     verify_local_freshness_effective
     ;;
+  stale-runworkload-check)
+    check_no_stale_runworkload
+    ;;
   launch)
+    check_no_stale_runworkload
     verify_networked_gdbserver_target_prereqs
     run_firesim_sync launchrunfarm
     ;;
   infrasetup)
+    check_no_stale_runworkload
     verify_networked_gdbserver_target_prereqs
     patch_local_image_guest_env
     verify_local_freshness_effective
@@ -462,6 +505,7 @@ case "${command_name}" in
     maybe_prepare_networked_gdbserver "${private_ip}"
     ;;
   run)
+    check_no_stale_runworkload
     verify_networked_gdbserver_target_prereqs
     verify_local_freshness_effective
     private_ip="$(resolve_private_ip "${1:-}")"

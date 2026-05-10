@@ -142,3 +142,15 @@
 - 性能/profile 路线应默认保留 `uart`，避免把 wrapper/runner stdout 追加到 guest rootfs
   文件；最终性能比较仍看 trace summary 的 `model_compute_ns` / `model_exec_ns`，不是
   UART/log 预处理时间。
+
+## 17. 复用 run_farm_tag 前必须清掉旧 runworkload manager
+
+- 2026-05-10 no-DMA perf 第五轮 F2 被旧本地 watchdog 终止：旧 session
+  `...runworkload-20260510-054251` 超时后调用 `terminaterunfarm --forceterminate`，按相同
+  `run_farm_tag=pairbertb8d12s64perfcfg32nt` 终止了新实例
+  `i-06c55736f7b960139`。
+- CloudTrail 确认 `TerminateInstances` 来自当前 manager public IP `54.68.14.45`，
+  不是 AWS 自动回收，也不是 guest/runtime 自己完成。
+- 下一次 `launch` / `infrasetup` / `run` 前必须先确认没有同 tag 的旧 tmux session、
+  orphan `firesim runworkload` 进程、以及 running/pending F2。workflow 已加入
+  `stale-runworkload-check` fail-fast 防护。
