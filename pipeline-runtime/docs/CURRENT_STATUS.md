@@ -1,6 +1,6 @@
 # Current Status
 
-更新时间：`2026-05-10 09:45 UTC`
+更新时间：`2026-05-10 10:35 UTC`
 
 ## 2026-05-10 no-DMA performance prep for ours2 vs gemini2
 
@@ -184,6 +184,30 @@
   F2 查询为空。
 - workflow 已加本地保护：`stale-runworkload-check`，且 `launch` / `infrasetup` / `run`
   前会 fail-fast，避免旧 watchdog 再杀新 run farm。
+- 回到 known-good-like gdbserver 低噪声 profile 后，当前 image/代码能正常进入程序和
+  `runtime_run`，并且能到 `segment2`：
+  - runworkload:
+    `pairdummy-sbus64-dummy8x8-gdbserver-cfg32-nic-notrace-runworkload-20260510-095252`
+  - instance: `i-04daeff72e297010a`, private IP `192.168.1.158`
+  - AGFI: `agfi-077451484fe3b63c3`
+  - env: `METHODS=ours2`、no-DMA compute、`TRACE_ENABLE=0`、gdbserver on、
+    `STDIO_CAPTURE_MODE=uart`、`DISABLE_MAPPING_CACHE=1`
+  - GDB confirmed: `prt_runtime_run()` hit; segment0 reached worker/GEMM;
+    segment1 reached and bound; segment2 reached with `seg_idx=2`,
+    `num_stages=3`, `stage_thread_count=3`, `pipebuf_count=8`,
+    `ringbuf_count=1`.
+  - After continuing from segment2 `prt_action_bind_topology()`, heartbeat froze at
+    `18246938145, 964`; no `prt_dma_submit` / `prt_dma_wait` /
+    `dma_blocking_wait` breakpoint fired before the freeze.
+  - Manual Ctrl-C did not recover a stack and then disconnected `gdbserver --once`.
+  - Evidence:
+    `debug_records/artifacts/20260510T1009_no_dma_ours2_segment2_post_bind_heartbeat_freeze/`
+  - F2 terminate was issued via workflow; instance `i-04daeff72e297010a` reached
+    `shutting-down`.
+- 当前新结论：这轮澄清了“进不去程序/到不了 segment2”不是当前事实；真正的 live-GDB
+  frontier 是 `ours2` no-DMA 在 segment2 bind 后继续运行时 heartbeat 冻住。由于
+  2026-05-09 同 AGFI no-DMA 完整 PASS 更强，下一轮不要复用 broad manual breakpoint；
+  应使用现有 segment2 marker/expect helper 做窄窗口验证，优先排除 GDB 扰动。
 
 本地 dry-run 仅验证口径，不作为 F2 性能结论。下一步不要继续同形态非 GDB perf 盲跑；
 优先回到 known-good gdbserver 薄断点追踪，或先本地审计 trace summary/timing 改动。若之后
@@ -192,6 +216,7 @@
 
 关联记录：
 [`debug_records/20260510T053309Z_no_dma_perf_ours2_gemini2_prep.md`](/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/20260510T053309Z_no_dma_perf_ours2_gemini2_prep.md)
+[`debug_records/20260510T100900Z_no_dma_ours2_gdbserver_segment2_post_bind_freeze.md`](/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/20260510T100900Z_no_dma_ours2_gdbserver_segment2_post_bind_freeze.md)
 
 ## 2026-05-09 cfg32/NIC/noTrace no-DMA compute full PASS
 

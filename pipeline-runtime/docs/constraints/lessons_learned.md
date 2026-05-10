@@ -183,3 +183,14 @@
 - 证据链也要显式记录 `TRACE_SUMMARY_ONLY`。当前 patched image 中有该变量，但 wrapper
   status 未打印；以后做 F2 性能轮次前应让 status/freshness 直接暴露它，避免只凭推断判断
   summary-only 是否真的进入 runtime。
+
+## 20. gdbserver broad manual breakpoints 也会形成假前沿
+
+- 2026-05-10 回到 low-noise gdbserver profile 后，当前 image 明确能进入
+  `prt_runtime_run()` 并到达 `segment2`；因此“改完后进不去程序/到不了 segment2”不是事实。
+- 同一轮在 broad manual breakpoint 路线中，从 segment2 `prt_action_bind_topology()` 继续后
+  heartbeat 冻在 `18246938145, 964`，且 GDB Ctrl-C 最终 `Disconnected from target`。
+- 这只能作为“segment2 bind 后不可中断冻结”的 live-GDB 证据，不能直接推翻
+  2026-05-09 同 AGFI no-DMA full PASS。
+- 下一轮 segment2 no-DMA 排查应优先用已存在的 marker/expect helper 和窄 frontier 脚本；
+  不要长期保留早期广谱断点，也不要手工长时间 continue 后靠 Ctrl-C 抢栈。

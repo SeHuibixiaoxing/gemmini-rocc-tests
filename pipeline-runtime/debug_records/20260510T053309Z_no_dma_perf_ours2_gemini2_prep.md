@@ -259,6 +259,53 @@ Results:
 Next F2 run should use this exact image state and compare
 `/root/pipeline-runtime-debug/traces/{ours2,gemini2}.trace`.
 
+## 2026-05-10 gdbserver low-noise rerun: segment2 post-bind freeze
+
+After repeated no-GDB perf-profile stalls, a known-good-like gdbserver profile
+was used to check whether the current image still reaches runtime/segment2:
+
+- workflow:
+  `pairdummy_sbus64_dummy8x8_gdbserver_cfg32_nic_notrace_workflow.sh`
+- runworkload:
+  `pairdummy-sbus64-dummy8x8-gdbserver-cfg32-nic-notrace-runworkload-20260510-095252`
+- instance: `i-04daeff72e297010a`, private IP `192.168.1.158`
+- AGFI: `agfi-077451484fe3b63c3`
+- env: `METHODS=ours2`, no-DMA compute, `TRACE_ENABLE=0`, gdbserver on,
+  `STDIO_CAPTURE_MODE=uart`, `DISABLE_MAPPING_CACHE=1`
+- remote/local image SHA:
+  `c5ae22f2ae5dde6754902a417b0b65c7b28e6d98667319b1eb20ec11b7fe6d1d`
+
+GDB attached successfully as the first TCP client and confirmed:
+
+- `prt_runtime_run()` was hit.
+- segment0 reached worker `stage_prepare_exec_views()` and `prt_gemm_conv_run()`.
+- segment1 reached and passed `prt_action_bind_topology()`.
+- segment2 reached with `seg_idx=2`, `num_stages=3`, `stage_thread_count=3`,
+  `pipebuf_count=8`, `ringbuf_count=1`.
+
+After continuing from segment2 `prt_action_bind_topology()`, heartbeat stopped at:
+
+```text
+18246938145, 964
+```
+
+No `prt_dma_submit`, `prt_dma_wait`, or `dma_blocking_wait` breakpoint fired
+before the freeze. Manual Ctrl-C did not recover a stack and eventually
+disconnected `gdbserver --once`.
+
+Archived evidence:
+
+```text
+debug_records/artifacts/20260510T1009_no_dma_ours2_segment2_post_bind_heartbeat_freeze/
+debug_records/20260510T100900Z_no_dma_ours2_gdbserver_segment2_post_bind_freeze.md
+```
+
+Conclusion: current code/image can enter the runtime and reach segment2. The new
+live-GDB frontier is segment2 post-bind heartbeat freeze, but this broad manual
+breakpoint run is weaker than the 2026-05-09 full no-DMA PASS. Next F2 should use
+the existing segment2 marker/expect helpers with narrow breakpoints, not another
+blind no-GDB perf rerun or broad manual GDB session.
+
 ## 2026-05-10 third F2 attempt: summary-only trace still stalls
 
 第三轮 F2 perf attempt 已终止；`PIPELINE_RUNTIME_TRACE_SUMMARY_ONLY=1` 排除了 event ring
