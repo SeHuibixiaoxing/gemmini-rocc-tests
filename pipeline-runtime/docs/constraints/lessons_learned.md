@@ -168,3 +168,18 @@
 - 后续不要继续上同形态 F2 盲跑。优先回 known-good gdbserver 低噪声 profile，用薄断点
   定位 `runtime_run` / segment execution frontier，或先本地审计 trace timing/summary-only
   改动是否有意外交互。
+
+## 19. ours/gemmini 性能实验是同 binary 换 pipeline YAML
+
+- 当前 runner 的方法循环不是切换程序：`rerocc_pipeline_runtime-linux`、`model.layers.yaml`
+  和 `gemmini_layer_mapping.${TARGET_KEY}.yaml` 固定，只按 `METHODS` 替换
+  `pipeline_mapping.${TARGET_KEY}.${method}.yaml` 和 trace path。
+- 因此用户口径 `ours` / `gemmini` 在当前 artifact 中分别对应 `ours2` / `gemini2`，
+  性能对比必须保持同一 runtime binary、同一 target key、同一 batch 和同一 no-DMA/profile
+  开关，只改变 pipeline YAML。
+- 2026-05-10 本地 CPU/no-DMA dry-run 证明该路径本地可闭合：`ours2` / `gemini2`
+  均 exit 0，`dma_submit_count=0`、`gemm_issue_count=320`、`trace_summary_only=1`。
+  这不能替代 F2 性能证据，但可以排除“换方法导致读取/基础控制流本地坏掉”的假设。
+- 证据链也要显式记录 `TRACE_SUMMARY_ONLY`。当前 patched image 中有该变量，但 wrapper
+  status 未打印；以后做 F2 性能轮次前应让 status/freshness 直接暴露它，避免只凭推断判断
+  summary-only 是否真的进入 runtime。

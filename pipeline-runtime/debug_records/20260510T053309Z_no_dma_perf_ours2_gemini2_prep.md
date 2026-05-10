@@ -551,3 +551,68 @@ Cleanup:
 - The stale runworkload tmux session and FireSim manager processes for this runtime config were
   killed locally.
 - A running/pending F2 query returned empty after cleanup.
+
+## 2026-05-10T09:45Z local audit of method plug-in path
+
+The runner path was rechecked after the user clarified the intended experiment model.
+The current execution model matches that expectation:
+
+- `BIN` is fixed to
+  `/root/rerocc-linux-tests/pipeline-runtime/rerocc_pipeline_runtime-linux`.
+- `MODEL_YAML` and `LAYER_MAPPING_YAML` are shared for all methods.
+- `METHODS='ours2 gemini2'` drives a loop where only
+  `PIPELINE_YAML="${BERT_DIR}/pipeline_mapping.${TARGET_KEY}.${method}.yaml"`
+  and `TRACE_PATH="${TRACE_DIR}/${method}.trace"` change.
+
+Local image/env closure was also rechecked:
+
+- `pairdummy_sbus64_dummy8x8_no_dma_perf_cfg32_nic_notrace_workflow.sh local-freshness`
+  passed.
+- effective guest env SHA:
+  `77b573ce41e82b0b04ade8467b58918af2cc5d7672c25aa1e1c62bd95f2b191f`
+- the image `/firemarshal.env` contains:
+  - `METHODS='ours2 gemini2'`
+  - `TRACE_ENABLE='1'`
+  - `PIPELINE_RUNTIME_TRACE_SUMMARY_ONLY='1'`
+  - `PIPELINE_RUNTIME_NO_DMA_COMPUTE_ENABLE='1'`
+  - `PIPELINE_RUNTIME_GDBSERVER_ENABLE='0'`
+
+One evidence-chain gap remains: `PIPELINE_RUNTIME_TRACE_SUMMARY_ONLY` is present in
+`render_pairdummy_guest_env.sh` and in the patched image, but not in the generic `host-init.sh`
+env whitelist and not printed by wrapper status. Because `/firemarshal.env` uses `export`, a shell
+inheritance check shows the variable survives `PIPELINE_RUNTIME_SKIP_GUEST_ENV_SOURCE=1`, so this is
+not currently a proven root cause. It is still worth fixing before another expensive F2 round so
+future status artifacts directly prove the runtime trace mode.
+
+Local artifact audit results for the sbus64 dummy8x8 target:
+
+| method | audit | segments | total stages | split summary | ring segments |
+| --- | --- | ---: | ---: | --- | --- |
+| `ours2` | PASS | 15 | 40 | `oc=32`, `single=4`, `resadd_spatial=4` | `[2,3,5,6,8,13,14]` |
+| `gemini2` | PASS | 19 | 40 | `oc=32`, `single=2`, `resadd_spatial=6` | `[4]` |
+
+The major artifact-shape difference is expected: `ours2` uses more `ALL_RINGBUFFER` /
+`SHARED_SPM`, while `gemini2` mostly uses `ISOLATE_SPM`. Since the F2 perf stall occurs while
+running the first method (`ours2`) before `gemini2`, the multi-method loop is not the first
+suspect.
+
+Local CPU/no-DMA summary-only dry-run with the same target and only the pipeline YAML swapped:
+
+| method | result | model_compute_ns | run_ns | dma_submit_count | gemm_issue_count | gemm_fence_count | trace_summary_only | trace_event_count |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `ours2` | exit 0 | `22503326524` | `22528912251` | 0 | 320 | 320 | 1 | 0 |
+| `gemini2` | exit 0 | `22486323411` | `22512025071` | 0 | 320 | 320 | 1 | 0 |
+
+Trace files:
+
+```text
+tmp/pipeline-runtime-local-no-dma-audit-20260510/ours2.trace
+tmp/pipeline-runtime-local-no-dma-audit-20260510/gemini2.trace
+```
+
+This is not F2 performance evidence. It does show that local artifact reading, no-DMA control flow,
+summary trace emission, and the pluggable YAML method path are internally consistent. The remaining
+high-probability F2 suspects are the FPGA backend/Gemmini instruction path under the no-GDB perf
+profile, or the small trace timing changes since the known-good `9742924` checkpoint. The next F2
+use should therefore be a known-good-like gdbserver thin-frontier run, not another blind no-GDB perf
+rerun.

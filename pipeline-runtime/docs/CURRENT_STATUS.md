@@ -1,6 +1,6 @@
 # Current Status
 
-更新时间：`2026-05-10 09:25 UTC`
+更新时间：`2026-05-10 09:45 UTC`
 
 ## 2026-05-10 no-DMA performance prep for ours2 vs gemini2
 
@@ -150,6 +150,36 @@
   no-DMA transport 没有相关改动；差异集中在 trace summary/timing 字段和非 GDB perf
   profile。下一步不要继续同形态盲跑 F2，应回 known-good gdbserver 低噪声 profile 做薄断点
   frontier，或先本地审计 trace timing/summary-only 改动。
+- `ours2` / `gemini2` 的实际运行口径已重新核对：
+  runner 固定使用同一个
+  `/root/rerocc-linux-tests/pipeline-runtime/rerocc_pipeline_runtime-linux`，
+  在 `for method in ${METHODS}` 中只替换
+  `pipeline_mapping.${TARGET_KEY}.${method}.yaml` 和对应 trace path；`MODEL_YAML` 与
+  `LAYER_MAPPING_YAML` 共用。因此用户口径“同一个程序提供不同编排文件测试”是正确的。
+- 本地 freshness 重新确认 no-DMA perf image：
+  - effective guest env SHA:
+    `77b573ce41e82b0b04ade8467b58918af2cc5d7672c25aa1e1c62bd95f2b191f`
+  - image 中 `/firemarshal.env` 确认
+    `METHODS='ours2 gemini2'`、`TRACE_ENABLE='1'`、
+    `PIPELINE_RUNTIME_TRACE_SUMMARY_ONLY='1'`、
+    `PIPELINE_RUNTIME_NO_DMA_COMPUTE_ENABLE='1'`、
+    `PIPELINE_RUNTIME_GDBSERVER_ENABLE='0'`。
+  - `render_pairdummy_guest_env.sh` 会写 `TRACE_SUMMARY_ONLY`，当前 image 也有；
+    但 wrapper/status 不打印该字段，且 `host-init.sh` 的白名单未包含该变量。当前不是已证根因，
+    但它是后续证据闭环要修的观测缺口。
+- 本地 artifact 审计和 CPU/no-DMA dry-run 再次确认：
+  - `ours2`: artifact audit PASS，`segments=15`、`total_stages=40`、
+    `ALL_RINGBUFFER/SHARED_SPM` 较多，`ring_segments=[2,3,5,6,8,13,14]`。
+  - `gemini2`: artifact audit PASS，`segments=19`、`total_stages=40`，
+    基本走 `ISOLATE_SPM`，`ring_segments=[4]`。
+  - 同一个 host binary、同一 target，只换 pipeline YAML，CPU/no-DMA summary-only
+    均 exit 0；本地 trace 保存在
+    `tmp/pipeline-runtime-local-no-dma-audit-20260510/`：
+    `ours2 model_compute_ns=22503326524`，
+    `gemini2 model_compute_ns=22486323411`，
+    两者均 `dma_submit_count=0`、`gemm_issue_count=320`、
+    `gemm_fence_count=320`、`trace_summary_only=1`、`trace_event_count=0`。
+  - 这不构成 F2 性能结论，但排除了“同程序换 YAML 的本地读取/基础控制流”错误。
 - 已清理同 tag stale runworkload tmux/session 和 orphan FireSim manager 进程；running/pending
   F2 查询为空。
 - workflow 已加本地保护：`stale-runworkload-check`，且 `launch` / `infrasetup` / `run`
