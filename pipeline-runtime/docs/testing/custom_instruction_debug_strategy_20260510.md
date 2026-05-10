@@ -132,6 +132,36 @@
 - `rrc-manager-unbusy-stuck age=1024` 在 final run 中出现一次后随即 `unbusy-ack` 并通过。
   当前阈值适合暴露长等待，但短 metasim 中应按上下文判读；出现 `stuck` 字样不等于死锁。
 
+### 0.2 2026-05-10 1C1P Linux/F2 前置镜像记录
+
+1C1P Linux/F2 小测进入 bitstream 前，先在本地完成 FireMarshal workload 闭环：
+
+- workload：
+  `rerocc-lc-linux-coupleddma-dma-export-alias-uartprobe-1c1p1-hwdebug.json`
+- build log：
+  `software/firemarshal/logs/rerocc-lc-linux-coupleddma-dma-export-alias-uartprobe-1c1p1-hwdebug-build-2026-05-10--15-15-17-QLH67D7DGFCS25GI.log`
+- install log：
+  `software/firemarshal/logs/rerocc-lc-linux-coupleddma-dma-export-alias-uartprobe-1c1p1-hwdebug-install-2026-05-10--15-16-29-H01LPKDM6FUOB1RB.log`
+- install output：
+  `sims/firesim/deploy/workloads/rerocc-lc-linux-coupleddma-dma-export-alias-uartprobe-1c1p1-hwdebug.json`
+
+本轮静态问题：
+
+- 该 UART probe 只执行小的 CoupledDMA export-alias 二进制，不依赖 BERT pipeline runtime。
+  原 workload 复用通用 `host-init.sh`，默认 `ENABLE_PIPELINE_RUNTIME=auto`；当本地存在
+  `conference/HybridMapper/output/pipeline_runtime/bertmini` 时，host-init 会误进入 pipeline artifact
+  检查，并要求旧 `rerocc_globalnoc_coupleddma_c2_g2_d2...` mapping，导致 FireMarshal build 在本地立即失败。
+- 修复方式：给这个 1C1P hwdebug workload 增加专用 host-init wrapper，默认
+  `ENABLE_PIPELINE_RUNTIME=0`，再调用通用 `host-init.sh`。这样小 probe 的镜像构建不再依赖机器上
+  恰好存在的 HybridMapper 输出。
+
+当前 F2 状态：
+
+- `config_hwdb_f2_gemmini_rerocc_pairmanager_dummy8x8_1c1p1_sbus64_nic_hwdebug.yaml`
+  仍是占位 `agfi-00000000000000000`。
+- 因此还不能执行 1C1P Linux/F2 `runworkload`；下一步必须先生成并填入真实 AGFI，或复用经核对匹配
+  build recipe 的既有 AGFI。
+
 ### 1.1 快速定位“卡死在哪条指令”
 
 本文里“硬件观测”的第一目标不是泛泛地看更多内部状态，而是在程序卡死时尽快回答：

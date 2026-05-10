@@ -2,7 +2,7 @@
   "name" : "rerocc-lc-linux-coupleddma-dma-export-alias-uartprobe-1c1p1-hwdebug",
   "base" : "br-base.json",
   "workdir" : ".",
-  "host-init" : "host-init.sh",
+  "host-init" : "host-init-1c1p-hwdebug-uartprobe.sh",
   "overlay" : "overlay",
   "outputs" : [
     "/root/pipeline-runtime-debug/uartprobe.sparse.log",
