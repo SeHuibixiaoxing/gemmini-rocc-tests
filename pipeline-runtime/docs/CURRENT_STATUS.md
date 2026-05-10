@@ -74,10 +74,19 @@
     `ours2 model_compute_ns=22460364344`，
     `gemini2 model_compute_ns=22436967650`，
     两者均 `dma_submit_count=0`、`gemm_issue_count=320`、`trace_event_count=0`。
+- cache-disabled profile 的 `image-closure` 已完成且 local freshness PASS：
+  - guest env SHA:
+    `c97f389e837ddfcb456b87c2f8116b5fdf62715ddae1c500e5e85a7c20e61866`
+  - runtime binary SHA in image:
+    `0d126d06d4186316961aff539e9f72670fe8eabbd13a457a79172842f87e3a56`
+  - rendered `/firemarshal.env` 确认
+    `PIPELINE_RUNTIME_DISABLE_MAPPING_CACHE='1'`、
+    `PIPELINE_RUNTIME_TRACE_SUMMARY_ONLY='1'`、
+    `PIPELINE_RUNTIME_NO_DMA_COMPUTE_ENABLE='1'`、
+    `PIPELINE_RUNTIME_GDBSERVER_ENABLE='0'`。
 
-本地 dry-run 仅验证口径，不作为 F2 性能结论。下一步在本地确认
-`disable_mapping_cache=1`、重建/patch image 并验证 freshness 后，只开一轮 F2 run farm
-顺序跑 `ours2` 与 `gemini2`；copy-back 后比较
+本地 dry-run 仅验证口径，不作为 F2 性能结论。下一步只开一轮 F2 run farm 顺序跑
+`ours2` 与 `gemini2`；launch/infrasetup 后先做 remote freshness，copy-back 后比较
 `/root/pipeline-runtime-debug/traces/{ours2,gemini2}.trace` 中的 `model_compute_ns` 与
 `model_exec_ns`，最后立即 terminate run farm。若仍 stall，停止非 GDB perf profile 路线，
 回到 known-good gdbserver 薄断点追踪。

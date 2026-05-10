@@ -319,3 +319,33 @@ After changing the perf fixed env to `PIPELINE_RUNTIME_DISABLE_MAPPING_CACHE=1`:
 
 This is still only a measurement-path sanity check. F2 remains the authority for the final
 no-DMA scheduling comparison.
+
+## 2026-05-10 image closure after cache-path rollback
+
+Ran:
+
+```bash
+./pipeline-runtime/scripts/pairdummy_sbus64_dummy8x8_no_dma_perf_cfg32_nic_notrace_workflow.sh image-closure
+```
+
+Results:
+
+- clean tmux:
+  `pairdummy-sbus64-dummy8x8-no-dma-perf-cfg32-nic-notrace-clean-20260510-075101`
+- build tmux:
+  `pairdummy-sbus64-dummy8x8-no-dma-perf-cfg32-nic-notrace-build-20260510-075106`
+- install tmux:
+  `pairdummy-sbus64-dummy8x8-no-dma-perf-cfg32-nic-notrace-install-20260510-075211`
+- guest env SHA:
+  `c97f389e837ddfcb456b87c2f8116b5fdf62715ddae1c500e5e85a7c20e61866`
+- runtime binary SHA in image:
+  `0d126d06d4186316961aff539e9f72670fe8eabbd13a457a79172842f87e3a56`
+- local image freshness: PASS.
+- rendered env confirms:
+  - `PIPELINE_RUNTIME_PROFILE_ID='pairdummy-sbus64-dummy8x8-no-dma-perf-v2-cache-disabled'`
+  - `PIPELINE_RUNTIME_DISABLE_MAPPING_CACHE='1'`
+  - `PIPELINE_RUNTIME_TRACE_SUMMARY_ONLY='1'`
+  - `PIPELINE_RUNTIME_NO_DMA_COMPUTE_ENABLE='1'`
+  - `PIPELINE_RUNTIME_GDBSERVER_ENABLE='0'`
+
+No F2 instance was launched for this checkpoint.
