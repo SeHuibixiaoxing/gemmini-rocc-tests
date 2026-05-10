@@ -258,3 +258,64 @@ Results:
 
 Next F2 run should use this exact image state and compare
 `/root/pipeline-runtime-debug/traces/{ours2,gemini2}.trace`.
+
+## 2026-05-10 third F2 attempt: summary-only trace still stalls
+
+第三轮 F2 perf attempt 已终止；`PIPELINE_RUNTIME_TRACE_SUMMARY_ONLY=1` 排除了 event ring
+和 cycle calibration 之后，run 仍然没有完成：
+
+- runworkload session:
+  `pairdummy-sbus64-dummy8x8-no-dma-perf-cfg32-nic-notrace-runworkload-20260510-071554`
+- instance: `i-0d16e2264e0110066`, private IP `192.168.1.88`
+- AGFI: `agfi-077451484fe3b63c3`
+- remote/local image SHA matched:
+  `366d1865900027b792fc384e09e416173d7d01e74fadf0a2aad25f5b72e6bde2`
+- guest `/firemarshal.env` confirmed:
+  - `PIPELINE_RUNTIME_NO_DMA_COMPUTE_ENABLE='1'`
+  - `PIPELINE_RUNTIME_TRACE_SUMMARY_ONLY='1'`
+  - `PIPELINE_RUNTIME_DISABLE_MAPPING_CACHE='0'`
+  - `PIPELINE_RUNTIME_GDBSERVER_ENABLE='0'`
+- evidence:
+  - wrapper spawned child `pid=143`; UART RCU task was `rerocc_pipeline`, `pid=204`, `ppid=143`
+  - heartbeat stopped at `18382742666, 963`
+  - UART reported `rcu_sched detected stalls` for running task `rerocc_pipeline`
+  - `ours2.trace` and `gemini2.trace` were not present, so no final timing summary was emitted
+- archived evidence:
+  `debug_records/artifacts/20260510T0742_no_dma_perf_summary_trace_stall/`
+- termination:
+  `pairdummy-sbus64-dummy8x8-no-dma-perf-cfg32-nic-notrace-terminaterunfarm-20260510-074307`
+  and the instance was last observed as `shutting-down`; later running-F2 query returned empty.
+
+Conclusion: event-level trace was not the only cause. The remaining important delta from the
+2026-05-09 full no-DMA PASS is the mapping-cache path. The earlier "enable mapping cache for perf"
+correction is therefore superseded for correctness/debuggability: the perf profile now defaults
+back to `PIPELINE_RUNTIME_DISABLE_MAPPING_CACHE=1`, matching the stable YAML path. This can make
+preprocessing slower, but the requested comparison uses `model_compute_ns` / `model_exec_ns` and
+keeps `preprocess_ns` separate, so preprocessing time is not part of the reported performance
+ratio.
+
+Next local steps before any new F2 run:
+
+1. Re-render/show the workflow and confirm `disable_mapping_cache=1`.
+2. Rebuild or patch the guest image and verify `/firemarshal.env` freshness.
+3. Run only one F2 attempt. If it still stalls, stop pursuing the non-GDB perf profile and return
+   to the known-good gdbserver flow with thin breakpoints.
+
+## 2026-05-10 local validation after cache-path rollback
+
+After changing the perf fixed env to `PIPELINE_RUNTIME_DISABLE_MAPPING_CACHE=1`:
+
+- `pairdummy_sbus64_dummy8x8_no_dma_perf_cfg32_nic_notrace_workflow.sh show`:
+  `profile_id=pairdummy-sbus64-dummy8x8-no-dma-perf-v2-cache-disabled`,
+  `trace_summary_only=1`, `disable_mapping_cache=1`.
+- `debug-preflight`: `debug_preflight_status=pass`, tier 1.
+- `bash -n` passed for the perf fixed env and workflow wrappers.
+- host CPU/no-DMA summary-only dry-run with the cache-disabled/YAML path:
+
+| method | run_ns | model_exec_ns | model_compute_ns | preprocess_ns | dma_submit_count | gemm_issue_count | trace_summary_only | trace_event_count |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| ours2 | 22531667487 | 22463185740 | 22460364344 | 68481540 | 0 | 320 | 1 | 0 |
+| gemini2 | 22507923957 | 22440223223 | 22436967650 | 67700560 | 0 | 320 | 1 | 0 |
+
+This is still only a measurement-path sanity check. F2 remains the authority for the final
+no-DMA scheduling comparison.

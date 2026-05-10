@@ -127,3 +127,7 @@
   event ring；使用 `PIPELINE_RUNTIME_TRACE_SUMMARY_ONLY=1`。
 - summary-only trace 仍保留最终 trace 文件和 summary 字段，但跳过 `trace_events`
   分配、cycle 校准和 event dump，适合 ours/gemmini no-DMA 编排性能对比。
+- 但 2026-05-10 第三轮 F2 也证明：summary-only 只是降低 trace 扰动，不保证
+  `PIPELINE_RUNTIME_DISABLE_MAPPING_CACHE=0` 的 no-DMA perf profile 能完成。若 summary-only
+  仍出现 RCU stall 且没有 trace 落盘，先回到 known-good 的 cache-disabled/YAML 路径；
+  `preprocess_ns` 与 `model_compute_ns` 分开记录，不要为了节省预处理时间牺牲可完成性。

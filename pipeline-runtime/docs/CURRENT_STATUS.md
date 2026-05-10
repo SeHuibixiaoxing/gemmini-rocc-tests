@@ -1,6 +1,6 @@
 # Current Status
 
-更新时间：`2026-05-10 07:06 UTC`
+更新时间：`2026-05-10 07:47 UTC`
 
 ## 2026-05-10 no-DMA performance prep for ours2 vs gemini2
 
@@ -50,11 +50,37 @@
   - `/firemarshal.env` 已确认
     `PIPELINE_RUNTIME_TRACE_SUMMARY_ONLY='1'`、
     `PIPELINE_RUNTIME_DISABLE_MAPPING_CACHE='0'`。
+- 第三轮 F2 perf attempt 使用 summary-only trace 后仍 stall：
+  - session:
+    `pairdummy-sbus64-dummy8x8-no-dma-perf-cfg32-nic-notrace-runworkload-20260510-071554`
+  - instance: `i-0d16e2264e0110066`, private IP `192.168.1.88`
+  - heartbeat 停在 `18382742666, 963`
+  - UART 报 `rcu_sched detected stalls`，running task 是 `rerocc_pipeline`
+  - 未生成 `ours2.trace` / `gemini2.trace`
+  - 证据归档：
+    `debug_records/artifacts/20260510T0742_no_dma_perf_summary_trace_stall/`
+  - F2 已 terminate，之后 running-F2 查询为空。
+- 关键结论更新：summary-only trace 不是充分修复；剩余高风险差异是
+  `PIPELINE_RUNTIME_DISABLE_MAPPING_CACHE=0`。它和 2026-05-09 完整 PASS 的低噪声 no-DMA
+  形态不同，且历史 no-DMA 记录中 cache path 曾对应 SPM xlate/RCU 类 stall。
+- perf profile 已回滚到稳定路径：
+  `PIPELINE_RUNTIME_PROFILE_ID=pairdummy-sbus64-dummy8x8-no-dma-perf-v2-cache-disabled`、
+  `PIPELINE_RUNTIME_DISABLE_MAPPING_CACHE=1`。这会增加预处理时间，但本实验比较
+  `model_compute_ns` / `model_exec_ns`，并单独记录 `preprocess_ns`。
+- 本地回归已确认新 profile：
+  - `show`: `trace_summary_only=1`、`disable_mapping_cache=1`
+  - `debug-preflight`: pass
+  - CPU/no-DMA summary-only dry-run：
+    `ours2 model_compute_ns=22460364344`，
+    `gemini2 model_compute_ns=22436967650`，
+    两者均 `dma_submit_count=0`、`gemm_issue_count=320`、`trace_event_count=0`。
 
-本地 dry-run 仅验证口径，不作为 F2 性能结论。下一步只开一轮 F2 run farm 顺序跑
-`ours2` 与 `gemini2`，copy-back 后比较
-`/root/pipeline-runtime-debug/traces/{ours2,gemini2}.trace` 中的
-`model_compute_ns` 与 `model_exec_ns`，最后立即 terminate run farm。
+本地 dry-run 仅验证口径，不作为 F2 性能结论。下一步在本地确认
+`disable_mapping_cache=1`、重建/patch image 并验证 freshness 后，只开一轮 F2 run farm
+顺序跑 `ours2` 与 `gemini2`；copy-back 后比较
+`/root/pipeline-runtime-debug/traces/{ours2,gemini2}.trace` 中的 `model_compute_ns` 与
+`model_exec_ns`，最后立即 terminate run farm。若仍 stall，停止非 GDB perf profile 路线，
+回到 known-good gdbserver 薄断点追踪。
 
 关联记录：
 [`debug_records/20260510T053309Z_no_dma_perf_ours2_gemini2_prep.md`](/home/ubuntu/chipyard/generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/debug_records/20260510T053309Z_no_dma_perf_ours2_gemini2_prep.md)

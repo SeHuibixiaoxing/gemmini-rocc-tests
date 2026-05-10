@@ -8,7 +8,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "${script_dir}/pairdummy_sbus64_dummy8x8_fixed_env.sh"
 
-export PIPELINE_RUNTIME_PROFILE_ID="pairdummy-sbus64-dummy8x8-no-dma-perf-v1"
+export PIPELINE_RUNTIME_PROFILE_ID="pairdummy-sbus64-dummy8x8-no-dma-perf-v2-cache-disabled"
 export METHODS="ours2 gemini2"
 export PIPELINE_RUNTIME_NO_DMA_COMPUTE_ENABLE="1"
 export TRACE_ENABLE="1"
@@ -28,7 +28,10 @@ export PIPELINE_RUNTIME_YAML_LINE_LOG_ENABLE="0"
 export PIPELINE_RUNTIME_AUDIT_LOG_ENABLE="0"
 export PIPELINE_RUNTIME_CHECKPOINT_LOG_ENABLE="0"
 export PIPELINE_RUNTIME_BREADCRUMB_ENABLE="0"
-export PIPELINE_RUNTIME_DISABLE_MAPPING_CACHE="0"
+# Keep the F2 no-DMA performance run close to the known-good cfg32 noTrace
+# no-DMA profile. Preprocessing time is reported separately and excluded from
+# the comparison, so prefer the stable YAML path over the mapping-cache path.
+export PIPELINE_RUNTIME_DISABLE_MAPPING_CACHE="${PAIRDUMMY_SBUS64_PERF_DISABLE_MAPPING_CACHE:-${PAIRDUMMY_SBUS64_DISABLE_MAPPING_CACHE:-1}}"
 export PIPELINE_RUNTIME_DMA_SUBMIT_TRACE_ENABLE="0"
 export PIPELINE_RUNTIME_DMA_EXPORT_PROBE_ENABLE="0"
 export PIPELINE_RUNTIME_DMA_FIXED_LOAD_PROBE_ENABLE="0"
