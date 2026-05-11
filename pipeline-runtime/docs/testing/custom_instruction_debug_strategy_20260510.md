@@ -847,3 +847,23 @@ runtime 三件套执行 `launchrunfarm -> infrasetup -> runworkload -> terminate
 - 后续同步构建规则：不要在同一 workspace 并行启动两个不同 target config 的
   `buildbitstream` 本地生成阶段。若需要同步推进大配置，等 1C1P 完成本地
   `replace-rtl`/driver 打包并进入远端 build farm 后再启动，或使用隔离 worktree/独立 checkout。
+
+2026-05-11T01:50Z 追加状态：
+
+- 1C1P F2 小配置构建的本地 `replace-rtl`、Golden Gate 和 F2 driver 编译通过；
+  `PrintBridgeParameters` 中确认包含 `rocket-retire-pc-sample`、`rocket-rocc-pc-fire`、
+  `rocket-rocc-pc-wait`、`rocket-rocc-fence-wait-pc` 以及既有 `rrc-*`、
+  `pair-wrapper-*`、`coupled-dma-*`，Simulator Memory Map 中确认有
+  `TargetCycleDebugWidget_0`。
+- 远端 build farm 启动前失败：FireSim 默认查找
+  `FPGA Developer AMI (Ubuntu) - 1.17.0   -prod-rhng4b6alkhdq`，并自动尝试
+  `1.17.1` 到 `1.17.9`，但当前 AWS `us-west-2` 均不可见，`get_f2_ami_id()`
+  触发 `AssertionError`。本轮未启动任何 z1d/f2 实例，失败日志为
+  `sims/firesim/deploy/logs/2026-05-11--01-39-34-buildbitstream-Y9UZWAYZDKPX8F67.log`。
+- 本地 F2 SDK 文档列出的可用 F2 Developer AMI 已更新到 `1.18.0`/`1.16.1`；
+  实时 AWS 查询当前可见 Ubuntu AMI 包括：
+  `ami-082c5db2375456e1a`（`FPGA Developer AMI (Ubuntu) - 1.19.1-prod-rhng4b6alkhdq`）
+  和 `ami-0c4a5ae51e92d81b3`（`FPGA Developer AMI (Ubuntu) - 1.16.1 -prod-byisb4uqt2pwc`）。
+- 修复策略：给 FireSim `AWSEC2` build farm 增加可选 `ami_id` 参数并传给
+  `launch_instances`；只在 1C1P/2C6P hwdebug build yaml 中显式指定
+  `ami-082c5db2375456e1a`。这样避免全局修改默认 AMI 查找逻辑，也避免影响其它历史配置。
