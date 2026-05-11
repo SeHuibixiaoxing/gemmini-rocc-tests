@@ -911,3 +911,13 @@ runtime 三件套执行 `launchrunfarm -> infrasetup -> runworkload -> terminate
 - 远端 Vivado 日志路径：
   `/home/ubuntu/firesim-build/platforms/f2/aws-fpga-firesim-f2/hdk/cl/developer_designs/cl_f2-firesim-FireSim-FireSimGemminiReRoCCPairDummy8x8C1P1Sbus64NICDebugConfig-WithTargetCycleDebug_WithPrintfSynthesis_WithSynthAsserts_FRFCFS16GBQuadRank_BaseF2Config/build/scripts/2026_05_11-020329.vivado.log`。
   host 资源约为 12 logical cores、100 GiB memory，满足 F2 构建需求。
+
+2026-05-11T02:18Z 追加状态：
+
+- 远端 Vivado 已通过 early synthesis/optimization 阶段：
+  `Synthesis finished with 0 errors, 0 critical warnings and 1 warnings`。
+  这说明本轮 PC synthesized printf、既有 ReRoCC/Gemmini/CoupledDMA synthesized printf、
+  `TargetCycleDebugWidget_0` 以及 F2/2024.2 工具链组合没有在前端综合阶段失败。
+- 当前仍在同一 Vivado batch 中继续执行后续 netlist optimization / implementation / routing。
+  build host `i-0f8e0a817ba503f21` 仍为 `running`，此 checkpoint 不是 AGFI/AFI
+  完成证据。
