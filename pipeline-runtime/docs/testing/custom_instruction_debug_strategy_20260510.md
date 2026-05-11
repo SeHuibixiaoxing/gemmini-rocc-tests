@@ -867,3 +867,18 @@ runtime 三件套执行 `launchrunfarm -> infrasetup -> runworkload -> terminate
 - 修复策略：给 FireSim `AWSEC2` build farm 增加可选 `ami_id` 参数并传给
   `launch_instances`；只在 1C1P/2C6P hwdebug build yaml 中显式指定
   `ami-082c5db2375456e1a`。这样避免全局修改默认 AMI 查找逻辑，也避免影响其它历史配置。
+
+2026-05-11T01:59Z 追加状态：
+
+- 上述 `ami-082c5db2375456e1a` 选择已验证为不可用：它是
+  `FPGA Developer AMI (Ubuntu) - 1.19.1-prod-rhng4b6alkhdq`，远端
+  `hdk_setup.sh` 检测到 `Vivado v2025.2` 后直接退出。当前 F2 HDK 只接受
+  `Vivado v2024.1`、`v2024.2`、`v2025.1`；失败日志为
+  `sims/firesim/deploy/logs/2026-05-11--01-51-14-buildbitstream-GIT9CQRJ1N2FNVED.log`。
+- FireSim 已自动终止本轮 z1d build host `i-04d7333abf83e313f`，AWS 状态确认为
+  `terminated`，未留下运行中的 build 实例。
+- 后续 hwdebug F2 build 改用 `ami-0c4a5ae51e92d81b3`
+  (`FPGA Developer AMI (Ubuntu) - 1.16.1 -prod-byisb4uqt2pwc`)，其描述为
+  `Vivado 2024.1 tools`，与当前 F2 HDK 支持列表匹配。若 2024.1 后续遇到
+  IP/脚本兼容问题，再优先寻找 us-west-2 可见的 1.18.0/2025.1 AMI 或切到隔离的
+  supported developer AMI，而不是放宽 `hdk_setup.sh` 对 2025.2 的版本检查。
