@@ -1042,3 +1042,25 @@ runtime 三件套执行 `launchrunfarm -> infrasetup -> runworkload -> terminate
 - 当前并发构建只有两条：1C1P m8i floorplan validation
   `i-0f5d56a0fa8ccdac2` 和这条新的 2C6P z1d。旧 2C6P host
   `i-018460888f9704c7e` 已 terminated。
+
+2026-05-11T16:20Z 追加状态：
+
+- 1C1P PCIS SLR1 floorplan 构建已越过 Vivado route/DFX PartPin 卡点并提交
+  AWS AFI creation。结果：
+  `agfi-098bce7d5e0c3d937` / `afi-0d63b7450829af6c6`。
+  截至 `2026-05-11T16:20Z`，AWS 状态仍为 `pending`，`State.Message=None`；
+  这不是本地 route 失败，也不是 workload 执行卡死。
+- 已把 1C1P F2 hwdb 和 built-hwdb entry 更新到
+  `agfi-098bce7d5e0c3d937`，等待 AFI `available` 后执行 baremetal 和 Linux
+  runworkload 测试。runtime/workload YAML 已用 PyYAML 校验可解析。
+- FireSim `F2BitBuilder.aws_create_afi()` 的流程是：manager 本地上传 tar 到 S3、
+  调 `aws ec2 create-fpga-image`、然后本地循环 `describe-fpga-images` 等待
+  `available`，最后再 `release_build_host()`。因此一旦 AFI/AGFI ID 已生成，
+  build host 不再参与后续 AFI 状态推进。
+- 为减少空转成本，已手动终止 1C1P m8i build host
+  `i-0f5d56a0fa8ccdac2`。保留 manager tmux
+  `hwdebug-1c1p-f2-pcis-slr1-floorplan-m8i-buildbitstream` 继续等待 AWS AFI
+  状态。若 manager 后续重复 terminate 该 instance，应视为可接受的清理重试。
+- 新 2C6P 构建 `hwdebug-2c6p-f2-pcis-slr1-floorplan-buildbitstream` 仍运行在
+  `i-04458088bcf314a5f` / `192.168.1.212`，截至本记录处于 post-place
+  `phys_opt_design`，尚未看到 `Constraints 18-4430`。
