@@ -1007,3 +1007,20 @@ runtime 三件套执行 `launchrunfarm -> infrasetup -> runworkload -> terminate
 - 同时保留正在运行的 2C6P 构建，不打断：build host
   `i-018460888f9704c7e` / `192.168.0.241`，build tag
   `pairdummy8x8sbus64c2p6hwdbg`。
+
+2026-05-11T12:08Z 追加状态：
+
+- 已主动终止旧 2C6P 构建，避免继续消耗 `z1d.3xlarge`。该构建是
+  `hwdebug-2c6p-f2-pc-sampled-buildbitstream-ami117`，build host
+  `i-018460888f9704c7e`，build tag `pairdummy8x8sbus64c2p6hwdbg`。
+- 终止前状态：仍在 Vivado `route_design` Phase 5 rip-up/reroute，日志反复出现
+  `Route 35-469` large hold violators，最后可见 overlap 数回升到 `78481`；
+  未看到 `Constraints 18-4430`，也未看到 `route_design completed`、post-route
+  DCP、bitstream 或 AGFI。
+- 终止理由：该 2C6P 是 PCIS SLR1 XDC 修复前启动的旧构建，而且远端命令仍使用
+  `--strategy TIMING_HOLDFIX`。在 1C1P floorplan 修复尚未通过前，它不能作为
+  新修复的有效验证；若 1C1P 仍不通过，2C6P 大概率也不会给出更有价值的结果。
+- 操作结果：`i-018460888f9704c7e` 已进入并确认到 `terminated`，对应 tmux session
+  已清理。保留 1C1P m8i 构建继续运行：
+  `hwdebug-1c1p-f2-pcis-slr1-floorplan-m8i-buildbitstream` /
+  `i-0f5d56a0fa8ccdac2`。
