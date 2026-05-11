@@ -882,3 +882,19 @@ runtime 三件套执行 `launchrunfarm -> infrasetup -> runworkload -> terminate
   `Vivado 2024.1 tools`，与当前 F2 HDK 支持列表匹配。若 2024.1 后续遇到
   IP/脚本兼容问题，再优先寻找 us-west-2 可见的 1.18.0/2025.1 AMI 或切到隔离的
   supported developer AMI，而不是放宽 `hdk_setup.sh` 对 2025.2 的版本检查。
+
+2026-05-11T02:05Z 追加状态：
+
+- 第二次 1C1P `buildbitstream` 尝试改用 `ami-0c4a5ae51e92d81b3` 后没有启动实例：
+  AWS `RunInstances` 返回 `OptInRequired`，要求先订阅 Marketplace SKU
+  `6s157wr19zh05fzcemdz6t1kl`。失败日志为
+  `sims/firesim/deploy/logs/2026-05-11--01-58-39-buildbitstream-DIO8JFJ51I76STSY.log`。
+- 更合适的 replacement 是当前 FireSim manager 自身使用的
+  `ami-0d7cdfb6b3ce5b5e0`，AWS 描述为
+  `FPGA Developer AMI (Ubuntu) - 1.17.0   -prod-rhng4b6alkhdq`，带
+  `Vivado 2024.2 tools`，产品码仍是当前账户已能使用的 `e4txuxx6uz6371b7tgmotozac`。
+  本机 `/opt/Xilinx/Vivado/2024.2/bin/vivado -version` 也确认 manager 环境为
+  `vivado v2024.2`。
+- 因此 1C1P/2C6P hwdebug build yaml 改为显式 pin `ami-0d7cdfb6b3ce5b5e0`。
+  这既避开 1.19.1 的 `Vivado 2025.2` 不兼容，也避开 1.16.1 的 Marketplace
+  订阅阻塞。
