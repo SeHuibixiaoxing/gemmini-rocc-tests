@@ -1064,3 +1064,81 @@ runtime 三件套执行 `launchrunfarm -> infrasetup -> runworkload -> terminate
 - 新 2C6P 构建 `hwdebug-2c6p-f2-pcis-slr1-floorplan-buildbitstream` 仍运行在
   `i-04458088bcf314a5f` / `192.168.1.212`，截至本记录处于 post-place
   `phys_opt_design`，尚未看到 `Constraints 18-4430`。
+
+2026-05-11T16:50Z 追加状态：
+
+- 1C1P F2 hwdebug bitstream 已创建完成并进入 baremetal smoke 首轮测试：
+  `agfi-098bce7d5e0c3d937` / `afi-0d63b7450829af6c6`，runfarm
+  `i-078214ea606e6044d` / `192.168.1.137`，runtime
+  `config_runtime_f2_gemmini_rerocc_pairmanager_dummy8x8_1c1p1_sbus64_nic_hwdebug_baremetal_cfg32_slot_smoke_quick.yaml`，
+  workload result
+  `sims/firesim/deploy/results-workload/2026-05-11--16-35-23-rerocc-lc-baremetal-cfg32-slot-smoke-quick-f2-rerocc-baremetal-cfg32-slot-smoke-quick-1c1p1-nic-hwdebug/`。
+- 本轮不能用来下“硬件 AGFI 不可用”结论。关键原因是调试动作重叠：
+  full-debug `runworkload` 在 16:35:32 启动 slot 0 仿真后仍在运行；
+  随后 nodebug A/B 的 `infrasetup` 在 16:43:16 对同一台 F2、同一 slot 执行
+  `sudo fpga-clear-local-image -S 0 -A`。旧 `runworkload` manager 之后在 16:43:45
+  看到 slot 0 screen/仿真消失，按 `terminate_on_completion: yes` copy-back 并终止实例。
+  因此 nodebug A/B 被旧 manager 干扰，full-debug 的最终退出也被新 `infrasetup`
+  干扰；两者都不能作为软件或硬件正确性的有效判据。
+- full-debug 首轮仍提供一个有用现场：仿真启动后 `uartlog` 在约 16:35:33 达到
+  `940716` 字节，此后到 16:38 live copy 不再增长；`heartbeat.csv` 只有表头，
+  `memory_stats0.csv` 也只有表头；没有 baremetal `PASS`/`FAIL` 或 guest 日志。
+  `uartlog` 内容几乎全部是 `TARGETCYCLE DEBUG` 的 channel/blocker dump，其中
+  `wire_out=256`，大量 endpoint 是 `synthesizedPrintf_*`。这更像
+  target-cycle/printf 观测链在启动早期制造了大量诊断输出或握手压力，但尚不能排除
+  AGFI、runtime plusargs 或 FireSim bridge 交互问题。
+- 经验约束：同一 runfarm/slot 上，必须确认旧 `runworkload` manager、remote
+  `FireSim-f2`、`screen -S fsim0` 都已经退出，或显式保留现场不再对该 slot 运行
+  `infrasetup`，才能启动新的 A/B。`infrasetup` 会 clear FPGA slot，不能和正在运行的
+  workload 并发。
+- 下一轮低成本验证应复用同一 AGFI，但重新 launch 一个干净 runfarm，按顺序执行：
+  `launchrunfarm -> infrasetup -> runworkload -> inspect -> terminaterunfarm`。
+  先跑 nodebug runtime（`+targetcycle-debug=0`，`synth_print.start/end` 延后），
+  再跑中间 runtime（`+targetcycle-debug=1` 但 `+targetcycle-debug-labels=0`，
+  `synth_print` 仍延后），最后才恢复 full-debug。这样区分 AGFI 基础可运行性、
+  TargetCycleDebugWidget 读寄存器/输出压力、以及 synthesized printf token 压力。
+
+2026-05-11T17:05Z 追加状态：
+
+- 已按上述顺序复用同一 AGFI 启动干净 1C1P F2 nodebug baremetal 测试，未与其它
+  `infrasetup`/`runworkload` 重叠：
+  - AGFI/AFI：`agfi-098bce7d5e0c3d937` / `afi-0d63b7450829af6c6`
+  - runfarm：`i-08d7a61110e529d28` / `192.168.1.160`
+  - runtime：
+    `config_runtime_f2_gemmini_rerocc_pairmanager_dummy8x8_1c1p1_sbus64_nic_hwdebug_baremetal_cfg32_slot_smoke_quick_nodebug.yaml`
+  - run log：
+    `sims/firesim/deploy/logs/2026-05-11--16-59-49-runworkload-MZA3XZ563KFTRUAH.log`
+  - result：
+    `sims/firesim/deploy/results-workload/2026-05-11--16-59-49-rerocc-lc-baremetal-cfg32-slot-smoke-quick-f2-rerocc-baremetal-cfg32-slot-smoke-quick-1c1p1-nic-hwdebug-nodebug/`
+- 有效结果：`uartlog` 显示 `Simulation complete.` 和
+  `*** PASSED *** after 44104832 cycles`，driver `COMMAND_EXIT_CODE="0"`；
+  wallclock 2.2s，effective target frequency 约 19.982MHz。`TRACEFILE*`、
+  `AUTOCOUNTERFILE*`、`metasim_stderr.out` copy-back 缺失只是对应功能未启用的
+  rsync warning，不影响 PASS 结论。
+- 因此当前不能把首轮 full-debug 的“没有 guest 输出/没有 PASS”归因到 payload
+  进不去程序、AGFI 基础不可用或 AWS shell timing violation。至少在
+  `+targetcycle-debug=0` 且 synth print 延后时，同一 AGFI 和同一 baremetal payload
+  可在 F2 上跑通。
+- 额外发现：TargetCycleDebugWidget 的 F2 OCL 读数不可信，但本地 metasim 正常。
+  首轮 full-debug F2 `uartlog` 中 `TARGETCYCLE DEBUG [tick]` 出现
+  `hcycle=0x37daa56537daa565` 这类高低 32 位近似相同的异常值，且
+  `counts hport=9 wire_in=6 wire_out=6 rv_in=6 rv_out=0` 与构造时打印的
+  `labels hport=0 wire_in=9 wire_out=256 rv_in=4 rv_out=6` 不一致。同一
+  targetcycle debug 在 local metasim 结果
+  `2026-05-11--01-32-34-...-1c1p1-nic-hwdebug` 中读数正常：
+  `hcycle=7560`、`counts hport=0 wire_in=9 wire_out=256 rv_in=4 rv_out=6`，
+  且 `COMMAND_EXIT_CODE="0"`。
+- 当前解释优先级：
+  1. 首轮 full-debug 无效退出的直接原因仍是调试流程重叠，后续 `infrasetup`
+     clear 了同一 slot。
+  2. full-debug 期间没有进入 guest PASS 的可见原因，是 targetcycle/printf 观测链
+     在启动早期打印大规模 channel/blocker dump；该 dump 本身可能持续数分钟，
+     并且 F2 上读数不可信，不能用其中 blocker 统计当成真实 target 卡点。
+  3. 需要进一步隔离的是 F2 上 TargetCycleDebugWidget 的 OCL 读路径/实现时序和
+     synthesized printf 输出压力；不是先重建 bitstream，也不是先判定 payload 错。
+- 下一步建议仍是少量 F2 A/B：先本地审计 TargetCycleDebugWidget 的 CR 绑定和
+  F2 OCL 连续读行为；若无确定静态修复，再跑中间 runtime
+  `+targetcycle-debug=1 +targetcycle-debug-labels=0` 且 synth print 延后，只保留摘要，
+  验证 targetcycle 打开但不大量打印时是否仍 PASS。只有这一步通过后，才考虑恢复
+  full-debug 或重建不带 TargetCycleDebugWidget、只保留 Rocket PC synth printf 的
+  hwdebug AGFI。
