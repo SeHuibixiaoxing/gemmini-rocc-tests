@@ -921,3 +921,16 @@ runtime 三件套执行 `launchrunfarm -> infrasetup -> runworkload -> terminate
 - 当前仍在同一 Vivado batch 中继续执行后续 netlist optimization / implementation / routing。
   build host `i-0f8e0a817ba503f21` 仍为 `running`，此 checkpoint 不是 AGFI/AFI
   完成证据。
+
+2026-05-11T02:19Z 追加经验：
+
+- 历史上一次完成的 1C1P hwdebug F2 build 为
+  `sims/firesim/deploy/logs/2026-05-10--15-20-21-buildbitstream-76BCL5ON1VOYVMB6.log`。
+  从 `2026-05-10 15:20:21` 启动，到 `2026-05-10 20:06:34` AGFI 变为
+  `available`，约 `4h46m13s`；到 manager 打印 `Build complete!` 为
+  `2026-05-10 20:06:54`，约 `4h46m33s`。
+- 该历史构建生成 `agfi-0795d5917b247dfb7` / `afi-0b5d10b38e183cd8f`，
+  deploy triplet 是 `WithPrintfSynthesis_WithAutoCounter_WithSynthAsserts`，
+  不等同于当前 `WithTargetCycleDebug_WithPrintfSynthesis_WithSynthAsserts` 配置。
+- 后续如只验证 PC/synthesized printf 硬件观测链路，优先复用历史上更小、更快的
+  1C1P 小配置；当前这轮 1C1P/2C6P 构建不为切换小配置而中断。
