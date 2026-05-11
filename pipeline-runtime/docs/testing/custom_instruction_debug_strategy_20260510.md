@@ -959,3 +959,22 @@ runtime 三件套执行 `launchrunfarm -> infrasetup -> runworkload -> terminate
   `i-018460888f9704c7e` / `192.168.0.241`。截至 `2026-05-11T07:32Z`，
   2C6P 处于 Vivado placement / post-placement optimization 阶段，尚未到
   route/DFX failure 或 AGFI 创建。
+
+2026-05-11T07:44Z 追加结论：
+
+- 本轮 1C1P route failure 的直接原因确认是 F2 small-shell DFX PartPin 合法性错误，
+  不是普通 AWS shell timing violation，也不是 PC synthesized printf 或
+  `TargetCycleDebugWidget` 的前端综合错误。错误集中在
+  `WRAPPER/RL_SHIM/DMA_PCIS_AXI_REG_SLC/AXI_REGISTER_SLICE` 的 PCIS 边界网。
+- AWS F2 文档要求 PCIS 相关 CL-side first flop/register slice 尽量放在 PCIS 所在
+  SLR1；跨 SLR 时两侧应有 flop/register slice。本轮报错说明 router 最终选择的
+  static/CL boundary branch 没有合法 PartPin LOC。
+- 与历史成功 1C1P 构建相比，本轮最明显、最可控的差异是 build recipe 使用了
+  `TIMING_HOLDFIX`。该策略只比普通 `TIMING` 多
+  `set_param route.enableHoldExpnBailout 0`，日志中 Vivado 也反复提示可以打开
+  hold-expansion bailout 来减少 runtime。该参数会让 router 在大量 hold violator
+  下继续展开 hold 修复，可能把 PCIS/RL_SHIM 边界 net 推入 DFX 非法 routing branch。
+- 已将 1C1P/2C6P hwdebug F2 build recipes 的 `build_strategy` 从
+  `TIMING_HOLDFIX` 改回 `TIMING`，作为下一轮最小验证修复。若后续仍报
+  `Constraints 18-4430`，再进入 PCIS floorplan/first-register-slice 修复，不建议
+  继续盲目重复 `TIMING_HOLDFIX` 构建或直接手写 PartPin LOC。
