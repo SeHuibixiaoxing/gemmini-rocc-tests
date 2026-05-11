@@ -898,3 +898,16 @@ runtime 三件套执行 `launchrunfarm -> infrasetup -> runworkload -> terminate
 - 因此 1C1P/2C6P hwdebug build yaml 改为显式 pin `ami-0d7cdfb6b3ce5b5e0`。
   这既避开 1.19.1 的 `Vivado 2025.2` 不兼容，也避开 1.16.1 的 Marketplace
   订阅阻塞。
+
+2026-05-11T02:12Z 追加状态：
+
+- 第三次 1C1P `buildbitstream` 使用 `ami-0d7cdfb6b3ce5b5e0` 成功启动
+  z1d.3xlarge build host `i-0f8e0a817ba503f21`，private IP `192.168.1.226`。
+  manager 日志为
+  `sims/firesim/deploy/logs/2026-05-11--02-01-51-buildbitstream-4WZZDD2PNOS9HWRK.log`。
+- 远端 `hdk_setup.sh` 已通过：日志显示 `Using vivado v2024.2`、
+  `VIVADO_TOOL_VERSION is 2024.2`、`AWS HDK setup PASSED`。随后已进入
+  `aws_build_dcp_from_cl.py` 和 Vivado batch `build_all.tcl`。
+- 远端 Vivado 日志路径：
+  `/home/ubuntu/firesim-build/platforms/f2/aws-fpga-firesim-f2/hdk/cl/developer_designs/cl_f2-firesim-FireSim-FireSimGemminiReRoCCPairDummy8x8C1P1Sbus64NICDebugConfig-WithTargetCycleDebug_WithPrintfSynthesis_WithSynthAsserts_FRFCFS16GBQuadRank_BaseF2Config/build/scripts/2026_05_11-020329.vivado.log`。
+  host 资源约为 12 logical cores、100 GiB memory，满足 F2 构建需求。
