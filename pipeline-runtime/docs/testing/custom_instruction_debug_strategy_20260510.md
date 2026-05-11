@@ -1,6 +1,6 @@
 # Gemmini/ReRoCC/DMA 自定义指令调试策略
 
-更新时间：`2026-05-10 15:10 UTC`
+更新时间：`2026-05-11 01:33 UTC`
 
 本文记录 `pipeline-runtime` 在 Linux/F2 上调试 Gemmini、ReRoCC、CoupledDMA
 自定义指令时的推荐方法。目标不是增加更多热路径日志，而是在少用 F2、少扰动程序轨迹的前提下，
@@ -9,6 +9,12 @@
 2026-05-10 更新：程序可能在软件 sentry 或 printf 来得及输出前就已经卡在 custom instruction。
 因此后续卡死定位的主证据必须来自 FireSim 硬件侧观测；软件 marker、GDB 和 guest 文件日志只作为
 辅助关联证据。硬件观测也不能直接从 12-pair/6-pair 大设计开始，应先按下面顺序验证观测本身。
+
+2026-05-11 更新：后续 PC 级定位优先使用 Rocket core 中的 `SynthesizePrintf` 追踪采样退休 PC、
+RoCC 发射 PC、RoCC command-ready 等待 PC 和 RoCC fence/CSR 等待 PC，并保留
+ReRoCC/Gemmini/CoupledDMA 已敲定的可综合输出与 target-cycle host/target channel snapshot。
+新一轮硬件调试配置不启用 TraceIO/TracerV；如果没有 `TRACEFILE-C0` 属于预期现象，不能据此判定
+观测缺失。
 
 相关入口：
 
@@ -54,9 +60,17 @@
 输出机制：
 
 - `SynthesizePrintf` 只打印事件、状态切换和 watchdog；不打印每周期状态。
-- `PerfCounter.identity` 低频采样 packed state；默认 `autocounter.read_rate=10000` 或 `100000`。
-- TracerV 保留 TraceIO，先用 instruction trigger 或宽 cycle trigger；拿到 hang cycle 后改成窄 cycle window。
-- AutoILA 暂不默认启用。只有 printf/AutoCounter/TracerV 仍不能定位时，才构建 `ILADepth2048_WithAutoILA_...` 版本。
+- Rocket PC `SynthesizePrintf` 打印四类 breadcrumb：
+  sampled retired instruction PC、RoCC command fire PC、RoCC command wait PC、RoCC fence/CSR
+  wait PC。退休 PC 只打印启动首段和低频采样，不再逐条退休指令常开输出。它只在专用 hwdebug
+  config 下打开，不进入普通配置。
+- Target-cycle debug widget 采集 FireSim host/target channel 的 valid/ready snapshot，通过
+  `+targetcycle-debug*` plusarg 打开并限制 dump 数量。
+- `PerfCounter.identity` / AutoCounter 作为可选低频采样手段；本轮 PC 定位配置不把 AutoCounter
+  作为必需项。
+- TraceIO/TracerV 本轮不启用。只有在 PC breadcrumb、ReRoCC/Gemmini/CoupledDMA printf 和
+  target-cycle snapshot 都无法定位时，才重新评估 TraceV 或 AutoILA。
+- AutoILA 暂不默认启用。只有上述低成本观测仍不能定位时，才构建 `ILADepth2048_WithAutoILA_...` 版本。
 
 落地配置：
 
@@ -79,8 +93,9 @@
 
 - 1C1P metasim 通过时，synth print 中必须能串起：
   `rrc-client-cmd -> rrc-client-inst-beat -> rrc-manager-inst-enq -> rrc-manager-cmd-fire -> pair-wrapper-* -> coupled-dma-*`。
-- 1C1P Linux/F2 通过时，必须回收 `uartlog`、`heartbeat.csv`、`TRACEFILE-C0`、synth print 文件和
-  `AUTOCOUNTERFILE*.csv`；`uartprobe.status` 应记录正常结束。
+- 1C1P Linux/F2 通过时，必须回收 `uartlog`、`heartbeat.csv`、synth print / target-cycle debug 输出；
+  若当前配置未启用 TraceV/AutoCounter，不要求 `TRACEFILE-C0` 或 `AUTOCOUNTERFILE*.csv`。
+  `uartprobe.status` 应记录正常结束。
 - 6P2C 前不得跳过 1C1P。若 1C1P 已经暴露观测信号缺失或误报，先修硬件观测，不上大 bitstream。
 
 ### 0.1 2026-05-10 本地验证记录
@@ -665,7 +680,150 @@ uartlog / guest files / trace / GDB log 路径：
   `/home/ubuntu/firesim-build/platforms/f2/aws-fpga-firesim-f2/hdk/cl/developer_designs/cl_f2-firesim-FireSim-FireSimGemminiReRoCCPairDummy8x8C1P1Sbus64NICDebugConfig-WithPrintfSynthesis_WithAutoCounter_WithSynthAsserts_FRFCFS16GBQuadRank_BaseF2Config/build/scripts/2026_05_10-152756.vivado.log`
 - 截至 2026-05-10 15:43 UTC，远端 Vivado 已进入整体综合并启动 parallel synth worker，尚无 AGFI。
 
-下一步：等待 1C1P F2 bitstream 结束。成功后更新
+2026-05-10T19:08Z 追加状态：
+
+- 1C1P Vivado 已完成并进入 AWS AFI creation。结果目录：
+  `sims/firesim/deploy/results-build/2026-05-10--15-20-21-firesim_gemmini_rerocc_pairmanager_dummy8x8_1c1p1_sbus64_nic_hwdebug/`
+- AGFI：`agfi-0795d5917b247dfb7`
+- AFI：`afi-0b5d10b38e183cd8f`
+- AWS AFI 状态仍为 `pending`，`UpdateTime=2026-05-10T18:57:19+00:00`；因此暂不更新
+  `config_hwdb_f2_gemmini_rerocc_pairmanager_dummy8x8_1c1p1_sbus64_nic_hwdebug.yaml`。
+- 该 build 打印了 post-route DCP timing failure：
+  `Detected a post-route DCP with timing failure for AFI creation. Design functionalities are NOT guranteed.`
+  这类 AGFI 只能作为小规模 live diagnostic 候选，必须由 Linux/F2 workload 结果确认可用性。
+- 当前没有运行中的 F2 runfarm 实例。
+
+2C6P/6pair2cpu 并行构建状态：
+
+- 初始 2C6P build 在本地 Golden Gate 阶段失败，不是远端 Vivado 失败。失败点为
+  `firrtl.passes.InlineInstances.fixupRefs` 内 `java.lang.StackOverflowError`，日志：
+  `sims/firesim/deploy/logs/2026-05-10--17-57-54-buildbitstream-RCNPARR4Y569QMTM.log`。
+- 静态原因是 FAME 生成了很深的左折叠布尔 AND 表达式；2C6P
+  `post-fame5-transform.fir` 中 `targetCycleFinishing` 单行约 461 KiB，容易让后续 FIRRTL
+  引用修复递归爆栈。单纯提高 `-Xss` 不能可靠解决。
+- 当前临时补丁把 `sims/firesim/sim/midas/src/main/scala/midas/passes/fame/RTLUtils.scala`
+  的 `BinaryBooleanOp.reduce` 从线性左折叠改成平衡二叉 reduce，使表达式深度从 O(N) 降到 O(log N)。
+- 用该补丁重启的 session 为 `hwdebug-2c6p-f2-buildbitstream-balanced-and`；截至
+  2026-05-10T19:08Z 已越过原 `InlineInstances` 栈溢出点，生成
+  `post-sim-mapping.fir`（约 769 MiB），仍在本地 Golden Gate/Verilog emission 阶段，尚未启动远端
+  z1d Vivado build。
+- 若 1C1P Linux/F2 小测失败，必须先停止该 2C6P session，再修复并完成 1C1P metasim 回归，然后同步重启
+  小/大配置构建。
+
+2026-05-10T20:02Z 追加状态：
+
+- FireSim 文档确认 buildbitstream 的 AWS 路径最后一步是“提交 tar 到 AWS backend 转 AFI，然后本地等待 AFI
+  available”；`AGFI_INFO` 在 manager 运行期间描述 AFI 状态，只有 available 后才能把 `agfi:` 条目作为
+  runtime hwdb 的有效输入。
+- 1C1P `afi-0b5d10b38e183cd8f` 从 `2026-05-10T18:57:19+00:00` 创建以来仍为 `pending`，
+  20:01Z 查询仍无失败 `Message` 字段；继续等待，不更新 hwdb。
+- 2C6P 已生成
+  `sims/firesim/sim/generated-src/f2/f2-firesim-FireSim-FireSimGemminiReRoCCPairDummy8x8C2P6Sbus64NICDebugConfig-WithPrintfSynthesis_WithAutoCounter_WithSynthAsserts_FRFCFS16GBQuadRank_BaseF2Config/FireSim-generated.sv`
+  （约 212 MiB），并启动远端 build host `i-01593d53b67b4edb5` / `192.168.0.182`，build tag
+  `pairdummy8x8sbus64c2p6hwdbg`。
+- 当前运行中的 build hosts：1C1P `i-0452c39052811f732`（等待 AFI available）和 2C6P
+  `i-01593d53b67b4edb5`（Vivado 早期 IP synthesis）。当前仍没有 F2 runfarm 实例。
+- 不把 2C6P 远端 build 视作 1C1P Linux/F2 测试通过的替代证据；若 1C1P F2 workload 失败，优先停止
+  2C6P build，回到本地/metasim 修复闭环。
+
+下一步：等待 1C1P F2 bitstream/AFI creation 完成。成功后更新
 `config_hwdb_f2_gemmini_rerocc_pairmanager_dummy8x8_1c1p1_sbus64_nic_hwdebug.yaml` 的 AGFI，并用同一
 runtime 三件套执行 `launchrunfarm -> infrasetup -> runworkload -> terminaterunfarm`。只有 1C1P Linux/F2
 小测确认可用后，再构建 6pair2cpu。
+
+2026-05-10T20:35Z 追加状态：
+
+- 1C1P AFI 已 ready，并已把
+  `sims/firesim/deploy/config_hwdb_f2_gemmini_rerocc_pairmanager_dummy8x8_1c1p1_sbus64_nic_hwdebug.yaml`
+  更新为 `agfi-0795d5917b247dfb7`。
+- 1C1P Linux/F2 workload 已执行但失败。结果目录：
+  `sims/firesim/deploy/results-workload/2026-05-10--20-30-11-rerocc-lc-linux-coupleddma-dma-export-alias-uartprobe-1c1p1-hwdebug-f2-rerocc-linux-uartprobe-1c1p1-hwdebug/`
+- `uartlog` 中的关键失败为：
+  `Simulator deadlock detected at target cycle 0`，随后
+  `*** FAILED *** (code = 1) after 0 cycles`。
+- 这轮没有 guest `pipeline-runtime-debug/*` 产物，也没有 Linux boot 证据。因此它不是
+  pipeline runtime 程序卡死，卡点在 FireSim/FPGA driver 进入 target 前后的 cycle-0
+  forward-progress 判断。
+- FireSim hanging-simulator 文档把这种“driver 主循环仍在跑但 target cycle 不前进”的现象归到
+  FPGA-side token starvation / bridge-driver 交互类问题；在本轮证据中，另一个强嫌疑是该 AGFI
+  的 post-route timing 本身 violated。
+- build 证据：
+  `sims/firesim/deploy/results-build/2026-05-10--15-20-21-firesim_gemmini_rerocc_pairmanager_dummy8x8_1c1p1_sbus64_nic_hwdebug/`
+  的 post-route timing report 最坏 setup slack 约 `-3.025ns`，最坏路径集中在
+  `CL_DMA_PCIS_SLV/AXI4_REG_SLC_PCIS_SLR2` 的 PCIS AR 通道；build log 生成
+  `.post_route.VIOLATED.dcp`，并提示 timing failure 下功能不保证。
+- 按“小测失败先停止大构建”的策略，已停止 2C6P session
+  `hwdebug-2c6p-f2-buildbitstream-balanced-and-restart1`，并终止对应 build host
+  `i-068436632dfd00c27`。1C1P run host 也已回收；当前没有运行中的 `f2.*` 或 `z1d.*` 实例。
+- 限制：这轮不能作为 DMA completion 或 pipeline runtime 失败证据；它只能证明当前 1C1P
+  F2 AGFI/runtime 组合无法推进 target cycle。
+
+下一步：
+
+1. 先做低成本 runtime 收敛：把 1C1P F2 runtime 从 cycle-0 trace trigger
+   `selector: 1/start: 0` 改回和通过的 1C1P metasim 一致的 instruction trigger
+   `selector: 3/start: ffffffff00008013/end: ffffffff00010013`，并把 heartbeat 放宽到
+   `100000000`，减少 TracerV cycle-0 全量拉取和过早 heartbeat 的干扰。
+2. runtime 修正先重新跑 1C1P metasim，确认配置仍能通过。
+3. 若下一次 1C1P F2 仍 cycle-0 失败，则不再把主因押在 runtime；优先重建 1C1P AGFI：
+   使用 timing 更保守的 recipe（例如 `TIMING_HOLDFIX`）或减少非必要 instrumentation，同时保持
+   硬件可观测链的最小字段。1C1P metasim 通过后，再同步重启 1C1P/2C6P 构建。
+
+2026-05-11T01:15Z 追加状态：
+
+- 已确认新路线为：不启用 TraceIO/TracerV；保留 ReRoCC/Gemmini/CoupledDMA 已有
+  `SynthesizePrintf`，新增 Rocket core PC breadcrumb，并启用 target-cycle debug widget。
+- 相关配置：
+  `FireSimGemminiReRoCCPairDummy8x8C1P1Sbus64NICDebugConfig` 和
+  `FireSimGemminiReRoCCPairDummy8x8C2P6Sbus64NICDebugConfig` 均使用
+  `WithNoTraceIO ++ WithRocketSynthPCDebug`；1C1P metasim build recipe 使用
+  `WithTargetCycleDebug_WithPrintfSynthesis_WithSynthAsserts_FRFCFS16GBQuadRank_BaseF2Config`。
+- 当前 1C1P metasim `infrasetup` session：
+  `hwdebug-1c1p-pc-targetcycle-metasim-infrasetup-rerun`。
+  本轮先清理了旧 staging/generated/output 和 `.classpath_cache/firechip.jar`，避免复用旧
+  `VFireSim` 或旧 `sfc.fir`。
+- 静态和 Golden Gate 证据：
+  新生成的 `sfc.fir` 已包含 `[rocket-retire-pc]`、`[rocket-rocc-pc-fire]`、
+  `[rocket-rocc-pc-wait]`；Golden Gate `PrintBridgeParameters` 中同时列出这些 Rocket PC
+  printf 以及原有 `rrc-client-*`、`rrc-manager-*`、`pair-wrapper-*`、
+  `coupled-dma-*` 输出；Simulator Memory Map 中已有 `TargetCycleDebugWidget_0`。
+- 经验记录：只执行 `runworkload` 可能继续使用旧 `/home/ubuntu/sim_slot_0/VFireSim`。
+  修改 target RTL、MIDAS widget、host bridge 或 build recipe 后，必须先跑 `infrasetup`
+  重新生成和部署 driver，再跑 workload。
+- 当前没有运行中的 `f2.*` 或 `z1d.*` 实例；本轮仍停留在本地 metasim 验证。
+
+限制：
+
+- 上述证据只证明观测逻辑进入 target FIR 和 Golden Gate driver 生成链路；最终可用性还要等
+  1C1P metasim `runworkload` 看到 `TARGETCYCLE DEBUG`、Rocket PC printf、既有硬件 printf
+  与 `*** PASSED ***`。
+- Target-cycle widget 当前把部分 input channel missing-valid 也计入 problem，可能在空闲期较早触发。
+  runtime 通过 `+targetcycle-debug-limit=4` 限制输出规模；若后续输出太早或过噪，再收窄触发条件。
+
+2026-05-11T01:33Z 追加状态：
+
+- 已把 Rocket PC 输出从逐条 retired instruction 改为首 `16` 条加每 `2^20` retired instruction
+  采样，同时保留 exception 打印。这样 Linux/F2 长跑仍能看到软件自旋附近 PC，但不会把每条退休指令
+  都送进 synthesized printf。
+- 额外加入 `rocket-rocc-fence-wait-pc`。它在 decode 阶段遇到 `fence` 或 RoCC CSR write 且
+  `id_rocc_busy` 时低频打印 PC、指令、`rocc_busy` 以及 ex/mem/wb 是否仍有 RoCC 指令，覆盖
+  “命令已经 fire，但后续 fence 等 busy 清零”的卡点。
+- 1C1P NIC hwdebug metasim `infrasetup` 已通过：
+  session `hwdebug-1c1p-pc-sampled-metasim-infrasetup`，exit code `0`；
+  Golden Gate 报告 `35` 个 synthesized printf，`PrintBridgeParameters` 中列出
+  `rocket-retire-pc-sample`、`rocket-rocc-pc-fire`、`rocket-rocc-pc-wait`、
+  `rocket-rocc-fence-wait-pc`，同时仍列出既有 `rrc-*`、`pair-wrapper-*`、`coupled-dma-*`。
+  新部署的 `/home/ubuntu/sim_slot_0/VFireSim` 时间戳为 `2026-05-11 01:30 UTC`。
+- 1C1P NIC hwdebug metasim `runworkload` 已通过：
+  session `hwdebug-1c1p-pc-sampled-metasim-runworkload`，exit code `0`；
+  结果目录为
+  `/home/ubuntu/chipyard/sims/firesim/deploy/results-workload/2026-05-11--01-32-34-rerocc-lc-baremetal-cfg32-slot-smoke-quick-local-metasim-rerocc-baremetal-cfg32-slot-smoke-quick-1c1p1-nic-hwdebug/`。
+  `metasim_stderr.out` 结尾为 `Simulation complete.` / `*** PASSED *** after 17410 cycles`。
+- 运行期计数：`rocket-retire-pc-sample=16`、旧 `rocket-retire-pc=0`、`rocket-rocc-pc-fire=7`、
+  `rocket-rocc-pc-wait=0`、`rocket-rocc-fence-wait-pc=1`、`rrc-client-cmd=7`、
+  `rrc-manager-cmd-fire=7`、`pair-wrapper-gemmini-cmd=5`、`pair-wrapper-dma-cmd=2`、
+  `coupled-dma-copy-start=1`。这证明 PC breadcrumb 已经可用，且没有重新引入逐条退休 PC 噪声。
+- 仍需注意：`targetcycle-debug-limit=4` 虽限制 dump 次数，但 `+targetcycle-debug-labels=1`
+  会在每次 dump 打印最多 256 个 wire output label；本轮 1C1P `uartlog` 约 `7713` 行。
+  F2/Linux 复现若日志压力过大，优先把 runtime plusarg 改为 `+targetcycle-debug-labels=0`，必要时
+  再针对问题 channel 重新开 label，而不是扩大 synthesized printf。
