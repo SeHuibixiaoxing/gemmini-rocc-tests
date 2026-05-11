@@ -1024,3 +1024,21 @@ runtime 三件套执行 `launchrunfarm -> infrasetup -> runworkload -> terminate
   已清理。保留 1C1P m8i 构建继续运行：
   `hwdebug-1c1p-f2-pcis-slr1-floorplan-m8i-buildbitstream` /
   `i-0f5d56a0fa8ccdac2`。
+
+2026-05-11T12:12Z 追加状态：
+
+- 基于当前 PCIS SLR1 XDC 修复重新启动 2C6P/6-pair F2 构建：
+  `hwdebug-2c6p-f2-pcis-slr1-floorplan-buildbitstream`。
+- 使用配置：
+  `config_build_f2_gemmini_rerocc_pairmanager_dummy8x8_2c6p6_sbus64_nic_hwdebug.yaml`
+  和
+  `config_build_recipes_f2_gemmini_rerocc_pairmanager_dummy8x8_2c6p6_sbus64_nic_hwdebug.yaml`。
+  recipe 已确认是 `build_strategy: TIMING`，远端实际命令也打印
+  `build-bitstream.sh ... --frequency 20 --strategy TIMING`，不是旧的
+  `TIMING_HOLDFIX`。
+- 新 build host：`i-04458088bcf314a5f` / `z1d.3xlarge` / `192.168.1.212`，
+  build tag `pairdummy8x8sbus64c2p6hwdbg`。manager log：
+  `sims/firesim/deploy/logs/2026-05-11--12-11-05-buildbitstream-Q6IKPNZOGM6P7GL9.log`。
+- 当前并发构建只有两条：1C1P m8i floorplan validation
+  `i-0f5d56a0fa8ccdac2` 和这条新的 2C6P z1d。旧 2C6P host
+  `i-018460888f9704c7e` 已 terminated。
