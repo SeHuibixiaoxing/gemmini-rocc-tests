@@ -827,3 +827,23 @@ runtime 三件套执行 `launchrunfarm -> infrasetup -> runworkload -> terminate
   会在每次 dump 打印最多 256 个 wire output label；本轮 1C1P `uartlog` 约 `7713` 行。
   F2/Linux 复现若日志压力过大，优先把 runtime plusarg 改为 `+targetcycle-debug-labels=0`，必要时
   再针对问题 channel 重新开 label，而不是扩大 synthesized printf。
+
+2026-05-11T01:41Z 追加状态：
+
+- 用户确认后，硬件观测路线固定为：不用 TraceV/TraceIO；使用 Rocket core
+  `SynthesizePrintf` 采样退休 PC，并保留 `rocket-rocc-pc-fire`、
+  `rocket-rocc-pc-wait`、`rocket-rocc-fence-wait-pc`、既有 ReRoCC/Gemmini/CoupledDMA
+  synthesized printf，以及 target-cycle debug snapshot。
+- 已启动 1C1P F2 小配置构建：
+  session `hwdebug-1c1p-f2-pc-sampled-buildbitstream`，
+  build config `config_build_f2_gemmini_rerocc_pairmanager_dummy8x8_1c1p1_sbus64_nic_hwdebug.yaml`，
+  recipe `config_build_recipes_f2_gemmini_rerocc_pairmanager_dummy8x8_1c1p1_sbus64_nic_hwdebug.yaml`。
+- 曾尝试同步启动 2C6P F2 构建：
+  session `hwdebug-2c6p-f2-pc-sampled-buildbitstream`，但在本地 elaboration 阶段主动停止，
+  exit code `120`。原因是两个 `buildbitstream` 在同一个 workspace 内会共享
+  `sims/firesim-staging`、`sim/midas/src/main/scala/target-symlinks`、
+  `.classpath_cache/firechip.jar` 和部分 `sim/generated-src`/`sim/output` 生成路径；不同硬件
+  配置并行跑 `replace-rtl`/Golden Gate 有污染小配置结果的风险。
+- 后续同步构建规则：不要在同一 workspace 并行启动两个不同 target config 的
+  `buildbitstream` 本地生成阶段。若需要同步推进大配置，等 1C1P 完成本地
+  `replace-rtl`/driver 打包并进入远端 build farm 后再启动，或使用隔离 worktree/独立 checkout。
