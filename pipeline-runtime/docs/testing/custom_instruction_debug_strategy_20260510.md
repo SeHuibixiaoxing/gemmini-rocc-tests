@@ -978,3 +978,32 @@ runtime 三件套执行 `launchrunfarm -> infrasetup -> runworkload -> terminate
   `TIMING_HOLDFIX` 改回 `TIMING`，作为下一轮最小验证修复。若后续仍报
   `Constraints 18-4430`，再进入 PCIS floorplan/first-register-slice 修复，不建议
   继续盲目重复 `TIMING_HOLDFIX` 构建或直接手写 PartPin LOC。
+
+2026-05-11T11:55Z 追加状态：
+
+- `TIMING` 重建仍在 1C1P route 阶段报 `Constraints 18-4430` 后，已转入
+  PCIS floorplan 修复。根因判断不是 AWS shell timing violation，而是
+  F2 small-shell DFX PartPin 合法性错误；可见边界 net 从
+  `WRAPPER/RL_SHIM/DMA_PCIS_AXI_REG_SLC/AXI_REGISTER_SLICE` 指向
+  `WRAPPER/CL/CL_DMA_PCIS_SLV/AXI4_REG_SLC_PCIS_SLR2`。
+- 本轮采用 XDC-only 修复，不改 RTL/软件、不手写 PartPin：将
+  `CL_DMA_PCIS_SLV/AXI4_REG_SLC_PCIS_SLR2` 从 `pblock_CL_SLR2` 移到
+  `pblock_CL_SLR1`，并把 `wide_pcis_clock_convert`、`pcis_width_bridge`
+  同放入 SLR1。依据是 AWS F2 文档中 small-shell PCIS 物理位于 SLR1，
+  shell interface 的 first flop/register slice 应尽量放在同一 SLR。
+- 修复 checkpoint：
+  - `aws-fpga-firesim-f2` commit `26a1172b516f0ea70501d23f38dd3a2b23a0af9f`
+    (`Place small-shell PCIS handoff in SLR1`)
+  - `sims/firesim` commit `91888035e601638b356f98aa70793b4005cbf653`
+    (`Add m8i build config for PCIS floorplan test`)
+  - top-level commit `650e5f55` (`Checkpoint PCIS floorplan build setup`)
+- 已按要求用更小的 m 系实例启动 1C1P 验证构建：
+  `m8i.2xlarge` build host `i-0f5d56a0fa8ccdac2` / `192.168.2.155`，
+  FireSim log
+  `sims/firesim/deploy/logs/2026-05-11--11-53-05-buildbitstream-SQ1Q3F3QADK0GM8I.log`，
+  tmux session `hwdebug-1c1p-f2-pcis-slr1-floorplan-m8i-buildbitstream`。
+  实际远端命令为 `build-bitstream.sh --frequency 20 --strategy TIMING`；
+  日志已确认 `AWS HDK setup PASSED`、`Using BUILD_STRATEGY=TIMING`。
+- 同时保留正在运行的 2C6P 构建，不打断：build host
+  `i-018460888f9704c7e` / `192.168.0.241`，build tag
+  `pairdummy8x8sbus64c2p6hwdbg`。
