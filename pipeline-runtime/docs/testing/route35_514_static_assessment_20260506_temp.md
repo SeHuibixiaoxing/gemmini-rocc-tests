@@ -203,3 +203,61 @@ This refines the assessment:
   region highlighted by tight-pin and critical-path evidence.
 - A future retry should focus on DFX-legal placement/routing for
   `RL_SHIM/DMA_PCIS_AXI_REG_SLC` and `RL_SHIM/DDR_STAT_PIPE_DATA` boundary nets.
+
+## 2026-05-11 1C1P Hwdebug TIMING Failure Update
+
+The 1C1P hwdebug `TIMING` rebuild did not fail because AWS shell timing was
+violated. It failed before AGFI creation at `route_design`, with the same DFX
+PartPin legality class:
+
+```text
+ERROR: [Constraints 18-4430] On the boundary net WRAPPER/RL_SHIM/DMA_PCIS_AXI_REG_SLC/AXI_REGISTER_SLICE/... does not contain PartPin LOC.
+INFO: [Route 35-17] Router encountered errors.
+route_design failed
+```
+
+Artifacts:
+
+- Manager log:
+  `sims/firesim/deploy/logs/2026-05-11--07-52-18-buildbitstream-Q1P8AHNVBEQQACKR.log`
+- Build result:
+  `sims/firesim/deploy/results-build/2026-05-11--07-52-18-firesim_gemmini_rerocc_pairmanager_dummy8x8_1c1p1_sbus64_nic_hwdebug/`
+- Last checkpoint available:
+  `post_phys_opt.dcp`; there is no post-route DCP or AGFI.
+
+Visible `18-4430` distribution:
+
+| Build | Visible `18-4430` lines | Dominant channels | Physical signature |
+|---|---:|---|---|
+| 1C1P hwdebug `TIMING` | 157 | `aw.aw_pipe` 129, `ar.ar_pipe` 28 | all reported branch sinks end on tile column `X112` |
+| Earlier 8p cfg32 failure | 157 | mostly `w.w_pipe`/`aw.aw_pipe` plus DDR-stat in the report notes | same PCIS/RL_SHIM boundary class |
+
+The local Vivado checkpoint probe refines the failing connection:
+
+- Driver side: static/RL_SHIM
+  `WRAPPER/RL_SHIM/DMA_PCIS_AXI_REG_SLC/AXI_REGISTER_SLICE/inst/{aw,ar}.aw_pipe/m_payload_i_reg[*]/Q`.
+- Sink side: CL reconfigurable
+  `WRAPPER/CL/CL_DMA_PCIS_SLV/AXI4_REG_SLC_PCIS_SLR2/inst/{aw,ar}.aw_pipe`
+  payload/skid registers.
+- The sink side is in `pblock_CL_SLR2`; the source side has no CL pblock because
+  it is static/RL_SHIM-side shell logic.
+- The same checkpoint's top setup paths are still the static-to-CL PCIS SLR2
+  address path, e.g. to
+  `AXI4_REG_SLC_PCIS_SLR2/inst/ar.ar_pipe/m_payload_i_reg[22]/D`, with about
+  94-97% route delay and `SLR Crossing[1->2]`.
+
+So the best current statement is: the failing route branch is the 512-bit shell
+PCIS handoff from the AWS/RL_SHIM `DMA_PCIS_AXI_REG_SLC` register slice into the
+first CL-side `CL_DMA_PCIS_SLV/AXI4_REG_SLC_PCIS_SLR2` register slice, especially
+the AW/AR address-channel payload bits in this 1C1P run.
+
+This should be kept separate from timing-cleanliness:
+
+- Historical `agfi-03d9518415ec82449` and `agfi-077451484fe3b63c3` both had
+  post-route timing violations, but reached `DFX DRC finished with 0 Errors`,
+  `Route 35-16`, AWS packaging, and then passed functional validation in the
+  relevant scopes.
+- Therefore AWS shell timing violations are not a sufficient reason to reject an
+  AGFI candidate in this project.
+- The hard blocker for the current 1C1P build is that DFX PartPin legality
+  prevents AGFI creation at all.
