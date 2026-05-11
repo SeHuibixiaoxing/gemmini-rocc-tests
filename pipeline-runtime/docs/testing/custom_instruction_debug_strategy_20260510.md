@@ -934,3 +934,28 @@ runtime 三件套执行 `launchrunfarm -> infrasetup -> runworkload -> terminate
   不等同于当前 `WithTargetCycleDebug_WithPrintfSynthesis_WithSynthAsserts` 配置。
 - 后续如只验证 PC/synthesized printf 硬件观测链路，优先复用历史上更小、更快的
   1C1P 小配置；当前这轮 1C1P/2C6P 构建不为切换小配置而中断。
+
+2026-05-11T07:33Z 追加状态：
+
+- 当前 1C1P `WithTargetCycleDebug_WithPrintfSynthesis_WithSynthAsserts` F2 build
+  没有生成 AGFI。tmux session `hwdebug-1c1p-f2-pc-sampled-buildbitstream-ami117`
+  exit code 为 `1`。
+- 时间线：manager 于 `2026-05-11T02:01:51Z` 启动，FireSim tmux 于
+  `2026-05-11T07:23:13Z` 结束，耗时约 `5h21m22s`。build host 为
+  `i-0f8e0a817ba503f21` / `192.168.1.226`，FireSim 已请求 terminate；当前 AWS
+  运行中只剩 2C6P build host。
+- 失败点是 Vivado `route_design`，不是普通 shell timing violation：
+  `ERROR: [Constraints 18-4430] ... boundary net WRAPPER/RL_SHIM/DMA_PCIS_AXI_REG_SLC/AXI_REGISTER_SLICE/... does not contain PartPin LOC`，
+  随后 `INFO: [Route 35-17] Router encountered errors`、`route_design failed`、
+  `ERROR: Did not find the post-route DCP file`。
+- 这与既有
+  `route35_514_static_assessment_20260506_temp.md` 和
+  `cfg32_nic_f2_fix_options_20260507_temp.md` 中记录的 F2 small-shell DFX
+  boundary 问题一致，重点仍是 `RL_SHIM/DMA_PCIS_AXI_REG_SLC` 这类 PCIS 边界 net
+  的 PartPin 合法性。单纯“规模小”不能保证通过；历史 8p 低资源构建也曾在同类
+  `Constraints 18-4430` 上失败。
+- 同步启动的 2C6P 构建仍在运行：
+  session `hwdebug-2c6p-f2-pc-sampled-buildbitstream-ami117`，build host
+  `i-018460888f9704c7e` / `192.168.0.241`。截至 `2026-05-11T07:32Z`，
+  2C6P 处于 Vivado placement / post-placement optimization 阶段，尚未到
+  route/DFX failure 或 AGFI 创建。
