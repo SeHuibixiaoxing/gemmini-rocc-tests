@@ -1,7 +1,7 @@
 include $(abs_top_srcdir)/Makefrag
 
 tests = 	rerocc_gemmini_conv_matrix 	rerocc_dma_matrix 
-LINUX_EXTRA_BINS = rerocc_pipeline_runtime-linux
+LINUX_EXTRA_BINS = rerocc_pipeline_runtime-linux rerocc_ptrace_peek-linux
 
 ifdef BAREMETAL_ONLY
 tests_linux =

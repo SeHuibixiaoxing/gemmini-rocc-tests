@@ -1,0 +1,15 @@
+{
+  "name" : "rerocc-lc-baremetal-dma-misaligned-perf-pairmanager",
+  "base" : "bare-base.json",
+  "workdir" : ".",
+  "host-init" : "host-init-dma-misaligned-perf-pairmanager.sh",
+  "bin" : "rerocc_lc_dma_misaligned_perf_pairmanager.riscv",
+  "firesim" : {
+    "simulation_outputs" : [
+      "uartlog",
+      "memory_stats*.csv",
+      "TRACEFILE*",
+      "metasim_stderr.out"
+    ]
+  }
+}

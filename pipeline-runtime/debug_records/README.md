@@ -23,3 +23,5 @@
   `../change_records/<timestamp>.md`
 - `CURRENT_STATUS.md` 与 `NEXT_SESSION_PROMPT.md` 只保留最新 authoritative 摘要；
   这里才是每轮完整原始调试记录。
+- 原始记录文件保持扁平时间戳命名；按调试类别的聚合索引见：
+  `CATEGORY_INDEX.md`

@@ -1,0 +1,255 @@
+# Pipeline Runtime Debug Record Categories
+
+更新时间：`2026-05-04 10:13 UTC`
+
+说明：
+
+- 原始记录文件仍保持扁平的 UTC 时间戳命名；本索引只负责按调试类别聚合。
+- 分类规则由 `scripts/generate_record_category_index.py` 生成。
+- 当前固定三类：`main`、`tracev` 与 `gdbserver`；新增记录按规则自动归类。
+
+## 类别说明
+
+- `main`：主线 `pairdummy/sbus128` / `pipeline-runtime` 语义、workflow、artifact、DMA/Gemmini/RR/SPM-xlate 调试（当前 debug record 数量：`133`）
+- `tracev`：`TraceV` / `TracerV` / `workerpc` / `metasim` / marker / tracefile 调试（当前 debug record 数量：`27`）
+- `gdbserver`：`gdbserver` / NIC 网络联通 / host-guest attach / 最小 Linux smoke 调试（当前 debug record 数量：`69`）
+
+## 按类别索引
+
+### `main`
+
+- `20260413T044223Z.md`：- 建立独立的调试记录目录与单轮时间戳记录机制
+- `20260413T044706Z.md`：- 修正 host watchdog 对 `checkpoint-only progress` 的误判风险
+- `20260413T050600Z.md`：- 用新 image / 新 host / 新 run 验证：
+- `20260413T051444Z.md`：- 接手已有 live run，确认当前冻结点是否仍在 `segment=0 stage=0 subbatch=2` 后继路径。
+- `20260413T051908Z.md`：- 接续上一轮冻结现场，在 watchdog 回收后固化 capture 结论。
+- `20260413T052813Z.md`：- 接手上一轮新启动的 `pairdummy-sbus128` live run，确认其是否已进入 guest 侧 `pipeline-runtime` 日志阶段。
+- `20260413T054608Z.md`：- 基于当前 live run 的新前沿，判断旧 blocker 是否已被真正越过。
+- `20260413T055814Z.md`：- Continue live debugging for `12-pair sbus128 dummy-model` on FireSim.
+- `20260413T062750Z.md`：- Continue live debugging on `12-pair sbus128 dummy-model` hardware target.
+- `20260413T063852Z.md`：- Start a new debug round after narrowing the `tensor=2 export` inner probe.
+- `20260413T065015Z.md`：- Start a new debug round after discovering that the narrowed export-probe envs did not actually reach the guest.
+- `20260413T065543Z.md`：- 延续 `12-pair sbus128 dummy-model` 硬件上的 `pipeline-runtime` 调试。
+- `20260413T071621Z.md`：- 回答“现在卡点在哪里”。
+- `20260413T072459Z.md`：- 延续 `12-pair sbus128 dummy-model` 调试，围绕 `segment=0 stage=0` 的 `spm-xlate-flush` 前沿继续收敛真实卡点。
+- `20260413T075122Z.md`：- 在新 run `pairdummy-sbus128-runworkload-20260413-074050` 上确认修补 `spm-xlate flush/release` 细日志后的真实新卡点。
+- `20260413T075718Z.md`：- 基于上一轮真实前沿 `stage=0 tensor=2 target_seq=1 page=60/64 submitwait-begin`，把 export submit/wait probe 窗口前移到更接近当前冻结页的 token
+- `20260413T081923Z.md`：- 记录 `pairdummy-sbus128-fixed-v3` 重建、freshness、重跑与当前 live 前沿，确认新 export probe window 已被真正部署并重新逼近旧 late frontier。
+- `20260413T084039Z.md`：- Run session: `pairdummy-sbus128-runworkload-20260413-080845`
+- `20260413T092022Z.md`：- 停止继续在 DMA / SPM xlate 热路径追加文本 probe。
+- `20260413T093548Z.md`：- 按新的 breadcrumb 低扰动机制继续推进 `12-pair sbus128` dummy-model 调试闭环。
+- `20260413T095957Z.md`：- 基于 `20260413T093548Z` 这一轮 live 结果，修复两个新确认的实现缺陷：
+- `20260413T102354Z.md`：日期：2026-04-13T10:23:54Z
+- `20260413T111421Z.md`：日期：2026-04-13T11:14:21Z
+- `20260413T111906Z.md`：- Goal: continue pairdummy on sbus128 hardware with low-perturbation breadcrumb tracing.
+- `20260413T113628Z.md`：- Continue `pairdummy-sbus128` dummy-model debugging on 12-pair sbus128 hardware.
+- `20260413T125022Z.md`：- Target: `pairdummy-sbus128` dummy-model on 12-pair `sbus128` hardware.
+- `20260413T132042Z.md`：- Continuation of the `pairdummy-sbus128` dummy-model FireSim debug line.
+- `20260413T140904Z.md`：- 接着 `pairdummy-sbus128-fixed-v8` 这轮 capture，确认 `v8` 的真实新前沿，而不是继续被 sparse 文本尾部误导。
+- `20260413T141903Z.md`：- 在加入 `DMA_WAIT_BEFORE_SHARED_FENCE` breadcrumb 之后，重跑 `pairdummy-sbus128`。
+- `20260413T142552Z.md`：- 记录 `pairdummy-sbus128-fixed-v9` 这轮 live run 从 boot 进入 guest 文件日志的时刻。
+- `20260413T142829Z.md`：- 利用 `v9` 新增的 `DMA_WAIT_BEFORE_SHARED_FENCE` breadcrumb 基线和 `page 10..12` 窄窗口，确认之前怀疑的
+- `20260413T143543Z.md`：- 把上一轮 `v9` live run 的真实推进结论补档，避免继续把旧怀疑点 `shared-fence/page=11` 误判成当前 blocker。
+- `20260413T144021Z.md`：- 完成 `v10` 镜像重建，确认 fixed-load probe 变量真实进入 FireMarshal image。
+- `20260413T144735Z.md`：- 在 `v10` fresh image 上重新拉起 `12-pair sbus128` dummy-model run。
+- `20260413T145631Z.md`：- 继续监控 `v10` fresh run，确认它是否已经从 boot/init 阶段推进到真正的 pipeline runtime 执行阶段。
+- `20260413T150336Z.md`：- 在 `v10` fresh run 上确认新的真实 plateau 是否已经稳定。
+- `20260413T151312Z.md`：- Continue dummy-model debug on `12-pair sbus128` hardware target.
+- `20260413T152610Z.md`：- Continue monitoring the live `v11` run on `12-pair sbus128`.
+- `20260413T153040Z.md`：- Start the next minimal-probe round after confirming the new live plateau.
+- `20260413T163651Z.md`：- 回答用户提出的“随着探针加入，卡点位置发生偏移”是否属实。
+- `20260414T035557Z.md`：- 把“先静态分析，再打点日志”的调试顺序落成可执行入口，而不是继续靠人工记忆。
+- `20260414T050024Z.md`：- 延续上一轮 live run，不重启，先确认 pointwise breadcrumb 新边界是否已经把旧 blocker 推过去。
+- `20260414T060823Z.md`：- 在不新增大范围日志的前提下，确认上一轮 fresh rerun 的真实稳定前沿。
+- `20260414T063021Z.md`：- 在继续追 ReRoCC credit / ack 可疑点之前，
+- `20260414T072835Z.md`：- 复核最新 FPGA rerun，
+- `20260414T090443Z.md`：- 继续沿 FPGA 软件调试主线推进，
+- `20260414T093712Z.md`：- 重新通读主文档，
+- `20260414T094819Z.md`：- 继续观察 `v13` active rerun，
+- `20260414T103114Z.md`：- 沿用户要求继续遵守：
+- `20260414T125526Z.md`：- 继续遵守用户要求：
+- `20260414T132728Z.md`：- 继续沿着 `v17` live FPGA run 缩窄
+- `20260414T144739Z.md`：- 把用户批准的 blocker-debug SOP 真正落地成可执行工具链
+- `20260414T153308Z.md`：- 复核 `v19` 官方 host-watchdog capture，确认 live snapshot 与官方抓取是否一致
+- `20260414T161120Z.md`：- 继续跟进 `2026-04-14 15:55 UTC` 启动的
+- `20260414T165254Z.md`：- 收尾并复盘最新一轮
+- `20260415T041424Z.md`：- 按既定 SOP 开启新一轮
+- `20260415T044943Z.md`：- Timestamp: `20260415T044943Z`
+- `20260415T052052Z.md`：- Continue pairdummy sbus128 FPGA debugging.
+- `20260415T055238Z.md`：- Continue pairdummy sbus128 FPGA debug without changing runtime semantics.
+- `20260415T060220Z.md`：- Execute the first trustworthy rr-trigger FPGA rerun after fixing guest-side `/firemarshal.env` propagation.
+- `20260415T061752Z.md`：- Continue live diagnosis on the first trustworthy trigger-enabled rerun.
+- `20260415T063250Z.md`：- Execute the first trustworthy rerun centered on the newly narrowed fixed-load frontier:
+- `20260415T064955Z.md`：- active_run: pairdummy-sbus128-runworkload-20260415-063250
+- `20260415T070321Z.md`：- round: dma-export precise trigger rerun after authoritative frontier moved earlier than fixed-load target
+- `20260415T072535Z.md`：- round: extended-wait confirmation after `pairdummy-sbus128-runworkload-20260415-070219`
+- `20260415T073604Z.md`：- round: control rerun with trigger moved to the newly confirmed frontier
+- `20260415T075700Z.md`：- round: late-window control rerun after `page29` trigger proved the frontier had moved into the second alias-target cop
+- `20260415T082217Z.md`：- 回答当前固定配置下：`subbatch=3` 的 DMA 与 `subbatch=4` 的计算是否重叠
+- `20260415T082740Z.md`：- 回答用户问题:
+- `20260415T084758Z.md`：- 回答并核查当前 `08:04` dummy run 的线程数、日志线程数、日志死锁可能性、`ASYNC -> BLOCKING` 降级原因。
+- `20260415T090620Z.md`：- 在不改代码的前提下，对 `08:04` run 的早触发问题做单变量 rerun。
+- `20260415T091540Z.md`：- Continue debugging the `12-pair sbus128` dummy-model FireSim run.
+- `20260415T094120Z.md`：- Run an observability-only control rerun after the previous live capture.
+- `20260415T101859Z.md`：- Continue the `12-pair sbus128` control rerun with no repo code changes.
+- `20260415T104532Z.md`：- Execute the next observability-only rerun on `12-pair sbus128`.
+- `20260415T104944Z.md`：把主线从高扰动 `dma-fixed-load` trigger rerun 切回低扰动观测面，准备执行“仅过滤 `subbatch=5` 的 breadcrumb-only rerun”。
+- `20260415T105118Z.md`：验证 breadcrumb-only rerun 的 overlay 是否真的透传到 fixed workflow。
+- `20260415T110110Z.md`：执行第一轮真正生效的 breadcrumb-only 低扰动 rerun，并确认：
+- `20260415T111013Z.md`：判断 breadcrumb-only rerun 是否只是“把 page63 周围看得更细”，还是已经真正越过旧 blocker。
+- `20260415T112214Z.md`：基于上一轮已跨过旧 `sb=5/page63` blocker 的结论，
+- `20260415T120322Z.md`：基于 `20260415T114200Z` host-watchdog capture，
+- `20260415T122754Z.md`：基于上一轮
+- `20260415T123220Z.md`：在保持低扰动配置的前提下，重新执行一轮完整的
+- `20260415T125427Z.md`：基于上一轮
+- `20260415T131934Z.md`：基于上一轮
+- `20260415T132611Z.md`：修复本轮 observability rerun 中暴露出的配置链路问题：
+- `20260415T135008Z.md`：- Objective: continue the `v21` observability run on `12-pair sbus128` and locate the new stable blocker after proving `
+- `20260415T141625Z.md`：- Continue the `12-pair sbus128` rerun after switching the fixed profile to the
+- `20260415T144925Z.md`：- Continue the `12-pair sbus128 / bertmini batch8 / file-only / pairdummy` low-perturbation control rerun.
+- `20260415T151732Z.md`：- 继续监控 `pairdummy-sbus128-fixed-v24` 低扰动 run
+- `20260415T160227Z.md`：- 完成 `sb=6 breadcrumb-only` control rerun 的最终归档
+- `20260416T022651Z.md`：- Goal: continue `12-pair sbus128 / bertmini batch8 / file-only / pairdummy` debug on the existing fixed profile, after
+- `20260416T023615Z.md`：- Source of evidence: watchdog capture from the rerun started at `pairdummy-sbus128-runworkload-20260416-021039`
+- `20260416T030058Z.md`：- This round was a stop-and-cleanup round.
+- `20260417T035843Z.md`：- Goal: continue the `12-pair sbus128 / bertmini batch8 / file-only / pairdummy` FPGA debug from the last authoritative
+- `20260417T052141Z.md`：- Re-read the fixed `pipeline-runtime` workflow and hard constraints, then resumed the static-first SOP from the current
+- `20260417T061050Z.md`：- Re-read the fixed `pipeline-runtime` docs and continued the mandated `pairdummy/sbus128` workflow without bypassing th
+- `20260417T080300Z.md`：- Continued from the fixed `pairdummy/sbus128` mainline after re-reading the required workflow/constraint docs already c
+- `20260417T082421Z.md`：- Performed a static-only investigation into why the apparent stall frontier keeps moving between reruns.
+- `20260419T084021Z.md`：- 按当前文档/SOP 回看 `pipeline-runtime` 主线调试记录，明确主线到底推进到了哪一步。
+- `20260419T085031Z.md`：- 按 `pipeline-runtime` 当前 SOP 重新核对关键文档、固定 workflow 与执行约束。
+- `20260419T092816Z.md`：- 静态钉死 `rr_release` 与 `io.rocc.busy` 之间的真实风险链。
+- `20260419T103900Z.md`：- 根据最新约束放弃 `Linux + metasim`。
+- `20260419T142820Z.md`：- 对 `2026-04-19 13:56 UTC` 这轮 `pairdummy-sbus128-fixed-v24` FPGA watchdog capture
+- `20260419T145837Z.md`：- Goal: generate a `bertmini` pipeline-runtime artifact variant that only uses `6` Gemmini/DMA pair-manager slots, then
+- `20260420T065636Z.md`：- 对 `2026-04-20 06:05 UTC` 启动的 `g6 bertmini` FPGA `runworkload` 做静态优先复盘。
+- `20260420T071816Z.md`：- 修正上一轮关于 `g6 -> cfg15` 静态别名风险的错误表述。
+- `20260420T072430Z.md`：- 先在 host 侧修正 `g6 bertmini` 当前最强嫌疑点：
+- `20260420T072759Z.md`：- 对刚落下的 `host-watchdog` 补丁做静态收尾：
+- `20260420T080618Z.md`：- 在已经落下 `host-watchdog` 双层超时补丁之后，
+- `20260420T101447Z.md`：- 按当前主线结论，直接缩窄
+- `20260420T105238Z.md`：- 跑完新增 pointwise precall probes 之后的
+- `20260420T111029Z.md`：- 对最新
+- `20260420T113701Z.md`：- 回答用户刚提出的静态问题：
+- `20260420T121216Z.md`：- 澄清 `g6 bertmini` 最新一轮 FPGA live stall 的**本轮局部前沿**
+- `20260420T134740Z.md`：- 按用户刚澄清的范围，
+- `20260420T140451Z.md`：- 回到 `segment0 stage0 tensor2 export page28 -> page29`
+- `20260420T145630Z.md`：本轮基于 fresh rerun `pairdummy-sbus128-runworkload-20260420-141608` 的 live 证据，确认当前 `g6 bertmini` 主线 stall 早于 `page29 before
+- `20260420T154255Z.md`：本轮继续做 `pipeline-runtime` 主线静态审计，目标是修正之前对 `g6 bertmini` fresh rerun breadcrumb 证据强度的高估，并把 `page28 after_accounting -> pag
+- `20260421T005834Z.md`：本轮不继续缩小代码边界，而是把上一轮关于 `g6 bertmini` export frontier 的结论，重写成一份面向非熟悉读者的详细解释文档，目的是消除缩写过多、推理链不透明的问题。
+- `20260421T011522Z.md`：本轮目标不是立刻缩小更多静态代码边界，而是先修正当前 breadcrumb 观测手段本身的盲点：`page29/token0` 会落入已经被证明不可靠的 `slot14` 等价类，所以需要先准备一条新的、低扰动、可区分 alias targ
+- `20260421T015501Z.md`：本轮在补上新的 low-disturbance direct-path breadcrumb 之后，重新跑了一轮完整 FireSim `g6 bertmini` 主线。结果表明：之前反复讨论的 `segment0 tensor2 expor
+- `20260421T055946Z.md`：本轮目标是对 `pairdummy-sbus128-tracerv-inst-runworkload-20260421-043706`
+- `20260421T070147Z.md`：本轮目标是把 `pipeline-runtime` 主线的 `gdbserver` 调试路径真正跑到 FPGA 上，判断：
+- `20260421T081019Z.md`：本轮目标是把 `pipeline-runtime` 的 `gdbserver` 路径从 `no_net_config` 切到真正有网络模拟的 FireSim topology，并验证：
+- `20260421T084714Z.md`：本轮围绕用户提出的关键怀疑做静态收敛：
+- `20260421T091200Z.md`：本轮开始推进 `pairdummy 4c12p12 sbus128` 的 NIC-enabled bitstream 构建，目标是在已经扩到 `cfg32` 的硬件基线上，补齐 guest 可见 NIC，为后续 `gdbserver` 网络
+- `20260421T122600Z.md`：本轮围绕新的 `cfg32` bitstream 与已经去掉主线 `TraceV` 依赖的 `g6 bertmini` 主线，执行了一轮完整 FireSim rerun，目标是回答：
+- `20260421T125757Z.md`：本轮围绕用户提出的“当前卡点可能发生在 bounce path”这一假设，做了一轮带软件开关的排除实验：如果某次 host<->SPM 传输实际落入 bounce path，则**不走真实 DMA，也不做真实数据搬运**；然后在同一套 `c
+- `20260424T030134Z.md`：本轮围绕 `pipeline-runtime` 的 `gdbserver` host-side 网络准备路径做静态排查，目标是回答一个关键问题：
+- `20260424T033134Z.md`：本轮目标是继续沿 `cfg32 + NIC + gdbserver` 路径验证：
+- `20260424T035022Z.md`：本轮目标：
+- `20260427T053456Z.md`：接手 `pipeline-runtime` 调试，并按用户要求切到：
+
+### `tracev`
+
+- `20260417T085051Z.md`：- Performed a code-first static audit of the TracerV signal path for the current pairdummy sbus128 FireSim target.
+- `20260417T093635Z.md`：- 沿着 `TracerV` 路径继续推进新一轮调试。
+- `20260417T094223Z.md`：- 修复 instruction-trigger `TracerV` round 在 `image-closure` 阶段暴露的新 blocker。
+- `20260417T101356Z.md`：静态解释为什么这轮 `TracerV` instruction-trigger rerun 里：
+- `20260417T103725Z.md`：用 live `TracerV` rerun 的直接证据判断：
+- `20260417T111041Z.md`：验证新的 runtime worker 本地 `TracerV` 指令触发路径是否真正生效，并在 live FireSim FPGA 运行中用直接证据判断：
+- `20260417T114331Z.md`：- 对当前 `TracerV` instruction-trigger 结论做一次静态复核，判断：
+- `20260417T122948Z.md`：- 继续上一轮 `pairdummy_sbus128_tracerv_inst_workflow.sh run` 的 live 调试。
+- `20260417T125321Z.md`：- 在不继续移动 guest 卡点的前提下，
+- `20260417T125624Z.md`：- 等待 `pairdummy-sbus128-tracerv-inst-runworkload-20260417-123511`
+- `20260417T135048Z.md`：- 补记上一轮 `workerpc` TracerV rerun 的 authoritative timeout 结论。
+- `20260417T140407Z.md`：- 在不继续扩大热路径文本日志的前提下，静态解释“卡点移动”的原因。
+- `20260417T143500Z.md`：- 用 rebuilt `workerpc` 镜像重新跑一轮 `traceV + guest-side ptrace/proc`。
+- `20260417T151600Z.md`：- 继续已经启动的 `workerpc` rerun，不再拉新机器。
+- `20260418T162340Z.md`：- 按 `docs/plans/tracerv_metasim_bringup_plan_20260418.md`
+- `20260418T181442Z.md`：- 在不重跑新一轮 `infrasetup/runworkload` 的前提下，
+- `20260418T184721Z.md`：- workload:
+- `20260419T032347Z.md`：- 不再继续加 guest breadcrumb。
+- `20260419T033833Z.md`：- 在本地 FireSim metasim live run 上，不再移动 guest 卡点，
+- `20260419T034453Z.md`：- 用不改硬件 RTL 的方式验证：
+- `20260419T060641Z.md`：- 继续排查 `rootcause-clint-putfull` metasim 现场是否仍停在 boot ROM / loadmem / TSI。
+- `20260419T064113Z.md`：- 判定当前 `selector=3 + reset200` 本机 FireSim metasim run 是否真的又卡回 boot ROM `wfi`。
+- `20260419T075152Z.md`：- 静态 + 低扰动动态排查：为什么这轮 `TraceV selector=3` 看起来总在“卡点移动”。
+- `20260419T081124Z.md`：- 给已跑通的最小 `hello` metasim TraceV 链路补一个 marker 版程序。
+- `20260419T082820Z.md`：- 把这轮本机 FireSim metasim 跑通 `TracerV` 的经验沉淀成稳定 SOP。
+- `20260419T134100Z.md`：- 延续 `pair-manager baremetal + local metasim + TraceV` 最小 repro，
+- `20260421T035237Z.md`：本轮没有启动新的 FireSim run。目标是先把 `segment3 stage0 tensor6 export DMA/RR` 的指令级观测面准备好，再给下一轮 rerun 一个明确的二分计划，避免继续靠粗日志猜“到底卡在 submi
+
+### `gdbserver`
+
+- `20260424T042055Z.md`：本轮目标：
+- `20260424T073049Z.md`：- 等待最小 `1 CPU + NIC + Linux + gdbserver` FPGA smoke 的
+- `20260424T073924Z.md`：- 按用户要求，阅读 FireSim 和 Chipyard 原生文档，排查仓库里正式支持的网络相关内容。
+- `20260424T075149Z.md`：- 回答用户提出的新问题：和远端最新 `main` 相比，当前 `NIC / IceNIC / SimpleNICBridge / simplenic`
+- `20260424T092231Z.md`：- 把上一轮收敛出来的“低扰动验证”真正落到代码里。
+- `20260424T102452Z.md`：- 修正上一轮调试方案中的一个方法错误：
+- `20260424T104706Z.md`：- 把这轮 `1 CPU + NIC + Linux + gdbserver` smoke 的新结论写清楚。
+- `20260424T110841Z.md`：- 在 `singlecore + NIC + gdbserver smoke` 新 bitstream 构建期间，把与后续判断强相关的静态事实补充记录下来。
+- `20260424T133954Z.md`：- 用刚构建出的新 AGFI，真正验证 `SimpleNICBridge` lockstep patch 在 FPGA 上是否改变了最小 `singlecore + NIC + gdbserver smoke` 的行为。
+- `20260424T142013Z.md`：- 不再继续猜 `SimpleNIC` / `SimpleNICBridge` 卡死点，而是在硬件上补一组低扰动、一次性可读的 failure snapshot。
+- `20260425T015051Z.md`：- 用新构建出的 `singlecore + NIC + debugregs` bitstream，在真实 FPGA 上跑一轮最小 `gdbserver smoke`。
+- `20260425T021741Z.md`：- 不启动新的 FPGA / metasim run，只做一次静态审计。
+- `20260425T031328Z.md`：- 按上一轮静态审计结论继续调试 `singlecore + NIC + gdbserver smoke` 的早期 `SimpleNIC` token push 失败。
+- `20260425T032850Z.md`：- 接续 `20260425T031328Z` 的 `SimpleNICBridge` 修复与 no-Trace NIC 配置。
+- `20260425T061316Z.md`：- 接续 `20260425T032850Z` 的 no-Trace NIC bitstream 构建。
+- `20260425T073040Z.md`：- 接续 `20260425T061316Z` 的 no-Trace NIC FPGA 结果。
+- `20260425T105022Z.md`：- 接续 `20260425T073040Z` 新 AGFI 的真实 FPGA smoke 结果。
+- `20260425T133616Z.md`：- 接续 `20260425T105022Z` 构建出的 `agfi-02682e3e829039f31` FPGA smoke 结果。
+- `20260425T164540Z.md`：- 接续 `20260425T133616Z` 的 direction-fire SimpleNIC bitstream。
+- `20260425T175315Z.md`：- 结合 FireSim / Chipyard 本地文档，重新静态排查 `singlecore + NIC + gdbserver smoke` 的早期 `SimpleNIC` token push 失败。
+- `20260426T020500Z.md`：- 接续 `singlecore + NIC + gdbserver smoke` FPGA run。
+- `20260426T052258Z.md`：- 本轮验证对象：`firesim_rocket_singlecore_nic_notrace_30mhz`。
+- `20260426T063000Z.md`：用户要求不要只等下一颗 bitstream，而是重启上一颗 AGFI 的 `runworkload`，
+- `20260426T075700Z.md`：用户澄清后，本轮所谓“旧 AGFI”指的是：
+- `20260426T170527Z.md`：- 并行推进两条线：
+- `20260427T042738Z.md`：- 基于最新已完成 AGFI 继续验证 remote gdbserver 路径。
+- `20260427T135411Z.md`：按用户建议同步尝试 FireSim-managed local metasim，判断它是否能比 F2
+- `20260427T152916Z.md`：用户指出刚结束的 NIC bitstream 不包含本轮 `fromHostValidDrive`
+- `20260428T032140Z.md`：接续 `20260427T152916Z`：使用已经完成的 NIC bitstream 继续验证
+- `20260429T090408Z.md`：按用户要求停止当前 `runworkload` / 远程 runfarm 后，静态排查
+- `20260429T092230Z.md`：按用户要求，把当前 NIC 调试结论继续归档，并验证另一条更快的测试路线：
+- `20260429T095028Z.md`：按用户要求同步推进两条线：
+- `20260429T142217Z.md`：接续 `singlecore + NIC + gdbserver smoke` 调试。用户提示新的 bitstream 已完成后，先核对本地 FireSim 结果目录与 AWS AFI 列表，确认应当测试哪一颗 AGFI；随后基于上一轮 `
+- `20260429T145226Z.md`：接续 F2 singlecore NIC 调试。根据静态 review 文档 `docs/testing/nic_f2_static_bug_confidence_20260429.md`，优先修复把握最高的 PCIS read 过度消费问
+- `20260429T214002Z.md`：接续 `singlecore + NIC + Linux + gdbserver` F2 调试，归档最新 `agfi-019e0b22099a5214b` 的真实前沿，并明确下一轮应先补哪一层观测，而不是立即重建 bitstream。
+- `20260429T221723Z.md`：接续 `singlecore + NIC + Linux + gdbserver` F2 调试。用户要求先静态排查并钉死结论，再修改；若不需要新硬件，则自动进入下一轮测试。
+- `20260429T230748Z.md`：类别：`gdbserver` / NIC / FireSim switch / host-target networking
+- `20260429T235817Z.md`：日期：2026-04-29T23:58:17Z
+- `20260430T035726Z.md`：日期：2026-04-30T03:57:26Z
+- `20260430T043900Z.md`：日期：2026-04-30T04:39:00Z
+- `20260430T104056Z.md`：按用户要求停止当前正在跑的 `12p4c/cfg32 + NIC` buildbitstream，先回到最小
+- `20260430T152736Z.md`：日期：2026-04-30T15:27:36Z
+- `20260430T162000Z.md`：日期：2026-04-30T16:20:00Z
+- `20260430T225901Z.md`：继续验证 single-core Rocket + NIC + Linux + remote `gdbserver` 路线。用户要求：
+- `20260501T015352Z.md`：- AGFI：`agfi-0079cbbca617eca4e`
+- `20260501T022742Z.md`：在上一轮已证明 `target remote` 可连接后，重新申请 fresh F2，不复用旧实例，验证同一次 `gdbserver --once` 会话内能否完成常规调试动作：
+- `20260501T045108Z.md`：目标是判断 `pipeline-runtime` 后续卡死调试需要依赖哪些 remote gdb 功能，并在最小
+- `20260501T141954Z.md`：日期：2026-05-01T14:19:54Z
+- `20260501T161752Z.md`：日期：2026-05-01T16:17:52Z
+- `20260502T054938Z.md`：日期：2026-05-02T05:49:38Z
+- `20260502T123027Z.md`：日期：2026-05-02T12:30:27Z
+- `20260502T161900Z.md`：日期：2026-05-02T16:19:00Z
+- `20260502T164142Z.md`：日期：2026-05-02T16:41:42Z
+- `20260502T210118Z.md`：日期：2026-05-02T21:01:18Z
+- `20260502T214342Z.md`：日期：2026-05-02T21:43:42Z
+- `20260502T223837Z.md`：日期：2026-05-02T22:38:37Z
+- `20260502T233311Z.md`：日期：2026-05-02T23:33:11Z
+- `20260502T234445Z.md`：日期：2026-05-02T23:44:45Z
+- `20260503T032845Z.md`：日期：2026-05-03T03:28:45Z
+- `20260503T035648Z.md`：日期：2026-05-03T03:56:48Z
+- `20260503T051319Z.md`：日期：2026-05-03T05:13:19Z
+- `20260503T095010Z.md`：日期：2026-05-03T09:50:10Z
+- `20260503T191457Z.md`：日期：2026-05-03T19:14:57Z
+- `20260503T232710Z.md`：类别：`gdbserver` / NIC / FireSim CPU-managed stream
+- `20260504T022833Z.md`：Tested AGFI `agfi-030ca5102642c3cd1` / AFI `afi-0c99a5b7ce0f73dee`.
+- `20260504T060924Z.md`：Continue the single-core NIC `gdbserver` bring-up after the target-to-host
+- `20260504T063838Z.md`：The current live build
+- `20260504T073301Z.md`：The current NIC/gdbserver work is trying to minimize FPGA rebuilds. The
+- `20260504T101241Z.md`：类别：`gdbserver` / NIC / FireSim F2 bitstream discipline

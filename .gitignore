@@ -3,6 +3,9 @@
 build
 autom4te.cache
 configure
+Makefile
+config.log
+config.status
 .ipynb_checkpoints
 *.pyc
 include/gemmini_params.h
@@ -15,6 +18,7 @@ bareMetalC/*-linux
 bareMetalC/*-pk
 pipeline-runtime/pipeline_runtime
 pipeline-runtime/*.log
+pipeline-runtime/debug_records/artifacts/
 rerocc-linux-tests/*-linux
 rerocc-linux-tests/.pipeline_runtime_objs/
 rerocc-linux-tests/workload/overlay/root/rerocc-linux-tests/*-linux

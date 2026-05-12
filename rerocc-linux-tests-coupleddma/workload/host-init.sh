@@ -7,6 +7,7 @@ GEMMINI_ROCC_TESTS_DIR="$(cd "${REROCC_TESTS_DIR}/.." && pwd)"
 CHIPYARD_ROOT="$(cd "${GEMMINI_ROCC_TESTS_DIR}/../../../.." && pwd)"
 
 OVERLAY_COUPLEDDMA_DIR="${SCRIPT_DIR}/overlay/root/rerocc-linux-tests-coupleddma"
+OVERLAY_ROOT_DIR="${SCRIPT_DIR}/overlay"
 OVERLAY_PIPELINE_ROOT_DIR="${SCRIPT_DIR}/overlay/root/rerocc-linux-tests"
 OVERLAY_FIREMARSHAL_ENV="${SCRIPT_DIR}/overlay/firemarshal.env"
 PIPELINE_RUNTIME_OVERLAY_DIR="${OVERLAY_PIPELINE_ROOT_DIR}/pipeline-runtime"
@@ -314,7 +315,9 @@ check_built_linux_binaries() {
   require_file "${OVERLAY_COUPLEDDMA_DIR}/rerocc_lc_coverage_linux_coupleddma-linux"
   require_file "${OVERLAY_COUPLEDDMA_DIR}/rerocc_lc_nonblocking_linux_coupleddma-linux"
   require_file "${OVERLAY_COUPLEDDMA_DIR}/rerocc_dma_export_alias_uartprobe-linux"
+  require_file "${OVERLAY_COUPLEDDMA_DIR}/rerocc_dma_export_alias_uartprobe-static-linux"
   require_file "${OVERLAY_COUPLEDDMA_DIR}/uartprobe_exec_stub-linux"
+  require_file "${OVERLAY_COUPLEDDMA_DIR}/uartprobe_exec_stub-static-linux"
   require_file "${REROCC_TESTS_DIR}/workload/run_rerocc_lc_linux_regression.sh"
   require_file "${OVERLAY_COUPLEDDMA_DIR}/run_rerocc_dma_export_alias_uartprobe.sh"
   if pipeline_runtime_enabled; then
@@ -547,6 +550,24 @@ build_linux_binaries() {
     -o "${OVERLAY_COUPLEDDMA_DIR}/rerocc_dma_export_alias_uartprobe-linux"
 
   "${linux_cc}" \
+    -static \
+    -mcmodel=medany \
+    -std=gnu99 \
+    -O2 \
+    -march=rv64gc -Wa,-march=rv64gc \
+    -ffast-math \
+    -fno-common \
+    -fno-tree-loop-distribute-patterns \
+    -I"${GEMMINI_ROCC_TESTS_DIR}" \
+    -I"${GEMMINI_ROCC_TESTS_DIR}/riscv-tests" \
+    -I"${GEMMINI_ROCC_TESTS_DIR}/riscv-tests/env" \
+    -I"${GEMMINI_ROCC_TESTS_DIR}/riscv-tests-benchmarks-common" \
+    -I"${GEMMINI_ROCC_TESTS_DIR}/rerocc-linux-tests" \
+    -I"${REROCC_TESTS_DIR}" \
+    "${REROCC_TESTS_DIR}/rerocc_dma_export_alias_uartprobe_linux.c" \
+    -o "${OVERLAY_COUPLEDDMA_DIR}/rerocc_dma_export_alias_uartprobe-static-linux"
+
+  "${linux_cc}" \
     -mcmodel=medany \
     -std=gnu99 \
     -O2 \
@@ -563,13 +584,33 @@ build_linux_binaries() {
     "${REROCC_TESTS_DIR}/uartprobe_exec_stub_linux.c" \
     -o "${OVERLAY_COUPLEDDMA_DIR}/uartprobe_exec_stub-linux"
 
+  "${linux_cc}" \
+    -static \
+    -mcmodel=medany \
+    -std=gnu99 \
+    -O2 \
+    -march=rv64gc -Wa,-march=rv64gc \
+    -ffast-math \
+    -fno-common \
+    -fno-tree-loop-distribute-patterns \
+    -I"${GEMMINI_ROCC_TESTS_DIR}" \
+    -I"${GEMMINI_ROCC_TESTS_DIR}/riscv-tests" \
+    -I"${GEMMINI_ROCC_TESTS_DIR}/riscv-tests/env" \
+    -I"${GEMMINI_ROCC_TESTS_DIR}/riscv-tests-benchmarks-common" \
+    -I"${GEMMINI_ROCC_TESTS_DIR}/rerocc-linux-tests" \
+    -I"${REROCC_TESTS_DIR}" \
+    "${REROCC_TESTS_DIR}/uartprobe_exec_stub_linux.c" \
+    -o "${OVERLAY_COUPLEDDMA_DIR}/uartprobe_exec_stub-static-linux"
+
   chmod +x "${OVERLAY_COUPLEDDMA_DIR}/rerocc_dma_matrix_coupleddma-linux"
   chmod +x "${OVERLAY_COUPLEDDMA_DIR}/rerocc_lc_gemmini_matrix_linux_coupleddma-linux"
   chmod +x "${OVERLAY_COUPLEDDMA_DIR}/rerocc_lc_matrix_linux_coupleddma_verify-linux"
   chmod +x "${OVERLAY_COUPLEDDMA_DIR}/rerocc_lc_coverage_linux_coupleddma-linux"
   chmod +x "${OVERLAY_COUPLEDDMA_DIR}/rerocc_lc_nonblocking_linux_coupleddma-linux"
   chmod +x "${OVERLAY_COUPLEDDMA_DIR}/rerocc_dma_export_alias_uartprobe-linux"
+  chmod +x "${OVERLAY_COUPLEDDMA_DIR}/rerocc_dma_export_alias_uartprobe-static-linux"
   chmod +x "${OVERLAY_COUPLEDDMA_DIR}/uartprobe_exec_stub-linux"
+  chmod +x "${OVERLAY_COUPLEDDMA_DIR}/uartprobe_exec_stub-static-linux"
   chmod +x "${OVERLAY_COUPLEDDMA_DIR}/run_rerocc_dma_export_alias_uartprobe.sh"
   popd >/dev/null
 }
@@ -603,6 +644,9 @@ stage_coupleddma_overlay() {
   mkdir -p "${OVERLAY_COUPLEDDMA_DIR}"
   rm -f "${OVERLAY_COUPLEDDMA_DIR}/.pipeline_runtime_only"
   copy_required_file \
+    "${SCRIPT_DIR}/run_rerocc_dma_export_alias_uartprobe_filewrite_quiet_capture.sh" \
+    "${OVERLAY_ROOT_DIR}/run_rerocc_dma_export_alias_uartprobe_filewrite_quiet_capture.sh"
+  copy_required_file \
     "${GEMMINI_ROCC_TESTS_DIR}/build/rerocc-linux-tests/rerocc_gemmini_conv_matrix-linux" \
     "${OVERLAY_COUPLEDDMA_DIR}/rerocc_gemmini_conv_matrix-linux"
   copy_required_file \
@@ -619,8 +663,12 @@ stage_coupleddma_overlay() {
   chmod +x "${OVERLAY_COUPLEDDMA_DIR}/rerocc_lc_coverage_linux_coupleddma-linux"
   chmod +x "${OVERLAY_COUPLEDDMA_DIR}/rerocc_lc_nonblocking_linux_coupleddma-linux"
   chmod +x "${OVERLAY_COUPLEDDMA_DIR}/rerocc_dma_export_alias_uartprobe-linux"
+  chmod +x "${OVERLAY_COUPLEDDMA_DIR}/rerocc_dma_export_alias_uartprobe-static-linux"
+  chmod +x "${OVERLAY_COUPLEDDMA_DIR}/uartprobe_exec_stub-linux"
+  chmod +x "${OVERLAY_COUPLEDDMA_DIR}/uartprobe_exec_stub-static-linux"
   chmod +x "${OVERLAY_COUPLEDDMA_DIR}/run_rerocc_dma_export_alias_uartprobe.sh"
   chmod +x "${OVERLAY_COUPLEDDMA_DIR}/run_rerocc_lc_linux_regression.sh"
+  chmod +x "${OVERLAY_ROOT_DIR}/run_rerocc_dma_export_alias_uartprobe_filewrite_quiet_capture.sh"
 }
 
 reset_pipeline_runtime_overlay() {

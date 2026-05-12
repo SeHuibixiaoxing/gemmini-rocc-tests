@@ -1,0 +1,19 @@
+{
+  "name": "rocket-singlecore-nic-local-gdb-smoke",
+  "base": "br-base.json",
+  "workdir": ".",
+  "distro": {
+    "name": "br",
+    "opts": {
+      "configs": [
+        "linux_target_gdb.kfrag"
+      ]
+    }
+  },
+  "overlay": "overlay",
+  "outputs": [
+    "/root/gdbserver-smoke/local-gdb.info",
+    "/root/gdbserver-smoke/local-gdb.log"
+  ],
+  "run": "run_local_gdb_smoke.sh"
+}

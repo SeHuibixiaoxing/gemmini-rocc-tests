@@ -9,7 +9,7 @@
 
 #define RR_CFG_ACQ_MASK 0x100
 #define RR_CFG_MGR_MASK 0x0ff
-#define RR_MAX_CFGS 16
+#define RR_MAX_CFGS 32
 
 #define CSR_RROPC0 0x800
 #define CSR_RROPC1 0x801
@@ -33,6 +33,22 @@
 #define CSR_RRCFG13 0x81d
 #define CSR_RRCFG14 0x81e
 #define CSR_RRCFG15 0x81f
+#define CSR_RRCFG16 0x820
+#define CSR_RRCFG17 0x821
+#define CSR_RRCFG18 0x822
+#define CSR_RRCFG19 0x823
+#define CSR_RRCFG20 0x824
+#define CSR_RRCFG21 0x825
+#define CSR_RRCFG22 0x826
+#define CSR_RRCFG23 0x827
+#define CSR_RRCFG24 0x828
+#define CSR_RRCFG25 0x829
+#define CSR_RRCFG26 0x82a
+#define CSR_RRCFG27 0x82b
+#define CSR_RRCFG28 0x82c
+#define CSR_RRCFG29 0x82d
+#define CSR_RRCFG30 0x82e
+#define CSR_RRCFG31 0x82f
 
 #define RR_CSR_LIST \
   F(CSR_RRBAR) \
@@ -55,7 +71,23 @@
   F(CSR_RRCFG12) \
   F(CSR_RRCFG13) \
   F(CSR_RRCFG14) \
-  F(CSR_RRCFG15)
+  F(CSR_RRCFG15) \
+  F(CSR_RRCFG16) \
+  F(CSR_RRCFG17) \
+  F(CSR_RRCFG18) \
+  F(CSR_RRCFG19) \
+  F(CSR_RRCFG20) \
+  F(CSR_RRCFG21) \
+  F(CSR_RRCFG22) \
+  F(CSR_RRCFG23) \
+  F(CSR_RRCFG24) \
+  F(CSR_RRCFG25) \
+  F(CSR_RRCFG26) \
+  F(CSR_RRCFG27) \
+  F(CSR_RRCFG28) \
+  F(CSR_RRCFG29) \
+  F(CSR_RRCFG30) \
+  F(CSR_RRCFG31)
 
 #define read_csr(reg) ({ unsigned long __tmp; \
   asm volatile ("csrr %0, " #reg : "=r"(__tmp)); \

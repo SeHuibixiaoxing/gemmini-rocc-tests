@@ -12,7 +12,9 @@ tests = \
 	bw_test_direct_gemmini_noc_abtest \
 	latency_test \
 	mt_hello \
+	rerocc_lc_cfg32_slot_smoke \
 	rerocc_lc_matrix_baremetal \
+	rerocc_lc_pairmanager_rr_release_probe \
 	rerocc_lc_resadd_explicit_interleaved \
 	rerocc_lc_export_dma_bertmini_repro \
 	rerocc_lc_export_dma_bertmini_segment3_repro \

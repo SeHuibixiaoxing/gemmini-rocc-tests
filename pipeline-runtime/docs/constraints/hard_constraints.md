@@ -25,6 +25,31 @@
   `/home/ubuntu/chipyard/scripts/firesim-tmux-run.sh`
 - FireSim 正规流固定为：
   `launchrunfarm -> infrasetup -> runworkload -> terminaterunfarm`
+- F2 runfarm 是高成本资源；每次 live inspection 和现场 copy-back 完成后，
+  必须及时执行 `terminaterunfarm --forceterminate`，并用
+  `aws ec2 describe-instances` 确认所有相关 `f2.*` 实例已经进入
+  `shutting-down` / `terminated`。
+- 切换任务、结束一轮调试、启动下一轮 runfarm 前，都必须先检查是否存在
+  stale `f2.*` 实例；不允许把 F2 实例留在后台无人监控。
+- 如果 FireSim manager 报告 terminate 成功但 EC2 仍是 `running`，
+  必须立刻用 `aws ec2 terminate-instances --instance-ids <id>` 手工回收，
+  然后再次查询确认状态变化。
+- 启动任何新的 `buildbitstream` 前，必须先完成“构建前冻结”：
+  - 复核历史 `debug_records/` 和 `change_records/`，确认已有修复没有漏带；
+  - 静态阅读相关硬件、host driver、FireSim manager/workload 配置；
+  - 一次性列出本轮需要的可综合观测点，尽量覆盖完整报错链路和所有可能卡点；
+  - 完成 Scala/C++ register map 顺序、host driver 编译、`git diff --check` 等静态检查；
+  - 明确记录本轮源码 marker / 关键信号 / 预期能回答的问题。
+- 允许一次性规划好的多个 `buildbitstream` 并行构建，但每个并行构建必须在启动前
+  独立完成冻结：配置、源码 marker、观测点、预期回答的问题和 freshness gate 都要能
+  一一对应。禁止先启动一个构建，等待过程中又发现同一卡点没想清楚，再临时修改硬件
+  并启动“补丁版”构建。
+- `buildbitstream` 一旦启动，就不允许一边等待构建一边继续追加该构建的硬件观测点，
+  也不允许把构建中的 AGFI 当成包含后补改动的版本。若构建中又发现必须补硬件，
+  只能先记录为“下一轮候选改动”；是否启动下一轮，必须先说明当前已启动构建能回答
+  什么、不能回答什么，以及为什么无法等测试结果。
+- 新构建启动后仍必须做 RTL freshness gate，但该 gate 只用于确认“启动前已经冻结的改动”
+  确实进入了 config-specific Verilog / 远端 build host；它不是继续补硬件内容的阶段。
 
 ## 4. Freshness
 

@@ -23,6 +23,9 @@ WAIT_SPINS="${DMA_WAIT_SPINS:-20000000}"
 ACQUIRE_MAX_RETRIES="${REROCC_ACQUIRE_MAX_RETRIES:-1000000}"
 LOG_LEVEL="${REROCC_SEG3_LOG_LEVEL:-}"
 STAGE0_SHARED_GID="${REROCC_STAGE0_SHARED_GID:-}"
+TRACERV_MARKERS="${REROCC_SEG3_TRACERV_MARKERS:-0}"
+OUTPUT_BASENAME="${REROCC_SEG3_OUTPUT_BASENAME:-rerocc_lc_export_dma_bertmini_segment3_repro.riscv}"
+OUTPUT_TAG="${REROCC_SEG3_OUTPUT_TAG:-export-dma-bertmini-segment3-repro}"
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -131,10 +134,10 @@ GEMMINI_ROCC_TESTS_DIR="$(cd "${REROCC_BAREMETAL_DIR}" && pwd)"
 BUILD_DIR="${GEMMINI_ROCC_TESTS_DIR}/build"
 BUILD_BAREMETAL_DIR="${BUILD_DIR}/bareMetalC"
 ARTIFACT_DIR="${BUILD_DIR}/rerocc-baremetal-tests-coupleddma"
-BUILD_CONFIG="${ARTIFACT_DIR}/build-config-export-dma-bertmini-segment3-repro.txt"
-OUT_BIN="${SCRIPT_DIR}/rerocc_lc_export_dma_bertmini_segment3_repro.riscv"
+BUILD_CONFIG="${ARTIFACT_DIR}/build-config-${OUTPUT_TAG}.txt"
+OUT_BIN="${SCRIPT_DIR}/${OUTPUT_BASENAME}"
 
-echo "[rerocc-coupleddma-export-dma-bertmini-segment3-repro] target=${TARGET_PROFILE} num_cores=${NUM_CORES} num_gemmini=${NUM_GEMMINI} num_dma=${NUM_DMA} gemmini_base_id=${GEMMINI_BASE_ID} dma_base_id=${DMA_BASE_ID} stage0_bytes=${STAGE0_BYTES} stage1_bytes=${STAGE1_BYTES} repeat_count=${REPEAT_COUNT} wait_spins=${WAIT_SPINS} log_level=${LOG_LEVEL} stage0_shared_gid=${STAGE0_SHARED_GID}"
+echo "[rerocc-coupleddma-export-dma-bertmini-segment3-repro] target=${TARGET_PROFILE} num_cores=${NUM_CORES} num_gemmini=${NUM_GEMMINI} num_dma=${NUM_DMA} gemmini_base_id=${GEMMINI_BASE_ID} dma_base_id=${DMA_BASE_ID} stage0_bytes=${STAGE0_BYTES} stage1_bytes=${STAGE1_BYTES} repeat_count=${REPEAT_COUNT} wait_spins=${WAIT_SPINS} log_level=${LOG_LEVEL} stage0_shared_gid=${STAGE0_SHARED_GID} tracerv_markers=${TRACERV_MARKERS} output=${OUT_BIN}"
 
 mkdir -p "${BUILD_BAREMETAL_DIR}" "${ARTIFACT_DIR}"
 
@@ -144,6 +147,7 @@ EXTRA_DEFS="${EXTRA_DEFS} -DREROCC_EXPORT_STAGE0_BYTES=${STAGE0_BYTES} -DREROCC_
 EXTRA_DEFS="${EXTRA_DEFS} -DREROCC_EXPORT_REPEAT_COUNT=${REPEAT_COUNT} -DDMA_WAIT_SPINS=${WAIT_SPINS}"
 EXTRA_DEFS="${EXTRA_DEFS} -DREROCC_ACQUIRE_MAX_RETRIES=${ACQUIRE_MAX_RETRIES}"
 EXTRA_DEFS="${EXTRA_DEFS} -DREROCC_SEG3_LOG_LEVEL=${LOG_LEVEL} -DREROCC_STAGE0_SHARED_GID=${STAGE0_SHARED_GID}"
+EXTRA_DEFS="${EXTRA_DEFS} -DREROCC_SEG3_TRACERV_MARKERS=${TRACERV_MARKERS}"
 
 make -B -C "${BUILD_BAREMETAL_DIR}" \
   -f "${GEMMINI_ROCC_TESTS_DIR}/bareMetalC/Makefile" \
@@ -171,4 +175,5 @@ echo "wait_spins=${WAIT_SPINS}" >> "${BUILD_CONFIG}"
 echo "acquire_max_retries=${ACQUIRE_MAX_RETRIES}" >> "${BUILD_CONFIG}"
 echo "log_level=${LOG_LEVEL}" >> "${BUILD_CONFIG}"
 echo "stage0_shared_gid=${STAGE0_SHARED_GID}" >> "${BUILD_CONFIG}"
+echo "tracerv_markers=${TRACERV_MARKERS}" >> "${BUILD_CONFIG}"
 echo "binary=${OUT_BIN}" >> "${BUILD_CONFIG}"

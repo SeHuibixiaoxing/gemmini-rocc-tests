@@ -1,0 +1,15 @@
+{
+  "name" : "rerocc-lc-baremetal-nonblocking-pairmanager-misaligned",
+  "base" : "bare-base.json",
+  "workdir" : ".",
+  "host-init" : "host-init-nonblocking-pairmanager-misaligned.sh",
+  "bin" : "rerocc_lc_nonblocking_baremetal_coupleddma_pairmanager_misaligned.riscv",
+  "firesim" : {
+    "simulation_outputs" : [
+      "uartlog",
+      "memory_stats*.csv",
+      "TRACEFILE*",
+      "metasim_stderr.out"
+    ]
+  }
+}

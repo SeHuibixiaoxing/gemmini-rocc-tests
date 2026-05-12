@@ -1,0 +1,15 @@
+{
+  "name" : "rerocc-lc-baremetal-cfg32-slot-smoke",
+  "base" : "bare-base.json",
+  "workdir" : ".",
+  "host-init" : "host-init-cfg32-slot-smoke.sh",
+  "bin" : "rerocc_lc_cfg32_slot_smoke.riscv",
+  "firesim" : {
+    "simulation_outputs" : [
+      "uartlog",
+      "memory_stats*.csv",
+      "TRACEFILE*",
+      "metasim_stderr.out"
+    ]
+  }
+}

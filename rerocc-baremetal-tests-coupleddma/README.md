@@ -2,6 +2,8 @@
 
 This workload builds:
 
+- `build/bareMetalC/rerocc_lc_dma_misaligned_perf_pairmanager-baremetal`
+- `build/bareMetalC/rerocc_lc_cfg32_slot_smoke-baremetal`
 - `build/bareMetalC/rerocc_lc_matrix_baremetal_coupleddma-baremetal`
 - `build/bareMetalC/rerocc_lc_coverage_baremetal_coupleddma-baremetal`
 - `build/bareMetalC/rerocc_lc_nonblocking_baremetal_coupleddma-baremetal`
@@ -20,11 +22,30 @@ It validates:
 
 Build entrypoint:
 
+- `rerocc-baremetal-tests-coupleddma/workload/host-init-dma-misaligned-perf-pairmanager.sh`
+- `rerocc-baremetal-tests-coupleddma/workload/host-init-cfg32-slot-smoke.sh`
+- `rerocc-baremetal-tests-coupleddma/workload/host-init-cfg32-slot-smoke-quick.sh`
 - `rerocc-baremetal-tests-coupleddma/workload/host-init.sh`
 - `rerocc-baremetal-tests-coupleddma/workload/host-init-coverage.sh`
+- `rerocc-baremetal-tests-coupleddma/workload/host-init-coverage-pairmanager-misaligned.sh`
 - `rerocc-baremetal-tests-coupleddma/workload/host-init-nonblocking.sh`
+- `rerocc-baremetal-tests-coupleddma/workload/host-init-nonblocking-pairmanager-misaligned.sh`
 - `rerocc-baremetal-tests-coupleddma/workload/host-init-export-dma-bertmini-repro.sh`
 - `rerocc-baremetal-tests-coupleddma/workload/host-init-export-dma-bertmini-segment3-repro.sh`
+
+Misaligned pair-manager metasim entrypoints:
+
+- perf workload json:
+  `rerocc-baremetal-tests-coupleddma/workload/rerocc-lc-baremetal-dma-misaligned-perf-pairmanager.json`
+- coverage workload json:
+  `rerocc-baremetal-tests-coupleddma/workload/rerocc-lc-baremetal-coverage-pairmanager-misaligned.json`
+- nonblocking workload json:
+  `rerocc-baremetal-tests-coupleddma/workload/rerocc-lc-baremetal-nonblocking-pairmanager-misaligned.json`
+
+Old cfg32 F2 perf entrypoint:
+
+- runtime config:
+  `sims/firesim/deploy/config_runtime_f2_rerocc_lc_dma_misaligned_perf_pairmanager_4c12p12_sbus128_cfg32.yaml`
 
 Export repro entrypoint:
 
@@ -49,6 +70,16 @@ Segment-3 repro entrypoint:
 Metasim baremetal suite entrypoint:
 
 - `sims/firesim/deploy/run_rerocc_coupleddma_baremetal_metasim_suite.sh`
+
+CFG32 smoke entrypoints:
+
+- workload json:
+  `rerocc-baremetal-tests-coupleddma/workload/rerocc-lc-baremetal-cfg32-slot-smoke.json`
+- quick workload json:
+  `rerocc-baremetal-tests-coupleddma/workload/rerocc-lc-baremetal-cfg32-slot-smoke-quick.json`
+- built payloads:
+  `rerocc-baremetal-tests-coupleddma/workload/rerocc_lc_cfg32_slot_smoke.riscv`
+  and `rerocc-baremetal-tests-coupleddma/workload/rerocc_lc_cfg32_slot_smoke_quick.riscv`
 
 Run directory policy:
 

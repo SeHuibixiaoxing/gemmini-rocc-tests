@@ -1,6 +1,6 @@
 # Pipeline Runtime Observability
 
-更新时间：`2026-04-14 14:40 UTC`
+更新时间：`2026-04-20 13:47 UTC`
 
 ## 1. 原则
 
@@ -8,6 +8,10 @@
 - 热路径优先 breadcrumb，避免高频文本日志。
 - 细日志必须按条件窄开，默认只用 coarse log。
 - wrapper 周期性 `sync` 负责刷盘；runtime 不主动做前台阻塞刷盘。
+- `PIPELINE_RUNTIME_DMA_EXPORT_PAGE_START/END` 留空不等于关闭 export 页级 sparse log；
+  这会回落到代码内建的默认页模式。
+  低扰动 baseline 必须把这两个变量钉到一个不命中真实页的 sentinel，
+  只有专门的 export 观测轮次才允许改回真实页窗口。
 
 ## 2. 当前 guest 侧文件
 
@@ -58,6 +62,10 @@ breadcrumb 的目标是替代最容易扰动时序的热路径文本日志。
 - runtime 热路径写固定大小 mmap 二进制文件
 - wrapper 周期性 `sync`
 - host 用 `debugfs` 拉回二进制，再用 `decode_prt_breadcrumb.py` 解码
+- 当 trigger-gated 观测证明会明显前移 frontier 时，
+  优先改用 breadcrumb-only 收窄：
+  只覆盖少量 `PIPELINE_RUNTIME_BREADCRUMB_*` 条件，
+  不在热路径上增加新的字符串日志或 trigger 过滤开销
 
 适用场景：
 
@@ -66,6 +74,31 @@ breadcrumb 的目标是替代最容易扰动时序的热路径文本日志。
 - pointwise fallback caller / inner matmul 边界
 - SPM xlate flush / release
 - 其他易受字符串日志扰动的热路径
+
+对 `rr_release()` / `busy` 语义有歧义时，优先用
+“`rr_release(cfg)` 后立即读回同一 `RRCFGx`” 的低扰动哨兵法：
+
+- `rr_release(cfg)` 本身只负责发起 release，不保证 handshake 已完成
+- `pipeline-runtime` 当前主线 release wrapper
+  `prt_rr_release_scope()`
+  已默认采用这条哨兵：
+  `rr_release(cfg)` 后紧跟同 `cfg` 的 `rr_read_csr(RRCFGx)`
+- 紧随其后的 `rr_read_csr(CSR_RRCFG0 + cfg)` 会被 `csr_cfg_io.stall`
+  阻塞到 `cfg_acq_state` 回到 `s_idle`
+- 因而它能把 frontier 固定到
+  “release ack 是否回来 / 是否仍被 busy 挡住”，
+  比继续叠热路径字符串日志更适合定位卡在具体 CSR 指令
+
+当前 host workflow 允许临时覆盖的 breadcrumb 变量：
+
+- `PIPELINE_RUNTIME_BREADCRUMB_ENABLE`
+- `PIPELINE_RUNTIME_BREADCRUMB_PATH`
+- `PIPELINE_RUNTIME_BREADCRUMB_SEGMENT`
+- `PIPELINE_RUNTIME_BREADCRUMB_GLOBAL_STAGE`
+- `PIPELINE_RUNTIME_BREADCRUMB_LOCAL_STAGE`
+- `PIPELINE_RUNTIME_BREADCRUMB_SUBBATCH`
+- `PIPELINE_RUNTIME_BREADCRUMB_STAGE_RADIUS`
+- `PIPELINE_RUNTIME_BREADCRUMB_SUBBATCH_RADIUS`
 
 当前 pointwise 相关 breadcrumb 约定：
 
@@ -133,6 +166,7 @@ breadcrumb 的目标是替代最容易扰动时序的热路径文本日志。
 - `dma-fixed-load`
 - `dma-export`
 - `rr`
+- `spm-xlate`
 - `gemmini-pointwise`
 
 当前选择器：
@@ -206,3 +240,21 @@ breadcrumb 的目标是替代最容易扰动时序的热路径文本日志。
   需要联看 `heartbeat` 和是否已经进入用户态 workload。
 - 不用于：
   - runtime 内部细粒度卡点判断
+
+## 10. `TracerV` Bring-Up
+
+- `TracerV` bring-up 的 authoritative SOP 见：
+  [`tracerv_integration_sop.md`](tracerv_integration_sop.md)
+- 当前推荐顺序固定为：
+  1. 最小 baremetal smoke
+  2. 最小 `selector=3` marker 样例
+  3. workload-shaped 轻量 variant
+  4. full-size / FPGA
+- `TracerV` 判据优先级固定为：
+  1. `metasim_stderr.out` 中的 `first nonzero host pull`
+  2. `TRACEFILE-C*` 是否非零
+  3. trace 起止是否与 marker / trigger 一致
+  4. `uartlog` 中的 arm / completion 信息
+- 如果 `selector=3` 路线长时间拿不到 trace，
+  先证明 target 当前 PC 是否还在 marker 之前，
+  不要继续靠扩大日志面碰运气。

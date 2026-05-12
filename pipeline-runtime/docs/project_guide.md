@@ -139,6 +139,9 @@
 - 当前推荐的两个低成本入口：
   - `scripts/audit_pipeline_runtime_artifact.py`
   - `scripts/triage_prt_capture.py`
+- `TracerV` 接入 / bring-up 不再临场拼接步骤；
+  统一遵守：
+  [`testing/tracerv_integration_sop.md`](testing/tracerv_integration_sop.md)
 - 当前 rerun 前的固定预检入口：
   - `scripts/pairdummy_sbus128_workflow.sh debug-preflight`
 - 当前新的 blocker 排查计划：
@@ -185,6 +188,7 @@
 
 - [`workflows/document_workflow.md`](workflows/document_workflow.md)
 - [`testing/observability.md`](testing/observability.md)
+- [`testing/tracerv_integration_sop.md`](testing/tracerv_integration_sop.md)
 - [`reference/linux_dma_guardrails.md`](reference/linux_dma_guardrails.md)
 
 ### 4.5 Archive

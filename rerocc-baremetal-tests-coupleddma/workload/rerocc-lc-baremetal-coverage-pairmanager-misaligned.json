@@ -1,0 +1,15 @@
+{
+  "name" : "rerocc-lc-baremetal-coverage-pairmanager-misaligned",
+  "base" : "bare-base.json",
+  "workdir" : ".",
+  "host-init" : "host-init-coverage-pairmanager-misaligned.sh",
+  "bin" : "rerocc_lc_coverage_baremetal_coupleddma_pairmanager_misaligned.riscv",
+  "firesim" : {
+    "simulation_outputs" : [
+      "uartlog",
+      "memory_stats*.csv",
+      "TRACEFILE*",
+      "metasim_stderr.out"
+    ]
+  }
+}

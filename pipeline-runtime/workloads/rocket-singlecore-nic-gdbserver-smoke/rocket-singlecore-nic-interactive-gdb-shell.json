@@ -1,0 +1,19 @@
+{
+  "name": "rocket-singlecore-nic-interactive-gdb-shell",
+  "base": "br-base.json",
+  "workdir": ".",
+  "distro": {
+    "name": "br",
+    "opts": {
+      "configs": [
+        "linux_target_gdb.kfrag"
+      ]
+    }
+  },
+  "overlay": "overlay",
+  "outputs": [
+    "/root/gdbserver-smoke/interactive-gdb.info",
+    "/root/gdbserver-smoke/interactive-gdb.log"
+  ],
+  "run": "run_interactive_gdb_shell.sh"
+}

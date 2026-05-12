@@ -1,6 +1,6 @@
 # Pairdummy sbus128 Workflow
 
-更新时间：`2026-04-14 14:40 UTC`
+更新时间：`2026-04-15 14:49 UTC`
 
 ## 1. 适用范围
 
@@ -32,7 +32,7 @@
 
 当前主线固定 profile 重点参数：
 
-- `PIPELINE_RUNTIME_PROFILE_ID=pairdummy-sbus128-fixed-v19`
+- `PIPELINE_RUNTIME_PROFILE_ID=pairdummy-sbus128-fixed-v25`
 - `NUM_CORES=4`
 - `NUM_GEMMINI=12`
 - `NUM_DMA=12`
@@ -49,6 +49,9 @@
 - `PIPELINE_RUNTIME_BREADCRUMB_ENABLE=1`
 - `PIPELINE_RUNTIME_DEBUG_TRIGGER_ENABLE=0`
 - `PIPELINE_RUNTIME_DMA_EXPORT_PROBE_ENABLE=0`
+- `PIPELINE_RUNTIME_DMA_FORCE_DIRECT_ENABLE=1`
+- `PIPELINE_RUNTIME_DMA_EXPORT_PAGE_START=4294967295`
+- `PIPELINE_RUNTIME_DMA_EXPORT_PAGE_END=4294967295`
 - `PIPELINE_RUNTIME_DMA_FIXED_LOAD_PROBE_ENABLE=0`
 - `PIPELINE_RUNTIME_DISABLE_MAPPING_CACHE=1`
 - 当前 profile 的目的：
@@ -56,6 +59,8 @@
   并进一步收掉
   breadcrumb 已覆盖的 pointwise coarse guest log，
   让 pointwise 热路径继续回到 breadcrumb-first 的低扰动观测面；
+  并把 export sparse 页日志窗口钉到不命中真实页的 sentinel，
+  避免 baseline 意外回落到默认 `page>=48 / page%8 / 首尾页` 的热路径页日志；
   trigger-gated 短日志默认关闭，
   只在 triage 明确建议后做单变量 overlay rerun
 
@@ -90,12 +95,21 @@ generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdumm
   - `marshal clean`
   - `marshal build`
   - `marshal install`
+  - render effective guest `firemarshal.env`
+  - patch local image `/firemarshal.env`
   - local image freshness
 - local freshness 必须验证：
   - guest image
   - runner script
   - runtime binary
   - `firemarshal.env`
+- 说明：
+  - baseline `firemarshal.env` 默认保持 control 配置
+  - 唯一允许的临时 overlay 仍然只有 `PIPELINE_RUNTIME_DEBUG_TRIGGER_*`
+    与少量 `PIPELINE_RUNTIME_BREADCRUMB_*`
+  - overlay 不能只停留在 host shell；必须先渲染成 effective guest env，再实际写入 image 中的 `/firemarshal.env`
+  - `PIPELINE_RUNTIME_DMA_EXPORT_PAGE_START/END` 在 control baseline 中不能留空；
+    留空会重新打开默认 export sparse 页日志
 
 ### 5.2 Remote freshness
 
@@ -131,9 +145,11 @@ generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdumm
 - 不手工改动 fixed profile 的语义参数
 - 当前唯一允许临时 overlay 的参数族是：
   `PIPELINE_RUNTIME_DEBUG_TRIGGER_*`
+  与少量 `PIPELINE_RUNTIME_BREADCRUMB_*`
 - overlay 只能来自
   `triage_prt_capture.py --emit-trigger-env`
-  生成的 block
+  生成的 trigger block，
+  或者人工指定的 breadcrumb 收窄条件
 
 推荐操作：
 
@@ -156,8 +172,33 @@ cd /home/ubuntu/chipyard
 
 - 用 subshell 是为了避免 trigger env 泄漏到后续普通 rerun
 - `debug-preflight` 会拦截多类高风险 probe 同开
+- `image-closure` / `infrasetup` 会把当轮 trigger overlay 物化到 guest image 的 `/firemarshal.env`
 - 若本轮 claim 属于 `observability_only`，
   后面必须补 control rerun
+
+低扰动 breadcrumb-only rerun：
+
+```bash
+cd /home/ubuntu/chipyard
+(
+  export PIPELINE_RUNTIME_DEBUG_TRIGGER_ENABLE=0
+  export PIPELINE_RUNTIME_BREADCRUMB_SUBBATCH=5
+  export PIPELINE_RUNTIME_BREADCRUMB_SUBBATCH_RADIUS=0
+  generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdummy_sbus128_workflow.sh debug-preflight
+  generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdummy_sbus128_workflow.sh launch
+  generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdummy_sbus128_workflow.sh infrasetup
+  generators/gemmini/software/gemmini-rocc-tests/pipeline-runtime/scripts/pairdummy_sbus128_workflow.sh current-private-ip
+)
+```
+
+说明：
+
+- 这类 rerun 的目标是减少 breadcrumb 写入量，不是在热路径增加新日志。
+- 只改 guest env 时，不需要重新 `marshal build/install`；
+  `infrasetup` 会重新 patch local image 中的 `/firemarshal.env`
+  并把新 image 下发到 run farm。
+- 允许临时覆盖的 breadcrumb 变量只包括：
+  `ENABLE/PATH/SEGMENT/GLOBAL_STAGE/LOCAL_STAGE/SUBBATCH/STAGE_RADIUS/SUBBATCH_RADIUS`
 
 ## 8. 禁止事项
 

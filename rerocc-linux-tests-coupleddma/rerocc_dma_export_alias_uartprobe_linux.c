@@ -966,8 +966,6 @@ static bool issue_dma_copy(const uartprobe_cfg_t *cfg,
   record->bytes = bytes;
   record->wait_mode = wait_mode;
 
-  dma_monitor_sample_read(&record->pre_sample);
-
   if (emit_issue_steps) {
     emit_issue_step_marker(ctx, src_pa, dst_pa, bytes, "before-acquire");
     write_issue_binary_stage(ctx, "before-acquire");
@@ -983,6 +981,7 @@ static bool issue_dma_copy(const uartprobe_cfg_t *cfg,
   }
 
   rr_set_opc(DMA_OPCODE_ID, DMA_CFG_ID);
+  dma_monitor_sample_read(&record->pre_sample);
   *flag->va = 0U;
   asm volatile("fence rw, rw" ::: "memory");
 

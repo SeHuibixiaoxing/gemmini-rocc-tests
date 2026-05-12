@@ -58,6 +58,10 @@
 #define REROCC_STAGE0_SHARED_GID (-1)
 #endif
 
+#ifndef REROCC_SEG3_TRACERV_MARKERS
+#define REROCC_SEG3_TRACERV_MARKERS 0
+#endif
+
 #define SEG3_LOG_FINAL(...) do { if (REROCC_SEG3_LOG_LEVEL >= 1) printf(__VA_ARGS__); } while (0)
 #define SEG3_LOG_VERBOSE(...) do { if (REROCC_SEG3_LOG_LEVEL >= 2) printf(__VA_ARGS__); } while (0)
 
@@ -89,6 +93,20 @@ static uint8_t stage1_dst[REROCC_EXPORT_STAGE1_BYTES] __attribute__((aligned(64)
 static volatile int dma_completion_global[TEST_WORKER_CORES] __attribute__((aligned(64)));
 
 static uint64_t rr_read_cfg_state(uint32_t cfg_id);
+
+#if defined(__riscv) && REROCC_SEG3_TRACERV_MARKERS
+// Emit the exact instruction words expected by FireSim's instruction trigger.
+static inline void rerocc_seg3_tracerv_start_marker(void) {
+  asm volatile(".word 0x00008013" ::: "memory");
+}
+
+static inline void rerocc_seg3_tracerv_end_marker(void) {
+  asm volatile(".word 0x00010013" ::: "memory");
+}
+#else
+static inline void rerocc_seg3_tracerv_start_marker(void) {}
+static inline void rerocc_seg3_tracerv_end_marker(void) {}
+#endif
 
 static uint32_t dma_cfg_id_for_stage(uint32_t stage_idx) {
   return ((stage_idx * 2U) + 0U) % RR_MAX_CFGS;
@@ -322,6 +340,7 @@ static bool run_stage0_segment3_case(int cid, uint32_t manager_id) {
   }
 
   set_stage_progress(cid, 33U);
+  rerocc_seg3_tracerv_start_marker();
   rr_set_opc(2, cfg_id);
   set_stage_progress(cid, 331U);
   set_stage_progress(cid, 332U);
@@ -382,6 +401,7 @@ static bool run_stage0_segment3_case(int cid, uint32_t manager_id) {
   }
 
   set_stage_progress(cid, 80U);
+  rerocc_seg3_tracerv_end_marker();
   rr_release(cfg_id);
   return true;
 }
@@ -496,8 +516,12 @@ void thread_entry(int cid, int nc) {
   }
 
   if (cid == 0) {
+    // Expose the long silent prefill window before the first shared barrier.
+    set_stage_progress(cid, 2U);
     fill_pattern(stage0_src, sizeof(stage0_src), 0x13572468u);
+    set_stage_progress(cid, 3U);
     fill_pattern(stage1_src, sizeof(stage1_src), 0x24681357u);
+    set_stage_progress(cid, 4U);
   }
 
   set_stage_progress(cid, 10U);

@@ -1,6 +1,6 @@
 # Gemmini/ReRoCC/DMA 自定义指令调试策略
 
-更新时间：`2026-05-11 01:33 UTC`
+更新时间：`2026-05-12 02:45 UTC`
 
 本文记录 `pipeline-runtime` 在 Linux/F2 上调试 Gemmini、ReRoCC、CoupledDMA
 自定义指令时的推荐方法。目标不是增加更多热路径日志，而是在少用 F2、少扰动程序轨迹的前提下，
@@ -1142,3 +1142,117 @@ runtime 三件套执行 `launchrunfarm -> infrasetup -> runworkload -> terminate
   验证 targetcycle 打开但不大量打印时是否仍 PASS。只有这一步通过后，才考虑恢复
   full-debug 或重建不带 TargetCycleDebugWidget、只保留 Rocket PC synth printf 的
   hwdebug AGFI。
+
+2026-05-12T02:45Z 追加状态：
+
+- 同一 1C1P hwdebug AGFI `agfi-098bce7d5e0c3d937` 已经给出两条有效正证据：
+  1. baremetal nodebug/tcdlite 在 F2 上通过；
+  2. Linux tcdlite 在 `2026-05-11--17-31-49` 结果中已经进入 OpenSBI、Linux、
+     `/init` 和 Buildroot，只因 guest 中缺少
+     `//run_rerocc_dma_export_alias_uartprobe_filewrite_quiet_capture.sh` 失败。
+  因此后续同 AGFI 的单轮失败不能直接解释为 bitstream 基础不可用。
+- 已修复上述 guest helper 缺失：`rerocc-linux-tests-coupleddma/workload/host-init.sh`
+  会把 `run_rerocc_dma_export_alias_uartprobe_filewrite_quiet_capture.sh` 拷贝到
+  guest overlay 根目录并 `chmod +x`。FireMarshal clean/build/install 已完成，下一轮
+  Linux rootfs 已包含该 helper。
+- 修复 helper 后复跑 1C1P F2 Linux tcdlite，结果目录：
+  `sims/firesim/deploy/results-workload/2026-05-12--01-59-34-rerocc-lc-linux-coupleddma-dma-export-alias-uartprobe-1c1p1-hwdebug-f2-rerocc-linux-uartprobe-1c1p1-hwdebug-tcdlite/`。
+  该 run 在进入 OpenSBI 前触发
+  `Assertion failed: Bad TSI command`，`*** FAILED *** (code = 1) after 7697012 cycles`。
+  这轮不是 helper 缺失，也没有 guest artifact。
+- 这次 F2 `Bad TSI command` 目前按运行态异常优先处理，不先判硬件设计错误。理由：
+  1. 同 AGFI、同正式 F2 command 在上一轮 Linux run 已能进 Linux；
+  2. 新失败 `uartlog` 的首个 `TARGETCYCLE DEBUG` 读数已经明显不可信，例如
+     `hcycle` 为异常大数、0/1 状态字段出现大数、mask 像 32-bit/64-bit 片段错位拼接；
+  3. 1C1P 本地 metasim 未复现 `Bad TSI command`，并已经完成 host-side
+     `tsi_t::reset()` 的 hart0 MSIP write path。
+  因此下一步应先确认 runfarm/driver/FPGA slot/TargetCycleDebug OCL 读路径是否污染，
+  不应因为这一轮失败就杀掉 6P2C 或重建硬件。
+- 本地 metasim 关键结论：`[tsi-bootdiag] returned from tsi_t::reset` 只是 FESVR host
+  线程返回，不代表 target 已收到 MSIP。非 fast-FESVR 路径在 `tsibridge_t::init()` 中
+  预置 `is_loaded_in_target=true`，所以 reset 可以先返回；随后同一 `tsibridge_t::tick()`
+  仍会先通过 `tsi_bypass_via_loadmem()` 清空大量 LoadMem 写队列，最后才 `send()` 普通
+  TSI words。当前本地 metasim 的 gdb 现场是
+  `tsibridge_t::handle_loadmem_write -> loadmem_t::write_mem_chunk`，LoadMem 写队列持续下降，
+  不是 TSI 解码死锁。
+- 当前本地 metasim 运行：
+  `hwdebug-1c1p-linux-tcdlite-metasim-run-20260512`，
+  live dir `/home/ubuntu/sim_slot_0`。截至本记录，队列从约 `8320` 个 1KiB LoadMem
+  write request 降到约 `7652`，front addr 从约 `0x80cb9000` 前进到 `0x80d60c00`；
+  `in_data` 中已有 11 个普通 TSI words 等待后续发送。它可作为“F2 Bad TSI 是否可复现”
+  的本地门槛，但由于 Verilator 装载 Linux 很慢，不应频繁重启。
+- 当前 6P2C 构建继续保留，不因上述软件/运行态问题中止：
+  tmux `hwdebug-2c6p-f2-pcis-slr1-floorplan-restart-20260511`，
+  build host `i-0fa40f0ece1a8f519` / `z1d.3xlarge` / `192.168.2.52`，
+  AGFI/AFI `agfi-0d0fc22b1ba532727` / `afi-025d2a3afc4a7c9ca`，
+  当前处于 AWS `create-fpga-image` pending。按约定 20 分钟级别轮询，避免频繁访问。
+- 经验约束更新：F2 Linux 重测前必须确认没有遗留 `infrasetup`、`runworkload`、
+  remote `FireSim-f2` 或 `screen -S fsim0`。本轮曾发现旧 `infrasetup`
+  孤儿进程仍卡在已终止 host `192.168.1.137` 的 FPGA clear 轮询，虽未占用 F2，
+  但会污染状态判断；已清理。后续上 F2 前先做进程/AWS/runfarm 三重检查。
+
+2026-05-12T02:55Z 追加状态：
+
+- 同一 1C1P hwdebug AGFI `agfi-098bce7d5e0c3d937` 复跑 Linux nodebug：
+  runtime
+  `sims/firesim/deploy/config_runtime_f2_gemmini_rerocc_pairmanager_dummy8x8_1c1p1_sbus64_nic_hwdebug_uartprobe_nodebug.yaml`，
+  runfarm `i-076af5487800d9b01` / `192.168.1.64`，
+  workload result dir
+  `sims/firesim/deploy/results-workload/2026-05-12--02-42-37-rerocc-lc-linux-coupleddma-dma-export-alias-uartprobe-1c1p1-hwdebug-f2-rerocc-linux-uartprobe-1c1p1-hwdebug-nodebug/`。
+  现场快照已手动保存到
+  `sims/firesim/deploy/results-workload/manual-live-snapshot-2026-05-12-1c1p-nodebug-exec-hang/`。
+- 该 nodebug run 使用同一 Linux workload 和同一 AGFI，只关闭
+  `+targetcycle-debug=0 +targetcycle-debug-limit=0 +targetcycle-debug-labels=0`，
+  并把 synth printf 延后到 `1000000000..1000000010`。结果已经进入 OpenSBI、
+  Linux early boot、IceNet/iceblk、rootfs mount、Buildroot init 脚本，并执行到
+  `/etc/init.d/S99run`：
+  `firemarshal-uartprobe wrapper-enter`、`status-starting-written`、`child-start pid=116`。
+  因此 `2026-05-12--01-59-34` 的 `Bad TSI command` 基本不再支持“AGFI 本体坏”或
+  “payload 读不进程序”的解释，更像 TargetCycleDebugWidget host runtime OCL/MMIO
+  连续读路径或 F2 运行态污染触发。
+- 当前新的有效卡点不是 OpenSBI/Linux，也不是 DMA fence 之后，而是测试 ELF 启动点。
+  通过宿主机对正在运行的 guest rootfs 镜像做只读 `debugfs` 检查：
+  `debugfs -R "cat /root/pipeline-runtime-debug/uartprobe.runner.stage" <img>`。
+  已确认外层 wrapper 和二级 runner 都执行到了 `before-bin-launch` / `before-bin`，
+  但 `uartprobe.binary.stage` 和 `uartprobe.proc.stage` 均不存在，`deep.log` 也为空。
+  C 程序 `rerocc_dma_export_alias_uartprobe_linux.c` 在 `main()` 一开始就会
+  `write_binary_stage("enter-main")`，所以本轮卡在启动/加载测试 ELF 之前或期间，
+  尚未进入 C `main()`，不能归因到 DMA 指令或 `rerocc_coupleddma_wait()`。
+- 可能解释优先级：
+  1. BusyBox `ash` 后台启动外部命令时可能使用 `vfork`/等待子进程完成 `execve`，
+     因而父 shell 还没来得及写 `after-fork` stage；
+  2. `rerocc_dma_export_alias_uartprobe-linux` 是动态链接 ELF，interpreter 为
+     `/lib/ld-linux-riscv64-lp64d.so.1`，卡点可能在 guest blockdev/iceblk 读取
+     interpreter、动态库或 ELF 页的路径；
+  3. 因 `main()` 未进入，当前不应继续把问题解释成自定义指令、DMA fence 或
+     doneflag 语义问题。
+- 本轮经验：当 guest 没有交互 shell 且 FireMarshal workload 未结束时，可以从
+  F2 run host 对 `sim_slot_0/*.img` 使用 `debugfs -R "cat <guest-path>"` 只读抽取
+  guest stage/status 文件。这个方法不需要打断仿真，比等待 copy-back 更快，且能在
+  UART 沉默时确认 wrapper/runner 进度。
+	- 1C1P F2 runfarm 已在保存现场后终止并确认 AWS 上无 `f2.*` 残留；当前只保留
+	  manager `i-08b9950158e875a41` 和 6P2C build host `i-0fa40f0ece1a8f519`。
+	  因当前卡点是软件/guest IO/exec 阶段，不能作为杀掉 6P2C 构建或改硬件的依据。
+
+2026-05-12T03:40Z 追加状态：
+
+- `uartprobe_exec_stub` 动态/静态二分已排除 Linux dynamic loader、`execve`、
+  iceblk/rootfs 读取和 1C1P AGFI 基础可用性问题。真实
+  `rerocc_dma_export_alias_uartprobe-linux` 已能进入 `main()`，随后在第一轮
+  DMA seed 前退出为 `SIGILL` / `exit_code=132`。
+- 当前明确卡点是 `issue_dma_copy()` 中的首条
+  `rerocc_coupleddma_read_monitor()`，反汇编 PC `0x12a2c`，指令字
+  `0x08f7775b`，解码为 `custom2 funct7=4`。这不是 `set_dst`
+  或 `set_src`，而是 monitor read。
+- 静态根因已经确认：`issue_dma_copy()` 原先在 `rr_acquire_cfg()` 和
+  `rr_set_opc(custom2, cfg=1)` 之前读取 DMA monitor。根据
+  `generators/rerocc/README.md`，只有当 `rropcX` 指向已 acquired 的
+  `rrcfg` 时，`customX` 才会被 ReRoCC client 转发。因此绑定前发
+  `custom2` 会触发非法指令是符合预期的。
+- 修复策略保持最小化：不删除 monitor、不新增热路径日志，只把
+  `record->pre_sample` 的读取移动到 `rr_acquire_cfg_with_retry()` 成功并
+  `rr_set_opc(DMA_OPCODE_ID, DMA_CFG_ID)` 之后。后续验证应先本地
+  FireMarshal/QEMU 确认 rootfs 刷新和失败点推进，再最少量 F2 验证。
+- 经验记录：看到 `custom2`/`custom3` SIGILL 时，先检查该自定义指令是否发生在
+  ReRoCC acquire/opcode bind 之前；不要直接判为 DMA/Gemmini RTL 问题，也不要
+  因这类软件协议错误杀掉仍在构建的 6P2C bitstream。

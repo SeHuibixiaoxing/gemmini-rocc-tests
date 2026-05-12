@@ -27,7 +27,11 @@
 - `vAccIdxList / pAccIdxList`
   是否满足 runtime 需要的 slot permutation / physical binding 约束
 - 每个 segment 的 local stage 数是否仍落在当前 RR cfg 预算内
-  当前 `cfg15` 保留给 `spm_xlate`，因此现状只允许每个 segment 最多 `7` 个 local stage
+  注意：当前实现里的 `spm_xlate` helper 固定使用 `cfg15`，但普通
+  `rr_cfg_id_for_stage(stage_id, opcode_id)` 映射并没有真正把 `cfg15`
+  保留出来；例如 `stage_id=7` 且 `opcode_id=3` 时也会映射到 `cfg15`。
+  因此这里应按“存在 cfg slot 复用风险”来核查，而不能再机械地假设
+  “`cfg15` 已正式保留给 `spm_xlate`”。
 - tensor 视图、slot 数、页数与 stage local SPM 需求
 - `conv + resadd` 尺寸不匹配规则
 - `tensor_id` 与 buffer 语义的一致性

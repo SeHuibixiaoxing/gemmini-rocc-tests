@@ -71,17 +71,68 @@
 #define REROCC_SHORT_DMA_ITERS 1
 #endif
 
+#ifndef REROCC_NONBLOCKING_RUN_S1
+#define REROCC_NONBLOCKING_RUN_S1 1
+#endif
+
+#ifndef REROCC_NONBLOCKING_RUN_S2
+#define REROCC_NONBLOCKING_RUN_S2 1
+#endif
+
+#ifndef REROCC_NONBLOCKING_RUN_S3
+#define REROCC_NONBLOCKING_RUN_S3 1
+#endif
+
+#ifndef REROCC_NONBLOCKING_RUN_S4
+#define REROCC_NONBLOCKING_RUN_S4 1
+#endif
+
 #ifndef REROCC_CORE1_DELAY_SPINS
 #define REROCC_CORE1_DELAY_SPINS 2000UL
 #endif
 
+#ifndef REROCC_DMA_OFFSET_MAX
+#define REROCC_DMA_OFFSET_MAX 64U
+#endif
+
+#ifndef REROCC_DMA_MISALIGNED_PROFILE
+#define REROCC_DMA_MISALIGNED_PROFILE 0
+#endif
+
+#ifndef REROCC_DMA_SRC_HEAD_OFFSET
+#define REROCC_DMA_SRC_HEAD_OFFSET 16U
+#endif
+
+#ifndef REROCC_DMA_SHARED_B_OFFSET
+#define REROCC_DMA_SHARED_B_OFFSET 48U
+#endif
+
+#ifndef REROCC_DMA_DST_TAIL_OFFSET
+#define REROCC_DMA_DST_TAIL_OFFSET 16U
+#endif
+
 #ifndef REROCC_SMOKE_SIMPLE_CONV_FIXTURE
+#if REROCC_DMA_MISALIGNED_PROFILE
+#define REROCC_SMOKE_SIMPLE_CONV_FIXTURE 1
+#else
 #define REROCC_SMOKE_SIMPLE_CONV_FIXTURE 0
+#endif
 #endif
 
 #ifndef REROCC_TRACE_PROGRESS
 #define REROCC_TRACE_PROGRESS 0
 #endif
+
+#ifndef REROCC_NONBLOCKING_VERBOSE
+#define REROCC_NONBLOCKING_VERBOSE 1
+#endif
+
+#define NB_PRINTF(...) printf(__VA_ARGS__)
+#define NB_VERBOSE_PRINTF(...) do { \
+  if (REROCC_NONBLOCKING_VERBOSE) { \
+    printf(__VA_ARGS__); \
+  } \
+} while (0)
 
 #define TEST_WORKER_CORES 2
 
@@ -101,8 +152,8 @@
 #define SHARED_DMA_CORE_STRIDE 0x4000ULL
 
 #define BATCH_SIZE 1
-#define IN_ROW_DIM 8
-#define IN_COL_DIM 8
+#define IN_ROW_DIM 4
+#define IN_COL_DIM 4
 #define IN_CHANNELS 4
 #define OUT_CHANNELS 4
 #define KERNEL_DIM 3
@@ -163,8 +214,8 @@ static elem_t resadd_b_global[TEST_WORKER_CORES][DIM][DIM] __attribute__((aligne
 static elem_t resadd_out_global[TEST_WORKER_CORES][DIM][DIM] __attribute__((aligned(64)));
 static elem_t resadd_gold_global[TEST_WORKER_CORES][DIM][DIM] __attribute__((aligned(64)));
 
-static uint8_t dma_src_global[TEST_WORKER_CORES][REROCC_DMA_BYTES] __attribute__((aligned(64)));
-static uint8_t dma_dst_global[TEST_WORKER_CORES][REROCC_DMA_BYTES] __attribute__((aligned(64)));
+static uint8_t dma_src_global[TEST_WORKER_CORES][REROCC_DMA_BYTES + REROCC_DMA_OFFSET_MAX] __attribute__((aligned(64)));
+static uint8_t dma_dst_global[TEST_WORKER_CORES][REROCC_DMA_BYTES + REROCC_DMA_OFFSET_MAX] __attribute__((aligned(64)));
 static volatile int dma_completion_global[TEST_WORKER_CORES] __attribute__((aligned(64)));
 
 static inline uint64_t read_cycles_local(void) {
@@ -247,6 +298,24 @@ static void init_random_acc(acc_t *buf, size_t n, uint32_t *state) {
   }
 }
 
+static void shared_byte_zero(volatile uint8_t *dst, size_t n) {
+  size_t i = 0;
+  uintptr_t dst_addr = (uintptr_t)dst;
+
+  while (i < n && (((dst_addr + i) & (sizeof(uint64_t) - 1U)) != 0U)) {
+    dst[i] = 0;
+    i++;
+  }
+
+  for (; i + sizeof(uint64_t) <= n; i += sizeof(uint64_t)) {
+    *(volatile uint64_t *)(volatile void *)(dst + i) = 0ULL;
+  }
+
+  for (; i < n; i++) {
+    dst[i] = 0;
+  }
+}
+
 static void flatten_weights(elem_t weights[OUT_CHANNELS][KERNEL_DIM][KERNEL_DIM][IN_CHANNELS],
                             elem_t weights_mat[PATCH_SIZE][OUT_CHANNELS]) {
   for (int outc = 0; outc < OUT_CHANNELS; outc++) {
@@ -314,7 +383,21 @@ static conv_fixture_t *prepare_conv_fixture(int cid, int manager_id) {
   }
 
 #if REROCC_SMOKE_SIMPLE_CONV_FIXTURE
-  memset(fixture, 0, sizeof(*fixture));
+  const int center = KERNEL_DIM / 2;
+  const int center_row = center * KERNEL_DIM * IN_CHANNELS + center * IN_CHANNELS;
+
+  fixture->input[0][0][0][0] = (elem_t)1;
+  fixture->reference[0][0][0][0] = (elem_t)1;
+  fixture->input[0][1][2][1] = (elem_t)-1;
+  fixture->reference[0][1][2][1] = (elem_t)-1;
+  fixture->input[0][2][1][2] = (elem_t)2;
+  fixture->reference[0][2][1][2] = (elem_t)2;
+  fixture->input[0][3][3][3] = (elem_t)-2;
+  fixture->reference[0][3][3][3] = (elem_t)-2;
+
+  for (int ch = 0; ch < OUT_CHANNELS && ch < IN_CHANNELS; ch++) {
+    fixture->weights_mat[center_row + ch][ch] = (elem_t)1;
+  }
   fixture->valid = true;
   return fixture;
 #else
@@ -335,9 +418,12 @@ static conv_fixture_t *prepare_conv_fixture(int cid, int manager_id) {
 
 static bool warm_conv_fixtures(int cid) {
   for (int i = 0; i < REROCC_NUM_GEMMINI; i++) {
+    TRACE_PRINTF("[rerocc-nonblocking][trace] cid=%d warmup fixture=%d begin\n", cid, i);
     if (prepare_conv_fixture(cid, REROCC_GEMMINI_BASE_ID + i) == NULL) {
+      TRACE_PRINTF("[rerocc-nonblocking][trace] cid=%d warmup fixture=%d fail\n", cid, i);
       return false;
     }
+    TRACE_PRINTF("[rerocc-nonblocking][trace] cid=%d warmup fixture=%d done\n", cid, i);
   }
   return true;
 }
@@ -449,13 +535,50 @@ static bool run_resadd_workload(int cid, int manager_id, int iters, uint64_t *cy
 }
 
 static void fill_pattern(uint8_t *buf, size_t n, uint32_t *seed) {
-  for (size_t i = 0; i < n; i++) {
+  size_t i = 0;
+  const uintptr_t addr = (uintptr_t)buf;
+
+  while (i < n && (((addr + i) & (sizeof(uint64_t) - 1U)) != 0U)) {
+    buf[i] = (uint8_t)lcg_next(seed);
+    i++;
+  }
+
+  for (; i + sizeof(uint64_t) <= n; i += sizeof(uint64_t)) {
+    uint64_t word = 0;
+    for (size_t b = 0; b < sizeof(uint64_t); b++) {
+      word |= ((uint64_t)(uint8_t)lcg_next(seed)) << (8U * b);
+    }
+    *(uint64_t *)(void *)(buf + i) = word;
+  }
+
+  for (; i < n; i++) {
     buf[i] = (uint8_t)lcg_next(seed);
   }
 }
 
 static bool buffers_equal(const uint8_t *a, const uint8_t *b, size_t n) {
-  for (size_t i = 0; i < n; i++) {
+  size_t i = 0;
+  const uintptr_t a_addr = (uintptr_t)a;
+  const uintptr_t b_addr = (uintptr_t)b;
+
+  if ((a_addr & (sizeof(uint64_t) - 1U)) == (b_addr & (sizeof(uint64_t) - 1U))) {
+    while (i < n && (((a_addr + i) & (sizeof(uint64_t) - 1U)) != 0U)) {
+      if (a[i] != b[i]) {
+        return false;
+      }
+      i++;
+    }
+
+    for (; i + sizeof(uint64_t) <= n; i += sizeof(uint64_t)) {
+      const uint64_t a64 = *(const uint64_t *)(const void *)(a + i);
+      const uint64_t b64 = *(const uint64_t *)(const void *)(b + i);
+      if (a64 != b64) {
+        return false;
+      }
+    }
+  }
+
+  for (; i < n; i++) {
     if (a[i] != b[i]) {
       return false;
     }
@@ -479,15 +602,51 @@ static int dma_job_manager_id(int slot) {
 #endif
 }
 
+static inline size_t dma_src_head_offset(void) {
+#if REROCC_DMA_MISALIGNED_PROFILE
+  return (size_t)REROCC_DMA_SRC_HEAD_OFFSET;
+#else
+  return 0U;
+#endif
+}
+
+static inline size_t dma_shared_b_offset(void) {
+#if REROCC_DMA_MISALIGNED_PROFILE
+  return (size_t)REROCC_DMA_SHARED_B_OFFSET;
+#else
+  return 0U;
+#endif
+}
+
+static inline size_t dma_dst_tail_offset(void) {
+#if REROCC_DMA_MISALIGNED_PROFILE
+  return (size_t)REROCC_DMA_DST_TAIL_OFFSET;
+#else
+  return 0U;
+#endif
+}
+
+static bool dma_expect_equal(const char *stage, int cid, int manager_id, int iter,
+                             const uint8_t *expected, const uint8_t *actual, size_t nbytes) {
+  if (buffers_equal(expected, actual, nbytes)) {
+    return true;
+  }
+  NB_PRINTF("[rerocc-nonblocking] DMA_DATA_FAIL cid=%d manager=%d iter=%d stage=%s bytes=%zu\n",
+            cid, manager_id, iter, stage, nbytes);
+  return false;
+}
+
 static bool dma_issue_copy_and_wait(uint64_t src, uint64_t dst, volatile int *flag, size_t nbytes) {
   *flag = 0;
+  asm volatile("fence rw, rw" ::: "memory");
   rerocc_coupleddma_set_dst(dst, (uint64_t)(uintptr_t)flag);
   rerocc_coupleddma_set_src(src, (uint64_t)nbytes);
 
   for (unsigned long spin = 0; spin < DMA_WAIT_SPINS; spin++) {
+    asm volatile("fence r, rw" ::: "memory");
     if (*flag != 0) {
       *flag = 0;
-      asm volatile("fence");
+      asm volatile("fence" ::: "memory");
       return true;
     }
     asm volatile("nop");
@@ -496,14 +655,18 @@ static bool dma_issue_copy_and_wait(uint64_t src, uint64_t dst, volatile int *fl
 }
 
 static bool run_dma_workload(int cid, int manager_id, int iters, uint64_t *cycles_out) {
-  uint8_t *src = dma_src_global[cid];
-  uint8_t *dst = dma_dst_global[cid];
+  uint8_t *src_base = dma_src_global[cid];
+  uint8_t *dst_base = dma_dst_global[cid];
+  uint8_t *src = src_base + dma_src_head_offset();
+  uint8_t *dst = dst_base + dma_dst_tail_offset();
   volatile int *completion = &dma_completion_global[cid];
   uint32_t cfg_id = dma_cfg_id_for_manager(manager_id);
 
   int gid = dma_manager_to_shared_gid(manager_id);
-  uint64_t shared_a_addr = SHARED_SPAD_LOCAL_ADDR_BASE(gid) + SHARED_DMA_A_OFFSET + (uint64_t)cid * SHARED_DMA_CORE_STRIDE;
-  uint64_t shared_b_addr = SHARED_SPAD_LOCAL_ADDR_BASE(gid) + SHARED_DMA_B_OFFSET + (uint64_t)cid * SHARED_DMA_CORE_STRIDE;
+  uint64_t shared_a_addr = SHARED_SPAD_LOCAL_ADDR_BASE(gid) + SHARED_DMA_A_OFFSET +
+    (uint64_t)cid * SHARED_DMA_CORE_STRIDE;
+  uint64_t shared_b_addr = SHARED_SPAD_LOCAL_ADDR_BASE(gid) + SHARED_DMA_B_OFFSET +
+    (uint64_t)cid * SHARED_DMA_CORE_STRIDE + dma_shared_b_offset();
   uint8_t *shared_a = (uint8_t *)(uintptr_t)shared_a_addr;
   uint8_t *shared_b = (uint8_t *)(uintptr_t)shared_b_addr;
 
@@ -525,14 +688,19 @@ static bool run_dma_workload(int cid, int manager_id, int iters, uint64_t *cycle
   for (int i = 0; i < iters; i++) {
     fill_pattern(src, REROCC_DMA_BYTES, &seed);
     memset(dst, 0, REROCC_DMA_BYTES);
-    memset(shared_a, 0, REROCC_DMA_BYTES);
-    memset(shared_b, 0, REROCC_DMA_BYTES);
+    shared_byte_zero(shared_a, REROCC_DMA_BYTES);
+    shared_byte_zero(shared_b, REROCC_DMA_BYTES);
 
     TRACE_PRINTF("[rerocc-nonblocking][trace] cid=%d job=dma manager=%d iter=%d step=dram_to_shared_a begin\n",
       cid, manager_id, i);
     if (!dma_issue_copy_and_wait((uint64_t)(uintptr_t)src, (uint64_t)(uintptr_t)shared_a, completion, REROCC_DMA_BYTES)) {
       TRACE_PRINTF("[rerocc-nonblocking][trace] cid=%d job=dma manager=%d iter=%d step=dram_to_shared_a fail\n",
         cid, manager_id, i);
+      ok = false;
+      break;
+    }
+    rr_fence(cfg_id);
+    if (!dma_expect_equal("dram_to_shared_a", cid, manager_id, i, src, shared_a, REROCC_DMA_BYTES)) {
       ok = false;
       break;
     }
@@ -544,6 +712,11 @@ static bool run_dma_workload(int cid, int manager_id, int iters, uint64_t *cycle
       ok = false;
       break;
     }
+    rr_fence(cfg_id);
+    if (!dma_expect_equal("shared_a_to_shared_b", cid, manager_id, i, src, shared_b, REROCC_DMA_BYTES)) {
+      ok = false;
+      break;
+    }
     TRACE_PRINTF("[rerocc-nonblocking][trace] cid=%d job=dma manager=%d iter=%d step=shared_b_to_dram begin\n",
       cid, manager_id, i);
     if (!dma_issue_copy_and_wait((uint64_t)(uintptr_t)shared_b, (uint64_t)(uintptr_t)dst, completion, REROCC_DMA_BYTES)) {
@@ -552,14 +725,14 @@ static bool run_dma_workload(int cid, int manager_id, int iters, uint64_t *cycle
       ok = false;
       break;
     }
-    if (!buffers_equal(src, dst, REROCC_DMA_BYTES)) {
+    rr_fence(cfg_id);
+    if (!dma_expect_equal("shared_b_to_dram", cid, manager_id, i, src, dst, REROCC_DMA_BYTES)) {
       TRACE_PRINTF("[rerocc-nonblocking][trace] cid=%d job=dma manager=%d iter=%d data_mismatch\n",
         cid, manager_id, i);
       ok = false;
       break;
     }
   }
-  rr_fence(cfg_id);
   uint64_t t1 = read_cycles_local();
   rr_release(cfg_id);
   TRACE_PRINTF("[rerocc-nonblocking][trace] cid=%d job=dma manager=%d cfg=%u run_done ok=%d cycles=%lu\n",
@@ -648,10 +821,6 @@ static bool run_overlap_scenario(int cid, int logical_cores, const char *name,
   uint64_t c0 = 0, c1 = 0;
   bool ok0 = true, ok1 = true;
 
-  if (cid == 0) {
-    printf("SCENARIO_PHASE name=%s phase=serial_long core0=%s core1=%s iters0=%d iters1=%d\n",
-      name, job_name(long_job), job_name(JOB_IDLE), long_iters, 0);
-  }
   run_stage(cid, logical_cores,
     long_job, long_iters,
     JOB_IDLE, 0,
@@ -659,15 +828,8 @@ static bool run_overlap_scenario(int cid, int logical_cores, const char *name,
     &wall, &c0, &c1, &ok0, &ok1);
   if (cid == 0) {
     serial_long = c0;
-    printf("SCENARIO_PHASE_DONE name=%s phase=serial_long ok0=%d ok1=%d wall=%lu c0=%lu c1=%lu\n",
-      name, ok0 ? 1 : 0, ok1 ? 1 : 0,
-      (unsigned long)wall, (unsigned long)c0, (unsigned long)c1);
   }
 
-  if (cid == 0) {
-    printf("SCENARIO_PHASE name=%s phase=serial_short core0=%s core1=%s iters0=%d iters1=%d\n",
-      name, job_name(short_job), job_name(JOB_IDLE), short_iters, 0);
-  }
   run_stage(cid, logical_cores,
     short_job, short_iters,
     JOB_IDLE, 0,
@@ -675,15 +837,8 @@ static bool run_overlap_scenario(int cid, int logical_cores, const char *name,
     &wall, &c0, &c1, &ok0, &ok1);
   if (cid == 0) {
     serial_short = c0;
-    printf("SCENARIO_PHASE_DONE name=%s phase=serial_short ok0=%d ok1=%d wall=%lu c0=%lu c1=%lu\n",
-      name, ok0 ? 1 : 0, ok1 ? 1 : 0,
-      (unsigned long)wall, (unsigned long)c0, (unsigned long)c1);
   }
 
-  if (cid == 0) {
-    printf("SCENARIO_PHASE name=%s phase=parallel core0=%s core1=%s iters0=%d iters1=%d\n",
-      name, job_name(long_job), job_name(short_job), long_iters, short_iters);
-  }
   run_stage(cid, logical_cores,
     long_job, long_iters,
     short_job, short_iters,
@@ -693,10 +848,6 @@ static bool run_overlap_scenario(int cid, int logical_cores, const char *name,
   if (cid != 0) {
     return true;
   }
-
-  printf("SCENARIO_PHASE_DONE name=%s phase=parallel ok0=%d ok1=%d wall=%lu c0=%lu c1=%lu\n",
-    name, ok0 ? 1 : 0, ok1 ? 1 : 0,
-    (unsigned long)wall, (unsigned long)c0, (unsigned long)c1);
 
   uint64_t serial_sum = serial_long + serial_short;
   bool overlap_observed = wall < serial_sum;
@@ -710,11 +861,11 @@ static bool run_overlap_scenario(int cid, int logical_cores, const char *name,
   bool pass = ok0 && ok1 &&
     (use_latency_order_check ? short_finished_before_long : true);
 
-  printf("SCENARIO_RESULT name=%s pass=%d long_ok=%d short_ok=%d serial_sum=%lu parallel_wall=%lu long_cycles=%lu short_cycles=%lu overlap=%d short_before_long=%d use_latency_order_check=%d\n",
-    name, pass ? 1 : 0, ok0 ? 1 : 0, ok1 ? 1 : 0,
-    (unsigned long)serial_sum, (unsigned long)wall,
-    (unsigned long)c0, (unsigned long)c1, overlap_observed ? 1 : 0,
-    short_finished_before_long ? 1 : 0, use_latency_order_check ? 1 : 0);
+  NB_PRINTF("SCEN %s ok=%d ser=%lu par=%lu ov=%d ord=%d\n",
+            name, pass ? 1 : 0,
+            (unsigned long)serial_sum, (unsigned long)wall,
+            overlap_observed ? 1 : 0,
+            use_latency_order_check ? (short_finished_before_long ? 1 : 0) : 1);
 
   return pass;
 }
@@ -726,14 +877,13 @@ void thread_entry(int cid, int nc) {
   }
 
   if (cid == 0) {
-    printf("[rerocc-nonblocking] start runtime_nc=%d logical_cores=%d gemmini=%d dma=%d gemmini_base=%d dma_base=%d dma_bytes=%d pair_mode=%d\n",
-      nc, logical_cores, REROCC_NUM_GEMMINI, REROCC_NUM_DMA,
-      REROCC_GEMMINI_BASE_ID, REROCC_DMA_BASE_ID, REROCC_DMA_BYTES, REROCC_PAIR_MANAGER_MODE);
+    NB_VERBOSE_PRINTF("NONBLOCKING_BEGIN cores=%d nc=%d gemmini=%d dma=%d bytes=%d\n",
+                      logical_cores, nc, REROCC_NUM_GEMMINI, REROCC_NUM_DMA, REROCC_DMA_BYTES);
   }
 
   if (nc < logical_cores) {
     if (cid == 0) {
-      printf("[rerocc-nonblocking] FAIL: requires at least %d cores, got %d\n", logical_cores, nc);
+      NB_PRINTF("[rerocc-nonblocking] FAIL: requires at least %d cores, got %d\n", logical_cores, nc);
       exit(1);
     }
     while (1) {
@@ -750,8 +900,8 @@ void thread_entry(int cid, int nc) {
 #if REROCC_PAIR_MANAGER_MODE
   if (REROCC_NUM_GEMMINI != REROCC_NUM_DMA) {
     if (cid == 0) {
-      printf("[rerocc-nonblocking] FAIL: pair mode requires num_gemmini == num_dma, got gemmini=%d dma=%d\n",
-        REROCC_NUM_GEMMINI, REROCC_NUM_DMA);
+      NB_PRINTF("[rerocc-nonblocking] FAIL: pair mode requires num_gemmini == num_dma, got gemmini=%d dma=%d\n",
+                REROCC_NUM_GEMMINI, REROCC_NUM_DMA);
       exit(1);
     }
     while (1) {
@@ -762,7 +912,7 @@ void thread_entry(int cid, int nc) {
 
   if (REROCC_NUM_GEMMINI < 2 || REROCC_NUM_DMA < 2) {
     if (cid == 0) {
-      printf("[rerocc-nonblocking] FAIL: requires >=2 gemmini and >=2 dma managers\n");
+      NB_PRINTF("[rerocc-nonblocking] FAIL: requires >=2 gemmini and >=2 dma managers\n");
       exit(1);
     }
     while (1) {
@@ -770,43 +920,84 @@ void thread_entry(int cid, int nc) {
     }
   }
 
-  if (cid == 0) {
-    printf("[rerocc-nonblocking] warmup_start gemmini=%d\n", REROCC_NUM_GEMMINI);
-  }
-  bool warm_ok = warm_conv_fixtures(cid);
-  barrier_wait(logical_cores);
-  if (!warm_ok) {
+  bool need_warmup = (REROCC_NONBLOCKING_RUN_S1 != 0) || (REROCC_NONBLOCKING_RUN_S3 != 0);
+  if (need_warmup) {
+    NB_VERBOSE_PRINTF("NONBLOCKING_WARMUP_BEGIN cid=%d\n", cid);
+    bool warm_ok = warm_conv_fixtures(cid);
+    NB_VERBOSE_PRINTF("NONBLOCKING_WARMUP_READY cid=%d ok=%d\n", cid, warm_ok ? 1 : 0);
+    TRACE_PRINTF("[rerocc-nonblocking][trace] cid=%d warmup barrier enter ok=%d\n", cid, warm_ok ? 1 : 0);
+    barrier_wait(logical_cores);
+    TRACE_PRINTF("[rerocc-nonblocking][trace] cid=%d warmup barrier exit\n", cid);
+    NB_VERBOSE_PRINTF("NONBLOCKING_WARMUP_BARRIER_DONE cid=%d\n", cid);
+    if (!warm_ok) {
+      if (cid == 0) {
+        NB_PRINTF("[rerocc-nonblocking] FAIL: conv fixture warmup failed\n");
+        exit(1);
+      }
+      while (1) {
+        asm volatile("wfi");
+      }
+    }
     if (cid == 0) {
-      printf("[rerocc-nonblocking] FAIL: conv fixture warmup failed\n");
-      exit(1);
-    }
-    while (1) {
-      asm volatile("wfi");
+      NB_VERBOSE_PRINTF("NONBLOCKING_WARMUP_OK\n");
     }
   }
-  if (cid == 0) {
-    printf("[rerocc-nonblocking] warmup_done\n");
+
+  bool s1 = true;
+  if (REROCC_NONBLOCKING_RUN_S1) {
+    if (cid == 0) {
+      NB_VERBOSE_PRINTF("SCEN_BEGIN s1\n");
+    }
+    s1 = run_overlap_scenario(cid, logical_cores,
+      "s1",
+      JOB_CONV_G0, REROCC_LONG_CONV_ITERS,
+      JOB_DMA_D0, REROCC_SHORT_DMA_ITERS);
+    if (cid == 0) {
+      NB_VERBOSE_PRINTF("SCEN_DONE s1 ok=%d\n", s1 ? 1 : 0);
+    }
   }
 
-  bool s1 = run_overlap_scenario(cid, logical_cores,
-    "conv_dma_parallel_nonblocking",
-    JOB_CONV_G0, REROCC_LONG_CONV_ITERS,
-    JOB_DMA_D0, REROCC_SHORT_DMA_ITERS);
+  bool s2 = true;
+  if (REROCC_NONBLOCKING_RUN_S2) {
+    if (cid == 0) {
+      NB_VERBOSE_PRINTF("SCEN_BEGIN s2\n");
+    }
+    s2 = run_overlap_scenario(cid, logical_cores,
+      "s2",
+      JOB_RESADD_G0, REROCC_LONG_RESADD_ITERS,
+      JOB_DMA_D0, REROCC_SHORT_DMA_ITERS);
+    if (cid == 0) {
+      NB_VERBOSE_PRINTF("SCEN_DONE s2 ok=%d\n", s2 ? 1 : 0);
+    }
+  }
 
-  bool s2 = run_overlap_scenario(cid, logical_cores,
-    "resadd_dma_parallel_nonblocking",
-    JOB_RESADD_G0, REROCC_LONG_RESADD_ITERS,
-    JOB_DMA_D0, REROCC_SHORT_DMA_ITERS);
+  bool s3 = true;
+  if (REROCC_NONBLOCKING_RUN_S3) {
+    if (cid == 0) {
+      NB_VERBOSE_PRINTF("SCEN_BEGIN s3\n");
+    }
+    s3 = run_overlap_scenario(cid, logical_cores,
+      "s3",
+      JOB_CONV_G0, REROCC_LONG_CONV_ITERS,
+      JOB_CONV_G1, REROCC_SHORT_CONV_ITERS);
+    if (cid == 0) {
+      NB_VERBOSE_PRINTF("SCEN_DONE s3 ok=%d\n", s3 ? 1 : 0);
+    }
+  }
 
-  bool s3 = run_overlap_scenario(cid, logical_cores,
-    "conv_g0_vs_conv_g1_nonblocking",
-    JOB_CONV_G0, REROCC_LONG_CONV_ITERS,
-    JOB_CONV_G1, REROCC_SHORT_CONV_ITERS);
-
-  bool s4 = run_overlap_scenario(cid, logical_cores,
-    "dma_d0_vs_dma_d1_nonblocking",
-    JOB_DMA_D0, REROCC_LONG_DMA_ITERS,
-    JOB_DMA_D1, REROCC_SHORT_DMA_ITERS);
+  bool s4 = true;
+  if (REROCC_NONBLOCKING_RUN_S4) {
+    if (cid == 0) {
+      NB_VERBOSE_PRINTF("SCEN_BEGIN s4\n");
+    }
+    s4 = run_overlap_scenario(cid, logical_cores,
+      "s4",
+      JOB_DMA_D0, REROCC_LONG_DMA_ITERS,
+      JOB_DMA_D1, REROCC_SHORT_DMA_ITERS);
+    if (cid == 0) {
+      NB_VERBOSE_PRINTF("SCEN_DONE s4 ok=%d\n", s4 ? 1 : 0);
+    }
+  }
 
   barrier_wait(logical_cores);
   if (cid != 0) {
@@ -818,13 +1009,13 @@ void thread_entry(int cid, int nc) {
   rr_release_all(RR_MAX_CFGS);
 
   bool pass = s1 && s2 && s3 && s4;
-  printf("NONBLOCKING_SUMMARY s1=%d s2=%d s3=%d s4=%d\n",
-    s1 ? 1 : 0, s2 ? 1 : 0, s3 ? 1 : 0, s4 ? 1 : 0);
+  NB_PRINTF("NONBLOCKING_SUMMARY s1=%d s2=%d s3=%d s4=%d\n",
+            s1 ? 1 : 0, s2 ? 1 : 0, s3 ? 1 : 0, s4 ? 1 : 0);
   if (pass) {
-    printf("ALL_TESTS_PASS\n");
+    NB_PRINTF("ALL_TESTS_PASS\n");
     exit(0);
   }
-  printf("ALL_TESTS_FAIL\n");
+  NB_PRINTF("ALL_TESTS_FAIL\n");
   exit(1);
 }
 

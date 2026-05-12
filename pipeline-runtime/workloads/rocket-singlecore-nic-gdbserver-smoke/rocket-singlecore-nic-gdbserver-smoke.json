@@ -1,0 +1,19 @@
+{
+  "name": "rocket-singlecore-nic-gdbserver-smoke",
+  "base": "br-base.json",
+  "workdir": ".",
+  "distro": {
+    "name": "br",
+    "opts": {
+      "configs": [
+        "../../../rerocc-linux-tests-coupleddma/workload/linux_gdbserver.kfrag"
+      ]
+    }
+  },
+  "overlay": "overlay",
+  "outputs": [
+    "/root/gdbserver-smoke/gdbserver.info",
+    "/root/gdbserver-smoke/gdbserver.log"
+  ],
+  "run": "run_gdbserver_smoke.sh"
+}
