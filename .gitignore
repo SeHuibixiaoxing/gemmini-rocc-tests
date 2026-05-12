@@ -25,5 +25,8 @@ rerocc-linux-tests/workload/overlay/root/rerocc-linux-tests/*-linux
 rerocc-linux-tests/workload/overlay/root/rerocc-linux-tests/pipeline-runtime/*-linux
 rerocc-linux-tests-coupleddma/*-linux
 rerocc-linux-tests-coupleddma/.pipeline_runtime_objs/
+rerocc-linux-tests-coupleddma/workload/overlay/firemarshal.env
 rerocc-linux-tests-coupleddma/workload/overlay/root/rerocc-linux-tests-coupleddma/*-linux
+rerocc-linux-tests-coupleddma/workload/overlay/root/rerocc-linux-tests/*-linux
+rerocc-linux-tests-coupleddma/workload/overlay/root/rerocc-linux-tests/*.sh
 rerocc-linux-tests-coupleddma/workload/overlay/root/rerocc-linux-tests/pipeline-runtime/*-linux
